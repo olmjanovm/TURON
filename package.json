@@ -1,0 +1,24 @@
+{
+  "name": "turon-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Production-grade TWA Food Delivery Platform",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev -w apps/api",
+    "dev:bot": "npm run dev -w apps/bot",
+    "dev:miniapp": "npm run dev -w apps/miniapp",
+    "db:generate": "npm run prisma:generate -w apps/api",
+    "db:migrate": "npm run prisma:migrate -w apps/api",
+    "db:seed": "npm run prisma:seed -w apps/api",
+    "db:studio": "npm run prisma:studio -w apps/api",
+    "build": "npm run build --workspaces"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "tsx": "^4.0.0"
+  }
+}

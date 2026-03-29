@@ -1,0 +1,141 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                Int               @id @default(autoincrement())
+  telegramId        String            @unique
+  name              String
+  phone             String
+  language          String
+  isAdmin           Boolean           @default(false)
+  isCourier         Boolean           @default(false)
+  createdAt         DateTime          @default(now())
+  
+  orders            Order[]
+  deliveryAddresses DeliveryAddress[]
+  courier           Courier?
+}
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  name      String
+  sortOrder Int
+  
+  products  Product[]
+}
+
+model Product {
+  id            Int         @id @default(autoincrement())
+  categoryId    Int
+  name          String
+  description   String
+  price         Decimal
+  imageUrl      String
+  stockQuantity Int
+  isActive      Boolean     @default(true)
+  
+  category      Category    @relation(fields: [categoryId], references: [id])
+  orderItems    OrderItem[]
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+model PromoCode {
+  id            Int          @id @default(autoincrement())
+  code          String       @unique
+  discountType  DiscountType
+  discountValue Decimal
+  minOrderValue Decimal
+  startDate     DateTime
+  endDate       DateTime
+  usageLimit    Int?
+  timesUsed     Int          @default(0)
+  isActive      Boolean      @default(true)
+  
+  orders        Order[]
+}
+
+enum OrderStatus {
+  PENDING
+  PREPARING
+  DELIVERING
+  DELIVERED
+  CANCELED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  CANCELLED
+}
+
+model Order {
+  id            Int           @id @default(autoincrement())
+  userId        Int
+  status        OrderStatus
+  totalPrice    Decimal
+  paymentStatus PaymentStatus
+  paymentMethod String?
+  paymentProvider String?
+  promoCodeId   Int?
+  courierId     Int?
+  addressId     Int?
+  createdAt     DateTime      @default(now())
+  
+  user          User          @relation(fields: [userId], references: [id])
+  promoCode     PromoCode?    @relation(fields: [promoCodeId], references: [id])
+  courier       Courier?      @relation(fields: [courierId], references: [id])
+  address       DeliveryAddress? @relation(fields: [addressId], references: [id])
+  orderItems    OrderItem[]
+}
+
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  orderId   Int
+  productId Int
+  quantity  Int
+  unitPrice Decimal
+  
+  order     Order   @relation(fields: [orderId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model DeliveryAddress {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  label       String
+  addressText String
+  latitude    Decimal?
+  longitude   Decimal?
+  
+  user        User     @relation(fields: [userId], references: [id])
+  orders      Order[]
+}
+
+enum CourierStatus {
+  AVAILABLE
+  BUSY
+  OFFLINE
+}
+
+model Courier {
+  id        Int           @id @default(autoincrement())
+  userId    Int           @unique
+  status    CourierStatus
+  createdAt DateTime      @default(now())
+  
+  user      User          @relation(fields: [userId], references: [id])
+  orders    Order[]
+}

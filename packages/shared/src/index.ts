@@ -1,0 +1,61 @@
+export enum UserRoleEnum {
+  CUSTOMER = 'CUSTOMER',
+  ADMIN = 'ADMIN',
+  COURIER = 'COURIER'
+}
+
+export enum LanguageEnum {
+  UZ = 'UZ',
+  RU = 'RU',
+  EN = 'EN'
+}
+
+export enum OrderStatusEnum {
+  PENDING = 'PENDING',
+  PREPARING = 'PREPARING',
+  READY_FOR_PICKUP = 'READY_FOR_PICKUP',
+  DELIVERING = 'DELIVERING',
+  DELIVERED = 'DELIVERED',
+  CANCELLED = 'CANCELLED'
+}
+
+export enum PaymentMethodEnum {
+  CASH = 'CASH',
+  MANUAL_TRANSFER = 'MANUAL_TRANSFER',
+  EXTERNAL_PAYMENT = 'EXTERNAL_PAYMENT'
+}
+
+export enum PaymentStatusEnum {
+  PENDING = 'PENDING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+  CANCELLED = 'CANCELLED'
+}
+
+export enum PromoDiscountTypeEnum {
+  PERCENTAGE = 'PERCENTAGE',
+  FIXED_AMOUNT = 'FIXED_AMOUNT'
+}
+
+export enum NotificationTypeEnum {
+  ORDER_STATUS_UPDATE = 'ORDER_STATUS_UPDATE',
+  PROMO_CAMPAIGN = 'PROMO_CAMPAIGN',
+  ADMIN_NOTICE = 'ADMIN_NOTICE'
+}
+
+export enum CourierAssignmentStatusEnum {
+  ASSIGNED = 'ASSIGNED',
+  REJECTED = 'REJECTED',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED'
+}
+
+export enum DeliveryStageEnum {
+  IDLE = 'IDLE',
+  GOING_TO_RESTAURANT = 'GOING_TO_RESTAURANT',
+  ARRIVED_AT_RESTAURANT = 'ARRIVED_AT_RESTAURANT',
+  PICKED_UP = 'PICKED_UP',
+  DELIVERING = 'DELIVERING',
+  ARRIVED_AT_DESTINATION = 'ARRIVED_AT_DESTINATION',
+  DELIVERED = 'DELIVERED'
+}
