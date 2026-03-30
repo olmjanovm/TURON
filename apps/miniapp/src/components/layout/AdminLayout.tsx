@@ -7,9 +7,13 @@ import {
   Clock, 
   Settings,
   Bell,
-  Search
+  Search,
+  Truck,
+  UtensilsCrossed
 } from 'lucide-react';
 import { useOrdersStore } from '../../store/useOrdersStore';
+import NotificationBadge from '../../features/notifications/components/NotificationBadge';
+import { UserRoleEnum } from '@turon/shared';
 
 const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
@@ -60,9 +64,12 @@ const AdminLayout: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-           <button className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 relative">
+           <button 
+             onClick={() => navigate('/admin/notifications')}
+             className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 relative active:scale-95 transition-transform"
+           >
              <Bell size={20} />
-             {newOrdersCount > 0 && <div className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white" />}
+             <NotificationBadge role={UserRoleEnum.ADMIN} />
            </button>
            <button className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400">
              <Search size={20} />
@@ -89,14 +96,19 @@ const AdminLayout: React.FC = () => {
           badge={newOrdersCount}
         />
         <NavItem 
+          path="/admin/menu" 
+          icon={<UtensilsCrossed size={24} />} 
+          label="Menyu" 
+        />
+        <NavItem 
           path="/admin/couriers" 
           icon={<Truck size={24} />} 
           label="Kuryerlar" 
         />
         <NavItem 
-          path="/admin/users" 
-          icon={<Users size={24} />} 
-          label="Mijozlar" 
+          path="/admin/promos" 
+          icon={<Settings size={24} />} 
+          label="Aksiyalar" 
         />
       </nav>
     </div>

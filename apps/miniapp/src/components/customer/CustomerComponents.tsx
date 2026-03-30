@@ -1,38 +1,62 @@
 import React from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { Plus, Minus, ShoppingBag, X, ChevronLeft, Home, ClipboardList, ShoppingCart } from 'lucide-react';
-import { Product, Category } from '../../data/mockData';
+import { Plus, Minus, ShoppingBag, X, ChevronLeft, Home, ClipboardList, ShoppingCart, Bell } from 'lucide-react';
+import { Product } from '../../data/mockData';
+import { MenuCategory, MenuProduct } from '../../features/menu/types';
+import { ProductAvailabilityEnum } from '@turon/shared';
 import { useCartStore } from '../../store/useCartStore';
+import NotificationBadge from '../../features/notifications/components/NotificationBadge';
+import { UserRoleEnum } from '@turon/shared';
 
-export const CategoryCard: React.FC<{ category: Category }> = ({ category }) => (
+// Support both old Product type (for cart items) and new MenuCategory/MenuProduct
+
+export const CategoryCard: React.FC<{ category: MenuCategory }> = ({ category }) => (
   <NavLink 
     to={`/customer/category/${category.id}`}
     className="flex flex-col items-center min-w-[80px] space-y-2 group active:scale-95 transition-transform"
   >
     <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-white shadow-md group-active:border-amber-500 bg-white">
-      <img src={category.image} alt={category.name} className="w-full h-full object-cover" />
+      {category.imageUrl ? (
+        <img src={category.imageUrl} alt={category.name} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center bg-amber-50 text-xl">📂</div>
+      )}
     </div>
     <span className="text-[11px] font-bold text-gray-700 uppercase text-center overflow-hidden w-full px-1">{category.name}</span>
   </NavLink>
 );
 
-export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
+export const ProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
   const { addToCart, items } = useCartStore();
   const quantityInCart = items.find(item => item.id === product.id)?.quantity || 0;
+  const isAvailable = product.isActive && product.availability === ProductAvailabilityEnum.AVAILABLE;
 
   const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    addToCart(product);
+    if (!isAvailable) return;
+    // Snapshot product data into cart
+    addToCart({ id: product.id, categoryId: product.categoryId, name: product.name, description: product.description, price: product.price, image: product.imageUrl });
   };
 
   return (
-    <div className="bg-white rounded-3xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 flex flex-col h-full active:scale-98 transition-transform">
+    <div className={`bg-white rounded-3xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 flex flex-col h-full active:scale-98 transition-transform ${!isAvailable ? 'opacity-60' : ''}`}>
       <NavLink to={`/customer/product/${product.id}`} className="relative h-44 overflow-hidden">
-        <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+        {product.imageUrl ? (
+          <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+        ) : (
+          <div className="w-full h-full bg-amber-50 flex items-center justify-center text-3xl">🍽️</div>
+        )}
         <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-md px-2.5 py-1.5 rounded-xl shadow-sm border border-white/20">
           <span className="text-[13px] font-black text-amber-600 tracking-tight">{product.price.toLocaleString()} so'm</span>
         </div>
+        {!isAvailable && (
+          <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+            <span className="bg-red-500/90 text-white text-[10px] font-bold uppercase px-2 py-1 rounded-lg">
+              {product.availability === ProductAvailabilityEnum.TEMPORARILY_UNAVAILABLE ? 'Vaqtincha yo\'q' : 'Tugagan'}
+            </span>
+          </div>
+        )}
       </NavLink>
       
       <div className="p-4 flex flex-col flex-1">
@@ -41,14 +65,19 @@ export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
         
         <button 
           onClick={handleAdd}
+          disabled={!isAvailable}
           className={`
             w-full h-11 rounded-2xl flex items-center justify-center gap-2 font-bold text-[13px] transition-all
-            ${quantityInCart > 0 
-              ? 'bg-amber-50 text-amber-600 border border-amber-100' 
-              : 'bg-amber-500 text-white shadow-lg shadow-amber-200 active:bg-amber-600'}
+            ${!isAvailable 
+              ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
+              : quantityInCart > 0 
+                ? 'bg-amber-50 text-amber-600 border border-amber-100' 
+                : 'bg-amber-500 text-white shadow-lg shadow-amber-200 active:bg-amber-600'}
           `}
         >
-          {quantityInCart > 0 ? (
+          {!isAvailable ? (
+            'Mavjud emas'
+          ) : quantityInCart > 0 ? (
             <>
               <ShoppingBag size={16} />
               Savatda ({quantityInCart})
@@ -56,7 +85,7 @@ export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
           ) : (
             <>
               <Plus size={16} />
-              Qo’shish
+              Qo'shish
             </>
           )}
         </button>
@@ -87,10 +116,10 @@ export const QuantitySelector: React.FC<{
   </div>
 );
 
-export const ProductGrid: React.FC<{ products: Product[] }> = ({ products }) => (
+export const ProductGrid: React.FC<{ products: (Product | MenuProduct)[] }> = ({ products }) => (
   <div className="grid grid-cols-2 gap-4 pb-4">
     {products.map(product => (
-      <ProductCard key={product.id} product={product} />
+      <ProductCard key={product.id} product={product as MenuProduct} />
     ))}
   </div>
 );
@@ -102,7 +131,11 @@ export const CartItemCard: React.FC<{
 }> = ({ item, onUpdateQuantity, onRemove }) => (
   <div className="bg-white rounded-[28px] p-3 shadow-sm border border-gray-50 flex gap-4 items-center animate-in slide-in-from-left duration-300">
     <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0">
-      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+      {item.image ? (
+        <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+      ) : (
+        <div className="w-full h-full bg-amber-50 flex items-center justify-center text-xl">🍽️</div>
+      )}
     </div>
     <div className="flex-1 min-w-0">
       <div className="flex justify-between items-start mb-1">
@@ -161,10 +194,11 @@ export const BottomNavbar: React.FC = () => {
     { icon: Home, label: 'Asosiy', path: '/customer' },
     { icon: ShoppingCart, label: 'Savat', path: '/customer/cart', badge: cartCount },
     { icon: ClipboardList, label: 'Buyurtmalar', path: '/customer/orders' },
+    { icon: Bell, label: 'Xabarlar', path: '/customer/notifications', isNotification: true },
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-gray-100 flex justify-around items-center h-20 pb-2 shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-gray-100 flex justify-around items-center h-20 pb-2 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] px-1">
       {navItems.map((item) => {
         const Icon = item.icon;
         const isActive = location.pathname === item.path || (item.path === '/customer' && (location.pathname.startsWith('/customer/category') || location.pathname.startsWith('/customer/product')));
@@ -176,10 +210,13 @@ export const BottomNavbar: React.FC = () => {
           >
             <div className={`p-2 rounded-2xl transition-all ${isActive ? 'bg-amber-50' : ''}`}>
               <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
-              {item.badge > 0 && (
+              {(item.badge || 0) > 0 && (
                 <span className="absolute top-1 right-1 bg-red-500 text-white text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center border-2 border-white animate-in zoom-in duration-300">
                   {item.badge}
                 </span>
+              )}
+              {item.isNotification && (
+                <NotificationBadge role={UserRoleEnum.CUSTOMER} />
               )}
             </div>
             <span className={`text-[10px] font-bold uppercase tracking-wider ${isActive ? 'opacity-100' : 'opacity-60'}`}>{item.label}</span>

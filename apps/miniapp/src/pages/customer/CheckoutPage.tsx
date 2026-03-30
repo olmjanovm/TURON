@@ -1,73 +1,64 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCartStore } from '../../store/useCartStore';
 import { useCheckoutStore } from '../../store/useCheckoutStore';
-import { useOrdersStore } from '../../store/useOrdersStore';
 import { useAddressStore } from '../../store/useAddressStore';
 import { CheckoutSectionCard, CheckoutNoteField, EmptyCartState } from '../../components/customer/CheckoutComponents';
 import { SelectedAddressCard } from '../../components/customer/AddressComponents';
 import PaymentMethodSelector from '../../components/customer/PaymentMethodSelector';
 import OrderSummaryCard from '../../components/customer/OrderSummaryCard';
-import { MapPin, CreditCard, ShoppingBag, CheckCircle2, ChevronRight, Plus } from 'lucide-react';
-import { Order } from '../../data/types';
+import { CustomerPromoInputCard } from '../../features/promo/components/CustomerPromoInputCard';
+import { CheckCircle2, Plus, Loader2 } from 'lucide-react';
+import { useCreateOrder } from '../../hooks/queries/useOrders';
 
 const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
-  const { items, getSubtotal, getDiscount, appliedPromo, getFinalTotal, clearCart } = useCartStore();
-  const { paymentMethod, note, deliveryFee, resetCheckout } = useCheckoutStore();
-  const { addOrder } = useOrdersStore();
+  const { items, getSubtotal, appliedPromo, clearCart } = useCartStore();
+  const { paymentMethod, note, resetCheckout } = useCheckoutStore();
   const { getSelectedAddress, setInitialDraft } = useAddressStore();
 
+  const createOrderMutation = useCreateOrder();
   const selectedAddress = getSelectedAddress();
   const subtotal = getSubtotal();
-  const discount = getDiscount();
-  const finalTotal = getFinalTotal(deliveryFee);
 
   if (items.length === 0) {
     return <EmptyCartState />;
   }
 
-  const handleConfirmOrder = () => {
-    // 1. Validation
-    if (!selectedAddress) {
-      alert('Iltimos, yetkazib berish manzilini tanlang!');
-      return;
-    }
-    if (!paymentMethod) {
-      alert('Iltimos, to\'lov turini tanlang!');
-      return;
-    }
+  const handleConfirmOrder = async () => {
+    if (!selectedAddress) return;
+    if (!paymentMethod) return;
 
-    // 2. Create Order Object
-    const order: Order = {
-      id: Math.random().toString(36).substr(2, 9),
-      orderNumber: `T${Math.floor(1000 + Math.random() * 9000)}`,
-      items: [...items],
-      subtotal,
-      discount,
-      deliveryFee,
-      total: finalTotal,
+    // Prepare API Payload (Hardened: only IDs and necessary data)
+    const payload = {
+      items: items.map(item => ({
+        menuItemId: item.id,
+        quantity: item.quantity
+      })),
+      deliveryAddressId: selectedAddress.id,
       paymentMethod,
-      paymentStatus: paymentMethod === 'CASH' ? 'PENDING' : 'PENDING_VERIFICATION',
       promoCode: appliedPromo?.code,
-      note: note || selectedAddress.note, // Use checkout note or address note
-      createdAt: new Date().toISOString(),
-      orderStatus: 'NEW',
-      customerAddress: selectedAddress,
+      note: note || selectedAddress.note
     };
 
-    // 3. Save Order
-    addOrder(order);
+    createOrderMutation.mutate(payload, {
+      onSuccess: (order: any) => {
+         // Haptic Feedback
+         if (window.Telegram?.WebApp?.HapticFeedback) {
+           window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+         }
 
-    // 4. Cleanup
-    clearCart();
-    resetCheckout();
+         // Cleanup Store
+         clearCart();
+         resetCheckout();
 
-    // 5. Navigate
-    if (window.Telegram?.WebApp?.HapticFeedback) {
-      window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-    }
-    navigate('/customer/order-success', { state: { order } });
+         // Navigate
+         navigate('/customer/order-success', { state: { order } });
+      },
+      onError: (error: any) => {
+         alert(error.message || 'Buyurtma berishda xatolik yuz berdi');
+      }
+    });
   };
 
   const handleAddNewAddress = () => {
@@ -122,6 +113,9 @@ const CheckoutPage: React.FC = () => {
         <CheckoutNoteField />
       </CheckoutSectionCard>
 
+      {/* Promo Code Section */}
+      <CustomerPromoInputCard subtotal={subtotal} />
+
       {/* Totals Summary */}
       <OrderSummaryCard />
 
@@ -129,11 +123,20 @@ const CheckoutPage: React.FC = () => {
       <div className="fixed bottom-24 left-0 right-0 px-6 z-40 bg-gradient-to-t from-gray-50 via-gray-50/90 to-transparent pt-10 pb-2">
         <button 
           onClick={handleConfirmOrder}
-          disabled={!paymentMethod || !selectedAddress}
+          disabled={!paymentMethod || !selectedAddress || createOrderMutation.isPending}
           className="w-full h-16 bg-amber-600 text-white rounded-[28px] font-black text-lg shadow-2xl shadow-amber-200 active:bg-amber-700 active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-50 transition-all"
         >
-          <span>Buyurtmani Tasdiqlash</span>
-          <CheckCircle2 size={24} />
+          {createOrderMutation.isPending ? (
+            <>
+              <Loader2 className="animate-spin" size={24} />
+              <span>Yuborilmoqda...</span>
+            </>
+          ) : (
+            <>
+              <span>Buyurtmani Tasdiqlash</span>
+              <CheckCircle2 size={24} />
+            </>
+          )}
         </button>
         {!selectedAddress && (
            <p className="text-center text-red-500 text-[10px] uppercase font-bold tracking-widest mt-3 animate-pulse">

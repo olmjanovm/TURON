@@ -1,32 +1,16 @@
+import { 
+  OrderStatusEnum as OrderStatus, 
+  PaymentMethodEnum as PaymentMethod, 
+  PaymentStatusEnum as PaymentStatus, 
+  DeliveryStageEnum as DeliveryStage,
+  PromoDiscountTypeEnum as DiscountType
+} from '@turon/shared';
 import { Product } from './mockData';
 
-export type DeliveryStage = 
-  | 'IDLE' 
-  | 'ACCEPTED' 
-  | 'ARRIVED_AT_RESTAURANT' 
-  | 'PICKED_UP' 
-  | 'ON_THE_WAY' 
-  | 'DELIVERED';
-
-export type OrderStatus = 
-  | 'NEW' 
-  | 'ACCEPTED' 
-  | 'PREPARING' 
-  | 'READY' 
-  | 'PICKED_UP' 
-  | 'DELIVERING' 
-  | 'DELIVERED' 
-  | 'CANCELLED';
-
-export type PaymentStatus = 'PENDING' | 'PAID' | 'CANCELLED' | 'REFUNDED' | 'PENDING_VERIFICATION';
-
-export type PaymentMethod = 'CASH' | 'ONLINE' | 'CARD_ON_DELIVERY';
-
+export { OrderStatus, PaymentMethod, PaymentStatus, DeliveryStage, DiscountType };
 export interface CartItem extends Product {
   quantity: number;
 }
-
-export type DiscountType = 'PERCENT' | 'FIXED';
 
 export interface Promo {
   id: string;
@@ -65,6 +49,12 @@ export interface Order {
   customerAddress?: Address;
   courierId?: string;
   courierName?: string;
+  deliveryStage?: DeliveryStage;
+  verificationStatus?: boolean;
+  verifiedByAdmin?: string;
+  verifiedAt?: string;
+  paymentReference?: string;
+  externalTransactionId?: string;
 }
 
 export interface PromoValidationResult {

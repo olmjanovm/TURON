@@ -1,0 +1,115 @@
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useNotificationStore } from '../../../store/useNotificationStore';
+import { AppNotification } from '../notificationTypes';
+import { formatDistanceToNow } from 'date-fns';
+import { uz } from 'date-fns/locale';
+import { Bell, CheckCircle2, AlertCircle, Info, Package, Truck, CreditCard, ChevronRight } from 'lucide-react';
+import { NotificationTypeEnum, UserRoleEnum } from '@turon/shared';
+
+interface NotificationListProps {
+  role: UserRoleEnum;
+}
+
+const NotificationList: React.FC<NotificationListProps> = ({ role }) => {
+  const navigate = useNavigate();
+  const notifications = useNotificationStore((state) => state.getNotificationsByRole(role));
+  const markAsRead = useNotificationStore((state) => state.markAsRead);
+  const markAllAsRead = useNotificationStore((state) => state.markAllAsRead);
+
+  const getIcon = (type: NotificationTypeEnum) => {
+    switch (type) {
+      case NotificationTypeEnum.SUCCESS: return <CheckCircle2 className="text-green-500" size={20} />;
+      case NotificationTypeEnum.WARNING: return <AlertCircle className="text-amber-500" size={20} />;
+      case NotificationTypeEnum.ERROR: return <AlertCircle className="text-red-500" size={20} />;
+      case NotificationTypeEnum.ORDER_STATUS_UPDATE: return <Package className="text-blue-500" size={20} />;
+      case NotificationTypeEnum.INFO:
+      default: return <Info className="text-slate-400" size={20} />;
+    }
+  };
+
+  const handleNotificationClick = (notification: AppNotification) => {
+    markAsRead(notification.id);
+    if (notification.actionRoute) {
+      navigate(notification.actionRoute);
+    }
+  };
+
+  if (notifications.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+        <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+          <Bell size={32} className="text-slate-300" />
+        </div>
+        <h3 className="text-lg font-bold text-slate-800 mb-1">Hozircha bildirishnomalar yo'q</h3>
+        <p className="text-sm text-slate-500">Yangi xabarlar kelishi bilan bu yerda paydo bo'ladi.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center px-1 mb-2">
+        <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">Bildirishnomalar ({notifications.length})</span>
+        <button 
+          onClick={() => markAllAsRead(role)}
+          className="text-[11px] font-black uppercase tracking-widest text-amber-600 active:text-amber-700"
+        >
+          Barchasini o'qish
+        </button>
+      </div>
+
+      <div className="space-y-3 pb-20">
+        {notifications.map((notification) => (
+          <div 
+            key={notification.id}
+            onClick={() => handleNotificationClick(notification)}
+            className={`
+              relative p-4 rounded-[24px] border-2 transition-all active:scale-[0.98] cursor-pointer
+              ${notification.isRead 
+                ? 'bg-white border-slate-50 opacity-80' 
+                : 'bg-white border-amber-100 shadow-lg shadow-amber-50'
+              }
+            `}
+          >
+            {!notification.isRead && (
+              <div className="absolute top-4 right-4 w-2 h-2 bg-amber-500 rounded-full" />
+            )}
+            
+            <div className="flex gap-4">
+              <div className={`
+                w-10 h-10 rounded-full flex items-center justify-center shrink-0
+                ${notification.isRead ? 'bg-slate-50' : 'bg-amber-50'}
+              `}>
+                {getIcon(notification.type)}
+              </div>
+              
+              <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-start mb-0.5">
+                  <h4 className={`text-sm font-bold truncate ${notification.isRead ? 'text-slate-600' : 'text-slate-900'}`}>
+                    {notification.title}
+                  </h4>
+                  <span className="text-[10px] text-slate-400 whitespace-nowrap ml-2">
+                    {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true, locale: uz })}
+                  </span>
+                </div>
+                <p className={`text-xs leading-relaxed ${notification.isRead ? 'text-slate-500' : 'text-slate-700'}`}>
+                  {notification.message}
+                </p>
+                
+                {notification.actionRoute && (
+                  <div className="mt-3 flex items-center gap-1 text-[10px] font-black uppercase tracking-tighter text-amber-600">
+                    <span>Batafsil ko'rish</span>
+                    <ChevronRight size={12} />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default NotificationList;

@@ -2,6 +2,7 @@ import React from 'react';
 import { useCartStore } from '../../store/useCartStore';
 import { useCheckoutStore } from '../../store/useCheckoutStore';
 import { ShoppingBag, Truck, Tag, CreditCard } from 'lucide-react';
+import { PaymentMethod } from '../../data/types';
 
 const OrderSummaryCard: React.FC = () => {
   const { getSubtotal, getDiscount, appliedPromo, getFinalTotal, items } = useCartStore();
@@ -55,7 +56,7 @@ const OrderSummaryCard: React.FC = () => {
       {/* Mini info about payment */}
       <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-tighter text-gray-400 justify-center pt-2">
          <CreditCard size={12} />
-         <span>To'lov turi: {paymentMethod === 'CASH' ? 'Naqd pul' : (paymentMethod === 'ONLINE' ? 'Online' : 'Karta')}</span>
+         <span>To'lov turi: {paymentMethod === PaymentMethod.CASH ? 'Naqd pul' : (paymentMethod === PaymentMethod.EXTERNAL_PAYMENT ? 'Online' : 'Karta')}</span>
       </div>
     </div>
   );

@@ -7,12 +7,24 @@ import {
   Settings,
   Bell,
   Search,
-  Map as MapIcon
+  Map as MapIcon,
+  Truck
 } from 'lucide-react';
+import NotificationBadge from '../../features/notifications/components/NotificationBadge';
+import { UserRoleEnum } from '@turon/shared';
+import { useOrdersStore } from '../../store/useOrdersStore';
+import { useAuthStore } from '../../store/useAuthStore';
 
 const CourierLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { orders } = useOrdersStore();
+  const { user } = useAuthStore();
+  
+  // Active delivery check
+  const activeDelivery = orders.find(
+    o => o.courierId === user?.id && ['PICKED_UP', 'ON_THE_WAY'].includes(o.orderStatus)
+  );
 
   const NavItem: React.FC<{ 
     path: string; 
@@ -52,8 +64,12 @@ const CourierLayout: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-             <button className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 relative">
+             <button 
+               onClick={() => navigate('/courier/notifications')}
+               className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 relative active:scale-95 transition-transform"
+             >
                <Bell size={20} />
+               <NotificationBadge role={UserRoleEnum.COURIER} />
              </button>
              <div className="w-10 h-10 bg-slate-100 rounded-full border-2 border-white overflow-hidden shadow-sm">
                 <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Courier" alt="Avatar" />
@@ -64,6 +80,24 @@ const CourierLayout: React.FC = () => {
 
       {/* Main Content Area */}
       <main className={`flex-1 ${!location.pathname.includes('/map/') ? 'mt-20' : ''} h-full w-full relative`}>
+        {/* Active Delivery Shortcut Banner */}
+        {!location.pathname.includes('/map/') && activeDelivery && (
+          <div className="mx-6 mt-4 mb-2 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-4 shadow-lg shadow-emerald-200 flex items-center justify-between text-white cursor-pointer active:scale-95 transition-transform" onClick={() => navigate(`/courier/map/${activeDelivery.id}`)}>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                 <Truck size={20} className="text-white animate-bounce" />
+              </div>
+              <div className="flex flex-col">
+                 <span className="text-[10px] font-bold uppercase tracking-widest text-white/80">Faol yetkazib berish</span>
+                 <span className="font-black">Buyurtma {activeDelivery.orderNumber}</span>
+              </div>
+            </div>
+            <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+               <Navigation size={16} />
+            </div>
+          </div>
+        )}
+        
         <Outlet />
       </main>
 

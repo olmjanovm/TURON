@@ -4,7 +4,7 @@ import { useCartStore } from '../../store/useCartStore';
 import { useCheckoutStore } from '../../store/useCheckoutStore';
 import { CartItemCard } from '../../components/customer/CustomerComponents';
 import { EmptyCartState } from '../../components/customer/CheckoutComponents';
-import PromoCodeCard from '../../components/customer/PromoCodeCard';
+import { CustomerPromoInputCard } from '../../features/promo/components/CustomerPromoInputCard';
 import { ArrowRight, Trash2, ShoppingBag } from 'lucide-react';
 
 const CartPage: React.FC = () => {
@@ -49,7 +49,7 @@ const CartPage: React.FC = () => {
       </section>
 
       {/* Promo Code Block */}
-      <PromoCodeCard />
+      <CustomerPromoInputCard subtotal={subtotal} />
 
       {/* Totals Summary */}
       <section className="bg-white rounded-[32px] p-6 shadow-sm border border-gray-100 space-y-4">

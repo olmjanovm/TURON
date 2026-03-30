@@ -1,12 +1,20 @@
 import React from 'react';
-import { MOCK_CATEGORIES, MOCK_PRODUCTS } from '../../data/mockData';
 import { CategoryCard, ProductCard, LoadingSkeleton } from '../../components/customer/CustomerComponents';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useCategories, useProducts } from '../../hooks/queries/useMenu';
 
 const HomePage: React.FC = () => {
   const { user } = useAuthStore();
-  const userName = user?.name || 'Mijoz';
-  const featuredProducts = MOCK_PRODUCTS.slice(0, 4);
+  const userName = (user as any)?.firstName || (user as any)?.name || 'Mijoz';
+
+  const { data: categories = [], isLoading: isLoadingCategories } = useCategories();
+  const { data: products = [], isLoading: isLoadingProducts } = useProducts();
+
+  const featuredProducts = products.slice(0, 4);
+
+  if (isLoadingCategories || isLoadingProducts) {
+    return <LoadingSkeleton />;
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -28,9 +36,13 @@ const HomePage: React.FC = () => {
           <span className="text-[11px] font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg">Barchasi</span>
         </div>
         <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-1 px-1">
-          {MOCK_CATEGORIES.map(category => (
-            <CategoryCard key={category.id} category={category} />
-          ))}
+          {categories.length > 0 ? (
+            categories.map((category: any) => (
+              <CategoryCard key={category.id} category={category} />
+            ))
+          ) : (
+             <p className="text-gray-400 text-sm italic">Hozircha kategoriyalar yo'q</p>
+          )}
         </div>
       </section>
 
@@ -42,11 +54,11 @@ const HomePage: React.FC = () => {
         </div>
         <div className="grid grid-cols-2 gap-4">
           {featuredProducts.length > 0 ? (
-            featuredProducts.map(product => (
+            featuredProducts.map((product: any) => (
               <ProductCard key={product.id} product={product} />
             ))
           ) : (
-            <LoadingSkeleton />
+            <p className="text-gray-400 text-sm italic col-span-2 text-center">Taomlar topilmadi</p>
           )}
         </div>
       </section>

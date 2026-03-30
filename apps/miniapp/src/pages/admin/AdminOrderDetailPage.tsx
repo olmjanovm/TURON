@@ -14,13 +14,17 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { useOrdersStore } from '../../store/useOrdersStore';
-import { StatusActionButtons, CourierAssignModal } from '../../components/admin/AdminComponents';
+import { 
+  StatusActionButtons, 
+  CourierAssignModal, 
+  PaymentVerificationCard 
+} from '../../components/admin/AdminComponents';
 import { getStatusLabel, getStatusColor } from '../../lib/orderStatusUtils';
 
 const AdminOrderDetailPage: React.FC = () => {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
-  const { getOrderById, updateOrderStatus, assignCourier } = useOrdersStore();
+  const { getOrderById, updateOrderStatus, verifyPayment, rejectPayment, assignCourier } = useOrdersStore();
   
   const [order, setOrder] = useState(orderId ? getOrderById(orderId) : undefined);
   const [isCourierModalOpen, setIsCourierModalOpen] = useState(false);
@@ -35,7 +39,7 @@ const AdminOrderDetailPage: React.FC = () => {
   if (!order) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
-        <h3 className="text-xl font-black text-slate-900 mb-2 italic uppercase">Buyurtma topilmadi</h3>
+        <h3 className="text-xl font-black text-slate-900 mb-2 italic uppercase tracking-tighter italic">Buyurtma topilmadi</h3>
         <button onClick={() => navigate('/admin/orders')} className="text-blue-500 font-bold uppercase tracking-widest text-[10px]">Ro'yxatga qaytish</button>
       </div>
     );
@@ -46,6 +50,21 @@ const AdminOrderDetailPage: React.FC = () => {
     setOrder({ ...order, orderStatus: next as any });
     if (window.Telegram?.WebApp?.HapticFeedback) {
       window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
+    }
+  };
+
+  const handleApprovePayment = () => {
+    verifyPayment(order.id, 'Admin'); // Mock admin name for now
+    setOrder({ ...order, paymentStatus: 'PAID', verificationStatus: true });
+    if (window.Telegram?.WebApp?.HapticFeedback) {
+      window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+    }
+  };
+
+  const handleRejectPayment = () => {
+    if (confirm('Ushbu to\'lovni rad etsangiz, buyurtma ham bekor qilinadi. Davom etasizmi?')) {
+      rejectPayment(order.id);
+      handleStatusUpdate('CANCELLED');
     }
   };
 
@@ -105,6 +124,13 @@ const AdminOrderDetailPage: React.FC = () => {
           onCancel={handleCancel} 
         />
       </div>
+
+      {/* Payment Verification Section (Anti-Fraud Check) */}
+      <PaymentVerificationCard 
+        order={order} 
+        onApprove={handleApprovePayment} 
+        onReject={handleRejectPayment} 
+      />
 
       {/* Courier Assignment */}
       <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm">

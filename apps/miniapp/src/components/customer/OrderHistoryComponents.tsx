@@ -63,7 +63,16 @@ export const OrderCard: React.FC<{ order: Order; onClick: () => void }> = ({ ord
       <div className="pt-4 border-t border-slate-50 flex items-center justify-between">
         <div className="flex flex-col">
           <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Jami summa</span>
-          <span className="font-black text-slate-900">{order.total.toLocaleString()} so'm</span>
+          <div className="flex items-center gap-2">
+            <span className="font-black text-slate-900">{order.total.toLocaleString()} so'm</span>
+            {order.paymentMethod === 'EXTERNAL' && (
+              <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
+                order.paymentStatus === 'PAID' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+              }`}>
+                {order.paymentStatus === 'PAID' ? 'To\'langan' : 'Kutilmoqda'}
+              </span>
+            )}
+          </div>
         </div>
         <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400">
           <ChevronRight size={20} />

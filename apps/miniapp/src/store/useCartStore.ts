@@ -1,17 +1,18 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Product } from '../data/mockData';
-import { CartItem, Promo } from '../data/types';
-import { calculateDiscount } from '../lib/promoService';
+import { AdminPromo } from '../features/promo/types';
+import { validatePromo } from '../features/promo/discountEngine';
+import { CartItem } from '../data/types';
 
 interface CartState {
   items: CartItem[];
-  appliedPromo: Promo | null;
+  appliedPromo: AdminPromo | null;
   addToCart: (product: Product, quantity?: number) => void;
   removeFromCart: (productId: string) => void;
   updateQuantity: (productId: string, delta: number) => void;
   clearCart: () => void;
-  setPromo: (promo: Promo | null) => void;
+  setPromo: (promo: AdminPromo | null) => void;
   setItems: (items: CartItem[]) => void;
   
   // Computed (helper style instead of actual derived state for simple skeletons)
@@ -83,7 +84,11 @@ export const useCartStore = create<CartState>()(
         const { appliedPromo } = get();
         const subtotal = get().getSubtotal();
         if (!appliedPromo) return 0;
-        return calculateDiscount(appliedPromo, subtotal);
+        const result = validatePromo(appliedPromo, subtotal);
+        if (result.success) {
+          return result.discountAmount;
+        }
+        return 0; // Invalid promo on recalculation => 0 discount
       },
 
       getTotalItems: () => {

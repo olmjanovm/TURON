@@ -1,156 +1,153 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { 
-  Package, 
-  Clock, 
   CheckCircle, 
-  AlertCircle, 
-  ChevronRight, 
+  XCircle, 
+  Clock, 
+  ShieldCheck, 
   User, 
+  Package, 
   Truck,
-  MoreVertical,
-  ArrowRight,
-  XCircle,
+  AlertCircle,
   Hash
 } from 'lucide-react';
-import { Order, OrderStatus } from '../../data/types';
-import { getStatusLabel, getStatusColor, getNextStatus } from '../../lib/orderStatusUtils';
+import { OrderStatus, Order, PaymentStatus } from '../../data/types';
 
-// --- Dashboard Component ---
-export const DashboardCard: React.FC<{ 
-  title: string; 
-  value: string | number; 
-  icon: React.ReactNode; 
-  color: string;
-  onClick?: () => void;
-}> = ({ title, value, icon, color, onClick }) => (
-  <div 
-    onClick={onClick}
-    className={`bg-white rounded-[28px] p-6 border border-slate-100 shadow-sm active:scale-95 transition-all flex flex-col justify-between h-40 group cursor-pointer`}
-  >
-    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white bg-${color}-500 shadow-lg shadow-${color}-100 group-hover:scale-110 transition-transform`}>
-      {icon}
-    </div>
-    <div>
-      <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{title}</h4>
-      <p className="text-2xl font-black text-slate-900">{value}</p>
-    </div>
-  </div>
-);
-
-// --- Order Board Components ---
-export const AdminOrderCard: React.FC<{ 
-  order: Order; 
-  onClick: () => void; 
-}> = ({ order, onClick }) => {
-  const time = new Date(order.createdAt).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
-  const statusColor = getStatusColor(order.orderStatus);
+// Payment Verification Panel for Admin
+export const PaymentVerificationCard: React.FC<{
+  order: Order;
+  onApprove: () => void;
+  onReject: () => void;
+}> = ({ order, onApprove, onReject }) => {
+  if (order.paymentStatus !== PaymentStatus.PENDING) return null;
 
   return (
-    <div 
-      onClick={onClick}
-      className="bg-white rounded-[24px] p-4 border border-slate-100 shadow-sm mb-3 active:scale-[0.98] transition-all hover:border-slate-300"
-    >
-      <div className="flex justify-between items-start mb-3">
-        <div className="flex items-center gap-2">
-          <div className={`w-8 h-8 rounded-lg bg-${statusColor}-50 flex items-center justify-center text-${statusColor}-600`}>
-            <Hash size={14} strokeWidth={3} />
-          </div>
-          <span className="font-black text-slate-900 leading-none">{order.orderNumber}</span>
+    <div className="bg-amber-50 rounded-[32px] p-6 border border-amber-100 shadow-xl shadow-amber-200/20 overflow-hidden relative group animate-in zoom-in duration-300">
+      <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+        <ShieldCheck size={80} />
+      </div>
+      
+      <div className="relative z-10 space-y-4">
+        <div className="flex items-center gap-2 text-amber-600 font-black uppercase tracking-widest text-[10px]">
+          <AlertCircle size={14} />
+          <span>To'lov Tasdiqlanishi Kutilmoqda</span>
         </div>
-        <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{time}</span>
-      </div>
+        
+        <div className="space-y-2">
+           <div className="flex justify-between items-center text-xs">
+              <span className="text-amber-700 font-bold uppercase">To'lov usuli:</span>
+              <span className="font-black text-amber-900 italic uppercase">Click / Payme</span>
+           </div>
+           <div className="flex justify-between items-center text-xs">
+              <span className="text-amber-700 font-bold uppercase">Reference:</span>
+              <span className="font-black text-amber-900 uppercase tracking-tighter">{order.paymentReference || 'N/A'}</span>
+           </div>
+           <div className="flex justify-between items-center text-xs">
+              <span className="text-amber-700 font-bold uppercase">Summa:</span>
+              <span className="font-black text-amber-900 text-sm italic">{order.total.toLocaleString()} so'm</span>
+           </div>
+        </div>
 
-      <div className="mb-4">
-        <p className="text-xs font-bold text-slate-600 line-clamp-2 leading-snug">
-          {order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
-        </p>
-      </div>
-
-      <div className="flex items-center justify-between pt-3 border-t border-slate-50">
-        <span className="font-black text-sm text-slate-900">{order.total.toLocaleString()} so'm</span>
-        {order.courierName ? (
-          <div className="flex items-center gap-1.5 text-indigo-500">
-            <Truck size={12} />
-            <span className="text-[10px] font-bold uppercase">{order.courierName}</span>
-          </div>
-        ) : (
-          <ChevronRight size={16} className="text-slate-300" />
-        )}
+        <div className="grid grid-cols-2 gap-3 pt-2">
+          <button 
+            onClick={onReject}
+            className="h-12 bg-white text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-red-100 shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
+          >
+            <XCircle size={16} />
+            <span>Rad etish</span>
+          </button>
+          <button 
+            onClick={onApprove}
+            className="h-12 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-200 active:scale-95 transition-all flex items-center justify-center gap-2"
+          >
+            <CheckCircle size={16} />
+            <span>Tasdiqlash</span>
+          </button>
+        </div>
       </div>
     </div>
   );
 };
 
-// --- Status Management ---
-export const StatusActionButtons: React.FC<{ 
-  currentStatus: OrderStatus; 
-  onUpdate: (next: OrderStatus) => void; 
+// Existing components continued...
+export const StatusActionButtons: React.FC<{
+  currentStatus: OrderStatus;
+  onUpdate: (next: OrderStatus) => void;
   onCancel: () => void;
 }> = ({ currentStatus, onUpdate, onCancel }) => {
-  const next = getNextStatus(currentStatus);
-  const nextLabel = next ? getStatusLabel(next) : null;
-  const nextColor = next ? getStatusColor(next) : 'slate';
+  if (currentStatus === OrderStatus.CANCELLED || currentStatus === OrderStatus.DELIVERED) return null;
+
+  const steps: Record<OrderStatus, { next: OrderStatus; label: string }> = {
+    [OrderStatus.PENDING]: { next: OrderStatus.PREPARING, label: 'Qabul qilish' },
+    [OrderStatus.PREPARING]: { next: OrderStatus.READY_FOR_PICKUP, label: 'Tayyorlash' },
+    [OrderStatus.READY_FOR_PICKUP]: { next: OrderStatus.DELIVERING, label: 'Kuryerga berish' },
+    [OrderStatus.DELIVERING]: { next: OrderStatus.DELIVERED, label: 'Tugatish' },
+    [OrderStatus.DELIVERED]: { next: OrderStatus.DELIVERED, label: 'Tugatilgan' },
+    [OrderStatus.CANCELLED]: { next: OrderStatus.CANCELLED, label: 'Bekor qilingan' },
+  };
+
+  const current = steps[currentStatus];
 
   return (
-    <div className="flex gap-3">
-      {next && (
-        <button 
-          onClick={() => onUpdate(next)}
-          className={`flex-1 h-14 bg-${nextColor}-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 shadow-xl shadow-${nextColor}-100 active:scale-95 transition-all`}
-        >
-          <span>{nextLabel}</span>
-          <ArrowRight size={18} />
-        </button>
-      )}
+    <div className="flex items-center gap-2">
       <button 
         onClick={onCancel}
-        className="w-14 h-14 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center active:scale-95 transition-all border border-red-100"
+        className="w-10 h-10 rounded-xl bg-white border border-red-100 text-red-500 flex items-center justify-center active:scale-90 transition-transform"
       >
-        <XCircle size={24} />
+        <XCircle size={20} />
       </button>
+      {current && (
+        <button 
+          onClick={() => onUpdate(current.next)}
+          className="h-10 px-4 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 active:scale-95 transition-transform"
+        >
+          <span>{current.label}</span>
+          <ArrowRight size={14} />
+        </button>
+      )}
     </div>
   );
 };
 
-// --- Courier Assignment ---
-const MOCK_COURIERS = [
-  { id: 'c1', name: 'Alijon' },
-  { id: 'c2', name: 'Jamshid' },
-  { id: 'c3', name: 'Murod' },
-];
-
-export const CourierAssignModal: React.FC<{ 
-  isOpen: boolean; 
-  onClose: () => void; 
+export const CourierAssignModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
   onAssign: (id: string, name: string) => void;
   currentCourierId?: string;
 }> = ({ isOpen, onClose, onAssign, currentCourierId }) => {
   if (!isOpen) return null;
 
+  const couriers = [
+    { id: 'c1', name: 'Alixon Orifov', phone: '+998 90 123 45 67' },
+    { id: 'c2', name: 'Botir Zokirov', phone: '+998 90 765 43 21' },
+    { id: 'c3', name: 'Sardor Mamadaliyev', phone: '+998 90 111 22 33' },
+  ];
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center px-4 pb-10 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="w-full max-w-sm bg-white rounded-[40px] p-8 shadow-2xl animate-in slide-in-from-bottom duration-500">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-lg font-black text-slate-900 uppercase tracking-tighter italic">Kuryerni tanlang</h3>
-          <button onClick={onClose} className="text-slate-300 font-bold">Yopish</button>
-        </div>
+    <div className="fixed inset-0 z-50 flex items-end justify-center animate-in fade-in duration-300">
+      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full bg-white rounded-t-[40px] p-8 pb-12 shadow-2xl animate-in slide-in-from-bottom duration-500">
+        <div className="w-12 h-1.5 bg-slate-100 rounded-full mx-auto mb-8" />
+        <h3 className="text-xl font-black text-slate-900 uppercase italic tracking-tighter italic mb-6">Kuryerni tanlang</h3>
         
         <div className="space-y-3">
-          {MOCK_COURIERS.map(c => (
-            <button
+          {couriers.map(c => (
+            <button 
               key={c.id}
               onClick={() => { onAssign(c.id, c.name); onClose(); }}
-              className={`w-full p-5 rounded-2xl border flex items-center justify-between group transition-all
-                ${currentCourierId === c.id ? 'border-indigo-500 bg-indigo-50' : 'border-slate-100 bg-white hover:border-slate-300'}
-              `}
+              className={`w-full p-5 rounded-[24px] border flex items-center justify-between transition-all ${
+                currentCourierId === c.id ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-slate-100 active:scale-[0.98]'
+              }`}
             >
-              <div className="flex items-center gap-4">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors
-                  ${currentCourierId === c.id ? 'bg-indigo-500 text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-slate-100'}
-                `}>
-                  <User size={20} />
+              <div className="flex items-center gap-4 text-left">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+                  currentCourierId === c.id ? 'bg-indigo-500 text-white' : 'bg-white text-slate-400 border border-slate-100'
+                }`}>
+                  <User size={24} />
                 </div>
-                <span className={`font-bold ${currentCourierId === c.id ? 'text-indigo-900' : 'text-slate-700'}`}>{c.name}</span>
+                <div>
+                  <p className="font-black text-slate-900 uppercase italic tracking-tight">{c.name}</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{c.phone}</p>
+                </div>
               </div>
               {currentCourierId === c.id && <CheckCircle size={20} className="text-indigo-500" />}
             </button>
@@ -160,3 +157,9 @@ export const CourierAssignModal: React.FC<{
     </div>
   );
 };
+
+const ArrowRight: React.FC<{ size?: number }> = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5 12h14M12 5l7 7-7 7"/>
+  </svg>
+);

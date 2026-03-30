@@ -2,21 +2,36 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ShoppingBag, 
-  MapPin, 
-  Clock, 
   ChevronRight,
-  Navigation
+  Navigation,
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
-import { useOrdersStore } from '../../store/useOrdersStore';
+import { useCourierOrders } from '../../hooks/queries/useOrders';
 import { CourierOrderCard } from '../../components/courier/CourierComponents';
+import { LoadingSkeleton } from '../../components/customer/CustomerComponents';
+import { OrderStatusEnum, DeliveryStageEnum } from '@turon/shared';
 
 const CourierOrdersPage: React.FC = () => {
   const navigate = useNavigate();
-  const { orders } = useOrdersStore();
-  
-  // Mock courier ID for demonstration
-  const COURIER_ID = 'c1'; 
-  const courierOrders = orders.filter(o => o.courierId === COURIER_ID && o.orderStatus !== 'DELIVERED');
+  const { data: courierOrders = [], isLoading, error, refetch } = useCourierOrders();
+
+  if (isLoading) return <LoadingSkeleton />;
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 text-center space-y-4">
+        <AlertCircle size={48} className="text-red-500" />
+        <h3 className="font-bold text-slate-900 uppercase tracking-tighter italic italic">Xatolik kutilmoqda</h3>
+        <p className="text-xs text-slate-500">{(error as Error).message}</p>
+        <button onClick={() => refetch()} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold">Yangilash</button>
+      </div>
+    );
+  }
+
+  const activeDelivery = courierOrders.find((o: any) => 
+    o.deliveryStage !== DeliveryStageEnum.IDLE && o.deliveryStage !== DeliveryStageEnum.DELIVERED
+  );
 
   return (
     <div className="px-6 py-6 space-y-6 animate-in fade-in duration-500">
@@ -28,9 +43,12 @@ const CourierOrdersPage: React.FC = () => {
             {courierOrders.length > 0 ? `${courierOrders.length} ta faol buyurtma` : 'Yangi buyurtmalar kutilmoqda'}
           </p>
         </div>
-        <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-md relative z-10">
+        <button 
+          onClick={() => refetch()}
+          className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-md relative z-10 active:scale-90 transition-all"
+        >
            <Navigation size={32} />
-        </div>
+        </button>
         <div className="absolute -right-8 -bottom-8 w-40 h-40 bg-white/5 rounded-full blur-3xl" />
       </div>
 
@@ -42,7 +60,7 @@ const CourierOrdersPage: React.FC = () => {
         </div>
 
         {courierOrders.length > 0 ? (
-          courierOrders.map(order => (
+          courierOrders.map((order: any) => (
             <CourierOrderCard 
               key={order.id} 
               order={order} 
@@ -63,13 +81,10 @@ const CourierOrdersPage: React.FC = () => {
       </div>
 
       {/* Quick Access to Active Delivery (If any) */}
-      {courierOrders.some(o => o.deliveryStage && o.deliveryStage !== 'IDLE' && o.deliveryStage !== 'DELIVERED') && (
+      {activeDelivery && (
         <div className="fixed bottom-28 left-6 right-6 z-40 animate-bounce">
            <button 
-             onClick={() => {
-               const active = courierOrders.find(o => o.deliveryStage !== 'IDLE' && o.deliveryStage !== 'DELIVERED');
-               if (active) navigate(`/courier/map/${active.id}`);
-             }}
+             onClick={() => navigate(`/courier/map/${activeDelivery.id}`)}
              className="w-full bg-emerald-500 text-white p-5 rounded-[24px] flex items-center justify-between shadow-xl shadow-emerald-100"
            >
              <div className="flex items-center gap-3">

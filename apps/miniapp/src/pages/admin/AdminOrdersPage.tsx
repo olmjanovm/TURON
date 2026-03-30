@@ -2,42 +2,48 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ChevronRight, 
-  Search, 
   Filter, 
   ShoppingBag,
-  MoreVertical,
-  Plus
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
-import { useOrdersStore } from '../../store/useOrdersStore';
-import { Order, OrderStatus } from '../../data/types';
+import { useAdminOrders } from '../../hooks/queries/useOrders';
 import { AdminOrderCard } from '../../components/admin/AdminComponents';
-import { getStatusLabel, getStatusColor } from '../../lib/orderStatusUtils';
+import { LoadingSkeleton } from '../../components/customer/CustomerComponents';
+import { OrderStatusEnum } from '@turon/shared';
 
 const AdminOrdersPage: React.FC = () => {
   const navigate = useNavigate();
-  const { orders } = useOrdersStore();
-  const [activeTab, setActiveTab] = useState<OrderStatus | 'ALL'>('ALL');
+  const { data: orders = [], isLoading, error, refetch } = useAdminOrders();
+  const [activeTab, setActiveTab] = useState<OrderStatusEnum | 'ALL'>('ALL');
 
-  // Grouping logic for the board
-  const newOrders = orders.filter(o => o.orderStatus === 'NEW');
-  const activeOrders = orders.filter(o => ['ACCEPTED', 'PREPARING', 'READY'].includes(o.orderStatus));
-  const deliveringOrders = orders.filter(o => ['PICKED_UP', 'DELIVERING'].includes(o.orderStatus));
-  const completedOrders = orders.filter(o => o.orderStatus === 'DELIVERED');
+  if (isLoading) return <LoadingSkeleton />;
 
-  const tabs: { id: OrderStatus | 'ALL'; label: string; count: number }[] = [
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 text-center space-y-4">
+        <AlertCircle size={48} className="text-red-500" />
+        <h3 className="font-bold text-slate-900 uppercase">Xatolik yuz berdi</h3>
+        <p className="text-sm text-slate-500">{(error as Error).message}</p>
+        <button onClick={() => refetch()} className="px-6 py-2 bg-slate-900 text-white rounded-xl font-bold">Yangilash</button>
+      </div>
+    );
+  }
+
+  // Filter based on Tab
+  const getTabOrders = (tabId: OrderStatusEnum | 'ALL') => {
+    if (tabId === 'ALL') return orders;
+    return orders.filter((o: any) => o.status === tabId);
+  };
+
+  const filteredOrders = getTabOrders(activeTab);
+
+  const tabs: { id: OrderStatusEnum | 'ALL'; label: string; count: number }[] = [
     { id: 'ALL', label: 'Barchasi', count: orders.length },
-    { id: 'NEW', label: 'Yangi', count: newOrders.length },
-    { id: 'ACCEPTED', label: 'Jarayonda', count: activeOrders.length },
-    { id: 'DELIVERING', label: 'Yo\'lda', count: deliveringOrders.length },
+    { id: OrderStatusEnum.PENDING, label: 'Yangi', count: getTabOrders(OrderStatusEnum.PENDING).length },
+    { id: OrderStatusEnum.PREPARING, label: 'Tayyorlov', count: getTabOrders(OrderStatusEnum.PREPARING).length },
+    { id: OrderStatusEnum.READY_FOR_PICKUP, label: 'Tayyor', count: getTabOrders(OrderStatusEnum.READY_FOR_PICKUP).length },
   ];
-
-  const filteredOrders = activeTab === 'ALL' 
-    ? orders 
-    : orders.filter(o => {
-        if (activeTab === 'ACCEPTED') return ['ACCEPTED', 'PREPARING', 'READY'].includes(o.orderStatus);
-        if (activeTab === 'DELIVERING') return ['PICKED_UP', 'DELIVERING'].includes(o.orderStatus);
-        return o.orderStatus === activeTab;
-      });
 
   return (
     <div className="space-y-6 pb-24 animate-in fade-in duration-500">
@@ -47,11 +53,12 @@ const AdminOrdersPage: React.FC = () => {
           <h2 className="text-2xl font-black text-slate-900 tracking-tighter italic uppercase leading-none">Buyurtmalar</h2>
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Boshqaruv paneli</p>
         </div>
-        <div className="flex gap-2">
-          <button className="w-10 h-10 bg-white border border-slate-100 rounded-xl flex items-center justify-center text-slate-400">
-            <Filter size={18} />
-          </button>
-        </div>
+        <button 
+          onClick={() => refetch()}
+          className="w-10 h-10 bg-white border border-slate-100 rounded-xl flex items-center justify-center text-slate-400 active:scale-95 transition-all"
+        >
+          <RefreshCw size={18} />
+        </button>
       </div>
 
       {/* Navigation Tabs */}
@@ -81,7 +88,7 @@ const AdminOrdersPage: React.FC = () => {
       {/* Orders Board / List */}
       <div className="space-y-4">
         {filteredOrders.length > 0 ? (
-          filteredOrders.map(order => (
+          filteredOrders.map((order: any) => (
             <AdminOrderCard 
               key={order.id} 
               order={order} 
@@ -98,21 +105,6 @@ const AdminOrdersPage: React.FC = () => {
           </div>
         )}
       </div>
-
-      {/* Sticky Bottom Summary Badge (Optional) */}
-      {newOrders.length > 0 && (
-        <div className="fixed bottom-28 left-6 right-6 z-40 animate-bounce">
-          <div className="bg-red-500 text-white p-4 rounded-2xl flex items-center justify-between shadow-xl shadow-red-100">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                <ShoppingBag size={20} />
-              </div>
-              <span className="font-black uppercase tracking-widest text-xs">{newOrders.length} ta hamda yangi buyurtma!</span>
-            </div>
-            <ChevronRight size={20} />
-          </div>
-        </div>
-      )}
     </div>
   );
 };

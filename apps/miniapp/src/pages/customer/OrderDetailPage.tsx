@@ -102,21 +102,48 @@ const OrderDetailPage: React.FC = () => {
 
       {/* Payment Summary */}
       <CheckoutSectionCard title="To'lov ma'lumotlari">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-slate-50 text-slate-400 rounded-xl flex items-center justify-center">
-              <CreditCard size={20} />
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-slate-50 text-slate-400 rounded-xl flex items-center justify-center">
+                <CreditCard size={20} />
+              </div>
+              <div>
+                <p className="font-bold text-slate-900 text-sm">
+                  {order.paymentMethod === 'CASH' ? 'Naqd pul' : 
+                   order.paymentMethod === 'EXTERNAL' ? 'Click / Payme' : 'Karta'}
+                </p>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md ${
+                    order.paymentStatus === 'PAID' ? 'bg-emerald-50 text-emerald-600' :
+                    order.paymentStatus === 'FAILED' ? 'bg-red-50 text-red-600' :
+                    order.paymentStatus === 'CASH_ON_DELIVERY' ? 'bg-indigo-50 text-indigo-600' :
+                    'bg-amber-50 text-amber-600'
+                  }`}>
+                    {order.paymentStatus === 'PAID' ? 'To\'langan' : 
+                     order.paymentStatus === 'FAILED' ? 'Xatolik' :
+                     order.paymentStatus === 'CASH_ON_DELIVERY' ? 'Qabulda to\'lov' :
+                     'Verifikatsiya kutilmoqda'}
+                  </span>
+                  {order.verificationStatus && (
+                    <span className="text-[8px] font-bold text-slate-300 uppercase">Admin tasdiqladi</span>
+                  )}
+                </div>
+              </div>
             </div>
-            <div>
-              <p className="font-bold text-slate-900 text-sm">{order.paymentMethod === 'CASH' ? 'Naqd pul' : 'Onlayn to\'lov'}</p>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                {order.paymentStatus === 'PAID' ? 'To\'langan' : 'To\'lov kutilmoqda'}
-              </p>
+            <div className="text-right">
+               <span className="font-black text-slate-900">{order.total.toLocaleString()} so'm</span>
             </div>
           </div>
-          <div className="text-right">
-             <span className="font-black text-slate-900">{order.total.toLocaleString()} so'm</span>
-          </div>
+
+          {/* Payment Instructions for External */}
+          {order.paymentMethod === 'EXTERNAL' && order.paymentStatus === 'PENDING_VERIFICATION' && (
+            <div className="p-4 bg-amber-50/50 rounded-2xl border border-amber-100/50">
+               <p className="text-[11px] font-bold text-amber-800 leading-relaxed">
+                 To'lovdan keyin admin tranzaksiyani tasdiqlaydi. Buyurtma shundan so'ng tayyorlanadi.
+               </p>
+            </div>
+          )}
         </div>
       </CheckoutSectionCard>
 
