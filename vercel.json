@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "public": true,
+  "buildCommand": "pnpm --filter @turon/miniapp build",
+  "installCommand": "pnpm install",
+  "framework": "vite",
+  "devCommand": "pnpm dev:miniapp",
+  "outputDirectory": "apps/miniapp/dist"
+}

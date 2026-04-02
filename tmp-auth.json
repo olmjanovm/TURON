@@ -1,0 +1,11 @@
+{
+  "user": {
+    "id": "16065ada-8540-44cf-a01b-d3f4a717f020",
+    "telegramId": "8090477679",
+    "fullName": "Muslimbek",
+    "phoneNumber": null,
+    "role": "CUSTOMER",
+    "language": "UZ"
+  },
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjE2MDY1YWRhLTg1NDAtNDRjZi1hMDFiLWQzZjRhNzE3ZjAyMCIsInJvbGUiOiJDVVNUT01FUiIsImlhdCI6MTc3NTA0NjU2OX0.vzYP8aF28ZZFlSMTWRrB3zx-69wbHJE3skm6vutsQJg"
+}

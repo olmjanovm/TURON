@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+@theme {
+  --color-turon-bg: #fffbf0;
+  --color-turon-surface: #ffffff;
+  --color-turon-primary: #f59e0b;
+  --color-turon-secondary: #fff7ed;
+  --color-turon-text: #1f2937;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-turon-bg);
+    color: var(--color-turon-text);
+    /* Mobile safe areas natively seamlessly avoiding keyboard overlaps optimally explicitly purely mapping safely */
+    padding-bottom: env(safe-area-inset-bottom);
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  }
+}
+
+@layer utilities {
+  .turon-card {
+    @apply bg-white rounded-2xl p-4 shadow-sm border border-orange-50;
+  }
+}

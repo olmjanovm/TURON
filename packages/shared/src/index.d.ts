@@ -1,0 +1,86 @@
+export declare enum UserRoleEnum {
+    CUSTOMER = "CUSTOMER",
+    ADMIN = "ADMIN",
+    COURIER = "COURIER"
+}
+export declare enum LanguageEnum {
+    UZ = "UZ",
+    RU = "RU",
+    EN = "EN"
+}
+export declare enum OrderStatusEnum {
+    PENDING = "PENDING",
+    PREPARING = "PREPARING",
+    READY_FOR_PICKUP = "READY_FOR_PICKUP",
+    DELIVERING = "DELIVERING",
+    DELIVERED = "DELIVERED",
+    CANCELLED = "CANCELLED"
+}
+export declare enum PaymentMethodEnum {
+    CASH = "CASH",
+    MANUAL_TRANSFER = "MANUAL_TRANSFER",
+    EXTERNAL_PAYMENT = "EXTERNAL_PAYMENT"
+}
+export declare enum PaymentStatusEnum {
+    PENDING = "PENDING",
+    COMPLETED = "COMPLETED",
+    FAILED = "FAILED",
+    CANCELLED = "CANCELLED"
+}
+export declare enum PromoDiscountTypeEnum {
+    PERCENTAGE = "PERCENTAGE",
+    FIXED_AMOUNT = "FIXED_AMOUNT"
+}
+export declare enum NotificationTypeEnum {
+    INFO = "INFO",
+    SUCCESS = "SUCCESS",
+    WARNING = "WARNING",
+    ERROR = "ERROR",
+    ORDER_STATUS_UPDATE = "ORDER_STATUS_UPDATE",
+    PROMO_CAMPAIGN = "PROMO_CAMPAIGN",
+    ADMIN_NOTICE = "ADMIN_NOTICE"
+}
+export declare enum AppEventEnum {
+    ORDER_CREATED = "ORDER_CREATED",
+    ORDER_CONFIRMED = "ORDER_CONFIRMED",
+    ORDER_PREPARING = "ORDER_PREPARING",
+    ORDER_READY_FOR_PICKUP = "ORDER_READY_FOR_PICKUP",
+    ORDER_PICKED_UP = "ORDER_PICKED_UP",
+    ORDER_DELIVERING = "ORDER_DELIVERING",
+    ORDER_DELIVERED = "ORDER_DELIVERED",
+    ORDER_CANCELLED = "ORDER_CANCELLED",
+    PAYMENT_PENDING = "PAYMENT_PENDING",
+    PAYMENT_VERIFIED = "PAYMENT_VERIFIED",
+    PAYMENT_FAILED = "PAYMENT_FAILED",
+    COURIER_ASSIGNED = "COURIER_ASSIGNED",
+    COURIER_UNASSIGNED = "COURIER_UNASSIGNED",
+    PROMO_CREATED = "PROMO_CREATED",
+    PROMO_EXPIRED = "PROMO_EXPIRED"
+}
+export declare enum CourierAssignmentStatusEnum {
+    ASSIGNED = "ASSIGNED",
+    REJECTED = "REJECTED",
+    COMPLETED = "COMPLETED",
+    CANCELLED = "CANCELLED"
+}
+export declare enum DeliveryStageEnum {
+    IDLE = "IDLE",
+    GOING_TO_RESTAURANT = "GOING_TO_RESTAURANT",
+    ARRIVED_AT_RESTAURANT = "ARRIVED_AT_RESTAURANT",
+    PICKED_UP = "PICKED_UP",
+    DELIVERING = "DELIVERING",
+    ARRIVED_AT_DESTINATION = "ARRIVED_AT_DESTINATION",
+    DELIVERED = "DELIVERED"
+}
+export declare enum ProductAvailabilityEnum {
+    AVAILABLE = "AVAILABLE",
+    TEMPORARILY_UNAVAILABLE = "TEMPORARILY_UNAVAILABLE",
+    OUT_OF_STOCK = "OUT_OF_STOCK"
+}
+export declare enum ProductBadgeEnum {
+    NONE = "NONE",
+    NEW = "NEW",
+    POPULAR = "POPULAR",
+    DISCOUNT = "DISCOUNT"
+}
+//# sourceMappingURL=index.d.ts.map

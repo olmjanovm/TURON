@@ -1,0 +1,224 @@
+import { DeliveryStage } from '../../data/types';
+
+export type DeliveryStateKey = 'ACCEPTED' | 'ARRIVED' | 'PICKED_UP' | 'DELIVERING' | 'DELIVERED';
+
+export const COURIER_STAGE_BUTTONS = [
+  { key: 'accepted', label: 'Qabul qildim', target: DeliveryStage.GOING_TO_RESTAURANT },
+  { key: 'arrived', label: 'Restoranga yetdim', target: DeliveryStage.ARRIVED_AT_RESTAURANT },
+  { key: 'picked', label: 'Buyurtmani oldim', target: DeliveryStage.PICKED_UP },
+  { key: 'delivering', label: 'Yetkazishni boshladim', target: DeliveryStage.DELIVERING },
+  { key: 'delivered', label: 'Buyurtma topshirildi', target: DeliveryStage.DELIVERED },
+] as const;
+
+export function getDeliveryStateKey(stage: DeliveryStage = DeliveryStage.IDLE): DeliveryStateKey {
+  switch (stage) {
+    case DeliveryStage.ARRIVED_AT_RESTAURANT:
+      return 'ARRIVED';
+    case DeliveryStage.PICKED_UP:
+      return 'PICKED_UP';
+    case DeliveryStage.DELIVERING:
+    case DeliveryStage.ARRIVED_AT_DESTINATION:
+      return 'DELIVERING';
+    case DeliveryStage.DELIVERED:
+      return 'DELIVERED';
+    case DeliveryStage.GOING_TO_RESTAURANT:
+    case DeliveryStage.IDLE:
+    default:
+      return 'ACCEPTED';
+  }
+}
+
+export function getCourierStageProgressIndex(stage: DeliveryStage = DeliveryStage.IDLE) {
+  switch (stage) {
+    case DeliveryStage.IDLE:
+      return -1;
+    case DeliveryStage.GOING_TO_RESTAURANT:
+      return 0;
+    case DeliveryStage.ARRIVED_AT_RESTAURANT:
+      return 1;
+    case DeliveryStage.PICKED_UP:
+      return 2;
+    case DeliveryStage.DELIVERING:
+    case DeliveryStage.ARRIVED_AT_DESTINATION:
+      return 3;
+    case DeliveryStage.DELIVERED:
+      return 4;
+    default:
+      return -1;
+  }
+}
+
+export function getNextCourierStage(stage: DeliveryStage = DeliveryStage.IDLE): DeliveryStage | null {
+  switch (stage) {
+    case DeliveryStage.IDLE:
+      return DeliveryStage.GOING_TO_RESTAURANT;
+    case DeliveryStage.GOING_TO_RESTAURANT:
+      return DeliveryStage.ARRIVED_AT_RESTAURANT;
+    case DeliveryStage.ARRIVED_AT_RESTAURANT:
+      return DeliveryStage.PICKED_UP;
+    case DeliveryStage.PICKED_UP:
+      return DeliveryStage.DELIVERING;
+    case DeliveryStage.DELIVERING:
+    case DeliveryStage.ARRIVED_AT_DESTINATION:
+      return DeliveryStage.DELIVERED;
+    case DeliveryStage.DELIVERED:
+    default:
+      return null;
+  }
+}
+
+export function isActiveDeliveryStage(stage: DeliveryStage = DeliveryStage.IDLE) {
+  return stage !== DeliveryStage.DELIVERED;
+}
+
+export function hasStartedDeliveryRun(stage: DeliveryStage = DeliveryStage.IDLE) {
+  const state = getDeliveryStateKey(stage);
+  return state === 'PICKED_UP' || state === 'DELIVERING' || state === 'DELIVERED';
+}
+
+export function getDeliveryStageMeta(stage: DeliveryStage = DeliveryStage.IDLE) {
+  switch (getDeliveryStateKey(stage)) {
+    case 'ARRIVED':
+      return {
+        label: 'Restoranda',
+        description: 'Paketni tekshirib, buyurtmani qabul qiling',
+        badgeClass: 'bg-amber-50 text-amber-700',
+      };
+    case 'PICKED_UP':
+      return {
+        label: 'Buyurtma olindi',
+        description: 'Buyurtma qo\'lingizda, mijoz manziliga yo\'l oling',
+        badgeClass: 'bg-orange-50 text-orange-700',
+      };
+    case 'DELIVERING':
+      return {
+        label: 'Yetkazilmoqda',
+        description: 'Mijoz manziliga eng qulay yo\'l bo\'yicha yetkazing',
+        badgeClass: 'bg-violet-50 text-violet-700',
+      };
+    case 'DELIVERED':
+      return {
+        label: 'Topshirildi',
+        description: 'Buyurtma muvaffaqiyatli yakunlandi',
+        badgeClass: 'bg-emerald-50 text-emerald-700',
+      };
+    case 'ACCEPTED':
+    default:
+      return {
+        label: 'Qabul qilindi',
+        description: 'Restoranga qarab harakatlaning va buyurtmani oling',
+        badgeClass: 'bg-sky-50 text-sky-700',
+      };
+  }
+}
+
+export function getDeliveryStageAction(stage: DeliveryStage = DeliveryStage.IDLE) {
+  const nextStage = getNextCourierStage(stage);
+
+  if (!nextStage) {
+    return {
+      label: 'Buyurtma topshirildi',
+      next: null,
+      buttonClass: 'bg-emerald-600',
+    };
+  }
+
+  const actionConfig: Record<DeliveryStage, { label: string; buttonClass: string }> = {
+    [DeliveryStage.IDLE]: {
+      label: 'Qabul qildim',
+      buttonClass: 'bg-sky-600',
+    },
+    [DeliveryStage.GOING_TO_RESTAURANT]: {
+      label: 'Restoranga yetdim',
+      buttonClass: 'bg-amber-500',
+    },
+    [DeliveryStage.ARRIVED_AT_RESTAURANT]: {
+      label: 'Buyurtmani oldim',
+      buttonClass: 'bg-orange-500',
+    },
+    [DeliveryStage.PICKED_UP]: {
+      label: 'Yetkazishni boshladim',
+      buttonClass: 'bg-indigo-600',
+    },
+    [DeliveryStage.DELIVERING]: {
+      label: 'Buyurtma topshirildi',
+      buttonClass: 'bg-emerald-600',
+    },
+    [DeliveryStage.ARRIVED_AT_DESTINATION]: {
+      label: 'Buyurtma topshirildi',
+      buttonClass: 'bg-emerald-600',
+    },
+    [DeliveryStage.DELIVERED]: {
+      label: 'Buyurtma topshirildi',
+      buttonClass: 'bg-emerald-600',
+    },
+  };
+
+  return {
+    label: actionConfig[stage].label,
+    next: nextStage,
+    buttonClass: actionConfig[stage].buttonClass,
+  };
+}
+
+export function getDeliveryRouteMeta(stage: DeliveryStage = DeliveryStage.IDLE) {
+  switch (stage) {
+    case DeliveryStage.ARRIVED_AT_RESTAURANT:
+      return {
+        mode: 'restaurant' as const,
+        title: 'Restoranga yetdingiz',
+        description: 'Paketni tekshirib, buyurtmani oling va yo\'lga tayyorlaning',
+        fromLabel: 'Restoran',
+        toLabel: 'Buyurtma',
+      };
+    case DeliveryStage.PICKED_UP:
+      return {
+        mode: 'delivery' as const,
+        title: 'Buyurtma qo\'lingizda',
+        description: 'Mijoz manziliga chiqish uchun navigatsiya tayyor',
+        fromLabel: 'Restoran',
+        toLabel: 'Mijoz',
+      };
+    case DeliveryStage.DELIVERING:
+    case DeliveryStage.ARRIVED_AT_DESTINATION:
+      return {
+        mode: 'delivery' as const,
+        title: 'Mijozga yetkazilmoqda',
+        description: 'Qolgan masofa va ETA shu yerda yangilanadi',
+        fromLabel: 'Kuryer',
+        toLabel: 'Mijoz',
+      };
+    case DeliveryStage.DELIVERED:
+      return {
+        mode: 'complete' as const,
+        title: 'Buyurtma topshirildi',
+        description: 'Faol marshrut yakunlandi, keyingi topshiriqni kuting',
+        fromLabel: 'Yakun',
+        toLabel: 'Topshirildi',
+      };
+    case DeliveryStage.IDLE:
+    case DeliveryStage.GOING_TO_RESTAURANT:
+    default:
+      return {
+        mode: 'restaurant' as const,
+        title: 'Restoranga yo\'l oling',
+        description: 'Buyurtma qabul qilindi, paketni olish uchun restoran tomon boring',
+        fromLabel: 'Kuryer',
+        toLabel: 'Restoran',
+      };
+  }
+}
+
+export const DELIVERY_STAGE_FLOW: Array<{ key: DeliveryStateKey; title: string }> = [
+  { key: 'ACCEPTED', title: 'Qabul' },
+  { key: 'ARRIVED', title: 'Yetdim' },
+  { key: 'PICKED_UP', title: 'Oldim' },
+  { key: 'DELIVERING', title: 'Yo\'ldaman' },
+  { key: 'DELIVERED', title: 'Topshirdim' },
+];
+
+export function getDeliveryStageIndex(stage: DeliveryStage = DeliveryStage.IDLE) {
+  const key = getDeliveryStateKey(stage);
+  const index = DELIVERY_STAGE_FLOW.findIndex((entry) => entry.key === key);
+  return index === -1 ? 0 : index;
+}

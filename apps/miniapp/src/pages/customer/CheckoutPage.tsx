@@ -1,0 +1,219 @@
+import React, { useEffect } from 'react';
+import { ArrowLeft, CheckCircle2, Loader2, MapPin } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { SelectedAddressCard } from '../../components/customer/AddressComponents';
+import PaymentMethodSelector from '../../components/customer/PaymentMethodSelector';
+import OrderSummaryCard from '../../components/customer/OrderSummaryCard';
+import { CheckoutSectionCard, EmptyCartState } from '../../components/customer/CheckoutComponents';
+import { CustomerPromoInputCard } from '../../features/promo/components/CustomerPromoInputCard';
+import { DEFAULT_RESTAURANT_LOCATION } from '../../features/maps/restaurant';
+import { useAddresses } from '../../hooks/queries/useAddresses';
+import { useDistanceMatrixEstimate } from '../../hooks/queries/useMaps';
+import { useProducts } from '../../hooks/queries/useMenu';
+import { useCreateOrder } from '../../hooks/queries/useOrders';
+import { useAddressStore } from '../../store/useAddressStore';
+import { useCartStore } from '../../store/useCartStore';
+import { useCheckoutStore } from '../../store/useCheckoutStore';
+import { useCustomerLanguage } from '../../features/i18n/customerLocale';
+
+const CheckoutPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { formatText } = useCustomerLanguage();
+  const { items, getSubtotal, getDiscount, appliedPromo, clearCart, setPromo, syncWithProducts } = useCartStore();
+  const { paymentMethod, note, resetCheckout } = useCheckoutStore();
+  const { selectedAddressId, selectAddress, setInitialDraft } = useAddressStore();
+  const createOrderMutation = useCreateOrder();
+  const { data: addresses = [], isLoading: isAddressesLoading } = useAddresses();
+  const { data: products = [], isLoading: isProductsLoading, isError: isProductsError } = useProducts();
+
+  const selectedAddress = addresses.find((address) => address.id === selectedAddressId);
+  const subtotal = getSubtotal();
+  const discount = getDiscount();
+  const selectedAddressPin = selectedAddress
+    ? {
+        lat: selectedAddress.latitude,
+        lng: selectedAddress.longitude,
+      }
+    : null;
+  const distanceMatrixEstimate = useDistanceMatrixEstimate(
+    DEFAULT_RESTAURANT_LOCATION.pin,
+    selectedAddressPin,
+    Boolean(selectedAddressPin),
+  );
+  const routeInfo = distanceMatrixEstimate.data ?? null;
+
+  useEffect(() => {
+    if (isProductsLoading || isProductsError) {
+      return;
+    }
+    syncWithProducts(products);
+  }, [isProductsError, isProductsLoading, products, syncWithProducts]);
+
+  useEffect(() => {
+    if (addresses.length === 0) {
+      if (selectedAddressId) {
+        selectAddress(null);
+      }
+      return;
+    }
+
+    const hasSelectedAddress = addresses.some((address) => address.id === selectedAddressId);
+    if (!selectedAddressId || !hasSelectedAddress) {
+      selectAddress(addresses[0].id);
+    }
+  }, [addresses, selectedAddressId, selectAddress]);
+
+  if (items.length === 0) {
+    return <EmptyCartState />;
+  }
+
+  const handleConfirmOrder = async () => {
+    if (!selectedAddress || !paymentMethod) {
+      return;
+    }
+
+    if (isProductsLoading) {
+      window.alert('Savat yangilanmoqda. Bir ozdan song yana urinib koring.');
+      return;
+    }
+
+    const unavailableItems = items.filter((item) => item.isAvailable === false || !(item.menuItemId ?? item.id));
+    if (unavailableItems.length > 0) {
+      window.alert("Bazi taomlar hozir mavjud emas. Savatni tekshiring.");
+      navigate('/customer/cart');
+      return;
+    }
+
+    if (appliedPromo && discount === 0) {
+      setPromo(null);
+      window.alert('Bu savat uchun promokod qayta tasdiqlanmadi.');
+      return;
+    }
+
+    const payload = {
+      items: items.map((item) => ({
+        menuItemId: item.menuItemId ?? item.id,
+        quantity: item.quantity,
+      })),
+      deliveryAddressId: selectedAddress.id,
+      paymentMethod,
+      promoCode: discount > 0 ? appliedPromo?.code : undefined,
+      note: note || selectedAddress.note,
+    };
+
+    createOrderMutation.mutate(payload, {
+      onSuccess: (order) => {
+        if (window.Telegram?.WebApp?.HapticFeedback) {
+          window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+        }
+
+        clearCart();
+        resetCheckout();
+        navigate(`/customer/order-success?orderId=${order.id}`, { state: { order } });
+      },
+      onError: (error: Error) => {
+        window.alert(error.message || 'Buyurtmani yaratishda xatolik yuz berdi');
+      },
+    });
+  };
+
+  const handleSelectAddress = () => {
+    setInitialDraft(selectedAddress ?? undefined);
+    navigate('/customer/address/map');
+  };
+
+  return (
+    <div
+      className="min-h-screen animate-in slide-in-from-right duration-300"
+      style={{ paddingBottom: 'calc(var(--customer-nav-top-edge, 78px) + 96px)' }}
+    >
+      <section className="px-4 pb-5 pt-[calc(env(safe-area-inset-top,0px)+14px)]">
+        <div className="flex items-start gap-3">
+          <button
+            type="button"
+            onClick={() => navigate('/customer/cart')}
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <div className="flex-1">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/36">Tasdiqlash</p>
+            <h1 className="mt-1.5 text-[1.75rem] font-black tracking-[-0.05em] text-white">Buyurtma yakuni</h1>
+            <p className="mt-2 max-w-[280px] text-[13px] leading-6 text-white/58">
+              Kod, to'lov va manzilni tekshirib buyurtmani tasdiqlang.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="space-y-4 px-4">
+        <CheckoutSectionCard title="Chegirma kodi">
+          <CustomerPromoInputCard subtotal={subtotal} compact />
+        </CheckoutSectionCard>
+
+        <CheckoutSectionCard title="Buyurtma xulosasi">
+          <OrderSummaryCard routeInfo={routeInfo} compact />
+        </CheckoutSectionCard>
+
+        <CheckoutSectionCard title="To'lov usuli">
+          <PaymentMethodSelector />
+        </CheckoutSectionCard>
+
+        <CheckoutSectionCard title="Yetkazish manzili">
+          {selectedAddress ? (
+            <SelectedAddressCard
+              address={selectedAddress}
+              actionLabel="O'zgartirish"
+              onAction={handleSelectAddress}
+              routeInfo={routeInfo}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={handleSelectAddress}
+              className="flex h-14 w-full items-center justify-center gap-2 rounded-[12px] border border-white/10 bg-white/[0.04] text-sm font-bold text-white"
+            >
+              <MapPin size={18} />
+              <span>Manzil tanlash</span>
+            </button>
+          )}
+
+          {isAddressesLoading ? (
+            <div className="mt-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45">
+              <Loader2 size={14} className="animate-spin" />
+              <span>Manzillar yuklanmoqda</span>
+            </div>
+          ) : null}
+        </CheckoutSectionCard>
+      </section>
+
+      <div
+        className="fixed inset-x-0 z-40 px-4"
+        style={{ bottom: 'var(--customer-floating-cart-offset, calc(env(safe-area-inset-bottom, 0px) + 88px))' }}
+      >
+        <div className="mx-auto flex h-[72px] w-full max-w-[430px] items-center rounded-[14px] border border-white/10 bg-[#111827]/94 px-3 shadow-[0_16px_32px_rgba(2,6,23,0.34)] backdrop-blur-xl">
+          <button
+            type="button"
+            onClick={handleConfirmOrder}
+            disabled={!paymentMethod || !selectedAddress || createOrderMutation.isPending || isProductsLoading}
+            className="flex h-12 w-full items-center justify-center gap-3 rounded-[12px] bg-white text-sm font-black text-slate-950 transition-transform active:scale-[0.985] disabled:opacity-60"
+          >
+            {createOrderMutation.isPending ? (
+              <>
+                <Loader2 className="animate-spin" size={20} />
+                <span>Yuborilmoqda...</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 size={20} />
+                <span>Tasdiqlash</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default CheckoutPage;

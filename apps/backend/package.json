@@ -1,0 +1,47 @@
+{
+  "name": "@turon/backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "concurrently \"npm:dev:api\" \"npm:dev:bot\"",
+    "dev:api": "tsx watch src/api/index.ts",
+    "dev:bot": "tsx watch src/bot/index.ts",
+    "build": "prisma generate && tsup",
+    "start": "pnpm prisma:generate && node -e \"import('./dist/api/index.js'); import('./dist/bot/index.js');\"",
+    "start:api": "node dist/api/index.js",
+    "start:bot": "node dist/bot/index.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "tsx prisma/migrate.ts",
+    "prisma:deploy": "tsx prisma/migrate.ts",
+    "prisma:seed": "tsx prisma/seed.ts",
+    "prisma:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@fastify/autoload": "^6.0.0",
+    "@fastify/cors": "^10.0.0",
+    "@fastify/helmet": "^13.0.2",
+    "@fastify/jwt": "^10.0.0",
+    "@fastify/rate-limit": "^10.3.0",
+    "@prisma/client": "^6.0.0",
+    "@turon/shared": "workspace:*",
+    "dotenv": "^17.3.1",
+    "fastify": "^5.0.0",
+    "fastify-plugin": "^5.0.0",
+    "fastify-type-provider-zod": "^6.1.0",
+    "pg": "^8.16.3",
+    "telegraf": "^4.16.3",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "@types/pg": "^8.20.0",
+    "concurrently": "^8.2.2",
+    "dotenv-cli": "^11.0.0",
+    "prisma": "^6.0.0",
+    "tsup": "^8.5.1",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,0 +1,334 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRoleEnum {
+  CUSTOMER
+  ADMIN
+  COURIER
+
+  @@map("user_role_enum")
+}
+
+enum LanguageEnum {
+  UZ
+  RU
+  EN
+
+  @@map("language_enum")
+}
+
+enum MenuAvailabilityStatusEnum {
+  AVAILABLE
+  TEMPORARILY_UNAVAILABLE
+  OUT_OF_STOCK
+
+  @@map("menu_item_availability_enum")
+}
+
+enum PromoDiscountTypeEnum {
+  PERCENTAGE
+  FIXED_AMOUNT
+
+  @@map("promo_discount_type_enum")
+}
+
+enum OrderStatusEnum {
+  PENDING
+  PREPARING
+  READY_FOR_PICKUP
+  DELIVERING
+  DELIVERED
+  CANCELLED
+
+  @@map("order_status_enum")
+}
+
+enum PaymentMethodEnum {
+  CASH
+  MANUAL_TRANSFER
+  EXTERNAL_PAYMENT
+
+  @@map("payment_method_enum")
+}
+
+enum PaymentStatusEnum {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+
+  @@map("payment_status_enum")
+}
+
+enum CourierAssignmentStatusEnum {
+  ASSIGNED
+  ACCEPTED
+  PICKED_UP
+  DELIVERING
+  DELIVERED
+  REJECTED
+  CANCELLED
+
+  @@map("courier_assignment_status_enum")
+}
+
+enum NotificationTypeEnum {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+  ORDER_STATUS_UPDATE
+  PROMO_CAMPAIGN
+  ADMIN_NOTICE
+
+  @@map("notification_type_enum")
+}
+
+model User {
+  id                 String                @id @default(uuid())
+  telegramId         BigInt                @unique @map("telegram_id")
+  fullName           String                @map("full_name")
+  phoneNumber        String?               @map("phone")
+  role               UserRoleEnum          @default(CUSTOMER)
+  language           LanguageEnum          @default(UZ)
+  isActive           Boolean               @default(true) @map("is_active")
+  createdAt          DateTime              @default(now()) @map("created_at")
+  updatedAt          DateTime              @updatedAt @map("updated_at")
+  addresses          DeliveryAddress[]
+  orders             Order[]               @relation("CustomerOrders")
+  courierOrders      Order[]               @relation("CourierOrders")
+  courierAssignments CourierAssignment[]   @relation("CourierAssignments")
+  verifiedPayments   Payment[]             @relation("PaymentVerifier")
+  notifications      Notification[]
+  auditLogs          AuditLog[]            @relation("AuditActor")
+
+  @@index([role, isActive])
+  @@index([createdAt(sort: Desc)])
+  @@map("users")
+}
+
+model DeliveryAddress {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  title      String   @map("label")
+  address    String   @map("address_text")
+  latitude   Decimal  @db.Decimal(10, 7)
+  longitude  Decimal  @db.Decimal(10, 7)
+  note       String?
+  isDefault  Boolean  @default(false) @map("is_default")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders     Order[]  @relation("OrderAddress")
+
+  @@index([userId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("addresses")
+}
+
+model MenuCategory {
+  id        String     @id @default(uuid())
+  nameUz    String     @map("name_uz")
+  nameRu    String?    @map("name_ru")
+  slug      String     @unique
+  iconUrl   String?    @map("icon_url")
+  sortOrder Int        @default(0) @map("sort_order")
+  isActive  Boolean    @default(true) @map("is_active")
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+  items     MenuItem[]
+
+  @@index([isActive, sortOrder, createdAt])
+  @@map("menu_categories")
+}
+
+model MenuItem {
+  id                 String                     @id @default(uuid())
+  categoryId         String                     @map("category_id")
+  nameUz             String                     @map("name_uz")
+  nameRu             String?                    @map("name_ru")
+  descriptionUz      String?                    @map("description_uz")
+  descriptionRu      String?                    @map("description_ru")
+  price              Decimal                    @db.Decimal(12, 2)
+  oldPrice           Decimal?                   @map("old_price") @db.Decimal(12, 2)
+  imageUrl           String?                    @map("image_url")
+  weightText         String?                    @map("weight_text")
+  badgeText          String?                    @map("badge_text")
+  isFeatured         Boolean                    @default(false) @map("is_featured")
+  isNew              Boolean                    @default(false) @map("is_new")
+  isPopular          Boolean                    @default(false) @map("is_popular")
+  isDiscounted       Boolean                    @default(false) @map("is_discounted")
+  discountPercent    Int?                       @map("discount_percent")
+  isActive           Boolean                    @default(true) @map("is_active")
+  availabilityStatus MenuAvailabilityStatusEnum @default(AVAILABLE) @map("availability_status")
+  stockQuantity      Int?                       @map("stock_quantity")
+  sortOrder          Int                        @default(0) @map("sort_order")
+  createdAt          DateTime                   @default(now()) @map("created_at")
+  updatedAt          DateTime                   @updatedAt @map("updated_at")
+  category           MenuCategory               @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  orderItems         OrderItem[]
+
+  @@index([categoryId, isActive, availabilityStatus])
+  @@index([isActive, availabilityStatus, price])
+  @@map("menu_items")
+}
+
+model PromoCode {
+  id            String                @id @default(uuid())
+  code          String                @unique
+  title         String
+  discountType  PromoDiscountTypeEnum @map("discount_type")
+  discountValue Decimal               @db.Decimal(12, 2) @map("discount_value")
+  minOrderValue Decimal               @db.Decimal(12, 2) @default(0) @map("min_order_amount")
+  usageLimit    Int?                  @map("usage_limit")
+  timesUsed     Int                   @default(0) @map("used_count")
+  startDate     DateTime              @default(now()) @map("starts_at")
+  endDate       DateTime?             @map("expires_at")
+  isActive      Boolean               @default(true) @map("is_active")
+  createdAt     DateTime              @default(now()) @map("created_at")
+  updatedAt     DateTime              @updatedAt @map("updated_at")
+  orders        Order[]
+
+  @@index([isActive, startDate, endDate])
+  @@map("promo_codes")
+}
+
+model Order {
+  id                 String                  @id @default(uuid())
+  userId             String                  @map("user_id")
+  deliveryAddressId  String                  @map("address_id")
+  courierId          String?                 @map("courier_id")
+  promoCodeId        String?                 @map("promo_code_id")
+  orderNumber        BigInt                  @unique @default(autoincrement()) @map("order_number")
+  status             OrderStatusEnum         @default(PENDING)
+  subtotal           Decimal                 @db.Decimal(12, 2)
+  discountAmount     Decimal                 @db.Decimal(12, 2) @default(0) @map("discount_amount")
+  deliveryFee        Decimal                 @db.Decimal(12, 2) @default(0) @map("delivery_fee")
+  totalAmount        Decimal                 @db.Decimal(12, 2) @map("total_amount")
+  paymentMethod      PaymentMethodEnum       @map("payment_method")
+  paymentStatus      PaymentStatusEnum       @default(PENDING) @map("payment_status")
+  note               String?
+  destinationLat     Decimal                 @db.Decimal(10, 7) @map("customer_latitude")
+  destinationLng     Decimal                 @db.Decimal(10, 7) @map("customer_longitude")
+  createdAt          DateTime                @default(now()) @map("created_at")
+  updatedAt          DateTime                @updatedAt @map("updated_at")
+  user               User                    @relation("CustomerOrders", fields: [userId], references: [id], onDelete: Restrict)
+  courier            User?                   @relation("CourierOrders", fields: [courierId], references: [id], onDelete: SetNull)
+  promoCode          PromoCode?              @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
+  deliveryAddress    DeliveryAddress         @relation("OrderAddress", fields: [deliveryAddressId], references: [id], onDelete: Restrict)
+  items              OrderItem[]
+  payment            Payment?
+  courierAssignments CourierAssignment[]
+  notifications      Notification[]
+
+  @@index([userId, status, createdAt(sort: Desc)])
+  @@index([courierId, status, createdAt(sort: Desc)])
+  @@index([paymentStatus])
+  @@index([promoCodeId])
+  @@index([createdAt(sort: Desc)])
+  @@map("orders")
+}
+
+model OrderItem {
+  id           String   @id @default(uuid())
+  orderId      String   @map("order_id")
+  menuItemId   String?  @map("menu_item_id")
+  itemName     String   @map("item_name_snapshot")
+  priceAtOrder Decimal  @db.Decimal(12, 2) @map("item_price_snapshot")
+  quantity     Int
+  totalPrice   Decimal  @db.Decimal(12, 2) @map("total_price")
+  imageUrl     String?  @map("image_url_snapshot")
+  createdAt    DateTime @default(now()) @map("created_at")
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem     MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([menuItemId])
+  @@map("order_items")
+}
+
+model CourierAssignment {
+  id             String                      @id @default(uuid())
+  orderId        String                      @map("order_id")
+  courierId      String                      @map("courier_id")
+  assignedAt     DateTime                    @default(now()) @map("assigned_at")
+  acceptedAt     DateTime?                   @map("accepted_at")
+  pickedUpAt     DateTime?                   @map("picked_up_at")
+  deliveringAt   DateTime?                   @map("delivering_at")
+  deliveredAt    DateTime?                   @map("delivered_at")
+  cancelledAt    DateTime?                   @map("cancelled_at")
+  status         CourierAssignmentStatusEnum @default(ASSIGNED)
+  etaMinutes     Int?                        @map("eta_minutes")
+  distanceMeters Int?                        @map("distance_meters")
+  createdAt      DateTime                    @default(now()) @map("created_at")
+  updatedAt      DateTime                    @updatedAt @map("updated_at")
+  order          Order                       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  courier        User                        @relation("CourierAssignments", fields: [courierId], references: [id], onDelete: Restrict)
+
+  @@index([courierId, status, assignedAt(sort: Desc)])
+  @@index([orderId])
+  @@map("courier_assignments")
+}
+
+model Payment {
+  id                String            @id @default(uuid())
+  orderId           String            @unique @map("order_id")
+  method            PaymentMethodEnum
+  status            PaymentStatusEnum @default(PENDING)
+  amount            Decimal           @db.Decimal(12, 2)
+  provider          String?
+  transactionRef    String?           @map("provider_transaction_id")
+  verifiedByAdminId String?           @map("admin_verified_by")
+  verifiedAt        DateTime?         @map("verified_at")
+  rejectionReason   String?           @map("rejection_reason")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+  order             Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  verifiedByAdmin   User?             @relation("PaymentVerifier", fields: [verifiedByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt(sort: Desc)])
+  @@map("payments")
+}
+
+model Notification {
+  id             String               @id @default(uuid())
+  userId         String               @map("user_id")
+  roleTarget     UserRoleEnum         @map("role_target")
+  type           NotificationTypeEnum
+  title          String
+  message        String
+  relatedOrderId String?              @map("related_order_id")
+  isRead         Boolean              @default(false) @map("is_read")
+  createdAt      DateTime             @default(now()) @map("created_at")
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  relatedOrder   Order?               @relation(fields: [relatedOrderId], references: [id], onDelete: SetNull)
+
+  @@index([userId, isRead, createdAt(sort: Desc)])
+  @@index([relatedOrderId])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id        String       @id @default(uuid())
+  userId    String?      @map("actor_user_id")
+  actorRole UserRoleEnum? @map("actor_role")
+  action    String       @map("action_type")
+  entity    String       @map("entity_type")
+  entityId  String       @map("entity_id")
+  oldValue  Json?        @map("before_state")
+  newValue  Json?        @map("after_state")
+  metadata  Json?
+  createdAt DateTime     @default(now()) @map("created_at")
+  user      User?        @relation("AuditActor", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([entity, entityId, createdAt(sort: Desc)])
+  @@index([action, createdAt(sort: Desc)])
+  @@map("audit_logs")
+}

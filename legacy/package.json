@@ -1,0 +1,36 @@
+{
+  "name": "turon",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node src/bot/index.js",
+    "start": "node src/bot/index.js",
+    "healthcheck": "node -e \"fetch('http://localhost:' + (process.env.PORT || 3000) + '/health').then(r => r.text()).then(console.log)\"",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prisma:generate": "prisma generate",
+    "prisma:deploy": "prisma migrate deploy",
+    "prisma:seed": "node prisma/seed.js",
+    "prisma:test-seed": "node prisma/test-seed.js"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@prisma/client": "^6.19.2",
+    "@telegraf/session": "^2.0.0-beta.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.3.1",
+    "express": "^4.21.2",
+    "ioredis": "^5.10.1",
+    "pg": "^8.20.0",
+    "telegraf": "^4.16.3"
+  },
+  "devDependencies": {
+    "prisma": "^6.19.2"
+  }
+}
