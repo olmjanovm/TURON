@@ -1,5 +1,4 @@
 import { Markup, Telegraf } from 'telegraf';
-import type { Message } from 'telegraf/typings/core/types/typegram';
 import { UserRoleEnum } from '@turon/shared';
 import { env } from '../config.js';
 import { prisma } from '../lib/prisma.js';
@@ -10,6 +9,22 @@ const webAppUrl = env.WEB_APP_URL;
 const canonicalWebAppUrl = 'https://turon-miniapp.vercel.app/';
 
 type BotLaunchContext = 'api' | 'bot';
+
+type AdminReplyMessage = {
+  message_id: number;
+  text?: string;
+  chat: {
+    id: number | string;
+  };
+  from?: {
+    first_name?: string;
+    last_name?: string;
+    username?: string;
+  };
+  reply_to_message?: {
+    message_id?: number;
+  };
+};
 
 declare global {
   // eslint-disable-next-line no-var
@@ -90,7 +105,7 @@ function resolveStableWebAppBaseUrl() {
   }
 }
 
-function getAdminSenderLabel(message: Message.CommonMessage) {
+function getAdminSenderLabel(message: AdminReplyMessage) {
   const firstName = message.from?.first_name?.trim();
   const lastName = message.from?.last_name?.trim();
   const username = message.from?.username?.trim();
@@ -99,7 +114,7 @@ function getAdminSenderLabel(message: Message.CommonMessage) {
   return fullName || username || 'Operator';
 }
 
-async function handleAdminSupportReply(message: Message.CommonMessage) {
+async function handleAdminSupportReply(message: AdminReplyMessage) {
   const adminChatId = resolveAdminChatId();
 
   if (!adminChatId) {

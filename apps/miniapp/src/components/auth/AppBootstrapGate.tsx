@@ -7,7 +7,7 @@ import { normalizeRole, resolveRoleEntryRedirect } from '../../features/auth/rol
 import { ErrorStateCard, LoadingScreen } from '../ui/FeedbackStates';
 
 export const AppBootstrapGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { initData, ready, expand } = useTelegram();
+  const { tg, initData } = useTelegram();
   const { setAuth, user, isAuthenticated } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +46,11 @@ export const AppBootstrapGate: React.FC<{ children: React.ReactNode }> = ({ chil
 
       try {
         const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:3000';
-        const response = await axios.post(`${apiUrl}/auth/telegram`, { initData: currentInitData });
+        const response = await axios.post(
+          `${apiUrl}/auth/telegram`,
+          { initData: currentInitData },
+          { timeout: 20000 },
+        );
 
         if (cancelled) {
           return;
@@ -60,8 +64,8 @@ export const AppBootstrapGate: React.FC<{ children: React.ReactNode }> = ({ chil
         }
 
         setAuth({ ...authUser, role: normalizedRole }, token);
-        ready();
-        expand();
+        tg?.ready?.();
+        tg?.expand?.();
       } catch (err: any) {
         if (!cancelled) {
           setError(
@@ -82,7 +86,7 @@ export const AppBootstrapGate: React.FC<{ children: React.ReactNode }> = ({ chil
     return () => {
       cancelled = true;
     };
-  }, [expand, initData, ready, setAuth]);
+  }, [initData, setAuth, tg]);
 
   useEffect(() => {
     if (loading || error || !isAuthenticated || !user) {
