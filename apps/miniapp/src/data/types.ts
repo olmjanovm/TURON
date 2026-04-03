@@ -60,6 +60,20 @@ export interface OrderTrackingState {
   courierLocation?: CourierTrackingLocation;
 }
 
+export interface OrderQuote {
+  subtotal: number;
+  discount: number;
+  merchandiseTotal: number;
+  deliveryFee: number;
+  total: number;
+  deliveryDistanceMeters: number;
+  deliveryEtaMinutes: number;
+  deliveryFeeRuleCode: string;
+  deliveryFeeBaseAmount: number;
+  deliveryFeeExtraAmount: number;
+  routeSource?: string;
+}
+
 export interface Order {
   id: string;
   orderNumber: string;
@@ -67,6 +81,11 @@ export interface Order {
   subtotal: number;
   discount: number;
   deliveryFee: number;
+  deliveryDistanceMeters?: number | null;
+  deliveryEtaMinutes?: number | null;
+  deliveryFeeRuleCode?: string | null;
+  deliveryFeeBaseAmount?: number | null;
+  deliveryFeeExtraAmount?: number | null;
   total: number;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
@@ -91,20 +110,76 @@ export interface Order {
   destinationLat?: number;
   destinationLng?: number;
   courierAssignmentStatus?: string;
+  courierLastEventType?: string | null;
+  courierLastEventAt?: string | null;
   tracking?: OrderTrackingState;
 }
 
 export interface CourierOrderPreview {
   id: string;
+  assignmentId?: string | null;
   orderNumber: string;
   orderStatus: OrderStatus;
   deliveryStage?: DeliveryStage;
+  courierAssignmentStatus?: string;
   total: number;
+  deliveryFee: number;
   paymentMethod: PaymentMethod;
+  restaurantName: string;
+  distanceToRestaurantMeters?: number | null;
+  etaToRestaurantMinutes?: number | null;
   customerName: string;
   destinationAddress: string;
+  destinationArea: string;
   createdAt: string;
   itemCount: number;
+  latestCourierEventType?: string | null;
+}
+
+export interface CourierStatusSummary {
+  courierId: string;
+  isOnline: boolean;
+  isAcceptingOrders: boolean;
+  lastOnlineAt?: string | null;
+  lastOfflineAt?: string | null;
+  updatedAt: string;
+  activeAssignments: number;
+  completedToday: number;
+  activeAssignment?: {
+    assignmentId: string;
+    orderId: string;
+    orderNumber: string;
+    assignmentStatus: string;
+    orderStatus: OrderStatus;
+  } | null;
+}
+
+export interface CourierTodayStats {
+  courierId: string;
+  dayStartAt: string;
+  dayEndAt: string;
+  completedCount: number;
+  activeCount: number;
+  deliveredOrderAmountTotal: number;
+  deliveryFeesTotal: number;
+  averageFulfillmentMinutes?: number | null;
+  averageDeliveryLegMinutes?: number | null;
+  firstDeliveredAt?: string | null;
+  lastDeliveredAt?: string | null;
+  payoutSummary: {
+    isDefined: boolean;
+    label: string;
+  };
+  recentCompletedOrders: Array<{
+    assignmentId: string;
+    orderId: string;
+    orderNumber: string;
+    deliveredAt: string;
+    total: number;
+    deliveryFee: number;
+    paymentMethod: PaymentMethod;
+    orderStatus: OrderStatus;
+  }>;
 }
 
 export interface AdminCourierOption {

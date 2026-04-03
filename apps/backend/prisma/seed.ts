@@ -27,6 +27,12 @@ function normalizeConnectionString(connectionString: string) {
   return url.toString();
 }
 
+function getSeedFilePath() {
+  const seedFile =
+    process.env.SEED_FILE?.trim() || 'supabase/seeds/20260403200000_turon_kafesi_catalog_refresh.sql';
+  return path.resolve(__dirname, '../../../', seedFile);
+}
+
 async function main() {
   const connectionString = getConnectionString();
 
@@ -34,7 +40,7 @@ async function main() {
     throw new Error('DATABASE_URL or DIRECT_URL must be set before running seed.');
   }
 
-  const seedPath = path.resolve(__dirname, '../../../supabase/seeds/20260331223000_delivery_demo_seed.sql');
+  const seedPath = getSeedFilePath();
   const sql = await readFile(seedPath, 'utf8');
 
   const client = new Client({
@@ -51,7 +57,7 @@ async function main() {
     await client.end();
   }
 
-  console.log('Supabase demo seed applied successfully.');
+  console.log('Supabase seed applied successfully.');
 }
 
 main().catch((error) => {

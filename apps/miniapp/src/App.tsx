@@ -27,6 +27,7 @@ import AdminPromosPage from './pages/admin/promos/AdminPromosPage';
 import AdminPromoFormPage from './pages/admin/promos/AdminPromoFormPage';
 
 // --- Courier Pages ---
+import CourierStatusPage from './pages/courier/CourierStatusPage';
 import CourierOrdersPage from './pages/courier/CourierOrdersPage';
 import CourierOrderDetailPage from './pages/courier/CourierOrderDetailPage';
 import CourierMapPage from './pages/courier/CourierMapPage';
@@ -132,7 +133,7 @@ export default function App() {
               <CourierLayout />
             </RoleGuard>
           }>
-            <Route index element={<Navigate to="orders" replace />} />
+            <Route index element={<CourierStatusPage />} />
             <Route path="orders" element={<CourierOrdersPage />} />
             <Route path="order/:orderId" element={<CourierOrderDetailPage />} />
             <Route path="map/:orderId" element={<CourierMapPage />} />

@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events';
+import { CourierPresenceService } from './courier-presence.service.js';
 
 export interface CourierLocationSnapshot {
   latitude: number;
@@ -55,7 +56,7 @@ class OrderTrackingService {
       type: 'snapshot',
       orderId,
       order,
-      tracking: this.getSnapshot(orderId),
+      tracking: this.getCachedSnapshot(orderId),
     });
   }
 
@@ -64,7 +65,7 @@ class OrderTrackingService {
       type: 'order.updated',
       orderId,
       order,
-      tracking: this.getSnapshot(orderId),
+      tracking: this.getCachedSnapshot(orderId),
     });
   }
 
@@ -76,7 +77,7 @@ class OrderTrackingService {
 
     this.snapshots.set(orderId, snapshot);
 
-    const tracking = this.getSnapshot(orderId);
+    const tracking = this.getCachedSnapshot(orderId);
     this.emit({
       type: 'courier.location',
       orderId,
@@ -86,7 +87,28 @@ class OrderTrackingService {
     return tracking;
   }
 
-  getSnapshot(orderId: string): OrderTrackingSnapshot | undefined {
+  async getSnapshot(orderId: string): Promise<OrderTrackingSnapshot | undefined> {
+    const cached = this.getCachedSnapshot(orderId);
+
+    if (cached?.isLive) {
+      return cached;
+    }
+
+    const persisted = await CourierPresenceService.getOrderTrackingSnapshot(orderId);
+
+    if (persisted?.courierLocation) {
+      this.snapshots.set(orderId, persisted.courierLocation);
+      return persisted;
+    }
+
+    if (!persisted) {
+      this.snapshots.delete(orderId);
+    }
+
+    return persisted;
+  }
+
+  getCachedSnapshot(orderId: string): OrderTrackingSnapshot | undefined {
     const location = this.snapshots.get(orderId);
 
     if (!location) {
@@ -105,6 +127,10 @@ class OrderTrackingService {
   private emit(event: OrderTrackingEvent) {
     this.emitter.emit(this.getEventName(event.orderId), event);
     this.emitter.emit(this.globalEventName, event);
+  }
+
+  clearSnapshot(orderId: string) {
+    this.snapshots.delete(orderId);
   }
 
   private getEventName(orderId: string) {

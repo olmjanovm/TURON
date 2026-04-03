@@ -5,19 +5,36 @@ import { CartItemCard } from '../../components/customer/CustomerComponents';
 import { EmptyCartState } from '../../components/customer/CheckoutComponents';
 import OrderSummaryCard from '../../components/customer/OrderSummaryCard';
 import { CustomerPromoInputCard } from '../../features/promo/components/CustomerPromoInputCard';
+import { useAddresses } from '../../hooks/queries/useAddresses';
 import { useProducts } from '../../hooks/queries/useMenu';
+import { useOrderQuote } from '../../hooks/queries/useOrders';
+import { useAddressStore } from '../../store/useAddressStore';
 import { useCartStore } from '../../store/useCartStore';
-import { useCheckoutStore } from '../../store/useCheckoutStore';
 
 const CartPage: React.FC = () => {
   const navigate = useNavigate();
-  const { items, updateQuantity, removeFromCart, clearCart, getSubtotal, syncWithProducts } = useCartStore();
-  const { deliveryFee } = useCheckoutStore();
+  const { items, updateQuantity, removeFromCart, clearCart, getSubtotal, getDiscount, appliedPromo, syncWithProducts } = useCartStore();
+  const { selectedAddressId } = useAddressStore();
+  const { data: addresses = [] } = useAddresses();
   const { data: products = [], isLoading: isProductsLoading, isError: isProductsError } = useProducts();
 
   const subtotal = getSubtotal();
+  const discount = getDiscount();
+  const selectedAddress = addresses.find((address) => address.id === selectedAddressId) || null;
+  const quoteItems = items.map((item) => ({
+    menuItemId: item.menuItemId ?? item.id,
+    quantity: item.quantity,
+  }));
+  const orderQuoteQuery = useOrderQuote({
+    items: quoteItems,
+    deliveryAddressId: selectedAddress?.id ?? null,
+    promoCode: appliedPromo?.code,
+    enabled: Boolean(selectedAddress) && items.length > 0 && !isProductsLoading,
+  });
+  const orderQuote = orderQuoteQuery.data ?? null;
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-  const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const merchandiseTotal = Math.max(0, subtotal - discount);
+  const totalPrice = orderQuote?.total ?? merchandiseTotal;
   const hasUnavailableItems = items.some((item) => item.isAvailable === false);
 
   useEffect(() => {
@@ -78,7 +95,7 @@ const CartPage: React.FC = () => {
           </div>
           <div className="rounded-[12px] border border-amber-300/16 bg-amber-400/10 px-3 py-3">
             <p className="text-[10px] font-black uppercase tracking-[0.14em] text-amber-100/70">Jami</p>
-            <p className="mt-2 text-lg font-black text-amber-100">{(totalPrice + deliveryFee).toLocaleString()} so'm</p>
+            <p className="mt-2 text-lg font-black text-amber-100">{totalPrice.toLocaleString()} so'm</p>
           </div>
         </div>
       </section>
@@ -108,7 +125,7 @@ const CartPage: React.FC = () => {
             </div>
           </div>
 
-          <OrderSummaryCard />
+          <OrderSummaryCard quote={orderQuote} isQuoteLoading={orderQuoteQuery.isLoading} />
         </div>
       </section>
 
@@ -120,9 +137,14 @@ const CartPage: React.FC = () => {
           <div className="mb-3 flex items-center justify-between">
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/34">Jami summa</p>
-              <p className="mt-1 text-[26px] font-black tracking-[-0.04em] text-white">
-                {(totalPrice + deliveryFee).toLocaleString()} so'm
-              </p>
+              <p className="mt-1 text-[26px] font-black tracking-[-0.04em] text-white">{totalPrice.toLocaleString()} so'm</p>
+              {!selectedAddress ? (
+                <p className="mt-1 text-[11px] font-semibold text-white/48">
+                  Yetkazish narxi checkoutda manzil bo'yicha hisoblanadi
+                </p>
+              ) : orderQuoteQuery.isError ? (
+                <p className="mt-1 text-[11px] font-semibold text-rose-300">{orderQuoteQuery.error.message}</p>
+              ) : null}
             </div>
             <div className="rounded-full border border-white/8 bg-white/[0.06] px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-white/62">
               {totalItems} ta

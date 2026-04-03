@@ -228,7 +228,7 @@ const createPosterDataUrl = (label: string, seed: string) => {
       <circle cx="230" cy="760" r="220" fill="rgba(255,255,255,0.12)" />
       <text x="86" y="130" fill="${palette.accent}" font-size="40" font-family="Arial, sans-serif" letter-spacing="12">TURON KAFE</text>
       <text x="86" y="458" fill="#ffffff" font-size="110" font-weight="700" font-family="Arial, sans-serif">${safeLabel}</text>
-      <text x="86" y="530" fill="${palette.accent}" font-size="34" font-family="Arial, sans-serif" letter-spacing="4">placeholder image</text>
+      <text x="86" y="530" fill="${palette.accent}" font-size="34" font-family="Arial, sans-serif" letter-spacing="4">Turon Kafesi</text>
     </svg>
   `;
 
@@ -240,8 +240,7 @@ export const getCategoryImageUrl = (category: Pick<MenuCategory, 'id' | 'name' |
     return category.imageUrl.trim();
   }
 
-  const query = findQuery(category.name, CATEGORY_QUERY_RULES, GENERIC_CATEGORY_QUERIES, category.id);
-  return buildRandomFoodUrl(query, `${category.id}:${category.name}`);
+  return getCategoryPosterUrl(category);
 };
 
 export const getProductImageUrl = (
@@ -252,14 +251,7 @@ export const getProductImageUrl = (
     return product.imageUrl.trim();
   }
 
-  const query = findQuery(
-    `${product.name} ${categoryName ?? ''}`,
-    PRODUCT_QUERY_RULES,
-    GENERIC_PRODUCT_QUERIES,
-    product.id,
-  );
-
-  return buildRandomFoodUrl(query, `${product.id}:${product.name}:${product.categoryId}`);
+  return getProductPosterUrl(product);
 };
 
 export const getCartItemImageUrl = (item: Pick<ProductSnapshot, 'id' | 'name' | 'image'>) => {
@@ -267,8 +259,7 @@ export const getCartItemImageUrl = (item: Pick<ProductSnapshot, 'id' | 'name' | 
     return item.image.trim();
   }
 
-  const query = findQuery(item.name, PRODUCT_QUERY_RULES, GENERIC_PRODUCT_QUERIES, item.id);
-  return buildRandomFoodUrl(query, `${item.id}:${item.name}`);
+  return getProductPosterUrl(item);
 };
 
 export const getCategoryPosterUrl = (category: Pick<MenuCategory, 'id' | 'name'>) =>

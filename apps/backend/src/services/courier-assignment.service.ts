@@ -1,0 +1,510 @@
+import type { Prisma } from '@prisma/client';
+import {
+  NotificationTypeEnum,
+  RESTAURANT_COORDINATES,
+  UserRoleEnum,
+} from '@turon/shared';
+import { prisma } from '../lib/prisma.js';
+import { CourierOperationalStatusService } from './courier-operational-status.service.js';
+import { CourierPresenceService } from './courier-presence.service.js';
+import { StatusService } from './status.service.js';
+import { YandexMapsService } from './yandex-maps.service.js';
+
+const ACTIVE_ASSIGNMENT_STATUSES = ['ASSIGNED', 'ACCEPTED', 'PICKED_UP', 'DELIVERING'] as const;
+const RESTAURANT_POINT = {
+  latitude: RESTAURANT_COORDINATES.lat,
+  longitude: RESTAURANT_COORDINATES.lng,
+};
+const FALLBACK_AVERAGE_SPEED_KMH = 24;
+const FALLBACK_MIN_ETA_MINUTES = 4;
+
+type DbClient = Prisma.TransactionClient | typeof prisma;
+
+interface CoordinatePoint {
+  latitude: number;
+  longitude: number;
+}
+
+interface RankedCourierMetrics {
+  distanceMeters: number | null;
+  etaMinutes: number | null;
+  source: 'live-location' | 'workload';
+  hasLiveLocation: boolean;
+  liveLocationUpdatedAt: string | null;
+}
+
+interface RankedCourierCandidateInternal {
+  id: string;
+  fullName: string;
+  phoneNumber: string;
+  activeAssignments: number;
+  lastAssignedAt: string | null;
+  isOnline: boolean;
+  isAcceptingOrders: boolean;
+  metrics: RankedCourierMetrics;
+}
+
+export interface RankedCourierCandidate extends RankedCourierCandidateInternal {
+  rank: number;
+}
+
+export interface AssignCourierOptions {
+  db?: DbClient;
+  assignedByUserId?: string;
+  actorRole?: string;
+  mode: 'AUTO' | 'MANUAL';
+  metrics?: RankedCourierMetrics;
+}
+
+export interface AssignCourierResult {
+  assignmentId: string;
+  orderId: string;
+  courierId: string;
+  courierName: string;
+  assignedAt: string;
+  distanceMeters: number | null;
+  etaMinutes: number | null;
+  wasReassigned: boolean;
+  reusedExistingAssignment: boolean;
+}
+
+export interface AutoAssignResult {
+  assignment: AssignCourierResult | null;
+  selectedCandidate: RankedCourierCandidate | null;
+  candidates: RankedCourierCandidate[];
+}
+
+function toRadians(value: number) {
+  return (value * Math.PI) / 180;
+}
+
+function haversineDistanceMeters(from: CoordinatePoint, to: CoordinatePoint) {
+  const earthRadiusMeters = 6_371_000;
+  const latDelta = toRadians(to.latitude - from.latitude);
+  const lngDelta = toRadians(to.longitude - from.longitude);
+  const fromLat = toRadians(from.latitude);
+  const toLat = toRadians(to.latitude);
+
+  const haversine =
+    Math.sin(latDelta / 2) * Math.sin(latDelta / 2) +
+    Math.cos(fromLat) * Math.cos(toLat) * Math.sin(lngDelta / 2) * Math.sin(lngDelta / 2);
+
+  return Math.max(
+    0,
+    Math.round(earthRadiusMeters * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))),
+  );
+}
+
+function fallbackEtaMinutes(distanceMeters: number) {
+  if (distanceMeters <= 0) {
+    return 0;
+  }
+
+  const distanceKm = distanceMeters / 1000;
+  return Math.max(Math.ceil((distanceKm / FALLBACK_AVERAGE_SPEED_KMH) * 60), FALLBACK_MIN_ETA_MINUTES);
+}
+
+function compareByLastAssigned(left: string | null, right: string | null) {
+  if (!left && !right) {
+    return 0;
+  }
+
+  if (!left) {
+    return -1;
+  }
+
+  if (!right) {
+    return 1;
+  }
+
+  return new Date(left).getTime() - new Date(right).getTime();
+}
+
+function compareRankedCouriers(
+  left: RankedCourierCandidateInternal,
+  right: RankedCourierCandidateInternal,
+) {
+  if (left.metrics.hasLiveLocation !== right.metrics.hasLiveLocation) {
+    return left.metrics.hasLiveLocation ? -1 : 1;
+  }
+
+  if (left.metrics.hasLiveLocation && right.metrics.hasLiveLocation) {
+    const leftDistance = left.metrics.distanceMeters ?? Number.POSITIVE_INFINITY;
+    const rightDistance = right.metrics.distanceMeters ?? Number.POSITIVE_INFINITY;
+    if (leftDistance !== rightDistance) {
+      return leftDistance - rightDistance;
+    }
+
+    const leftEta = left.metrics.etaMinutes ?? Number.POSITIVE_INFINITY;
+    const rightEta = right.metrics.etaMinutes ?? Number.POSITIVE_INFINITY;
+    if (leftEta !== rightEta) {
+      return leftEta - rightEta;
+    }
+  }
+
+  if (left.activeAssignments !== right.activeAssignments) {
+    return left.activeAssignments - right.activeAssignments;
+  }
+
+  const lastAssignedComparison = compareByLastAssigned(left.lastAssignedAt, right.lastAssignedAt);
+  if (lastAssignedComparison !== 0) {
+    return lastAssignedComparison;
+  }
+
+  return left.fullName.localeCompare(right.fullName);
+}
+
+async function resolveLiveLocationMetrics(
+  locations: Array<CoordinatePoint | null>,
+): Promise<Array<{ distanceMeters: number | null; etaMinutes: number | null }>> {
+  const results = locations.map(() => ({
+    distanceMeters: null,
+    etaMinutes: null,
+  }));
+  const indexedLocations = locations
+    .map((location, index) => ({ location, index }))
+    .filter((entry): entry is { location: CoordinatePoint; index: number } => Boolean(entry.location));
+
+  if (!indexedLocations.length) {
+    return results;
+  }
+
+  if (YandexMapsService.isDistanceMatrixConfigured()) {
+    try {
+      const matrix = await YandexMapsService.getDistanceMatrix(
+        indexedLocations.map((entry) => entry.location),
+        [RESTAURANT_POINT],
+      );
+
+      indexedLocations.forEach((entry, matrixIndex) => {
+        const cell = matrix[matrixIndex]?.[0];
+        if (
+          cell?.status === 'OK' &&
+          typeof cell.distanceMeters === 'number' &&
+          typeof cell.etaSeconds === 'number'
+        ) {
+          results[entry.index] = {
+            distanceMeters: Math.max(0, Math.round(cell.distanceMeters)),
+            etaMinutes: Math.max(Math.ceil(cell.etaSeconds / 60), 0),
+          };
+        }
+      });
+    } catch {
+      // Fall back to coordinate-based estimate below.
+    }
+  }
+
+  indexedLocations.forEach((entry) => {
+    if (results[entry.index].distanceMeters !== null) {
+      return;
+    }
+
+    const distanceMeters = haversineDistanceMeters(entry.location, RESTAURANT_POINT);
+    results[entry.index] = {
+      distanceMeters,
+      etaMinutes: fallbackEtaMinutes(distanceMeters),
+    };
+  });
+
+  return results;
+}
+
+async function fetchAssignableOrder(orderId: string, db: DbClient) {
+  return db.order.findUnique({
+    where: { id: orderId },
+    include: {
+      courierAssignments: {
+        include: {
+          courier: true,
+        },
+        orderBy: { assignedAt: 'desc' },
+      },
+    },
+  });
+}
+
+function getActiveAssignment(order: any) {
+  return order.courierAssignments.find((assignment: any) =>
+    StatusService.isActiveAssignmentStatus(assignment.status),
+  );
+}
+
+async function runWriteTransaction<T>(db: DbClient, callback: (tx: Prisma.TransactionClient) => Promise<T>) {
+  if ('$transaction' in db) {
+    return db.$transaction(callback);
+  }
+
+  return callback(db);
+}
+
+export class CourierAssignmentService {
+  static async rankEligibleCouriers(db: DbClient = prisma): Promise<RankedCourierCandidate[]> {
+    const couriers = await db.user.findMany({
+      where: CourierOperationalStatusService.eligibleCourierWhere() as any,
+      include: {
+        courierOperationalStatus: true,
+        courierAssignments: {
+          include: {
+            order: {
+              select: {
+                id: true,
+              },
+            },
+          },
+          orderBy: { assignedAt: 'desc' },
+        },
+      },
+      orderBy: { fullName: 'asc' },
+    });
+
+    const liveLocationMap = await CourierPresenceService.getFreshCourierLocations(
+      couriers.map((courier) => courier.id),
+      db,
+    );
+    const liveLocations = couriers.map((courier) => liveLocationMap.get(courier.id) ?? null);
+    const liveLocationMetrics = await resolveLiveLocationMetrics(
+      liveLocations.map((location) =>
+        location
+          ? {
+              latitude: location.latitude,
+              longitude: location.longitude,
+            }
+          : null,
+      ),
+    );
+
+    const candidates = couriers.map((courier, index) => {
+      const activeAssignments = (courier.courierAssignments || []).filter((assignment: any) =>
+        StatusService.isActiveAssignmentStatus(assignment.status),
+      );
+      const lastAssignedAt = courier.courierAssignments?.[0]?.assignedAt?.toISOString?.() ?? null;
+      const liveLocation = liveLocations[index];
+      const locationMetrics = liveLocationMetrics[index];
+
+      return {
+        id: courier.id,
+        fullName: courier.fullName || 'Kuryer',
+        phoneNumber: courier.phoneNumber || '',
+        activeAssignments: activeAssignments.length,
+        lastAssignedAt,
+        isOnline: courier.courierOperationalStatus?.isOnline ?? false,
+        isAcceptingOrders: courier.courierOperationalStatus?.isAcceptingOrders ?? false,
+        metrics: {
+          distanceMeters: locationMetrics.distanceMeters,
+          etaMinutes: locationMetrics.etaMinutes,
+          source: liveLocation ? 'live-location' : 'workload',
+          hasLiveLocation: Boolean(liveLocation),
+          liveLocationUpdatedAt: liveLocation?.updatedAt ?? null,
+        },
+      };
+    });
+
+    return candidates
+      .sort(compareRankedCouriers)
+      .map((candidate, index) => ({
+        ...candidate,
+        rank: index + 1,
+      }));
+  }
+
+  static async assignCourierToOrder(
+    orderId: string,
+    courierId: string,
+    options: AssignCourierOptions,
+  ): Promise<AssignCourierResult> {
+    const db = options.db ?? prisma;
+    const order = await fetchAssignableOrder(orderId, db);
+
+    if (!order) {
+      throw new Error('Buyurtma topilmadi');
+    }
+
+    if (order.status === 'DELIVERED' || order.status === 'CANCELLED') {
+      throw new Error("Yakunlangan buyurtmaga kuryer biriktirib bo'lmaydi");
+    }
+
+    const courier = await db.user.findFirst({
+      where: {
+        id: courierId,
+        ...CourierOperationalStatusService.eligibleCourierWhere(),
+      } as any,
+      include: {
+        courierOperationalStatus: true,
+      },
+    });
+
+    if (!courier) {
+      throw new Error("Tanlangan kuryer hozir buyurtma qabul qilishga tayyor emas");
+    }
+
+    const activeAssignment = getActiveAssignment(order);
+    if (activeAssignment?.courierId === courierId) {
+      return {
+        assignmentId: activeAssignment.id,
+        orderId: order.id,
+        courierId,
+        courierName: courier.fullName || 'Kuryer',
+        assignedAt: activeAssignment.assignedAt.toISOString(),
+        distanceMeters: activeAssignment.distanceMeters ?? null,
+        etaMinutes: activeAssignment.etaMinutes ?? null,
+        wasReassigned: false,
+        reusedExistingAssignment: true,
+      };
+    }
+
+    const assignmentTimestamp = new Date();
+    const createdAssignment = await runWriteTransaction(db, async (tx) => {
+      const previousActiveAssignments = order.courierAssignments.filter((assignment: any) =>
+        StatusService.isActiveAssignmentStatus(assignment.status),
+      );
+
+      await tx.order.update({
+        where: { id: order.id },
+        data: { courierId },
+      });
+
+      await tx.courierAssignment.updateMany({
+        where: {
+          orderId: order.id,
+          status: {
+            in: [...ACTIVE_ASSIGNMENT_STATUSES] as any,
+          },
+        },
+        data: {
+          status: 'CANCELLED' as any,
+          cancelledAt: assignmentTimestamp,
+        },
+      });
+
+      if (previousActiveAssignments.length > 0) {
+        await tx.courierAssignmentEvent.createMany({
+          data: previousActiveAssignments.map((assignment: any) => ({
+            assignmentId: assignment.id,
+            orderId: order.id,
+            courierId: assignment.courierId,
+            eventType: 'CANCELLED' as any,
+            eventAt: assignmentTimestamp,
+            actorUserId: options.assignedByUserId ?? null,
+          })),
+        });
+      }
+
+      const assignment = await tx.courierAssignment.create({
+        data: {
+          orderId: order.id,
+          courierId,
+          status: 'ASSIGNED' as any,
+          assignedAt: assignmentTimestamp,
+          etaMinutes: options.metrics?.etaMinutes ?? null,
+          distanceMeters: options.metrics?.distanceMeters ?? null,
+        },
+      });
+
+      await tx.courierAssignmentEvent.create({
+        data: {
+          assignmentId: assignment.id,
+          orderId: order.id,
+          courierId,
+          eventType: 'ASSIGNED' as any,
+          eventAt: assignmentTimestamp,
+          actorUserId: options.assignedByUserId ?? null,
+          payload:
+            options.mode === 'AUTO'
+              ? {
+                  mode: 'AUTO',
+                }
+              : {
+                  mode: 'MANUAL',
+                },
+        },
+      });
+
+      await tx.notification.create({
+        data: {
+          userId: courierId,
+          roleTarget: UserRoleEnum.COURIER as any,
+          type: NotificationTypeEnum.ORDER_STATUS_UPDATE as any,
+          title: "Yangi buyurtma biriktirildi",
+          message: `#${String(order.orderNumber)} buyurtma sizga biriktirildi`,
+          relatedOrderId: order.id,
+        },
+      });
+
+      return assignment;
+    });
+
+    return {
+      assignmentId: createdAssignment.id,
+      orderId: order.id,
+      courierId,
+      courierName: courier.fullName || 'Kuryer',
+      assignedAt: createdAssignment.assignedAt.toISOString(),
+      distanceMeters: createdAssignment.distanceMeters ?? null,
+      etaMinutes: createdAssignment.etaMinutes ?? null,
+      wasReassigned: Boolean(activeAssignment && activeAssignment.courierId !== courierId),
+      reusedExistingAssignment: false,
+    };
+  }
+
+  static async autoAssignOrder(orderId: string, db: DbClient = prisma): Promise<AutoAssignResult> {
+    const order = await fetchAssignableOrder(orderId, db);
+
+    if (!order) {
+      throw new Error('Buyurtma topilmadi');
+    }
+
+    if (order.status === 'DELIVERED' || order.status === 'CANCELLED') {
+      return {
+        assignment: null,
+        selectedCandidate: null,
+        candidates: [],
+      };
+    }
+
+    const activeAssignment = getActiveAssignment(order);
+    if (activeAssignment) {
+      const existingCourier = await db.user.findUnique({
+        where: { id: activeAssignment.courierId },
+      });
+
+      return {
+        assignment: {
+          assignmentId: activeAssignment.id,
+          orderId: order.id,
+          courierId: activeAssignment.courierId,
+          courierName: existingCourier?.fullName || 'Kuryer',
+          assignedAt: activeAssignment.assignedAt.toISOString(),
+          distanceMeters: activeAssignment.distanceMeters ?? null,
+          etaMinutes: activeAssignment.etaMinutes ?? null,
+          wasReassigned: false,
+          reusedExistingAssignment: true,
+        },
+        selectedCandidate: null,
+        candidates: [],
+      };
+    }
+
+    const candidates = await this.rankEligibleCouriers(db);
+    const selectedCandidate = candidates[0] ?? null;
+
+    if (!selectedCandidate) {
+      return {
+        assignment: null,
+        selectedCandidate: null,
+        candidates,
+      };
+    }
+
+    const assignment = await this.assignCourierToOrder(orderId, selectedCandidate.id, {
+      db,
+      mode: 'AUTO',
+      metrics: selectedCandidate.metrics,
+    });
+
+    return {
+      assignment,
+      selectedCandidate,
+      candidates,
+    };
+  }
+}

@@ -58,6 +58,22 @@ async function getUserRole(telegramId: string): Promise<UserRoleEnum> {
   }
 }
 
+function resolveRoleLaunchUrl(role: UserRoleEnum) {
+  if (!webAppUrl) {
+    return null;
+  }
+
+  const normalizedBaseUrl = webAppUrl.endsWith('/') ? webAppUrl : `${webAppUrl}/`;
+  const launchPath =
+    role === UserRoleEnum.ADMIN
+      ? 'admin/dashboard'
+      : role === UserRoleEnum.COURIER
+        ? 'courier'
+        : 'customer';
+
+  return new URL(launchPath, normalizedBaseUrl).toString();
+}
+
 function getAdminSenderLabel(message: Message.CommonMessage) {
   const firstName = message.from?.first_name?.trim();
   const lastName = message.from?.last_name?.trim();
@@ -108,20 +124,22 @@ function bindHandlers(bot: Telegraf) {
     if (role === UserRoleEnum.ADMIN) {
       message =
         'Assalomu alaykum, Admin! Turon boshqaruv paneliga xush kelibsiz.\n\nBoshqaruvni boshlash uchun tugmani bosing:';
-      buttonLabel = 'Admin panelni ochish';
+      buttonLabel = 'Admin panelini ochish';
     } else if (role === UserRoleEnum.COURIER) {
       message =
         'Assalomu alaykum, Kuryer! Siz uchun yetkazib berish paneli tayyor.\n\nKuryer panelini ochish:';
-      buttonLabel = 'Kuryer panelni ochish';
+      buttonLabel = 'Kuryer panelini ochish';
     }
 
-    if (!webAppUrl) {
+    const launchUrl = resolveRoleLaunchUrl(role);
+
+    if (!launchUrl) {
       return ctx.reply(message);
     }
 
     return ctx.reply(
       message,
-      Markup.inlineKeyboard([[Markup.button.webApp(buttonLabel, webAppUrl)]]),
+      Markup.inlineKeyboard([[Markup.button.webApp(buttonLabel, launchUrl)]]),
     );
   });
 

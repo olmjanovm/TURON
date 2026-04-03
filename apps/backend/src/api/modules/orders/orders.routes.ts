@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { 
+  handleQuoteOrder,
   handleCreateOrder, 
   getAllOrders,
   getAvailableCouriers,
@@ -16,6 +17,7 @@ import {
   AssignCourierSchema,
   CreateOrderSchema, 
   IdParamSchema, 
+  QuoteOrderSchema,
   RejectPaymentSchema,
   UpdateOrderStatusSchema 
 } from '../../utils/schemas';
@@ -31,6 +33,9 @@ export default async function orderRoutes(fastify: FastifyInstance) {
   fastify.get('/:id', {
     schema: { params: IdParamSchema }
   }, getOrderDetail);
+  fastify.post('/quote', {
+    schema: { body: QuoteOrderSchema }
+  }, handleQuoteOrder);
   fastify.post('/', {
     schema: { body: CreateOrderSchema }
   }, handleCreateOrder);

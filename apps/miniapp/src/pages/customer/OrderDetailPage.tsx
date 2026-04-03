@@ -5,7 +5,8 @@ import { CheckoutSectionCard } from '../../components/customer/CheckoutComponent
 import { OrderTimeline } from '../../components/customer/OrderHistoryComponents';
 import { ErrorStateCard } from '../../components/ui/FeedbackStates';
 import { OrderStatus, PaymentMethod, PaymentStatus } from '../../data/types';
-import { getLocalizedOrderStatusLabel, useCustomerLanguage } from '../../features/i18n/customerLocale';
+import { useCustomerLanguage } from '../../features/i18n/customerLocale';
+import { getCustomerTrackingMeta } from '../../features/tracking/customerTracking';
 import { useProducts } from '../../hooks/queries/useMenu';
 import { useOrderDetails, useOrderTrackingStream } from '../../hooks/queries/useOrders';
 import { useCartStore } from '../../store/useCartStore';
@@ -74,6 +75,7 @@ const OrderDetailPage: React.FC = () => {
   const paymentStatusLabel = getPaymentStatusLabel(order.paymentStatus);
   const isActiveOrder =
     order.orderStatus !== OrderStatus.DELIVERED && order.orderStatus !== OrderStatus.CANCELLED;
+  const trackingMeta = getCustomerTrackingMeta(order, language);
 
   const handleCopyOrderNumber = async () => {
     try {
@@ -157,10 +159,10 @@ const OrderDetailPage: React.FC = () => {
                 {isConnected ? 'Jonli status' : 'Buyurtma holati'}
               </p>
               <h2 className="mt-2 text-[1.55rem] font-black leading-[0.98] tracking-[-0.04em] text-white">
-                {getLocalizedOrderStatusLabel(order.orderStatus, language)}
+                {trackingMeta.stageLabel}
               </h2>
               <p className="mt-2 text-sm leading-6 text-white/62">
-                Support, xarita va qayta buyurtma harakatlari shu sahifada boshqariladi.
+                {trackingMeta.statusLine}
               </p>
             </div>
             <div className="rounded-[12px] border border-white/8 bg-white/[0.06] px-3 py-2.5 text-right">
@@ -176,6 +178,11 @@ const OrderDetailPage: React.FC = () => {
             <div className="rounded-full border border-white/8 bg-white/[0.06] px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-white/68">
               {paymentStatusLabel}
             </div>
+            {trackingMeta.courierLabel ? (
+              <div className="rounded-full border border-sky-300/18 bg-sky-400/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-sky-100">
+                {trackingMeta.courierLabel}
+              </div>
+            ) : null}
             {copyState === 'copied' ? (
               <div className="rounded-full border border-emerald-300/18 bg-emerald-400/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-200">
                 Nusxalandi

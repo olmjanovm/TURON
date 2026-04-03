@@ -5,5 +5,13 @@
   "installCommand": "pnpm install",
   "framework": "vite",
   "devCommand": "pnpm dev:miniapp",
-  "outputDirectory": "apps/miniapp/dist"
+  "outputDirectory": "apps/miniapp/dist",
+  "rewrites": [
+    { "source": "/customer", "destination": "/" },
+    { "source": "/customer/:path*", "destination": "/" },
+    { "source": "/admin", "destination": "/" },
+    { "source": "/admin/:path*", "destination": "/" },
+    { "source": "/courier", "destination": "/" },
+    { "source": "/courier/:path*", "destination": "/" }
+  ]
 }

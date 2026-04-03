@@ -78,6 +78,20 @@ enum CourierAssignmentStatusEnum {
   @@map("courier_assignment_status_enum")
 }
 
+enum CourierAssignmentEventTypeEnum {
+  ASSIGNED
+  ACCEPTED
+  ARRIVED_AT_RESTAURANT
+  PICKED_UP
+  DELIVERING
+  ARRIVED_AT_DESTINATION
+  DELIVERED
+  CANCELLED
+  PROBLEM_REPORTED
+
+  @@map("courier_assignment_event_type_enum")
+}
+
 enum NotificationTypeEnum {
   INFO
   SUCCESS
@@ -104,6 +118,9 @@ model User {
   orders             Order[]               @relation("CustomerOrders")
   courierOrders      Order[]               @relation("CourierOrders")
   courierAssignments CourierAssignment[]   @relation("CourierAssignments")
+  courierAssignmentEvents CourierAssignmentEvent[] @relation("CourierAssignmentEventCourier")
+  courierOperationalStatus CourierOperationalStatus?
+  courierPresence    CourierPresence?
   verifiedPayments   Payment[]             @relation("PaymentVerifier")
   notifications      Notification[]
   auditLogs          AuditLog[]            @relation("AuditActor")
@@ -210,6 +227,11 @@ model Order {
   subtotal           Decimal                 @db.Decimal(12, 2)
   discountAmount     Decimal                 @db.Decimal(12, 2) @default(0) @map("discount_amount")
   deliveryFee        Decimal                 @db.Decimal(12, 2) @default(0) @map("delivery_fee")
+  deliveryDistanceMeters Int?                @map("delivery_distance_meters")
+  deliveryEtaMinutes  Int?                   @map("delivery_eta_minutes")
+  deliveryFeeRuleCode String?                @map("delivery_fee_rule_code")
+  deliveryFeeBaseAmount Decimal?             @db.Decimal(12, 2) @map("delivery_fee_base_amount")
+  deliveryFeeExtraAmount Decimal?            @db.Decimal(12, 2) @map("delivery_fee_extra_amount")
   totalAmount        Decimal                 @db.Decimal(12, 2) @map("total_amount")
   paymentMethod      PaymentMethodEnum       @map("payment_method")
   paymentStatus      PaymentStatusEnum       @default(PENDING) @map("payment_status")
@@ -225,6 +247,8 @@ model Order {
   items              OrderItem[]
   payment            Payment?
   courierAssignments CourierAssignment[]
+  courierAssignmentEvents CourierAssignmentEvent[]
+  courierPresenceSnapshots CourierPresence[]
   notifications      Notification[]
 
   @@index([userId, status, createdAt(sort: Desc)])
@@ -270,10 +294,64 @@ model CourierAssignment {
   updatedAt      DateTime                    @updatedAt @map("updated_at")
   order          Order                       @relation(fields: [orderId], references: [id], onDelete: Cascade)
   courier        User                        @relation("CourierAssignments", fields: [courierId], references: [id], onDelete: Restrict)
+  events         CourierAssignmentEvent[]
 
   @@index([courierId, status, assignedAt(sort: Desc)])
   @@index([orderId])
   @@map("courier_assignments")
+}
+
+model CourierAssignmentEvent {
+  id          String                         @id @default(uuid())
+  assignmentId String                        @map("assignment_id")
+  orderId     String                         @map("order_id")
+  courierId   String                         @map("courier_id")
+  eventType   CourierAssignmentEventTypeEnum @map("event_type")
+  eventAt     DateTime                       @default(now()) @map("event_at")
+  payload     Json?
+  actorUserId String?                        @map("actor_user_id")
+  createdAt   DateTime                       @default(now()) @map("created_at")
+  assignment  CourierAssignment              @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  order       Order                          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  courier     User                           @relation("CourierAssignmentEventCourier", fields: [courierId], references: [id], onDelete: Restrict)
+
+  @@index([assignmentId, eventAt(sort: Desc)])
+  @@index([orderId, eventAt(sort: Desc)])
+  @@index([courierId, eventAt(sort: Desc)])
+  @@index([eventType, eventAt(sort: Desc)])
+  @@map("courier_assignment_events")
+}
+
+model CourierOperationalStatus {
+  courierId          String   @id @map("courier_id")
+  isOnline           Boolean  @default(false) @map("is_online")
+  isAcceptingOrders  Boolean  @default(false) @map("is_accepting_orders")
+  lastOnlineAt       DateTime? @map("last_online_at")
+  lastOfflineAt      DateTime? @map("last_offline_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+  courier            User     @relation(fields: [courierId], references: [id], onDelete: Cascade)
+
+  @@index([isOnline, isAcceptingOrders, updatedAt(sort: Desc)])
+  @@map("courier_operational_status")
+}
+
+model CourierPresence {
+  courierId            String    @id @map("courier_id")
+  orderId              String?   @map("order_id")
+  latitude             Decimal   @db.Decimal(10, 7)
+  longitude            Decimal   @db.Decimal(10, 7)
+  heading              Float?
+  speedKmh             Float?    @map("speed_kmh")
+  remainingDistanceKm  Float?    @map("remaining_distance_km")
+  remainingEtaMinutes  Int?      @map("remaining_eta_minutes")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+  courier              User      @relation(fields: [courierId], references: [id], onDelete: Cascade)
+  order                Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, updatedAt(sort: Desc)])
+  @@index([updatedAt(sort: Desc)])
+  @@map("courier_presence")
 }
 
 model Payment {

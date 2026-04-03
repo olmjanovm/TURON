@@ -1,15 +1,16 @@
 import React from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Bell, List, Navigation, Settings, Truck, User } from 'lucide-react';
+import { Bell, Home, List, Navigation, Truck } from 'lucide-react';
 import { UserRoleEnum } from '@turon/shared';
 import NotificationBadge from '../../features/notifications/components/NotificationBadge';
 import { isActiveDeliveryStage } from '../../features/courier/deliveryStage';
-import { useCourierOrders, useOrdersRealtimeSync } from '../../hooks/queries/useOrders';
+import { useCourierOrders, useCourierStatus, useOrdersRealtimeSync } from '../../hooks/queries/useOrders';
 
 const CourierLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { data: orders = [] } = useCourierOrders();
+  const { data: courierStatus } = useCourierStatus();
   const { connectionState, isConnected } = useOrdersRealtimeSync();
   const isMapPage = location.pathname.includes('/map/');
   const activeDelivery = orders.find((order) => isActiveDeliveryStage(order.deliveryStage));
@@ -25,13 +26,21 @@ const CourierLayout: React.FC = () => {
       : connectionState === 'connecting'
         ? 'Ulanmoqda'
         : 'Offline';
+  const availabilityLabel = courierStatus?.isOnline
+    ? courierStatus.isAcceptingOrders
+      ? 'Online • qabul ochiq'
+      : 'Online • qabul yopiq'
+    : 'Offline • Turon';
 
   const NavItem: React.FC<{
     path: string;
     icon: React.ReactNode;
     label: string;
   }> = ({ path, icon, label }) => {
-    const isActive = location.pathname.startsWith(path);
+    const isActive =
+      path === '/courier'
+        ? location.pathname === '/courier'
+        : location.pathname.startsWith(path);
 
     return (
       <button
@@ -64,7 +73,7 @@ const CourierLayout: React.FC = () => {
             <div>
               <h2 className="text-lg font-black uppercase italic leading-none tracking-tighter">Kuryer</h2>
               <div className="mt-1 flex items-center gap-2">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Online • Turon</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{availabilityLabel}</p>
                 <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-widest ${syncBadgeClass}`}>
                   <span className={`h-1.5 w-1.5 rounded-full ${isConnected ? 'animate-pulse bg-emerald-500' : 'bg-current/50'}`} />
                   <span>{syncLabel}</span>
@@ -116,9 +125,9 @@ const CourierLayout: React.FC = () => {
 
       {!isMapPage && (
         <nav className="safe-area-inset-bottom fixed bottom-0 left-0 right-0 z-50 flex h-24 items-center justify-around border-t border-slate-100 bg-white/95 px-6 shadow-2xl backdrop-blur-md">
+          <NavItem path="/courier" icon={<Home size={24} />} label="Holat" />
           <NavItem path="/courier/orders" icon={<List size={24} />} label="Buyurtmalar" />
-          <NavItem path="/courier/profile" icon={<User size={24} />} label="Profil" />
-          <NavItem path="/courier/settings" icon={<Settings size={24} />} label="Sozlamalar" />
+          <NavItem path="/courier/notifications" icon={<Bell size={24} />} label="Xabarlar" />
         </nav>
       )}
     </div>

@@ -68,7 +68,21 @@ export function getNextCourierStage(stage: DeliveryStage = DeliveryStage.IDLE): 
 }
 
 export function isActiveDeliveryStage(stage: DeliveryStage = DeliveryStage.IDLE) {
-  return stage !== DeliveryStage.DELIVERED;
+  return (
+    stage === DeliveryStage.GOING_TO_RESTAURANT ||
+    stage === DeliveryStage.ARRIVED_AT_RESTAURANT ||
+    stage === DeliveryStage.PICKED_UP ||
+    stage === DeliveryStage.DELIVERING ||
+    stage === DeliveryStage.ARRIVED_AT_DESTINATION
+  );
+}
+
+export function isNewDeliveryStage(stage: DeliveryStage = DeliveryStage.IDLE) {
+  return stage === DeliveryStage.IDLE;
+}
+
+export function isCompletedDeliveryStage(stage: DeliveryStage = DeliveryStage.IDLE) {
+  return stage === DeliveryStage.DELIVERED;
 }
 
 export function hasStartedDeliveryRun(stage: DeliveryStage = DeliveryStage.IDLE) {
@@ -118,44 +132,62 @@ export function getDeliveryStageAction(stage: DeliveryStage = DeliveryStage.IDLE
   if (!nextStage) {
     return {
       label: 'Buyurtma topshirildi',
+      slideLabel: 'Buyurtma yakunlandi',
+      hint: 'Buyurtma yakunlangan. Keyingi topshiriqni kuting.',
       next: null,
       buttonClass: 'bg-emerald-600',
     };
   }
 
-  const actionConfig: Record<DeliveryStage, { label: string; buttonClass: string }> = {
+  const actionConfig: Record<DeliveryStage, { label: string; slideLabel: string; hint: string; buttonClass: string }> = {
     [DeliveryStage.IDLE]: {
       label: 'Qabul qildim',
+      slideLabel: 'Buyurtmani qabul qilasizmi?',
+      hint: "Tasodifiy bosilish bo'lmasligi uchun o'ngga suring.",
       buttonClass: 'bg-sky-600',
     },
     [DeliveryStage.GOING_TO_RESTAURANT]: {
       label: 'Restoranga yetdim',
+      slideLabel: 'Restoranga yetdim',
+      hint: "Restoranga yetib borganingizdan keyin tasdiqlang.",
       buttonClass: 'bg-amber-500',
     },
     [DeliveryStage.ARRIVED_AT_RESTAURANT]: {
-      label: 'Buyurtmani oldim',
+      label: 'Taom olindi',
+      slideLabel: 'Taom olindi',
+      hint: "Taomni olganingizdan keyin mijozga yo'l oling.",
       buttonClass: 'bg-orange-500',
     },
     [DeliveryStage.PICKED_UP]: {
       label: 'Yetkazishni boshladim',
+      slideLabel: "Yo'lga chiqdim",
+      hint: "Mijoz manzili tomon harakatni boshlaganingizda tasdiqlang.",
       buttonClass: 'bg-indigo-600',
     },
     [DeliveryStage.DELIVERING]: {
       label: 'Buyurtma topshirildi',
+      slideLabel: 'Buyurtma topshirildi',
+      hint: 'Faqat mijozga topshirilgandan keyin tasdiqlang.',
       buttonClass: 'bg-emerald-600',
     },
     [DeliveryStage.ARRIVED_AT_DESTINATION]: {
       label: 'Buyurtma topshirildi',
+      slideLabel: 'Buyurtma topshirildi',
+      hint: 'Faqat mijozga topshirilgandan keyin tasdiqlang.',
       buttonClass: 'bg-emerald-600',
     },
     [DeliveryStage.DELIVERED]: {
       label: 'Buyurtma topshirildi',
+      slideLabel: 'Buyurtma yakunlandi',
+      hint: 'Buyurtma allaqachon yakunlangan.',
       buttonClass: 'bg-emerald-600',
     },
   };
 
   return {
     label: actionConfig[stage].label,
+    slideLabel: actionConfig[stage].slideLabel,
+    hint: actionConfig[stage].hint,
     next: nextStage,
     buttonClass: actionConfig[stage].buttonClass,
   };

@@ -109,6 +109,12 @@ export const CreateOrderSchema = z.object({
   note: z.string().optional(),
 });
 
+export const QuoteOrderSchema = CreateOrderSchema.pick({
+  items: true,
+  deliveryAddressId: true,
+  promoCode: true,
+});
+
 export const UpdateOrderStatusSchema = z.object({
   status: z.nativeEnum(OrderStatusEnum),
 });
@@ -128,6 +134,22 @@ export const TrackingLocationSchema = z.object({
   speedKmh: z.number().min(0).optional(),
   remainingDistanceKm: z.number().min(0).optional(),
   remainingEtaMinutes: z.number().int().min(0).optional(),
+});
+
+export const UpdateCourierOperationalStatusSchema = z
+  .object({
+    isOnline: z.boolean().optional(),
+    isAcceptingOrders: z.boolean().optional(),
+  })
+  .refine(
+    (value) => typeof value.isOnline === 'boolean' || typeof value.isAcceptingOrders === 'boolean',
+    {
+      message: "Kamida bitta status maydoni yuborilishi kerak",
+    },
+  );
+
+export const CourierProblemSchema = z.object({
+  text: z.string().trim().min(5).max(500),
 });
 
 // Support

@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Store,
   TimerReset,
+  TriangleAlert,
   User,
 } from 'lucide-react';
 import { DeliveryStage, PaymentMethod } from '../../data/types';
@@ -38,6 +39,25 @@ export function getCourierPaymentLabel(paymentMethod: PaymentMethod) {
     default:
       return "Qo'lda o'tkazma";
   }
+}
+
+function formatDistanceMeters(distanceMeters?: number | null) {
+  if (typeof distanceMeters !== 'number' || Number.isNaN(distanceMeters)) {
+    return "Masofa yo'q";
+  }
+
+  if (distanceMeters < 1000) {
+    return `${distanceMeters} m`;
+  }
+
+  return `${(distanceMeters / 1000).toFixed(1)} km`;
+}
+
+function formatOrderClock(isoDate: string) {
+  return new Date(isoDate).toLocaleTimeString('uz-UZ', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 function getOrderCardAccent(stage: DeliveryStage = DeliveryStage.IDLE) {
@@ -90,11 +110,13 @@ export function CourierStageButtons({
   onStageSelect,
   isUpdating = false,
   theme = 'dark',
+  interactive = true,
 }: {
   currentStage: DeliveryStage;
   onStageSelect: (nextStage: DeliveryStage) => void;
   isUpdating?: boolean;
   theme?: 'light' | 'dark';
+  interactive?: boolean;
 }) {
   const currentIndex = getCourierStageProgressIndex(currentStage);
   const nextStage = getNextCourierStage(currentStage);
@@ -109,7 +131,7 @@ export function CourierStageButtons({
           isCompleted ? 'completed' : isCurrent ? 'current' : isAvailable ? 'available' : 'upcoming',
           theme,
         );
-        const isDisabled = !isAvailable || isUpdating;
+        const isDisabled = !interactive || !isAvailable || isUpdating;
         const isLast = index === COURIER_STAGE_BUTTONS.length - 1;
 
         return (
@@ -117,7 +139,7 @@ export function CourierStageButtons({
             key={button.key}
             type="button"
             onClick={() => {
-              if (isAvailable) {
+              if (interactive && isAvailable) {
                 onStageSelect(button.target);
               }
             }}
@@ -127,7 +149,15 @@ export function CourierStageButtons({
           >
             <div className="flex items-center justify-between gap-3">
               <span className="text-[10px] font-black uppercase tracking-[0.18em]">
-                {isCompleted ? 'Tayyor' : isCurrent ? 'Joriy' : isAvailable ? 'Bosish mumkin' : 'Keyin'}
+                {isCompleted
+                  ? 'Tayyor'
+                  : isCurrent
+                    ? 'Joriy'
+                    : isAvailable
+                      ? interactive
+                        ? 'Bosish mumkin'
+                        : 'Navbatdagi'
+                      : 'Keyin'}
               </span>
               {isCompleted ? (
                 <CheckCircle2 size={15} />
@@ -145,16 +175,235 @@ export function CourierStageButtons({
   );
 }
 
+export function SlideToConfirmAction({
+  label,
+  hint,
+  onConfirm,
+  isLoading = false,
+  disabled = false,
+  theme = 'light',
+}: {
+  label: string;
+  hint?: string;
+  onConfirm: () => void;
+  isLoading?: boolean;
+  disabled?: boolean;
+  theme?: 'light' | 'dark';
+}) {
+  const trackRef = React.useRef<HTMLDivElement | null>(null);
+  const offsetRef = React.useRef(0);
+  const [offset, setOffset] = React.useState(0);
+  const [isDragging, setIsDragging] = React.useState(false);
+  const knobSize = 56;
+  const threshold = 0.82;
+
+  const setSliderOffset = (nextOffset: number) => {
+    offsetRef.current = nextOffset;
+    setOffset(nextOffset);
+  };
+
+  React.useEffect(() => {
+    if (!isDragging && !isLoading) {
+      setSliderOffset(0);
+    }
+  }, [isDragging, isLoading, label]);
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (disabled || isLoading || !trackRef.current) {
+      return;
+    }
+
+    event.preventDefault();
+    const trackRect = trackRef.current.getBoundingClientRect();
+    const maxOffset = Math.max(trackRect.width - knobSize - 8, 0);
+    const startX = event.clientX;
+    const startOffset = offsetRef.current;
+
+    setIsDragging(true);
+
+    const handleMove = (moveEvent: PointerEvent) => {
+      const delta = moveEvent.clientX - startX;
+      const nextOffset = Math.min(maxOffset, Math.max(0, startOffset + delta));
+      setSliderOffset(nextOffset);
+    };
+
+    const handleUp = () => {
+      const progress = maxOffset > 0 ? offsetRef.current / maxOffset : 0;
+      const shouldConfirm = progress >= threshold;
+
+      setIsDragging(false);
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleUp);
+      window.removeEventListener('pointercancel', handleUp);
+
+      if (shouldConfirm) {
+        setSliderOffset(maxOffset);
+        onConfirm();
+        return;
+      }
+
+      setSliderOffset(0);
+    };
+
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', handleUp);
+    window.addEventListener('pointercancel', handleUp);
+  };
+
+  const baseClass =
+    theme === 'dark'
+      ? 'border-white/10 bg-white/[0.06] text-white'
+      : 'border-slate-200 bg-slate-50 text-slate-900';
+  const fillClass =
+    theme === 'dark' ? 'from-amber-300 via-orange-400 to-orange-500' : 'from-amber-400 to-orange-500';
+  const knobClass =
+    theme === 'dark'
+      ? 'border-white/10 bg-white text-slate-950 shadow-[0_12px_28px_rgba(255,255,255,0.14)]'
+      : 'border-amber-200 bg-white text-amber-600 shadow-[0_12px_28px_rgba(249,115,22,0.16)]';
+  const hintClass = theme === 'dark' ? 'text-white/55' : 'text-slate-500';
+  const progressWidth = offset + knobSize + 8;
+
+  return (
+    <div>
+      <div
+        ref={trackRef}
+        className={`relative overflow-hidden rounded-[26px] border p-1 ${baseClass} ${
+          disabled ? 'opacity-55' : ''
+        }`}
+      >
+        <div
+          className={`pointer-events-none absolute inset-y-1 left-1 rounded-[22px] bg-gradient-to-r ${fillClass} transition-[width] duration-150`}
+          style={{ width: `${progressWidth}px` }}
+        />
+        <div className="pointer-events-none relative z-10 flex min-h-[64px] items-center justify-center px-16 text-center">
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-[0.2em]">
+              {isLoading ? 'Bajarilmoqda' : "Tasdiqlash uchun o'ngga suring"}
+            </p>
+            <p className="mt-1 text-sm font-black">{label}</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onPointerDown={handlePointerDown}
+          disabled={disabled || isLoading}
+          className={`absolute left-1 top-1 z-20 flex h-14 w-14 items-center justify-center rounded-[22px] border transition-transform ${knobClass}`}
+          style={{ transform: `translateX(${offset}px)` }}
+          aria-label={label}
+        >
+          {isLoading ? <Loader2 size={18} className="animate-spin" /> : <ArrowRight size={18} />}
+        </button>
+      </div>
+      {hint ? <p className={`mt-3 text-xs font-semibold ${hintClass}`}>{hint}</p> : null}
+    </div>
+  );
+}
+
+export const CourierProblemReporter: React.FC<{
+  value: string;
+  onChange: (value: string) => void;
+  onSubmit: () => void;
+  isSubmitting?: boolean;
+  disabled?: boolean;
+  theme?: 'light' | 'dark';
+  helperText?: string;
+  feedbackText?: string | null;
+  feedbackTone?: 'success' | 'error' | 'neutral';
+}> = ({
+  value,
+  onChange,
+  onSubmit,
+  isSubmitting = false,
+  disabled = false,
+  theme = 'light',
+  helperText,
+  feedbackText,
+  feedbackTone = 'neutral',
+}) => {
+  const isDark = theme === 'dark';
+  const isReady = value.trim().length >= 5 && !disabled && !isSubmitting;
+  const wrapperClass = isDark
+    ? 'border-white/8 bg-white/[0.05]'
+    : 'border-slate-200 bg-slate-50';
+  const textareaClass = isDark
+    ? 'border-white/8 bg-slate-950/50 text-white placeholder:text-white/35'
+    : 'border-slate-200 bg-white text-slate-900 placeholder:text-slate-400';
+  const helperClass = isDark ? 'text-white/55' : 'text-slate-500';
+  const feedbackClass =
+    feedbackTone === 'success'
+      ? isDark
+        ? 'text-emerald-200'
+        : 'text-emerald-700'
+      : feedbackTone === 'error'
+        ? isDark
+          ? 'text-rose-200'
+          : 'text-rose-700'
+        : helperClass;
+
+  return (
+    <div className={`rounded-[24px] border p-4 ${wrapperClass}`}>
+      <div className="flex items-center gap-3">
+        <div
+          className={`flex h-10 w-10 items-center justify-center rounded-2xl ${
+            isDark ? 'bg-rose-400/12 text-rose-200' : 'bg-rose-50 text-rose-600'
+          }`}
+        >
+          <TriangleAlert size={18} />
+        </div>
+        <div>
+          <p className={`text-[10px] font-black uppercase tracking-[0.18em] ${helperClass}`}>Muammo haqida</p>
+          <p className={`mt-1 text-sm font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            Operatorga qisqa va aniq izoh yuboring
+          </p>
+        </div>
+      </div>
+
+      <textarea
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="Masalan: mijoz javob bermayapti yoki manzil topilmadi"
+        rows={3}
+        maxLength={500}
+        disabled={disabled || isSubmitting}
+        className={`mt-4 w-full rounded-[20px] border px-4 py-3 text-sm font-semibold outline-none transition focus:border-amber-400 ${textareaClass}`}
+      />
+
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <div className={`min-w-0 text-xs font-semibold ${feedbackClass}`}>
+          {feedbackText || helperText || "Kamida 5 ta belgi bilan yozing."}
+        </div>
+        <button
+          type="button"
+          onClick={onSubmit}
+          disabled={!isReady}
+          className={`inline-flex h-11 shrink-0 items-center justify-center rounded-full px-4 text-[11px] font-black uppercase tracking-[0.18em] transition-transform active:scale-[0.98] ${
+            isReady
+              ? 'bg-amber-400 text-slate-950'
+              : isDark
+                ? 'bg-white/10 text-white/35'
+                : 'bg-slate-200 text-slate-400'
+          }`}
+        >
+          {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : 'Yuborish'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export const CourierOrderCard: React.FC<{
   order: CourierOrderPreview;
   onClick: () => void;
 }> = ({ order, onClick }) => {
   const stageMeta = getDeliveryStageMeta(order.deliveryStage);
-  const createdAt = new Date(order.createdAt).toLocaleTimeString('uz-UZ', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const createdAt = formatOrderClock(order.createdAt);
   const accentGradient = getOrderCardAccent(order.deliveryStage);
+  const assignmentTone =
+    order.courierAssignmentStatus === 'ASSIGNED'
+      ? 'Yangi topshiriq'
+      : order.courierAssignmentStatus === 'DELIVERED'
+        ? 'Tugatilgan'
+        : 'Faol topshiriq';
 
   return (
     <button
@@ -166,22 +415,38 @@ export const CourierOrderCard: React.FC<{
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[0.24em] text-white/55">
-              Faol topshiriq
+              {assignmentTone}
             </p>
             <h4 className="mt-2 text-2xl font-black tracking-tight">#{order.orderNumber}</h4>
-            <p className="mt-2 truncate text-sm font-semibold text-white/78">{order.customerName}</p>
+            <p className="mt-2 truncate text-sm font-semibold text-white/78">{order.restaurantName}</p>
           </div>
           <div className={`shrink-0 rounded-2xl px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] ${stageMeta.badgeClass}`}>
             {stageMeta.label}
           </div>
         </div>
 
-        <div className="mt-4 rounded-[22px] border border-white/10 bg-white/10 px-4 py-3 backdrop-blur-sm">
-          <div className="flex items-start gap-3">
-            <MapPin size={16} className="mt-0.5 shrink-0 text-amber-200" />
-            <p className="line-clamp-2 text-sm font-semibold leading-relaxed text-white/82">
-              {order.destinationAddress || "Manzil ko'rsatilmagan"}
-            </p>
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="rounded-[22px] border border-white/10 bg-white/10 px-4 py-3 backdrop-blur-sm">
+            <div className="flex items-start gap-3">
+              <Navigation size={16} className="mt-0.5 shrink-0 text-sky-200" />
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/55">Restorangacha</p>
+                <p className="mt-1 truncate text-sm font-semibold leading-relaxed text-white/82">
+                  {formatDistanceMeters(order.distanceToRestaurantMeters)}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-[22px] border border-white/10 bg-white/10 px-4 py-3 backdrop-blur-sm">
+            <div className="flex items-start gap-3">
+              <MapPin size={16} className="mt-0.5 shrink-0 text-amber-200" />
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/55">Hudud</p>
+                <p className="mt-1 truncate text-sm font-semibold leading-relaxed text-white/82">
+                  {order.destinationArea || "Manzil ko'rsatilmagan"}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -199,8 +464,8 @@ export const CourierOrderCard: React.FC<{
           </p>
         </div>
         <div className="rounded-[20px] border border-slate-100 bg-slate-50 px-3 py-3">
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Holat</p>
-          <p className="mt-2 text-[12px] font-black text-slate-900">{stageMeta.description}</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Yetkazish</p>
+          <p className="mt-2 text-[12px] font-black text-slate-900">{order.deliveryFee.toLocaleString()} so'm</p>
         </div>
         <div className="rounded-[20px] border border-slate-100 bg-slate-50 px-3 py-3 text-right">
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Jami</p>
@@ -228,6 +493,7 @@ export const DeliveryBottomPanel: React.FC<{
   onAction: (nextStage: DeliveryStage) => void;
   onCall: () => void;
   onOpenDetails: () => void;
+  problemPanel?: React.ReactNode;
   onExpandedChange?: (expanded: boolean) => void;
   isUpdating?: boolean;
   canCall?: boolean;
@@ -246,6 +512,7 @@ export const DeliveryBottomPanel: React.FC<{
   onAction,
   onCall,
   onOpenDetails,
+  problemPanel,
   onExpandedChange,
   isUpdating = false,
   canCall = true,
@@ -260,13 +527,21 @@ export const DeliveryBottomPanel: React.FC<{
   isEtaLive = false,
 }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
+  const [isProblemOpen, setIsProblemOpen] = React.useState(false);
   const stageMeta = getDeliveryStageMeta(currentStage);
   const primaryAction = getDeliveryStageAction(currentStage);
   const stageIndex = getDeliveryStageIndex(currentStage);
+  const hasProblemPanel = Boolean(problemPanel);
 
   React.useEffect(() => {
     if (currentStage === DeliveryStage.DELIVERED) {
       setIsExpanded(true);
+    }
+  }, [currentStage]);
+
+  React.useEffect(() => {
+    if (currentStage === DeliveryStage.DELIVERED) {
+      setIsProblemOpen(false);
     }
   }, [currentStage]);
 
@@ -367,7 +642,7 @@ export const DeliveryBottomPanel: React.FC<{
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className={`mt-4 grid gap-3 ${hasProblemPanel ? 'grid-cols-3' : 'grid-cols-2'}`}>
               <button
                 type="button"
                 onClick={onCall}
@@ -385,6 +660,19 @@ export const DeliveryBottomPanel: React.FC<{
                 <Package size={16} />
                 <span>Tafsilot</span>
               </button>
+              {hasProblemPanel ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsExpanded(true);
+                    setIsProblemOpen((prev) => !prev);
+                  }}
+                  className="flex h-14 items-center justify-center gap-2 rounded-[22px] border border-white/8 bg-white/[0.06] text-[11px] font-black uppercase tracking-[0.18em] text-white transition-transform active:scale-[0.98]"
+                >
+                  <TriangleAlert size={16} />
+                  <span>Muammo</span>
+                </button>
+              ) : null}
             </div>
 
             {primaryAction.next ? (
@@ -392,9 +680,28 @@ export const DeliveryBottomPanel: React.FC<{
                 <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-200/75">
                   Hozirgi vazifa
                 </p>
-                <p className="mt-2 text-sm font-black text-white">{primaryAction.label}</p>
+                <p className="mt-2 text-sm font-black text-white">{primaryAction.slideLabel}</p>
               </div>
             ) : null}
+
+            <div className="mt-4">
+              {primaryAction.next ? (
+                <SlideToConfirmAction
+                  label={primaryAction.slideLabel}
+                  hint={primaryAction.hint}
+                  onConfirm={() => onAction(primaryAction.next!)}
+                  isLoading={isUpdating}
+                  theme="dark"
+                />
+              ) : (
+                <div className="rounded-[24px] border border-emerald-300/20 bg-emerald-400/12 px-4 py-4">
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-200/75">
+                    Holat
+                  </p>
+                  <p className="mt-2 text-sm font-black text-white">Buyurtma muvaffaqiyatli yakunlandi.</p>
+                </div>
+              )}
+            </div>
 
             <div className="mt-4">
               <CourierStageButtons
@@ -402,6 +709,7 @@ export const DeliveryBottomPanel: React.FC<{
                 onStageSelect={onAction}
                 isUpdating={isUpdating}
                 theme="dark"
+                interactive={false}
               />
             </div>
           </div>
@@ -480,6 +788,8 @@ export const DeliveryBottomPanel: React.FC<{
                     <p className="mt-2 text-sm font-semibold leading-relaxed text-white/82">{order.note}</p>
                   </div>
                 ) : null}
+
+                {hasProblemPanel && isProblemOpen ? problemPanel : null}
               </div>
             </div>
           ) : null}

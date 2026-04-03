@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import type { CategoryFormData, MenuCategory, MenuProduct, ProductFormData } from '../../features/menu/types';
-import { getSeedCategories, getSeedProducts } from '../../features/menu/seedData';
 
 const menuKeys = {
   all: ['menu'] as const,
@@ -16,14 +15,12 @@ export const useCategories = () =>
   useQuery<MenuCategory[]>({
     queryKey: menuKeys.categories,
     queryFn: async () => (await api.get('/menu/categories')) as MenuCategory[],
-    placeholderData: () => getSeedCategories(),
   });
 
 export const useProducts = () =>
   useQuery<MenuProduct[]>({
     queryKey: menuKeys.products,
     queryFn: async () => (await api.get('/menu/products')) as MenuProduct[],
-    placeholderData: () => getSeedProducts(),
   });
 
 export const useProductById = (id: string) =>

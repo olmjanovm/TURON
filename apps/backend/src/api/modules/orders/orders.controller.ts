@@ -1,12 +1,13 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import {
-  DEFAULT_DELIVERY_FEE,
   OrderStatusEnum,
   PaymentStatusEnum,
   UserRoleEnum,
 } from '@turon/shared';
 import { prisma } from '../../../lib/prisma.js';
 import { AuditService } from '../../../services/audit.service.js';
+import { CourierAssignmentService } from '../../../services/courier-assignment.service.js';
+import { DeliveryQuoteService } from '../../../services/delivery-quote.service.js';
 import { orderTrackingService } from '../../../services/order-tracking.service.js';
 import { StatusService } from '../../../services/status.service.js';
 import {
@@ -15,15 +16,14 @@ import {
   RESTAURANT_COORDS,
   hasOrderAccess,
   isOrderVisibleToRequester,
-  serializeCourierOption,
   serializeOrder,
 } from './order-helpers.js';
 import { evaluatePromoForSubtotal } from '../promos/promo-helpers.js';
 
-function addTracking(order: any) {
+async function addTracking(order: any) {
   return {
     ...serializeOrder(order),
-    tracking: orderTrackingService.getSnapshot(order.id),
+    tracking: await orderTrackingService.getSnapshot(order.id),
   };
 }
 
@@ -36,7 +36,7 @@ async function getTrackableOrder(orderId: string) {
 
 async function getSerializedOrder(orderId: string) {
   const order = await getTrackableOrder(orderId);
-  return order ? addTracking(order) : null;
+  return order ? await addTracking(order) : null;
 }
 
 async function publishOrderSnapshot(orderId: string) {
@@ -85,24 +85,23 @@ function roundCurrency(value: number) {
   return Math.max(0, Math.round(value * 100) / 100);
 }
 
-export async function handleCreateOrder(
-  request: FastifyRequest<{ Body: any }>,
-  reply: FastifyReply,
-) {
-  const user = request.user as any;
-  const { items, deliveryAddressId, paymentMethod, promoCode, note } = request.body as any;
-
+async function getOwnedDeliveryAddress(userId: string, deliveryAddressId: string) {
   const deliveryAddress = await prisma.deliveryAddress.findUnique({
     where: { id: deliveryAddressId },
   });
 
-  if (!deliveryAddress || deliveryAddress.userId !== user.id) {
-    return reply.status(403).send({ error: 'Tanlangan manzil sizga tegishli emas' });
+  if (!deliveryAddress || deliveryAddress.userId !== userId) {
+    throw new Error('Tanlangan manzil sizga tegishli emas');
   }
 
+  return deliveryAddress;
+}
+
+async function buildValidatedOrderItems(items: Array<{ menuItemId: string; quantity: number }>) {
+  const requestedItemIds = [...new Set(items.map((item) => item.menuItemId))];
   const dbItems = await prisma.menuItem.findMany({
     where: {
-      id: { in: items.map((item: any) => item.menuItemId) },
+      id: { in: requestedItemIds },
       isActive: true,
       availabilityStatus: 'AVAILABLE' as any,
       category: {
@@ -111,14 +110,13 @@ export async function handleCreateOrder(
     },
   });
 
-  if (dbItems.length !== items.length) {
-    return reply.status(400).send({ error: 'Ba`zi taomlar mavjud emas yoki faol emas' });
+  if (dbItems.length !== requestedItemIds.length) {
+    throw new Error('Ba`zi taomlar mavjud emas yoki faol emas');
   }
 
   const itemMap = new Map(dbItems.map((item) => [item.id, item]));
-
   let subtotal = 0;
-  const orderItemsData = items.map((item: any) => {
+  const orderItemsData = items.map((item) => {
     const dbItem = itemMap.get(item.menuItemId);
 
     if (!dbItem) {
@@ -139,27 +137,136 @@ export async function handleCreateOrder(
     };
   });
 
-  subtotal = roundCurrency(subtotal);
+  return {
+    subtotal: roundCurrency(subtotal),
+    orderItemsData,
+  };
+}
 
-  let promo = null;
-  let discountAmount = 0;
-
-  if (promoCode) {
-    promo = await prisma.promoCode.findFirst({
-      where: { code: promoCode.trim().toUpperCase() },
-    });
-
-    const promoValidation = evaluatePromoForSubtotal(promo, subtotal);
-
-    if (!promoValidation.isValid) {
-      return reply.status(400).send({ error: promoValidation.message });
-    }
-
-    discountAmount = promoValidation.discountAmount;
+async function resolvePromo(promoCode: string | undefined, subtotal: number) {
+  if (!promoCode?.trim()) {
+    return {
+      promo: null,
+      discountAmount: 0,
+    };
   }
 
-  const deliveryFee = DEFAULT_DELIVERY_FEE;
-  const totalAmount = roundCurrency(subtotal - discountAmount + deliveryFee);
+  const promo = await prisma.promoCode.findFirst({
+    where: { code: promoCode.trim().toUpperCase() },
+  });
+
+  const promoValidation = evaluatePromoForSubtotal(promo, subtotal);
+
+  if (!promoValidation.isValid) {
+    throw new Error(promoValidation.message);
+  }
+
+  return {
+    promo,
+    discountAmount: promoValidation.discountAmount,
+  };
+}
+
+async function buildOrderPricing(input: {
+  userId: string;
+  items: Array<{ menuItemId: string; quantity: number }>;
+  deliveryAddressId: string;
+  promoCode?: string;
+}) {
+  const deliveryAddress = await getOwnedDeliveryAddress(input.userId, input.deliveryAddressId);
+  const { subtotal, orderItemsData } = await buildValidatedOrderItems(input.items);
+  const { promo, discountAmount } = await resolvePromo(input.promoCode, subtotal);
+
+  const quote = await DeliveryQuoteService.calculate({
+    subtotal,
+    discountAmount,
+    destination: {
+      latitude: Number(deliveryAddress.latitude),
+      longitude: Number(deliveryAddress.longitude),
+    },
+  });
+
+  return {
+    deliveryAddress,
+    orderItemsData,
+    promo,
+    quote,
+  };
+}
+
+function serializeOrderQuote(quote: Awaited<ReturnType<typeof buildOrderPricing>>['quote']) {
+  return {
+    subtotal: quote.subtotal,
+    discount: quote.discountAmount,
+    merchandiseTotal: quote.merchandiseTotal,
+    deliveryFee: quote.deliveryFee,
+    total: quote.totalAmount,
+    deliveryDistanceMeters: quote.distanceMeters,
+    deliveryEtaMinutes: quote.etaMinutes,
+    deliveryFeeRuleCode: quote.feeRuleCode,
+    deliveryFeeBaseAmount: quote.feeBaseAmount,
+    deliveryFeeExtraAmount: quote.feeExtraAmount,
+    routeSource: quote.routeSource,
+  };
+}
+
+export async function handleQuoteOrder(
+  request: FastifyRequest<{ Body: any }>,
+  reply: FastifyReply,
+) {
+  const user = request.user as any;
+  const { items, deliveryAddressId, promoCode } = request.body as any;
+
+  try {
+    const orderPricing = await buildOrderPricing({
+      userId: user.id,
+      items,
+      deliveryAddressId,
+      promoCode,
+    });
+
+    return reply.send(serializeOrderQuote(orderPricing.quote));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Yetkazish narxi hisoblanmadi';
+    const statusCode =
+      message === 'Tanlangan manzil sizga tegishli emas'
+        ? 403
+        : message === 'Ba`zi taomlar mavjud emas yoki faol emas'
+          ? 400
+          : 400;
+
+    return reply.status(statusCode).send({ error: message });
+  }
+}
+
+export async function handleCreateOrder(
+  request: FastifyRequest<{ Body: any }>,
+  reply: FastifyReply,
+) {
+  const user = request.user as any;
+  const { items, deliveryAddressId, paymentMethod, promoCode, note } = request.body as any;
+  let orderPricing: Awaited<ReturnType<typeof buildOrderPricing>>;
+
+  try {
+    orderPricing = await buildOrderPricing({
+      userId: user.id,
+      items,
+      deliveryAddressId,
+      promoCode,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Buyurtma yaratishda xatolik yuz berdi';
+    const statusCode =
+      message === 'Tanlangan manzil sizga tegishli emas'
+        ? 403
+        : message === 'Ba`zi taomlar mavjud emas yoki faol emas'
+          ? 400
+          : 400;
+
+    return reply.status(statusCode).send({ error: message });
+  }
+
+  const { deliveryAddress, orderItemsData, promo, quote } = orderPricing;
 
   const createdOrder = await prisma.$transaction(async (tx) => {
     return tx.order.create({
@@ -169,10 +276,15 @@ export async function handleCreateOrder(
         courierId: null,
         promoCodeId: promo?.id ?? null,
         status: OrderStatusEnum.PENDING as any,
-        subtotal,
-        discountAmount,
-        deliveryFee,
-        totalAmount,
+        subtotal: quote.subtotal,
+        discountAmount: quote.discountAmount,
+        deliveryFee: quote.deliveryFee,
+        deliveryDistanceMeters: quote.distanceMeters,
+        deliveryEtaMinutes: quote.etaMinutes,
+        deliveryFeeRuleCode: quote.feeRuleCode,
+        deliveryFeeBaseAmount: quote.feeBaseAmount,
+        deliveryFeeExtraAmount: quote.feeExtraAmount,
+        totalAmount: quote.totalAmount,
         paymentMethod,
         paymentStatus: PaymentStatusEnum.PENDING as any,
         note: note?.trim() || null,
@@ -185,7 +297,7 @@ export async function handleCreateOrder(
           create: {
             method: paymentMethod,
             status: PaymentStatusEnum.PENDING as any,
-            amount: totalAmount,
+            amount: quote.totalAmount,
             provider:
               paymentMethod === 'MANUAL_TRANSFER'
                 ? 'Manual transfer'
@@ -199,6 +311,13 @@ export async function handleCreateOrder(
     });
   });
 
+  let autoAssignmentResult: Awaited<ReturnType<typeof CourierAssignmentService.autoAssignOrder>> | null = null;
+  try {
+    autoAssignmentResult = await CourierAssignmentService.autoAssignOrder(createdOrder.id);
+  } catch (error) {
+    console.error(`Auto courier assignment failed for order ${createdOrder.id}:`, error);
+  }
+
   const serializedOrder = await getSerializedOrder(createdOrder.id);
 
   await AuditService.record({
@@ -210,6 +329,25 @@ export async function handleCreateOrder(
     newValue: serializedOrder,
   });
 
+  if (autoAssignmentResult?.assignment) {
+    await AuditService.record({
+      action: 'AUTO_ASSIGN_COURIER',
+      entity: 'Order',
+      entityId: createdOrder.id,
+      newValue: {
+        assignmentId: autoAssignmentResult.assignment.assignmentId,
+        courierId: autoAssignmentResult.assignment.courierId,
+        courierName: autoAssignmentResult.assignment.courierName,
+        etaMinutes: autoAssignmentResult.assignment.etaMinutes,
+        distanceMeters: autoAssignmentResult.assignment.distanceMeters,
+        rankingCandidate: autoAssignmentResult.selectedCandidate,
+      },
+      metadata: {
+        mode: 'AUTO',
+      },
+    });
+  }
+
   if (serializedOrder) {
     orderTrackingService.publishOrderUpdate(createdOrder.id, serializedOrder);
   }
@@ -220,7 +358,7 @@ export async function handleCreateOrder(
 export async function getMyOrders(request: FastifyRequest, reply: FastifyReply) {
   const user = request.user as any;
   const orders = await listAccessibleOrders(user);
-  return reply.send(orders.map(addTracking));
+  return reply.send(await Promise.all(orders.map((order) => addTracking(order))));
 }
 
 export async function getAllOrders(request: FastifyRequest, reply: FastifyReply) {
@@ -229,35 +367,27 @@ export async function getAllOrders(request: FastifyRequest, reply: FastifyReply)
     orderBy: { createdAt: 'desc' },
   });
 
-  return reply.send(orders.map(addTracking));
+  return reply.send(await Promise.all(orders.map((order) => addTracking(order))));
 }
 
 export async function getAvailableCouriers(request: FastifyRequest, reply: FastifyReply) {
-  const couriers = await prisma.user.findMany({
-    where: {
-      isActive: true,
-      role: UserRoleEnum.COURIER as any,
-    },
-    include: {
-      courierAssignments: {
-        where: {
-          status: {
-            in: ACTIVE_ASSIGNMENT_STATUSES as any,
-          },
-        },
-      },
-    },
-    orderBy: { fullName: 'asc' },
-  });
+  const couriers = await CourierAssignmentService.rankEligibleCouriers();
 
   return reply.send(
-    couriers
-      .map(serializeCourierOption)
-      .sort(
-        (left, right) =>
-          left.activeAssignments - right.activeAssignments ||
-          left.fullName.localeCompare(right.fullName),
-      ),
+    couriers.map((courier) => ({
+      id: courier.id,
+      fullName: courier.fullName,
+      phoneNumber: courier.phoneNumber,
+      activeAssignments: courier.activeAssignments,
+      isOnline: courier.isOnline,
+      isAcceptingOrders: courier.isAcceptingOrders,
+      rank: courier.rank,
+      distanceMeters: courier.metrics.distanceMeters,
+      etaMinutes: courier.metrics.etaMinutes,
+      rankingSource: courier.metrics.source,
+      hasLiveLocation: courier.metrics.hasLiveLocation,
+      liveLocationUpdatedAt: courier.metrics.liveLocationUpdatedAt,
+    })),
   );
 }
 
@@ -276,7 +406,7 @@ export async function getOrderDetail(
     return reply.status(403).send({ error: "Bu buyurtmaga kirish ruxsati yo'q" });
   }
 
-  return reply.send(addTracking(order));
+  return reply.send(await addTracking(order));
 }
 
 export async function streamOrderTracking(
@@ -311,8 +441,8 @@ export async function streamOrderTracking(
   sendEvent({
     type: 'snapshot',
     orderId: order.id,
-    order: addTracking(order),
-    tracking: orderTrackingService.getSnapshot(order.id),
+    order: await addTracking(order),
+    tracking: await orderTrackingService.getSnapshot(order.id),
   });
 
   const heartbeat = setInterval(() => {
@@ -333,7 +463,8 @@ export async function streamOrderTracking(
 export async function streamOrders(request: FastifyRequest, reply: FastifyReply) {
   const requester = request.user as any;
   const initialOrders = (await listAccessibleOrders(requester)).map(addTracking);
-  const accessibleOrderIds = new Set(initialOrders.map((order) => order.id));
+  const resolvedInitialOrders = await Promise.all(initialOrders);
+  const accessibleOrderIds = new Set(resolvedInitialOrders.map((order) => order.id));
 
   reply.hijack();
   reply.raw.writeHead(200, {
@@ -350,12 +481,12 @@ export async function streamOrders(request: FastifyRequest, reply: FastifyReply)
 
   reply.raw.write('retry: 3000\n\n');
 
-  for (const order of initialOrders) {
+  for (const order of resolvedInitialOrders) {
     sendEvent({
       type: 'snapshot',
       orderId: order.id,
       order,
-      tracking: orderTrackingService.getSnapshot(order.id),
+      tracking: await orderTrackingService.getSnapshot(order.id),
     });
   }
 
@@ -455,6 +586,17 @@ export async function handleUpdateStatus(
           deliveringAt: activeAssignment.deliveringAt || now,
         },
       });
+
+      await tx.courierAssignmentEvent.create({
+        data: {
+          assignmentId: activeAssignment.id,
+          orderId: order.id,
+          courierId: activeAssignment.courierId,
+          eventType: 'DELIVERING' as any,
+          eventAt: now,
+          actorUserId: admin.id,
+        },
+      });
     }
 
     if (status === OrderStatusEnum.DELIVERED && activeAssignment) {
@@ -468,9 +610,24 @@ export async function handleUpdateStatus(
           deliveredAt: activeAssignment.deliveredAt || now,
         },
       });
+
+      await tx.courierAssignmentEvent.create({
+        data: {
+          assignmentId: activeAssignment.id,
+          orderId: order.id,
+          courierId: activeAssignment.courierId,
+          eventType: 'DELIVERED' as any,
+          eventAt: now,
+          actorUserId: admin.id,
+        },
+      });
     }
 
     if (status === OrderStatusEnum.CANCELLED) {
+      const activeAssignments = order.courierAssignments.filter((assignment: any) =>
+        StatusService.isActiveAssignmentStatus(assignment.status),
+      );
+
       await tx.courierAssignment.updateMany({
         where: {
           orderId: order.id,
@@ -483,6 +640,19 @@ export async function handleUpdateStatus(
           cancelledAt: now,
         },
       });
+
+      if (activeAssignments.length > 0) {
+        await tx.courierAssignmentEvent.createMany({
+          data: activeAssignments.map((assignment: any) => ({
+            assignmentId: assignment.id,
+            orderId: order.id,
+            courierId: assignment.courierId,
+            eventType: 'CANCELLED' as any,
+            eventAt: now,
+            actorUserId: admin.id,
+          })),
+        });
+      }
     }
   });
 
@@ -538,6 +708,15 @@ export async function handleAssignCourier(
     return reply.status(404).send({ error: 'Tanlangan kuryer topilmadi' });
   }
 
+  const rankedCouriers = await CourierAssignmentService.rankEligibleCouriers();
+  const selectedCandidate = rankedCouriers.find((candidate) => candidate.id === courierId);
+
+  if (!selectedCandidate) {
+    return reply.status(400).send({
+      error: "Tanlangan kuryer hozir buyurtma qabul qilishga tayyor emas",
+    });
+  }
+
   const activeAssignment = order.courierAssignments.find((assignment: any) =>
     StatusService.isActiveAssignmentStatus(assignment.status),
   );
@@ -546,36 +725,24 @@ export async function handleAssignCourier(
     return reply.send(await getSerializedOrder(order.id));
   }
 
-  const assignmentTimestamp = new Date();
-
-  const assignment = await prisma.$transaction(async (tx) => {
-    await tx.order.update({
-      where: { id: order.id },
-      data: { courierId },
+  let assignment;
+  try {
+    assignment = await CourierAssignmentService.assignCourierToOrder(order.id, courierId, {
+      assignedByUserId: admin.id,
+      actorRole: admin.role,
+      mode: 'MANUAL',
+      metrics: selectedCandidate.metrics,
     });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Kuryerni biriktirib bo`lmadi';
+    const statusCode =
+      message === 'Buyurtma topilmadi' ? 404 :
+      message === "Yakunlangan buyurtmaga kuryer biriktirib bo'lmaydi" ? 400 :
+      message === "Tanlangan kuryer hozir buyurtma qabul qilishga tayyor emas" ? 400 :
+      400;
 
-    await tx.courierAssignment.updateMany({
-      where: {
-        orderId: order.id,
-        status: {
-          in: ACTIVE_ASSIGNMENT_STATUSES as any,
-        },
-      },
-      data: {
-        status: 'CANCELLED' as any,
-        cancelledAt: assignmentTimestamp,
-      },
-    });
-
-    return tx.courierAssignment.create({
-      data: {
-        orderId: order.id,
-        courierId,
-        status: 'ASSIGNED' as any,
-        assignedAt: assignmentTimestamp,
-      },
-    });
-  });
+    return reply.status(statusCode).send({ error: message });
+  }
 
   const serializedOrder = await getSerializedOrder(order.id);
 
@@ -590,9 +757,11 @@ export async function handleAssignCourier(
       courierName: activeAssignment?.courier?.fullName,
     },
     newValue: {
-      assignmentId: assignment.id,
+      assignmentId: assignment.assignmentId,
       courierId,
-      courierName: courier.fullName,
+      courierName: assignment.courierName,
+      etaMinutes: assignment.etaMinutes,
+      distanceMeters: assignment.distanceMeters,
     },
   });
 
@@ -621,7 +790,7 @@ export async function handleApprovePayment(
   }
 
   if (order.paymentStatus === PaymentStatusEnum.COMPLETED) {
-    return reply.send(addTracking(order));
+    return reply.send(await addTracking(order));
   }
 
   if (order.paymentStatus !== PaymentStatusEnum.PENDING) {
@@ -729,6 +898,10 @@ export async function handleRejectPayment(
       },
     });
 
+    const activeAssignments = order.courierAssignments.filter((assignment: any) =>
+      StatusService.isActiveAssignmentStatus(assignment.status),
+    );
+
     await tx.courierAssignment.updateMany({
       where: {
         orderId: order.id,
@@ -741,6 +914,22 @@ export async function handleRejectPayment(
         cancelledAt: now,
       },
     });
+
+    if (activeAssignments.length > 0) {
+      await tx.courierAssignmentEvent.createMany({
+        data: activeAssignments.map((assignment: any) => ({
+          assignmentId: assignment.id,
+          orderId: order.id,
+          courierId: assignment.courierId,
+          eventType: 'CANCELLED' as any,
+          eventAt: now,
+          actorUserId: admin.id,
+          payload: {
+            reason: rejectionReason,
+          },
+        })),
+      });
+    }
   });
 
   const serializedOrder = await publishOrderSnapshot(order.id);

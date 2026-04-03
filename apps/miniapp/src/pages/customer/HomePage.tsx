@@ -14,13 +14,11 @@ import {
   getCustomerCategoryLabel,
   sortCustomerCategories,
 } from '../../features/menu/customerCatalog';
-import type { MenuCategory, MenuProduct } from '../../features/menu/types';
 import { useAddresses } from '../../hooks/queries/useAddresses';
 import { useCategories, useProducts } from '../../hooks/queries/useMenu';
 import { useMyOrders } from '../../hooks/queries/useOrders';
 import { useAddressStore } from '../../store/useAddressStore';
 import { useAuthStore } from '../../store/useAuthStore';
-import { ProductAvailabilityEnum, ProductBadgeEnum } from '@turon/shared';
 
 const PROMO_STRIP_LABELS = [
   { id: 'hot', label: 'Issiq taomlar', match: ['osh', "sho'rva", 'shorva'] },
@@ -37,210 +35,6 @@ const QUICK_CHIPS = [
   { id: 'chip-donar', label: 'Donarlar', match: ['donar', 'doner', 'shawarma'] },
   { id: 'chip-drink', label: 'Ichimliklar', match: ['ichimlik', 'drink', 'juice', 'cola'] },
   { id: 'chip-sweet', label: 'Shirinliklar', match: ['shirinlik', 'dessert', 'desert', 'tort', 'cake'] },
-];
-
-const DEMO_CATEGORIES: MenuCategory[] = [
-  {
-    id: 'demo-fastfood',
-    name: 'Fast food',
-    slug: 'fast-food',
-    imageUrl: 'https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=1200&q=80',
-    sortOrder: 1,
-    isActive: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'demo-lavash',
-    name: 'Lavash',
-    slug: 'lavash',
-    imageUrl: 'https://images.unsplash.com/photo-1513639776629-7b61b0ac49cb?auto=format&fit=crop&w=1200&q=80',
-    sortOrder: 2,
-    isActive: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'demo-burger',
-    name: 'Burger',
-    slug: 'burger',
-    imageUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=1200&q=80',
-    sortOrder: 3,
-    isActive: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'demo-donar',
-    name: 'Donar',
-    slug: 'donar',
-    imageUrl: 'https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=1200&q=80',
-    sortOrder: 4,
-    isActive: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'demo-pitsa',
-    name: 'Pitsa',
-    slug: 'pitsa',
-    imageUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=1200&q=80',
-    sortOrder: 5,
-    isActive: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'demo-ichimlik',
-    name: 'Ichimliklar',
-    slug: 'ichimliklar',
-    imageUrl: 'https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=1200&q=80',
-    sortOrder: 6,
-    isActive: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'demo-shirinlik',
-    name: 'Shirinliklar',
-    slug: 'shirinliklar',
-    imageUrl: 'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?auto=format&fit=crop&w=1200&q=80',
-    sortOrder: 7,
-    isActive: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
-
-const DEMO_PRODUCTS: MenuProduct[] = [
-  {
-    id: 'demo-donar-1',
-    categoryId: 'demo-donar',
-    name: 'Klassik donar',
-    description: "Mol go'shti, yangi sabzavot va maxsus sous bilan.",
-    price: 32000,
-    imageUrl: 'https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=1200&q=80',
-    isActive: true,
-    availability: ProductAvailabilityEnum.AVAILABLE,
-    stockQuantity: 999,
-    badge: ProductBadgeEnum.DISCOUNT,
-    weight: '350 g',
-    sortOrder: 1,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'demo-lavash-1',
-    categoryId: 'demo-lavash',
-    name: 'Tovuq lavash',
-    description: "Tovuq go'shti, pomidor va maxsus sous bilan.",
-    price: 28000,
-    imageUrl: 'https://images.unsplash.com/photo-1513639776629-7b61b0ac49cb?auto=format&fit=crop&w=1200&q=80',
-    isActive: true,
-    availability: ProductAvailabilityEnum.AVAILABLE,
-    stockQuantity: 999,
-    badge: ProductBadgeEnum.DISCOUNT,
-    weight: '330 g',
-    sortOrder: 2,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'demo-burger-1',
-    categoryId: 'demo-burger',
-    name: 'Chizburger',
-    description: "Pishloqli burger, sabzavot va sous bilan.",
-    price: 25000,
-    imageUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=1200&q=80',
-    isActive: true,
-    availability: ProductAvailabilityEnum.AVAILABLE,
-    stockQuantity: 999,
-    badge: ProductBadgeEnum.POPULAR,
-    weight: '240 g',
-    sortOrder: 3,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'demo-pitsa-1',
-    categoryId: 'demo-pitsa',
-    name: 'Pitsa pepperoni',
-    description: "Mozzarella, pepperoni va pomidor sous.",
-    price: 69000,
-    imageUrl: 'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?auto=format&fit=crop&w=1200&q=80',
-    isActive: true,
-    availability: ProductAvailabilityEnum.AVAILABLE,
-    stockQuantity: 999,
-    badge: ProductBadgeEnum.NEW,
-    weight: '35 sm',
-    sortOrder: 4,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'demo-drink-1',
-    categoryId: 'demo-ichimlik',
-    name: 'Pepsi 1.5L',
-    description: 'Sovuq gazli ichimlik.',
-    price: 16000,
-    imageUrl: 'https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=1200&q=80',
-    isActive: true,
-    availability: ProductAvailabilityEnum.AVAILABLE,
-    stockQuantity: 999,
-    badge: ProductBadgeEnum.POPULAR,
-    weight: '1.5 L',
-    sortOrder: 5,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'demo-somsa-1',
-    categoryId: 'demo-fastfood',
-    name: 'Somsa',
-    description: "Qiyma goshtli issiq somsa.",
-    price: 9000,
-    imageUrl: 'https://images.unsplash.com/photo-1542826438-4c8b6f1f27a0?auto=format&fit=crop&w=1200&q=80',
-    isActive: true,
-    availability: ProductAvailabilityEnum.AVAILABLE,
-    stockQuantity: 999,
-    badge: ProductBadgeEnum.NEW,
-    weight: '1 dona',
-    sortOrder: 6,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'demo-tort-1',
-    categoryId: 'demo-shirinlik',
-    name: 'Tort',
-    description: "Shirin kremli tort bo'lagi.",
-    price: 18000,
-    imageUrl: 'https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?auto=format&fit=crop&w=1200&q=80',
-    isActive: true,
-    availability: ProductAvailabilityEnum.AVAILABLE,
-    stockQuantity: 999,
-    badge: ProductBadgeEnum.NEW,
-    weight: '150 g',
-    sortOrder: 7,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'demo-ice-1',
-    categoryId: 'demo-shirinlik',
-    name: 'Muzqaymoq',
-    description: "Sovuq muzqaymoq, yozgi ta'm.",
-    price: 12000,
-    imageUrl: 'https://images.unsplash.com/photo-1505253758473-96b7015fcd40?auto=format&fit=crop&w=1200&q=80',
-    isActive: true,
-    availability: ProductAvailabilityEnum.AVAILABLE,
-    stockQuantity: 999,
-    badge: ProductBadgeEnum.POPULAR,
-    weight: '120 g',
-    sortOrder: 8,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
 ];
 
 const normalize = (value: string) =>
@@ -266,14 +60,12 @@ const HomePage: React.FC = () => {
     (user as { firstName?: string; name?: string; fullName?: string } | null)?.fullName?.split(' ')[0] ||
     'Mijoz';
 
-  const baseCategories = categories.length ? categories : DEMO_CATEGORIES;
-  const baseProducts = products.length ? products : DEMO_PRODUCTS;
-  const sortedCategories = React.useMemo(() => sortCustomerCategories(baseCategories), [baseCategories]);
+  const sortedCategories = React.useMemo(() => sortCustomerCategories(categories), [categories]);
   const selectedAddress = addresses.find((address) => address.id === selectedAddressId) || addresses[0];
   const activeOrder = orders.find(
     (order) => order.orderStatus !== OrderStatus.DELIVERED && order.orderStatus !== OrderStatus.CANCELLED,
   );
-  const sections = React.useMemo(() => buildCustomerHomeSections(baseProducts), [baseProducts]);
+  const sections = React.useMemo(() => buildCustomerHomeSections(products), [products]);
 
   const greeting = React.useMemo(() => {
     const hour = new Date().getHours();

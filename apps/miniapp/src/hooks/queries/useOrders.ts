@@ -4,7 +4,10 @@ import { api } from '../../lib/api';
 import type {
   AdminCourierOption,
   CourierOrderPreview,
+  CourierStatusSummary,
+  CourierTodayStats,
   Order,
+  OrderQuote,
   OrderStatus,
   DeliveryStage,
   OrderTrackingState,
@@ -18,10 +21,39 @@ import {
   notifyOrderDelivered,
 } from '../../features/notifications/notificationTriggers';
 
+function resolveCourierStageActionPath(stage: DeliveryStage) {
+  switch (stage) {
+    case 'GOING_TO_RESTAURANT':
+      return 'accept';
+    case 'ARRIVED_AT_RESTAURANT':
+      return 'arrived-restaurant';
+    case 'PICKED_UP':
+      return 'pickup';
+    case 'DELIVERING':
+    case 'ARRIVED_AT_DESTINATION':
+      return 'start-delivery';
+    case 'DELIVERED':
+      return 'deliver';
+    default:
+      throw new Error("Kuryer bosqichi uchun endpoint topilmadi");
+  }
+}
+
 function sortOrders(orders: Order[]) {
   return [...orders].sort(
     (left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
   );
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function buildQuoteItemsKey(items: Array<{ menuItemId: string; quantity: number }>) {
+  return items
+    .map((item) => `${item.menuItemId}:${item.quantity}`)
+    .sort()
+    .join('|');
 }
 
 function mergeOrderIntoCollection(orders: Order[] | undefined, updatedOrder: Order) {
@@ -85,15 +117,24 @@ function mergeCourierPreview(
 ) {
   const nextPreview: CourierOrderPreview = {
     id: updatedOrder.id,
+    assignmentId: null,
     orderNumber: updatedOrder.orderNumber,
     orderStatus: updatedOrder.orderStatus,
     deliveryStage: updatedOrder.deliveryStage,
+    courierAssignmentStatus: updatedOrder.courierAssignmentStatus,
     total: updatedOrder.total,
+    deliveryFee: updatedOrder.deliveryFee,
     paymentMethod: updatedOrder.paymentMethod,
+    restaurantName: 'Turon Kafesi',
+    distanceToRestaurantMeters: null,
+    etaToRestaurantMinutes: updatedOrder.deliveryEtaMinutes ?? null,
     customerName: updatedOrder.customerName || 'Mijoz',
     destinationAddress: updatedOrder.customerAddress?.addressText || 'Manzil ko\'rsatilmagan',
+    destinationArea:
+      updatedOrder.customerAddress?.addressText?.split(',')[0]?.trim() || "Manzil ko'rsatilmagan",
     createdAt: updatedOrder.createdAt,
     itemCount: updatedOrder.items.length,
+    latestCourierEventType: updatedOrder.courierLastEventType ?? null,
   };
 
   if (!previews?.length) {
@@ -112,9 +153,8 @@ function mergeCourierPreview(
 function shouldIncludeCourierPreview(order: Order) {
   return (
     Boolean(order.courierId) &&
-    order.orderStatus !== 'DELIVERED' &&
     order.orderStatus !== 'CANCELLED' &&
-    ['ASSIGNED', 'ACCEPTED', 'PICKED_UP', 'DELIVERING'].includes(
+    ['ASSIGNED', 'ACCEPTED', 'PICKED_UP', 'DELIVERING', 'DELIVERED'].includes(
       order.courierAssignmentStatus || '',
     )
   );
@@ -253,6 +293,8 @@ function invalidateOrderQueries(queryClient: QueryClient, orderId: string) {
   queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
   queryClient.invalidateQueries({ queryKey: ['my-orders'] });
   queryClient.invalidateQueries({ queryKey: ['courier-orders'] });
+  queryClient.invalidateQueries({ queryKey: ['courier-status'] });
+  queryClient.invalidateQueries({ queryKey: ['courier-stats-today'] });
   queryClient.invalidateQueries({ queryKey: ['order', orderId] });
   queryClient.invalidateQueries({ queryKey: ['courier-order', orderId] });
 }
@@ -278,6 +320,32 @@ export const useOrderDetails = (id: string) => {
   useSyncOrderStore(query.data);
 
   return query;
+};
+
+export const useOrderQuote = ({
+  items,
+  deliveryAddressId,
+  promoCode,
+  enabled = true,
+}: {
+  items: Array<{ menuItemId: string; quantity: number }>;
+  deliveryAddressId?: string | null;
+  promoCode?: string;
+  enabled?: boolean;
+}) => {
+  const hasOnlyValidItemIds = items.every((item) => isUuid(item.menuItemId));
+
+  return useQuery<OrderQuote>({
+    queryKey: ['order-quote', deliveryAddressId || 'none', promoCode || 'none', buildQuoteItemsKey(items)],
+    enabled: enabled && items.length > 0 && Boolean(deliveryAddressId) && hasOnlyValidItemIds,
+    queryFn: async () =>
+      (await api.post('/orders/quote', {
+        items,
+        deliveryAddressId,
+        promoCode,
+      })) as OrderQuote,
+    staleTime: 30_000,
+  });
 };
 
 export const useCreateOrder = () => {
@@ -342,6 +410,35 @@ export const useCourierOrders = () => {
   });
 };
 
+export const useCourierStatus = () => {
+  return useQuery<CourierStatusSummary>({
+    queryKey: ['courier-status'],
+    queryFn: async () => (await api.get('/courier/me/status')) as CourierStatusSummary,
+  });
+};
+
+export const useCourierTodayStats = () => {
+  return useQuery<CourierTodayStats>({
+    queryKey: ['courier-stats-today'],
+    queryFn: async () => (await api.get('/courier/stats/today')) as CourierTodayStats,
+  });
+};
+
+export const useUpdateCourierStatus = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: { isOnline?: boolean; isAcceptingOrders?: boolean }) =>
+      api.patch('/courier/me/status', payload) as Promise<CourierStatusSummary>,
+    onSuccess: (updatedStatus) => {
+      queryClient.setQueryData(['courier-status'], updatedStatus);
+      queryClient.invalidateQueries({ queryKey: ['courier-status'] });
+      queryClient.invalidateQueries({ queryKey: ['courier-stats-today'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-couriers'] });
+    },
+  });
+};
+
 export const useCourierOrderDetails = (id: string) => {
   const query = useQuery<Order>({
     queryKey: ['courier-order', id],
@@ -359,7 +456,24 @@ export const useUpdateCourierOrderStage = () => {
 
   return useMutation({
     mutationFn: ({ id, stage }: { id: string; stage: DeliveryStage }) =>
-      api.patch(`/courier/order/${id}/stage`, { stage }) as Promise<Order>,
+      api.post(`/courier/order/${id}/${resolveCourierStageActionPath(stage)}`) as Promise<Order>,
+    onSuccess: (updatedOrder) => {
+      const previousOrder = useOrdersStore.getState().getOrderById(updatedOrder.id);
+      const { upsertOrder } = useOrdersStore.getState();
+
+      applyOrderUpdateToCaches(queryClient, updatedOrder, upsertOrder);
+      notifyAboutOrderChanges(previousOrder, updatedOrder);
+      invalidateOrderQueries(queryClient, updatedOrder.id);
+    },
+  });
+};
+
+export const useReportCourierProblem = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, text }: { id: string; text: string }) =>
+      api.post(`/courier/order/${id}/problem`, { text }) as Promise<Order>,
     onSuccess: (updatedOrder) => {
       const previousOrder = useOrdersStore.getState().getOrderById(updatedOrder.id);
       const { upsertOrder } = useOrdersStore.getState();

@@ -60,16 +60,34 @@ export class StatusService {
   static mapAssignmentStatusToDeliveryStage(
     assignmentStatus?: string | null,
     orderStatus?: OrderStatusEnum,
+    latestEventType?: string | null,
   ): DeliveryStageEnum {
     if (orderStatus === OrderStatusEnum.DELIVERED) {
       return DeliveryStageEnum.DELIVERED;
     }
 
+    switch (latestEventType) {
+      case 'ARRIVED_AT_RESTAURANT':
+        return DeliveryStageEnum.ARRIVED_AT_RESTAURANT;
+      case 'PICKED_UP':
+        return DeliveryStageEnum.PICKED_UP;
+      case 'DELIVERING':
+        return DeliveryStageEnum.DELIVERING;
+      case 'ARRIVED_AT_DESTINATION':
+        return DeliveryStageEnum.ARRIVED_AT_DESTINATION;
+      case 'DELIVERED':
+        return DeliveryStageEnum.DELIVERED;
+      case 'ACCEPTED':
+        return DeliveryStageEnum.GOING_TO_RESTAURANT;
+      default:
+        break;
+    }
+
     switch (assignmentStatus) {
       case 'ASSIGNED':
-        return DeliveryStageEnum.GOING_TO_RESTAURANT;
+        return DeliveryStageEnum.IDLE;
       case 'ACCEPTED':
-        return DeliveryStageEnum.ARRIVED_AT_RESTAURANT;
+        return DeliveryStageEnum.GOING_TO_RESTAURANT;
       case 'PICKED_UP':
         return DeliveryStageEnum.PICKED_UP;
       case 'DELIVERING':

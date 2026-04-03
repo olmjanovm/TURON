@@ -3,10 +3,15 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Loader2, MapPin, Navigation, Store } from 'lucide-react';
 import { DeliveryStage } from '../../data/types';
 import { CourierMapView } from '../../components/courier/CourierMapView';
-import { DeliveryBottomPanel, RouteInfoPanel } from '../../components/courier/CourierComponents';
+import {
+  CourierProblemReporter,
+  DeliveryBottomPanel,
+  RouteInfoPanel,
+} from '../../components/courier/CourierComponents';
 import { ErrorStateCard } from '../../components/ui/FeedbackStates';
 import {
   useCourierOrderDetails,
+  useReportCourierProblem,
   useUpdateCourierLocation,
   useUpdateCourierOrderStage,
 } from '../../hooks/queries/useOrders';
@@ -85,11 +90,17 @@ const CourierMapPage: React.FC = () => {
   const navigate = useNavigate();
   const { data: order, isLoading, isError, error, refetch } = useCourierOrderDetails(orderId);
   const updateStageMutation = useUpdateCourierOrderStage();
+  const reportProblemMutation = useReportCourierProblem();
   const updateLocationMutation = useUpdateCourierLocation();
   const [isPanelExpanded, setIsPanelExpanded] = useState(false);
   const [liveCourierPos, setLiveCourierPos] = useState<{ lat: number; lng: number } | null>(null);
   const [routeInfo, setRouteInfo] = useState<{ distance: string; eta: string } | null>(null);
   const [geolocationError, setGeolocationError] = useState<string | null>(null);
+  const [problemDraft, setProblemDraft] = useState('');
+  const [problemFeedback, setProblemFeedback] = useState<{
+    text: string;
+    tone: 'success' | 'error' | 'neutral';
+  } | null>(null);
   const lastHeartbeatRef = useRef('');
   const previousCourierPosRef = useRef<{ lat: number; lng: number } | null>(null);
 
@@ -127,6 +138,8 @@ const CourierMapPage: React.FC = () => {
   const currentState = getDeliveryStateKey(currentStage);
   const stageMeta = getDeliveryStageMeta(currentStage);
   const routeMeta = getDeliveryRouteMeta(currentStage);
+  const canPublishLiveLocation =
+    currentStage !== DeliveryStage.IDLE && currentStage !== DeliveryStage.DELIVERED;
   const courierPos = liveCourierPos ?? trackedCourierPos ?? restaurantPos;
   const currentTarget =
     currentState === 'ACCEPTED' || currentState === 'ARRIVED' ? restaurantPos : customerPos;
@@ -160,7 +173,7 @@ const CourierMapPage: React.FC = () => {
   }, [order?.id]);
 
   useEffect(() => {
-    if (!order?.id || !liveCourierPos) {
+    if (!order?.id || !liveCourierPos || !canPublishLiveLocation) {
       return;
     }
 
@@ -204,6 +217,7 @@ const CourierMapPage: React.FC = () => {
     remainingMetrics.distanceKm,
     remainingMetrics.etaMinutes,
     updateLocationMutation,
+    canPublishLiveLocation,
   ]);
 
   if (isLoading) {
@@ -276,6 +290,41 @@ const CourierMapPage: React.FC = () => {
     }
 
     window.location.href = `tel:${order.customerPhone}`;
+  };
+
+  const handleProblemSubmit = () => {
+    const text = problemDraft.trim();
+
+    if (text.length < 5) {
+      setProblemFeedback({
+        text: "Muammoni kamida 5 ta belgi bilan yozing.",
+        tone: 'error',
+      });
+      return;
+    }
+
+    reportProblemMutation.mutate(
+      { id: order.id, text },
+      {
+        onSuccess: () => {
+          setProblemDraft('');
+          setProblemFeedback({
+            text: 'Muammo operatorga yuborildi.',
+            tone: 'success',
+          });
+
+          if (window.Telegram?.WebApp?.HapticFeedback) {
+            window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+          }
+        },
+        onError: (mutationError) => {
+          setProblemFeedback({
+            text: mutationError instanceof Error ? mutationError.message : "Muammoni yuborib bo'lmadi",
+            tone: 'error',
+          });
+        },
+      },
+    );
   };
 
   const isEtaLive = currentState === 'ACCEPTED' || currentState === 'PICKED_UP' || currentState === 'DELIVERING';
@@ -370,6 +419,25 @@ const CourierMapPage: React.FC = () => {
         onAction={handleStageAction}
         onCall={handleCall}
         onOpenDetails={() => navigate(`/courier/order/${order.id}`)}
+        problemPanel={
+          currentStage !== DeliveryStage.DELIVERED ? (
+            <CourierProblemReporter
+              value={problemDraft}
+              onChange={(value) => {
+                setProblemDraft(value);
+                if (problemFeedback) {
+                  setProblemFeedback(null);
+                }
+              }}
+              onSubmit={handleProblemSubmit}
+              isSubmitting={reportProblemMutation.isPending}
+              theme="dark"
+              helperText="Mijoz bilan bog'lana olmasangiz yoki manzil topilmasa shu yerdan yozing."
+              feedbackText={problemFeedback?.text || null}
+              feedbackTone={problemFeedback?.tone || 'neutral'}
+            />
+          ) : null
+        }
         onExpandedChange={setIsPanelExpanded}
         isUpdating={updateStageMutation.isPending}
         canCall={Boolean(order.customerPhone)}

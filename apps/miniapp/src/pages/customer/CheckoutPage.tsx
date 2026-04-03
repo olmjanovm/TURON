@@ -6,19 +6,16 @@ import PaymentMethodSelector from '../../components/customer/PaymentMethodSelect
 import OrderSummaryCard from '../../components/customer/OrderSummaryCard';
 import { CheckoutSectionCard, EmptyCartState } from '../../components/customer/CheckoutComponents';
 import { CustomerPromoInputCard } from '../../features/promo/components/CustomerPromoInputCard';
-import { DEFAULT_RESTAURANT_LOCATION } from '../../features/maps/restaurant';
 import { useAddresses } from '../../hooks/queries/useAddresses';
-import { useDistanceMatrixEstimate } from '../../hooks/queries/useMaps';
 import { useProducts } from '../../hooks/queries/useMenu';
-import { useCreateOrder } from '../../hooks/queries/useOrders';
+import { useCreateOrder, useOrderQuote } from '../../hooks/queries/useOrders';
 import { useAddressStore } from '../../store/useAddressStore';
 import { useCartStore } from '../../store/useCartStore';
 import { useCheckoutStore } from '../../store/useCheckoutStore';
-import { useCustomerLanguage } from '../../features/i18n/customerLocale';
+import { createRouteInfoFromMeters } from '../../features/maps/route';
 
 const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
-  const { formatText } = useCustomerLanguage();
   const { items, getSubtotal, getDiscount, appliedPromo, clearCart, setPromo, syncWithProducts } = useCartStore();
   const { paymentMethod, note, resetCheckout } = useCheckoutStore();
   const { selectedAddressId, selectAddress, setInitialDraft } = useAddressStore();
@@ -29,18 +26,23 @@ const CheckoutPage: React.FC = () => {
   const selectedAddress = addresses.find((address) => address.id === selectedAddressId);
   const subtotal = getSubtotal();
   const discount = getDiscount();
-  const selectedAddressPin = selectedAddress
-    ? {
-        lat: selectedAddress.latitude,
-        lng: selectedAddress.longitude,
-      }
-    : null;
-  const distanceMatrixEstimate = useDistanceMatrixEstimate(
-    DEFAULT_RESTAURANT_LOCATION.pin,
-    selectedAddressPin,
-    Boolean(selectedAddressPin),
-  );
-  const routeInfo = distanceMatrixEstimate.data ?? null;
+  const quoteItems = items.map((item) => ({
+    menuItemId: item.menuItemId ?? item.id,
+    quantity: item.quantity,
+  }));
+  const orderQuoteQuery = useOrderQuote({
+    items: quoteItems,
+    deliveryAddressId: selectedAddress?.id ?? null,
+    promoCode: appliedPromo?.code,
+    enabled: Boolean(selectedAddress) && !isProductsLoading && items.length > 0,
+  });
+  const orderQuote = orderQuoteQuery.data ?? null;
+  const routeInfo =
+    orderQuote &&
+    typeof orderQuote.deliveryDistanceMeters === 'number' &&
+    typeof orderQuote.deliveryEtaMinutes === 'number'
+      ? createRouteInfoFromMeters(orderQuote.deliveryDistanceMeters, orderQuote.deliveryEtaMinutes * 60)
+      : null;
 
   useEffect(() => {
     if (isProductsLoading || isProductsError) {
@@ -90,11 +92,18 @@ const CheckoutPage: React.FC = () => {
       return;
     }
 
+    if (orderQuoteQuery.isError) {
+      window.alert(orderQuoteQuery.error.message || 'Yetkazish narxi hisoblanmadi');
+      return;
+    }
+
+    if (!orderQuote || orderQuoteQuery.isLoading) {
+      window.alert("Yetkazish narxi hali hisoblanmadi. Bir ozdan so'ng yana urinib ko'ring.");
+      return;
+    }
+
     const payload = {
-      items: items.map((item) => ({
-        menuItemId: item.menuItemId ?? item.id,
-        quantity: item.quantity,
-      })),
+      items: quoteItems,
       deliveryAddressId: selectedAddress.id,
       paymentMethod,
       promoCode: discount > 0 ? appliedPromo?.code : undefined,
@@ -152,7 +161,12 @@ const CheckoutPage: React.FC = () => {
         </CheckoutSectionCard>
 
         <CheckoutSectionCard title="Buyurtma xulosasi">
-          <OrderSummaryCard routeInfo={routeInfo} compact />
+          <OrderSummaryCard
+            routeInfo={routeInfo}
+            quote={orderQuote}
+            isQuoteLoading={orderQuoteQuery.isLoading}
+            compact
+          />
         </CheckoutSectionCard>
 
         <CheckoutSectionCard title="To'lov usuli">
@@ -184,6 +198,10 @@ const CheckoutPage: React.FC = () => {
               <span>Manzillar yuklanmoqda</span>
             </div>
           ) : null}
+
+          {orderQuoteQuery.isError ? (
+            <p className="mt-3 text-[11px] font-semibold text-rose-300">{orderQuoteQuery.error.message}</p>
+          ) : null}
         </CheckoutSectionCard>
       </section>
 
@@ -195,7 +213,14 @@ const CheckoutPage: React.FC = () => {
           <button
             type="button"
             onClick={handleConfirmOrder}
-            disabled={!paymentMethod || !selectedAddress || createOrderMutation.isPending || isProductsLoading}
+            disabled={
+              !paymentMethod ||
+              !selectedAddress ||
+              createOrderMutation.isPending ||
+              isProductsLoading ||
+              orderQuoteQuery.isLoading ||
+              !orderQuote
+            }
             className="flex h-12 w-full items-center justify-center gap-3 rounded-[12px] bg-white text-sm font-black text-slate-950 transition-transform active:scale-[0.985] disabled:opacity-60"
           >
             {createOrderMutation.isPending ? (

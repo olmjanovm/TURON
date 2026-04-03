@@ -34,7 +34,7 @@ export function getRoleHomePath(role: AppRole) {
   }
 
   if (normalizedRole === UserRoleEnum.COURIER) {
-    return '/courier/orders';
+    return '/courier';
   }
 
   if (normalizedRole === UserRoleEnum.CUSTOMER) {

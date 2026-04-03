@@ -1,9 +1,15 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { DeliveryStageEnum, OrderStatusEnum } from '@turon/shared';
+import { DeliveryStageEnum, RESTAURANT_COORDINATES } from '@turon/shared';
 import { prisma } from '../../../lib/prisma.js';
 import { AuditService } from '../../../services/audit.service.js';
+import {
+  CourierOrderActionsService,
+  type CourierActionName,
+} from '../../../services/courier-order-actions.service.js';
+import { CourierOperationalStatusService } from '../../../services/courier-operational-status.service.js';
+import { CourierPresenceService } from '../../../services/courier-presence.service.js';
+import { CourierStatsService } from '../../../services/courier-stats.service.js';
 import { orderTrackingService } from '../../../services/order-tracking.service.js';
-import { StatusService } from '../../../services/status.service.js';
 import {
   ACTIVE_ASSIGNMENT_STATUSES,
   ORDER_INCLUDE,
@@ -11,16 +17,47 @@ import {
   serializeOrder,
 } from '../orders/order-helpers.js';
 
-function addTracking(order: any) {
+const COURIER_LIST_ASSIGNMENT_STATUSES = [
+  'ASSIGNED',
+  'ACCEPTED',
+  'PICKED_UP',
+  'DELIVERING',
+  'DELIVERED',
+] as const;
+
+async function addTracking(order: any) {
   return {
     ...serializeOrder(order),
-    tracking: orderTrackingService.getSnapshot(order.id),
+    tracking: await orderTrackingService.getSnapshot(order.id),
   };
+}
+
+function getDestinationAreaLabel(addressText?: string) {
+  if (!addressText?.trim()) {
+    return "Manzil ko'rsatilmagan";
+  }
+
+  const [primaryChunk] = addressText
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  return primaryChunk || addressText.trim();
 }
 
 function getRelevantAssignment(order: any, requester: any) {
   const activeAssignment = getActiveCourierAssignment(order);
-  return activeAssignment?.courierId === requester.id ? activeAssignment : null;
+  if (activeAssignment?.courierId === requester.id) {
+    return activeAssignment;
+  }
+
+  return (
+    order.courierAssignments?.find(
+      (assignment: any) =>
+        assignment.courierId === requester.id &&
+        COURIER_LIST_ASSIGNMENT_STATUSES.includes(assignment.status as any),
+    ) || null
+  );
 }
 
 async function getAccessibleCourierOrder(orderId: string, requester: any) {
@@ -34,12 +71,151 @@ async function getAccessibleCourierOrder(orderId: string, requester: any) {
   }
 
   const relevantAssignment = getRelevantAssignment(order, requester);
-
   if (!relevantAssignment) {
     return null;
   }
 
   return { order, relevantAssignment };
+}
+
+function mapStageToCourierAction(stage: DeliveryStageEnum): CourierActionName {
+  switch (stage) {
+    case DeliveryStageEnum.IDLE:
+    case DeliveryStageEnum.GOING_TO_RESTAURANT:
+      return 'ACCEPT';
+    case DeliveryStageEnum.ARRIVED_AT_RESTAURANT:
+      return 'ARRIVE_RESTAURANT';
+    case DeliveryStageEnum.PICKED_UP:
+      return 'PICKUP';
+    case DeliveryStageEnum.DELIVERING:
+      return 'START_DELIVERY';
+    case DeliveryStageEnum.ARRIVED_AT_DESTINATION:
+      return 'ARRIVE_DESTINATION';
+    case DeliveryStageEnum.DELIVERED:
+      return 'DELIVER';
+    default:
+      throw new Error("Ushbu bosqich uchun amal topilmadi");
+  }
+}
+
+async function publishCourierActionResult(
+  result: Awaited<ReturnType<typeof CourierOrderActionsService.perform>>,
+) {
+  const serializedOrder = await addTracking(result.order);
+  orderTrackingService.publishOrderUpdate(result.order.id, serializedOrder);
+  return serializedOrder;
+}
+
+async function runCourierAction(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  input: {
+    action: CourierActionName;
+    problemText?: string;
+    compatibilityStage?: DeliveryStageEnum;
+  },
+) {
+  const requester = request.user as any;
+  const params = request.params as { id: string };
+
+  try {
+    const result = await CourierOrderActionsService.perform({
+      orderId: params.id,
+      courierId: requester.id,
+      actorUserId: requester.id,
+      action: input.action,
+      problemText: input.problemText,
+    });
+
+    await AuditService.record({
+      userId: requester.id,
+      actorRole: requester.role,
+      action:
+        input.action === 'REPORT_PROBLEM'
+          ? 'REPORT_COURIER_PROBLEM'
+          : 'UPDATE_DELIVERY_STAGE',
+      entity: 'Order',
+      entityId: result.order.id,
+      oldValue: result.before,
+      newValue: {
+        ...result.after,
+        eventType: result.eventType,
+        compatibilityStage: input.compatibilityStage ?? null,
+      },
+      metadata: {
+        assignmentId: result.assignmentId,
+        eventId: result.eventId,
+        action: input.action,
+      },
+    });
+
+    if (result.before.orderStatus !== result.after.orderStatus) {
+      await AuditService.recordStatusChange({
+        userId: requester.id,
+        entity: 'Order',
+        entityId: result.order.id,
+        from: result.before.orderStatus,
+        to: result.after.orderStatus,
+      });
+    }
+
+    return reply.send(await publishCourierActionResult(result));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Kuryer amalini bajarib bo'lmadi";
+    const statusCode =
+      message === 'Buyurtma topilmadi' ? 404 :
+      message === 'Ruxsat etilmadi' ? 403 :
+      400;
+
+    return reply.status(statusCode).send({ error: message });
+  }
+}
+
+export async function getCourierStatus(request: FastifyRequest, reply: FastifyReply) {
+  const requester = request.user as any;
+  const summary = await CourierOperationalStatusService.getSummary(requester.id);
+  return reply.send(summary);
+}
+
+export async function updateCourierStatus(
+  request: FastifyRequest<{
+    Body: {
+      isOnline?: boolean;
+      isAcceptingOrders?: boolean;
+    };
+  }>,
+  reply: FastifyReply,
+) {
+  const requester = request.user as any;
+
+  try {
+    const { before, after } = await CourierOperationalStatusService.updateSummary(
+      requester.id,
+      request.body ?? {},
+    );
+
+    await AuditService.record({
+      userId: requester.id,
+      actorRole: requester.role,
+      action: 'UPDATE_COURIER_OPERATIONAL_STATUS',
+      entity: 'CourierOperationalStatus',
+      entityId: requester.id,
+      oldValue: before,
+      newValue: after,
+    });
+
+    return reply.send(after);
+  } catch (error) {
+    return reply.status(400).send({
+      error: error instanceof Error ? error.message : "Kuryer statusini yangilab bo'lmadi",
+    });
+  }
+}
+
+export async function getCourierTodayStats(request: FastifyRequest, reply: FastifyReply) {
+  const requester = request.user as any;
+  const stats = await CourierStatsService.getTodayStats(requester.id);
+  return reply.send(stats);
 }
 
 export async function getCourierOrders(request: FastifyRequest, reply: FastifyReply) {
@@ -51,7 +227,7 @@ export async function getCourierOrders(request: FastifyRequest, reply: FastifyRe
         some: {
           courierId: requester.id,
           status: {
-            in: ACTIVE_ASSIGNMENT_STATUSES as any,
+            in: [...COURIER_LIST_ASSIGNMENT_STATUSES] as any,
           },
         },
       },
@@ -61,20 +237,35 @@ export async function getCourierOrders(request: FastifyRequest, reply: FastifyRe
   });
 
   const formattedOrders = orders.map((order: any) => {
-    const serialized = serializeOrder(order);
+    const relevantAssignment = getRelevantAssignment(order, requester) || order.courierAssignments?.[0];
+    const latestEvent = relevantAssignment?.events?.[0];
+    const serialized = serializeOrder({
+      ...order,
+      courierAssignments: relevantAssignment ? [relevantAssignment] : [],
+    });
+    const destinationAddress = serialized.customerAddress?.addressText || '';
 
     return {
       id: serialized.id,
+      assignmentId: relevantAssignment?.id ?? null,
       orderNumber: serialized.orderNumber,
       orderStatus: serialized.orderStatus,
       deliveryStage: serialized.deliveryStage,
+      courierAssignmentStatus: relevantAssignment?.status || serialized.courierAssignmentStatus,
       total: serialized.total,
+      deliveryFee: serialized.deliveryFee,
       paymentMethod: serialized.paymentMethod,
+      restaurantName: RESTAURANT_COORDINATES.name,
+      distanceToRestaurantMeters:
+        typeof relevantAssignment?.distanceMeters === 'number' ? relevantAssignment.distanceMeters : null,
+      etaToRestaurantMinutes:
+        typeof relevantAssignment?.etaMinutes === 'number' ? relevantAssignment.etaMinutes : null,
       customerName: serialized.customerName || 'Mijoz',
-      destinationAddress: serialized.customerAddress?.addressText || '',
+      destinationAddress,
+      destinationArea: getDestinationAreaLabel(destinationAddress),
       createdAt: serialized.createdAt,
       itemCount: serialized.items.length,
-      courierAssignmentStatus: serialized.courierAssignmentStatus,
+      latestCourierEventType: latestEvent?.eventType ?? null,
     };
   });
 
@@ -92,132 +283,63 @@ export async function getCourierOrderDetail(
     return reply.status(403).send({ error: 'Ruxsat etilmadi: Bu buyurtma sizga tegishli emas.' });
   }
 
-  return reply.send(addTracking(result.order));
+  return reply.send(await addTracking(result.order));
 }
 
 export async function updateOrderStage(
   request: FastifyRequest<{ Params: { id: string }; Body: { stage: DeliveryStageEnum } }>,
   reply: FastifyReply,
 ) {
-  const requester = request.user as any;
   const { stage } = request.body;
-  const result = await getAccessibleCourierOrder(request.params.id, requester);
-
-  if (!result) {
-    return reply.status(403).send({ error: 'Ruxsat etilmadi.' });
-  }
-
-  const { order, relevantAssignment } = result;
-  const currentStage = StatusService.mapAssignmentStatusToDeliveryStage(
-    relevantAssignment.status,
-    order.status as OrderStatusEnum,
-  );
-
-  if (!StatusService.validateDeliveryStageTransition(currentStage, stage)) {
-    return reply.status(400).send({
-      error: `Bosqichni o'zgartirib bo'lmaydi: ${currentStage} -> ${stage}`,
-    });
-  }
-
-  const nextAssignmentStatus = StatusService.mapStageToAssignmentStatus(stage);
-
-  if (!nextAssignmentStatus) {
-    return reply.status(400).send({ error: "Ushbu bosqich uchun status aniqlanmadi" });
-  }
-
-  const nextOrderStatus = StatusService.mapStageToOrderStatus(stage) ?? order.status;
-  const now = new Date();
-  const assignmentUpdate: Record<string, unknown> = {
-    status: nextAssignmentStatus,
-  };
-
-  if (
-    stage === DeliveryStageEnum.ARRIVED_AT_RESTAURANT ||
-    stage === DeliveryStageEnum.PICKED_UP ||
-    stage === DeliveryStageEnum.DELIVERING ||
-    stage === DeliveryStageEnum.ARRIVED_AT_DESTINATION ||
-    stage === DeliveryStageEnum.DELIVERED
-  ) {
-    assignmentUpdate.acceptedAt = relevantAssignment.acceptedAt || now;
-  }
-
-  if (
-    stage === DeliveryStageEnum.PICKED_UP ||
-    stage === DeliveryStageEnum.DELIVERING ||
-    stage === DeliveryStageEnum.ARRIVED_AT_DESTINATION ||
-    stage === DeliveryStageEnum.DELIVERED
-  ) {
-    assignmentUpdate.pickedUpAt = relevantAssignment.pickedUpAt || now;
-  }
-
-  if (
-    stage === DeliveryStageEnum.DELIVERING ||
-    stage === DeliveryStageEnum.ARRIVED_AT_DESTINATION ||
-    stage === DeliveryStageEnum.DELIVERED
-  ) {
-    assignmentUpdate.deliveringAt = relevantAssignment.deliveringAt || now;
-  }
-
-  if (stage === DeliveryStageEnum.DELIVERED) {
-    assignmentUpdate.deliveredAt = relevantAssignment.deliveredAt || now;
-  }
-
-  await prisma.$transaction(async (tx) => {
-    await tx.courierAssignment.update({
-      where: { id: relevantAssignment.id },
-      data: assignmentUpdate as any,
-    });
-
-    await tx.order.update({
-      where: { id: order.id },
-      data: {
-        status: nextOrderStatus as any,
-        courierId: relevantAssignment.courierId,
-      },
-    });
+  return runCourierAction(request, reply, {
+    action: mapStageToCourierAction(stage),
+    compatibilityStage: stage,
   });
+}
 
-  await AuditService.record({
-    userId: requester.id,
-    actorRole: requester.role,
-    action: 'UPDATE_DELIVERY_STAGE',
-    entity: 'Order',
-    entityId: order.id,
-    oldValue: {
-      deliveryStage: currentStage,
-      orderStatus: order.status,
-      assignmentStatus: relevantAssignment.status,
-    },
-    newValue: {
-      deliveryStage: stage,
-      orderStatus: nextOrderStatus,
-      assignmentStatus: nextAssignmentStatus,
-    },
+export async function acceptCourierOrder(
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply,
+) {
+  return runCourierAction(request, reply, { action: 'ACCEPT' });
+}
+
+export async function arriveAtRestaurant(
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply,
+) {
+  return runCourierAction(request, reply, { action: 'ARRIVE_RESTAURANT' });
+}
+
+export async function pickupCourierOrder(
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply,
+) {
+  return runCourierAction(request, reply, { action: 'PICKUP' });
+}
+
+export async function startCourierDelivery(
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply,
+) {
+  return runCourierAction(request, reply, { action: 'START_DELIVERY' });
+}
+
+export async function deliverCourierOrder(
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply,
+) {
+  return runCourierAction(request, reply, { action: 'DELIVER' });
+}
+
+export async function reportCourierProblem(
+  request: FastifyRequest<{ Params: { id: string }; Body: { text: string } }>,
+  reply: FastifyReply,
+) {
+  return runCourierAction(request, reply, {
+    action: 'REPORT_PROBLEM',
+    problemText: request.body.text,
   });
-
-  if (nextOrderStatus !== order.status) {
-    await AuditService.recordStatusChange({
-      userId: requester.id,
-      entity: 'Order',
-      entityId: order.id,
-      from: order.status,
-      to: nextOrderStatus,
-    });
-  }
-
-  const refreshedOrder = await prisma.order.findUnique({
-    where: { id: order.id },
-    include: ORDER_INCLUDE as any,
-  });
-
-  if (!refreshedOrder) {
-    return reply.status(404).send({ error: 'Buyurtma topilmadi' });
-  }
-
-  const serializedOrder = addTracking(refreshedOrder);
-  orderTrackingService.publishOrderUpdate(order.id, serializedOrder);
-
-  return reply.send(serializedOrder);
 }
 
 export async function updateCourierLocation(
@@ -245,8 +367,23 @@ export async function updateCourierLocation(
 
   if (!ACTIVE_ASSIGNMENT_STATUSES.includes(relevantAssignment.status as any)) {
     return reply.status(400).send({
-      error: "Kuryer lokatsiyasi faqat faol biriktirish uchun yuboriladi",
+      error: 'Kuryer lokatsiyasi faqat faol biriktirish uchun yuboriladi',
     });
+  }
+
+  const persistedPresence = await CourierPresenceService.upsert({
+    courierId: requester.id,
+    orderId: order.id,
+    latitude: request.body.latitude,
+    longitude: request.body.longitude,
+    heading: request.body.heading,
+    speedKmh: request.body.speedKmh,
+    remainingDistanceKm: request.body.remainingDistanceKm,
+    remainingEtaMinutes: request.body.remainingEtaMinutes,
+  });
+
+  if (persistedPresence.previousOrderId && persistedPresence.previousOrderId !== order.id) {
+    orderTrackingService.clearSnapshot(persistedPresence.previousOrderId);
   }
 
   const tracking = orderTrackingService.publishCourierLocation(order.id, {
@@ -256,6 +393,7 @@ export async function updateCourierLocation(
     speedKmh: request.body.speedKmh,
     remainingDistanceKm: request.body.remainingDistanceKm,
     remainingEtaMinutes: request.body.remainingEtaMinutes,
+    updatedAt: persistedPresence.tracking?.courierLocation?.updatedAt,
   });
 
   await AuditService.record({
@@ -270,5 +408,5 @@ export async function updateCourierLocation(
     },
   });
 
-  return reply.send({ orderId: order.id, tracking });
+  return reply.send({ orderId: order.id, tracking: tracking ?? persistedPresence.tracking });
 }

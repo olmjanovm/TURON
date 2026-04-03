@@ -31,6 +31,12 @@ export const ORDER_INCLUDE = {
   courierAssignments: {
     include: {
       courier: true,
+      events: {
+        orderBy: [
+          { eventAt: 'desc' },
+          { createdAt: 'desc' },
+        ],
+      },
     },
     orderBy: { assignedAt: 'desc' },
   },
@@ -103,6 +109,7 @@ export function serializeOrderItem(item: any) {
 export function serializeOrder(order: any) {
   const latestAssignment = order.courierAssignments?.[0];
   const courier = latestAssignment?.courier || order.courier;
+  const latestAssignmentEvent = latestAssignment?.events?.[0];
 
   return {
     id: order.id,
@@ -111,6 +118,18 @@ export function serializeOrder(order: any) {
     subtotal: Number(order.subtotal),
     discount: Number(order.discountAmount || 0),
     deliveryFee: Number(order.deliveryFee),
+    deliveryDistanceMeters:
+      typeof order.deliveryDistanceMeters === 'number' ? order.deliveryDistanceMeters : null,
+    deliveryEtaMinutes: typeof order.deliveryEtaMinutes === 'number' ? order.deliveryEtaMinutes : null,
+    deliveryFeeRuleCode: order.deliveryFeeRuleCode || null,
+    deliveryFeeBaseAmount:
+      order.deliveryFeeBaseAmount !== null && order.deliveryFeeBaseAmount !== undefined
+        ? Number(order.deliveryFeeBaseAmount)
+        : null,
+    deliveryFeeExtraAmount:
+      order.deliveryFeeExtraAmount !== null && order.deliveryFeeExtraAmount !== undefined
+        ? Number(order.deliveryFeeExtraAmount)
+        : null,
     total: Number(order.totalAmount),
     paymentMethod: order.paymentMethod,
     paymentStatus: order.paymentStatus,
@@ -124,6 +143,7 @@ export function serializeOrder(order: any) {
     deliveryStage: StatusService.mapAssignmentStatusToDeliveryStage(
       latestAssignment?.status,
       order.status as OrderStatusEnum,
+      latestAssignmentEvent?.eventType,
     ),
     verificationStatus: order.paymentStatus === 'COMPLETED',
     verifiedByAdmin: order.payment?.verifiedByAdminId,
@@ -138,6 +158,8 @@ export function serializeOrder(order: any) {
     destinationLat: Number(order.destinationLat ?? order.deliveryAddress?.latitude ?? 0),
     destinationLng: Number(order.destinationLng ?? order.deliveryAddress?.longitude ?? 0),
     courierAssignmentStatus: latestAssignment?.status,
+    courierLastEventType: latestAssignmentEvent?.eventType ?? null,
+    courierLastEventAt: latestAssignmentEvent?.eventAt?.toISOString?.() ?? null,
   };
 }
 
@@ -165,11 +187,15 @@ export function serializeCourierOption(user: any) {
   const activeAssignments = (user.courierAssignments || []).filter((assignment: any) =>
     StatusService.isActiveAssignmentStatus(assignment.status),
   ).length;
+  const operationalStatus = user.courierOperationalStatus;
 
   return {
     id: user.id,
     fullName: user.fullName || 'Kuryer',
     phoneNumber: user.phoneNumber || '',
     activeAssignments,
+    isOnline: operationalStatus?.isOnline ?? false,
+    isAcceptingOrders: operationalStatus?.isAcceptingOrders ?? false,
+    operationalStatusUpdatedAt: operationalStatus?.updatedAt?.toISOString?.() ?? null,
   };
 }

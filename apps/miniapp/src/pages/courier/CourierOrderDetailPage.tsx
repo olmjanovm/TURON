@@ -16,16 +16,23 @@ import {
 import { DeliveryStage } from '../../data/types';
 import { CourierMapView } from '../../components/courier/CourierMapView';
 import {
+  CourierProblemReporter,
   CourierStageButtons,
   getCourierPaymentLabel,
+  SlideToConfirmAction,
 } from '../../components/courier/CourierComponents';
 import { ErrorStateCard } from '../../components/ui/FeedbackStates';
-import { useCourierOrderDetails, useUpdateCourierOrderStage } from '../../hooks/queries/useOrders';
+import {
+  useCourierOrderDetails,
+  useReportCourierProblem,
+  useUpdateCourierOrderStage,
+} from '../../hooks/queries/useOrders';
 import { estimateRouteInfo } from '../../features/maps/route';
 import { DEFAULT_RESTAURANT_LOCATION } from '../../features/maps/restaurant';
 import {
   DELIVERY_STAGE_FLOW,
   getCourierStageProgressIndex,
+  getDeliveryStageAction,
   getDeliveryRouteMeta,
   getDeliveryStageMeta,
 } from '../../features/courier/deliveryStage';
@@ -35,6 +42,12 @@ const CourierOrderDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { data: order, isLoading, isError, error, refetch } = useCourierOrderDetails(orderId);
   const updateStageMutation = useUpdateCourierOrderStage();
+  const reportProblemMutation = useReportCourierProblem();
+  const [problemDraft, setProblemDraft] = React.useState('');
+  const [problemFeedback, setProblemFeedback] = React.useState<{
+    text: string;
+    tone: 'success' | 'error' | 'neutral';
+  } | null>(null);
 
   if (isLoading) {
     return (
@@ -77,6 +90,7 @@ const CourierOrderDetailPage: React.FC = () => {
 
   const currentStage = order.deliveryStage ?? DeliveryStage.IDLE;
   const stageMeta = getDeliveryStageMeta(currentStage);
+  const primaryAction = getDeliveryStageAction(currentStage);
   const routeMeta = getDeliveryRouteMeta(currentStage);
   const pickup = {
     lat: order.pickupLat ?? DEFAULT_RESTAURANT_LOCATION.pin.lat,
@@ -109,6 +123,7 @@ const CourierOrderDetailPage: React.FC = () => {
     minute: '2-digit',
   });
   const stageIndex = getCourierStageProgressIndex(currentStage);
+  const canReportProblem = currentStage !== DeliveryStage.DELIVERED;
 
   const handleCall = () => {
     if (!order.customerPhone) {
@@ -135,6 +150,41 @@ const CourierOrderDetailPage: React.FC = () => {
           if (nextStage === DeliveryStage.DELIVERED) {
             window.setTimeout(() => navigate('/courier/orders'), 1400);
           }
+        },
+      },
+    );
+  };
+
+  const handleProblemSubmit = () => {
+    const text = problemDraft.trim();
+
+    if (text.length < 5) {
+      setProblemFeedback({
+        text: "Muammoni kamida 5 ta belgi bilan yozing.",
+        tone: 'error',
+      });
+      return;
+    }
+
+    reportProblemMutation.mutate(
+      { id: order.id, text },
+      {
+        onSuccess: () => {
+          setProblemDraft('');
+          setProblemFeedback({
+            text: 'Muammo operatorga yuborildi.',
+            tone: 'success',
+          });
+
+          if (window.Telegram?.WebApp?.HapticFeedback) {
+            window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+          }
+        },
+        onError: (mutationError) => {
+          setProblemFeedback({
+            text: mutationError instanceof Error ? mutationError.message : "Muammoni yuborib bo'lmadi",
+            tone: 'error',
+          });
         },
       },
     );
@@ -249,12 +299,32 @@ const CourierOrderDetailPage: React.FC = () => {
           </div>
         </div>
 
-        <CourierStageButtons
-          currentStage={currentStage}
-          onStageSelect={handleStageSelect}
-          isUpdating={updateStageMutation.isPending}
-          theme="light"
-        />
+        {primaryAction.next ? (
+          <SlideToConfirmAction
+            label={primaryAction.slideLabel}
+            hint={primaryAction.hint}
+            onConfirm={() => handleStageSelect(primaryAction.next!)}
+            isLoading={updateStageMutation.isPending}
+            theme="light"
+          />
+        ) : (
+          <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 px-4 py-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-600">
+              Yakunlangan holat
+            </p>
+            <p className="mt-2 text-sm font-black text-emerald-900">Buyurtma muvaffaqiyatli topshirilgan.</p>
+          </div>
+        )}
+
+        <div className="mt-4">
+          <CourierStageButtons
+            currentStage={currentStage}
+            onStageSelect={handleStageSelect}
+            isUpdating={updateStageMutation.isPending}
+            theme="light"
+            interactive={false}
+          />
+        </div>
       </section>
 
       <section className="grid grid-cols-2 gap-3">
@@ -336,6 +406,26 @@ const CourierOrderDetailPage: React.FC = () => {
           ) : null}
         </div>
       </section>
+
+      {canReportProblem ? (
+        <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
+          <CourierProblemReporter
+            value={problemDraft}
+            onChange={(value) => {
+              setProblemDraft(value);
+              if (problemFeedback) {
+                setProblemFeedback(null);
+              }
+            }}
+            onSubmit={handleProblemSubmit}
+            isSubmitting={reportProblemMutation.isPending}
+            theme="light"
+            helperText="Manzil topilmasa yoki mijoz bilan aloqa bo'lmasa shu yerdan yozing."
+            feedbackText={problemFeedback?.text || null}
+            feedbackTone={problemFeedback?.tone || 'neutral'}
+          />
+        </section>
+      ) : null}
 
       <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
         <div className="mb-5 flex items-center gap-3">
