@@ -601,27 +601,27 @@ export const FloatingCartBar: React.FC<{
 
   return (
     <div
-      className="fixed inset-x-0 z-40 px-4"
-      style={{ bottom: 'var(--customer-floating-cart-offset, calc(env(safe-area-inset-bottom, 0px) + 88px))' }}
+      className="fixed inset-x-0 z-40"
+      style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 72px)' }} // Docked right above the nav
     >
-      <div className="mx-auto w-full max-w-[430px]">
+      <div className="mx-auto w-full max-w-[430px] px-2">
         <button
           type="button"
           onClick={() => navigate('/customer/cart')}
-          className="flex h-[50px] w-full items-center justify-between rounded-[14px] border border-white/10 bg-[#151c2d]/95 px-3.5 text-white shadow-[0_16px_32px_rgba(2,6,23,0.32)] backdrop-blur-xl transition-transform active:scale-[0.985]"
+          className="flex h-[42px] w-full items-center justify-between rounded-[3px] border border-white/10 bg-slate-900/98 px-3 text-white shadow-lg backdrop-blur-xl transition-all active:scale-[0.99]"
         >
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-white text-slate-950">
-              <ShoppingBag size={16} />
+            <div className="flex h-7 w-7 items-center justify-center rounded-[3px] bg-white text-slate-950">
+              <ShoppingBag size={14} />
             </div>
-            <div className="text-left">
-              <p className="text-[9px] font-black uppercase tracking-[0.14em] text-white/46">Savat</p>
-              <p className="mt-0.5 text-[12px] font-black">{totalItems} ta mahsulot</p>
+            <div className="flex items-baseline gap-2">
+              <p className="text-[10px] font-black uppercase tracking-[0.1em] text-white/40">Savat:</p>
+              <p className="text-[12px] font-black">{totalItems} ta mahsulot</p>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-[14px] font-black">{getFinalTotal(0).toLocaleString()} so'm</p>
-            <p className="mt-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-white/44">ko'rish</p>
+          <div className="flex items-baseline gap-2">
+            <p className="text-[13px] font-black text-amber-300">{getFinalTotal(0).toLocaleString()} so'm</p>
+            <ChevronRight size={14} className="text-white/40" />
           </div>
         </button>
       </div>

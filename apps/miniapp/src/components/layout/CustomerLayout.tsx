@@ -108,7 +108,13 @@ const CustomerLayout: React.FC = () => {
           />
         ) : null}
 
-        <main className={isImmersiveRoute ? 'relative min-h-screen' : 'relative min-h-screen px-4 pt-4'}>
+        <main 
+          className={`
+            relative min-h-screen 
+            ${!isImmersiveRoute ? 'px-4 pt-4' : ''} 
+            ${showFloatingCart ? 'pb-[140px]' : (!hideBottomNav ? 'pb-[88px]' : 'pb-[env(safe-area-inset-bottom,20px)]')}
+          `}
+        >
           <Outlet />
         </main>
 
