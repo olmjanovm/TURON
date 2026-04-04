@@ -115,27 +115,25 @@ const CartPage: React.FC = () => {
             </div>
           </section>
         )}
-
-        {/* Plus Subscription Tip / Info (Optional in spec) */}
-        <p className="mt-5 px-4 text-center text-[11px] leading-[14px] text-[#A0A0A0]">
-          Yandex Plus obunasi bilan chegirmalar mavjud 💜 <br />
-          /chegirmasiz: 6499sum
-        </p>
       </main>
 
       {/* FIXED BOTTOM BAR (60px) */}
       <footer className="flex h-[60px] shrink-0 items-center gap-3 border-t border-[#333333] bg-[#1A1A1A] px-4">
-        <button
-          onClick={() => navigate('/customer/checkout')}
-          className="flex h-[48px] flex-1 items-center justify-center gap-2 rounded-[24px] bg-[#A855F7] px-4 text-[14px] font-semibold text-white transition-all hover:bg-[#9333EA] active:scale-[0.98]"
-        >
-          <PackageCheck size={16} />
-          <span>Bepul yetkazish</span>
-        </button>
+        {totalPrice >= 80000 && (
+          <button
+            onClick={() => navigate('/customer/checkout')}
+            className="flex h-[48px] flex-1 items-center justify-center gap-2 rounded-[24px] bg-[#A855F7] px-4 text-[14px] font-semibold text-white transition-all hover:bg-[#9333EA] active:scale-[0.98]"
+          >
+            <PackageCheck size={16} />
+            <span>Bepul yetkazish</span>
+          </button>
+        )}
 
         <button
           onClick={() => navigate('/customer/checkout')}
-          className="flex h-[48px] flex-1 items-center justify-center gap-2 rounded-[24px] bg-[#FFD700] px-4 text-[14px] font-semibold text-black transition-all hover:bg-[#FFC400] active:scale-[0.98]"
+          className={`flex h-[48px] flex-1 items-center justify-center gap-2 rounded-[24px] bg-[#FFD700] px-4 text-[14px] font-semibold text-black transition-all hover:bg-[#FFC400] active:scale-[0.98] ${
+            totalPrice < 80000 ? 'w-full flex-none' : ''
+          }`}
         >
           <span>To'lovga</span>
           <ChevronRight size={20} />
