@@ -17,6 +17,7 @@ export interface ProductSnapshot {
   price: number;
   image: string;
   weight?: string;
+  oldPrice?: number;
   isAvailable?: boolean;
 }
 

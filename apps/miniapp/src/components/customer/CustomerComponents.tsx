@@ -550,8 +550,8 @@ export const UpsellProductCard: React.FC<{
   }, [product, rawImage]);
 
   return (
-    <div className="flex w-[128px] shrink-0 flex-col gap-2">
-      <div className="relative aspect-square w-full overflow-hidden rounded-[16px] bg-white/[0.04]">
+    <div className="relative flex h-[150px] w-full flex-col items-center justify-between rounded-[8px] bg-[#2D2D2D] p-2 text-center transition-all active:scale-[0.98]">
+      <div className="h-[80px] w-[80px] overflow-hidden rounded-[6px] bg-[#1A1A1A]">
         <img
           src={imageSrc}
           alt={formatText(product.name)}
@@ -562,32 +562,31 @@ export const UpsellProductCard: React.FC<{
             }
           }}
         />
-        <button
-          type="button"
-          onClick={() =>
-            onAdd({
-              id: product.id,
-              menuItemId: 'menuItemId' in product ? product.menuItemId ?? product.id : product.id,
-              categoryId: product.categoryId,
-              name: product.name,
-              description: product.description,
-              price: product.price,
-              image: imageSrc,
-              isAvailable: true,
-            })
-          }
-          className="absolute bottom-1 right-1 flex h-7 w-7 items-center justify-center rounded-full bg-white text-slate-950 shadow-md active:scale-90"
-        >
-          <Plus size={16} strokeWidth={3} />
-        </button>
       </div>
-      <div>
-        <p className="text-[14px] font-black leading-tight text-white">{product.price.toLocaleString()} so'm</p>
-        <p className="mt-0.5 line-clamp-1 text-[11px] font-semibold text-white/52">{formatText(product.name)}</p>
-        {isMenuProduct(product) && product.weight ? (
-          <p className="mt-0.5 text-[10px] text-white/34">{product.weight}</p>
-        ) : null}
+      
+      <div className="flex flex-col items-center pt-1">
+        <p className="line-clamp-2 text-[12px] font-medium leading-[14px] text-white">{formatText(product.name)}</p>
+        <p className="mt-1 text-[13px] font-semibold text-white">{product.price.toLocaleString()} so'm</p>
       </div>
+
+      <button
+        type="button"
+        onClick={() =>
+          onAdd({
+            id: product.id,
+            menuItemId: 'menuItemId' in product ? product.menuItemId ?? product.id : product.id,
+            categoryId: product.categoryId,
+            name: product.name,
+            description: product.description,
+            price: product.price,
+            image: imageSrc,
+            isAvailable: true,
+          })
+        }
+        className="absolute bottom-1.5 right-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-[#FFD700] text-black shadow-lg transition-transform active:scale-90"
+      >
+        <Plus size={16} strokeWidth={3} />
+      </button>
     </div>
   );
 };
@@ -606,8 +605,8 @@ export const CartItemCard: React.FC<{
   }, [item]);
 
   return (
-    <div className="flex items-center gap-4 border-b border-white/[0.05] py-4 first:pt-0">
-      <div className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-[12px] bg-white/[0.04]">
+    <div className="flex min-h-[80px] gap-3 border-b border-[#333333] px-4 py-3">
+      <div className="h-[80px] w-[80px] shrink-0 overflow-hidden rounded-[8px] bg-[#2D2D2D]">
         <img
           src={imageSrc}
           alt={formatText(item.name)}
@@ -620,35 +619,46 @@ export const CartItemCard: React.FC<{
         />
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col justify-center">
-        <h4 className="line-clamp-2 text-[15px] font-bold leading-tight text-white">{formatText(item.name)}</h4>
-        <div className="mt-1.5 flex items-baseline gap-1.5 text-[13px] font-semibold text-white/52">
-          <span>{item.price.toLocaleString()} so'm</span>
-          {item.weight ? (
-            <>
-              <span className="text-[8px] opacity-40">•</span>
-              <span>{item.weight}</span>
-            </>
+      <div className="flex min-w-0 flex-1 flex-col justify-between">
+        <div>
+          <h4 className="line-clamp-2 text-[16px] font-medium leading-[20px] text-white">
+            {formatText(item.name)}
+          </h4>
+          <p className="mt-1 text-[12px] text-[#A0A0A0]">
+            {item.weight || "180 g"}
+          </p>
+        </div>
+
+        <div className="flex items-baseline gap-2">
+          <span className="text-[14px] font-semibold text-[#10B981]">
+            {(item.price * item.quantity).toLocaleString()} so'm
+          </span>
+          {item.oldPrice ? (
+            <span className="text-[12px] text-[#707070] line-through">
+              {(item.oldPrice * item.quantity).toLocaleString()} so'm
+            </span>
           ) : null}
         </div>
       </div>
 
-      <div className="flex items-center gap-3 rounded-[10px] bg-white/[0.06] p-1">
-        <button
-          type="button"
-          onClick={() => onUpdateQuantity(item.id, -1)}
-          className="flex h-8 w-8 items-center justify-center rounded-[8px] transition-all active:scale-90 active:bg-white/5"
-        >
-          <Minus size={16} className="text-white/80" />
-        </button>
-        <span className="min-w-[20px] text-center text-[15px] font-black text-white">{item.quantity}</span>
-        <button
-          type="button"
-          onClick={() => onUpdateQuantity(item.id, 1)}
-          className="flex h-8 w-8 items-center justify-center rounded-[8px] transition-all active:scale-90 active:bg-white/5"
-        >
-          <Plus size={16} className="text-white" />
-        </button>
+      <div className="flex items-end">
+        <div className="flex h-8 min-w-[80px] items-center justify-between gap-2 rounded-[6px] bg-[#2D2D2D] px-2 shadow-sm">
+          <button
+            type="button"
+            onClick={() => onUpdateQuantity(item.id, -1)}
+            className="flex h-6 w-6 items-center justify-center text-[#A0A0A0] transition-colors hover:text-white active:scale-90"
+          >
+            <Minus size={16} />
+          </button>
+          <span className="min-w-[16px] text-center text-[14px] font-medium text-white">{item.quantity}</span>
+          <button
+            type="button"
+            onClick={() => onUpdateQuantity(item.id, 1)}
+            className="flex h-6 w-6 items-center justify-center text-[#A0A0A0] transition-colors hover:text-white active:scale-90"
+          >
+            <Plus size={16} />
+          </button>
+        </div>
       </div>
     </div>
   );
