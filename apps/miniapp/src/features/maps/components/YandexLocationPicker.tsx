@@ -167,9 +167,13 @@ export default function YandexLocationPicker({
           },
         );
 
-        map.behaviors?.disable?.('scrollZoom');
-        map.behaviors?.disable?.('dblClickZoom');
-        map.behaviors?.disable?.('rightMouseButtonMagnifier');
+        map.behaviors.enable([
+          'scrollZoom',
+          'dblClickZoom',
+          'multiTouchZoom',
+          'drag',
+          'leftMouseButtonMagnifier',
+        ]);
 
         const userPlacemark = userLocationPin
           ? new ymaps.Placemark(

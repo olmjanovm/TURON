@@ -91,9 +91,13 @@ export default function YandexRouteMap({
           },
         );
 
-        map.behaviors?.disable?.('scrollZoom');
-        map.behaviors?.disable?.('dblClickZoom');
-        map.behaviors?.disable?.('rightMouseButtonMagnifier');
+        map.behaviors.enable([
+          'scrollZoom',
+          'dblClickZoom',
+          'multiTouchZoom',
+          'drag',
+          'leftMouseButtonMagnifier',
+        ]);
 
         const pickupPlacemark = new ymaps.Placemark(
           toYandexCoords(pickup),

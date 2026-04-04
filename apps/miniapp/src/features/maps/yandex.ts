@@ -137,12 +137,24 @@ export async function loadYandexMaps() {
   return mapsLoadPromise;
 }
 
-async function geocodeAddressText(query: string, limit = 5) {
+async function geocodeAddressText(query: string, limit = 5, biasPoint?: MapPin | null) {
   const ymaps = await loadYandexMaps();
-  const result = await ymaps.geocode(query, {
+  const geocodeOptions: any = {
     provider: 'yandex#map',
     results: limit,
-  });
+  };
+
+  if (biasPoint) {
+    // Create a 5km bounding box around the bias point for local relevance
+    const delta = 0.045; // Roughly 5km
+    geocodeOptions.boundedBy = [
+      [biasPoint.lat - delta, biasPoint.lng - delta],
+      [biasPoint.lat + delta, biasPoint.lng + delta],
+    ];
+    // We don't use strictBounds: true to allow finding addresses outside if nothing found inside
+  }
+
+  const result = await ymaps.geocode(query, geocodeOptions);
 
   const matches: AddressCandidate[] = [];
   const total = result?.geoObjects?.getLength?.() ?? 0;
@@ -173,7 +185,7 @@ export async function searchAddressCandidates(query: string, limit = 5, biasPoin
     // Fallback to client-side geocode below.
   }
 
-  return geocodeAddressText(normalizedQuery, limit);
+  return geocodeAddressText(normalizedQuery, limit, biasPoint);
 }
 
 export async function resolveCandidate(candidate: AddressCandidate) {

@@ -270,12 +270,16 @@ export class YandexMapsService {
 
     const biasPoint = options.biasPoint || DEFAULT_CITY_BIAS;
     url.searchParams.set('ll', formatBiasPair(biasPoint));
-    url.searchParams.set('spn', '0.35,0.35');
+    url.searchParams.set('spn', '0.15,0.15'); // Tighter focus for better local results
 
-    const result = await fetchYandexJson<{ results?: unknown[] }>(url);
-    const rows = Array.isArray(result.results) ? result.results : [];
-
-    return rows.map((item, index) => normalizeSuggestItem(item, index));
+    try {
+      const result = await fetchYandexJson<{ results?: unknown[] }>(url);
+      const rows = Array.isArray(result.results) ? result.results : [];
+      return rows.map((item, index) => normalizeSuggestItem(item, index));
+    } catch (error) {
+      console.error(`[YandexMaps] Suggestion failed for "${query}":`, error);
+      throw error;
+    }
   }
 
   static async resolveSuggestion(input: { uri?: string; text?: string }) {
