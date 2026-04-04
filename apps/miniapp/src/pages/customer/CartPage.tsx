@@ -51,7 +51,7 @@ const CartPage: React.FC = () => {
   return (
     <div
       className="min-h-screen animate-in slide-in-from-right duration-300"
-      style={{ paddingBottom: 'calc(var(--customer-sticky-panel-clearance, 190px) + 16px)' }}
+      style={{ paddingBottom: 'calc(var(--customer-sticky-panel-clearance, 220px) + 24px)' }} // Increased padding to prevent overlap
     >
       <section className="px-4 pb-5 pt-[calc(env(safe-area-inset-top,0px)+14px)]">
         <div className="flex items-start justify-between gap-3">
@@ -162,9 +162,9 @@ const CartPage: React.FC = () => {
               navigate('/customer/checkout');
             }}
             disabled={isProductsLoading}
-            className="flex h-[56px] w-full items-center justify-center gap-3 rounded-[12px] bg-white text-base font-black text-slate-950 transition-transform active:scale-[0.985] disabled:opacity-60"
+            className="flex h-[56px] w-full items-center justify-center gap-3 rounded-[6px] bg-white text-base font-black text-slate-950 shadow-xl transition-transform active:scale-[0.985] disabled:opacity-60"
           >
-            <span>Checkoutga o'tish</span>
+            <span>Buyurtmani tasdiqlash</span>
             <ArrowRight size={20} />
           </button>
         </div>

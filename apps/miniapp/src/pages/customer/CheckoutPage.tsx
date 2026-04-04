@@ -161,7 +161,7 @@ const CheckoutPage: React.FC = () => {
   return (
     <div
       className="min-h-screen animate-in slide-in-from-right duration-300"
-      style={{ paddingBottom: 'calc(var(--customer-nav-top-edge, 78px) + 96px)' }}
+      style={{ paddingBottom: 'calc(var(--customer-nav-top-edge, 78px) + 120px)' }} // Increased padding to prevent overlap
     >
       <section className="px-4 pb-5 pt-[calc(env(safe-area-inset-top,0px)+14px)]">
         <div className="flex items-start gap-3">
@@ -269,7 +269,7 @@ const CheckoutPage: React.FC = () => {
         className="fixed inset-x-0 z-40 px-4"
         style={{ bottom: 'var(--customer-floating-cart-offset, calc(env(safe-area-inset-bottom, 0px) + 88px))' }}
       >
-        <div className="mx-auto flex h-[72px] w-full max-w-[430px] items-center rounded-[14px] border border-white/10 bg-[#111827]/94 px-3 shadow-[0_16px_32px_rgba(2,6,23,0.34)] backdrop-blur-xl">
+        <div className="mx-auto flex h-[72px] w-full max-w-[430px] items-center rounded-[6px] border border-white/10 bg-[#111827]/94 px-3 shadow-[0_16px_32px_rgba(2,6,23,0.34)] backdrop-blur-xl">
           <button
             type="button"
             onClick={handleConfirmOrder}
@@ -281,7 +281,7 @@ const CheckoutPage: React.FC = () => {
               orderQuoteQuery.isLoading ||
               !orderQuote
             }
-            className="flex h-12 w-full items-center justify-center gap-3 rounded-[12px] bg-white text-sm font-black text-slate-950 transition-transform active:scale-[0.985] disabled:opacity-60"
+            className="flex h-12 w-full items-center justify-center gap-3 rounded-[6px] bg-white text-sm font-black text-slate-950 shadow-xl transition-transform active:scale-[0.985] disabled:opacity-60"
           >
             {createOrderMutation.isPending ? (
               <>
