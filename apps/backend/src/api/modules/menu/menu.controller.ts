@@ -2,6 +2,7 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { ProductAvailabilityEnum, ProductBadgeEnum } from '@turon/shared';
 import { prisma } from '../../../lib/prisma.js';
 import { AuditService } from '../../../services/audit.service.js';
+import { menuCache } from '../../../lib/cache.js';
 
 function slugify(value: string) {
   return value
@@ -132,6 +133,10 @@ async function getSerializedProductById(id: string) {
 }
 
 export async function getCategories(request: FastifyRequest, reply: FastifyReply) {
+  const cacheKey = 'categories:active';
+  const cached = menuCache.get<any[]>(cacheKey);
+  if (cached) return reply.send(cached);
+
   const categories = await prisma.menuCategory.findMany({
     where: { isActive: true },
     include: {
@@ -143,7 +148,9 @@ export async function getCategories(request: FastifyRequest, reply: FastifyReply
     orderBy: { sortOrder: 'asc' },
   });
 
-  return reply.send(categories.map(serializeCategory));
+  const serialized = categories.map(serializeCategory);
+  menuCache.set(cacheKey, serialized);
+  return reply.send(serialized);
 }
 
 export async function getAdminCategories(request: FastifyRequest, reply: FastifyReply) {
@@ -160,6 +167,10 @@ export async function getAdminCategories(request: FastifyRequest, reply: Fastify
 }
 
 export async function getProducts(request: FastifyRequest, reply: FastifyReply) {
+  const cacheKey = 'products:active';
+  const cached = menuCache.get<any[]>(cacheKey);
+  if (cached) return reply.send(cached);
+
   const products = await prisma.menuItem.findMany({
     where: {
       isActive: true,
@@ -172,7 +183,9 @@ export async function getProducts(request: FastifyRequest, reply: FastifyReply) 
     orderBy: [{ createdAt: 'desc' }],
   });
 
-  return reply.send(products.map(serializeProduct));
+  const serialized = products.map(serializeProduct);
+  menuCache.set(cacheKey, serialized);
+  return reply.send(serialized);
 }
 
 export async function getAdminProducts(request: FastifyRequest, reply: FastifyReply) {
@@ -229,6 +242,9 @@ export async function handleCreateCategory(
     },
   });
 
+  // Invalidate cache
+  menuCache.clear();
+
   const serializedCategory = serializeCategory(category);
 
   await AuditService.record({
@@ -274,6 +290,9 @@ export async function handleUpdateCategory(
       isActive: data.isActive ?? existingCategory.isActive,
     },
   });
+
+  // Invalidate cache
+  menuCache.clear();
 
   const updatedCategory = await getSerializedCategoryById(request.params.id);
 
@@ -418,6 +437,9 @@ export async function handleCreateProduct(
     include: { category: true },
   });
 
+  // Invalidate cache
+  menuCache.clear();
+
   const serializedProduct = serializeProduct(product);
 
   await AuditService.record({
@@ -484,6 +506,9 @@ export async function handleUpdateProduct(
       availabilityStatus: normalizeAvailability({ isActive, stockQuantity }) as any,
     },
   });
+
+  // Invalidate cache
+  menuCache.clear();
 
   const updatedProduct = await getSerializedProductById(request.params.id);
 

@@ -53,19 +53,19 @@ const CartPage: React.FC = () => {
 
   return (
     <div className="flex h-screen flex-col bg-[#1A1A1A] font-sans text-white">
-      {/* FIXED HEADER (56px) */}
+      {/* FIXED HEADER (56px) - Yandex Style */}
       <header className="flex h-[56px] shrink-0 items-center justify-between border-b border-[#333333] bg-[#1A1A1A] px-4">
         <div className="flex items-center gap-3 overflow-hidden">
           <button onClick={() => navigate(-1)} className="flex h-6 w-6 items-center justify-center text-white active:scale-90">
             <ArrowLeft size={24} />
           </button>
-          <h1 className="truncate text-[20px] font-semibold">Oqtepa Lavash</h1>
+          <h1 className="truncate text-[20px] font-semibold">Turon Kafesi</h1>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="flex flex-col items-end whitespace-nowrap">
             <div className="flex items-center gap-2">
-              <span className="text-[14px] font-semibold text-[#10B981]">{totalPrice.toLocaleString()}so'm</span>
+              <span className="text-[14px] font-bold text-[#10B981]">{totalPrice.toLocaleString()} so'm</span>
               {totalOldPrice > totalPrice && (
                 <span className="text-[12px] text-[#707070] line-through">{totalOldPrice.toLocaleString()} so'm</span>
               )}
@@ -90,11 +90,16 @@ const CartPage: React.FC = () => {
         {/* Product List */}
         <div className="flex flex-col">
           {items.map((item) => (
-            <CartItemCard key={item.id} item={item} onUpdateQuantity={updateQuantity} onRemove={removeFromCart} />
+            <CartItemCard
+              key={item.id}
+              item={item}
+              onUpdateQuantity={updateQuantity}
+              onRemove={removeFromCart}
+            />
           ))}
         </div>
 
-        {/* Menyuni ochish */}
+        {/* Action Button: Open Menu */}
         <div className="px-4 py-4">
           <button
             onClick={() => navigate('/customer')}
@@ -104,11 +109,11 @@ const CartPage: React.FC = () => {
           </button>
         </div>
 
-        {/* Recommendations Grid (3-column) */}
+        {/* Yandex Style Recommendation Grid (3-column) */}
         {upsellProducts.length > 0 && (
           <section className="mt-5 px-4">
-            <h2 className="mb-3 text-[16px] font-semibold">Yana nimadir kerakmi?</h2>
-            <div className="grid grid-cols-3 gap-3">
+            <h2 className="mb-3 text-[18px] font-bold text-white">Yana nimadir kerakmi?</h2>
+            <div className="grid grid-cols-3 gap-2">
               {upsellProducts.map((p) => (
                 <UpsellProductCard key={p.id} product={p} onAdd={addToCart} />
               ))}
@@ -117,26 +122,26 @@ const CartPage: React.FC = () => {
         )}
       </main>
 
-      {/* FIXED BOTTOM BAR (60px) */}
-      <footer className="flex h-[60px] shrink-0 items-center gap-3 border-t border-[#333333] bg-[#1A1A1A] px-4">
+      {/* FIXED BOTTOM BAR (60px) - Dual Action Worklist */}
+      <footer className="flex h-[60px] shrink-0 items-center gap-3 border-t border-[#333333] bg-[#1A1A1A] px-4 pb-[env(safe-area-inset-bottom,0px)]">
         {totalPrice >= 80000 && (
           <button
             onClick={() => navigate('/customer/checkout')}
-            className="flex h-[48px] flex-1 items-center justify-center gap-2 rounded-[24px] bg-[#A855F7] px-4 text-[14px] font-semibold text-white transition-all hover:bg-[#9333EA] active:scale-[0.98]"
+            className="flex h-[44px] flex-1 items-center justify-center gap-2 rounded-[22px] bg-[#A855F7] px-4 text-[14px] font-bold text-white transition-all hover:bg-[#9333EA] active:scale-[0.96]"
           >
-            <PackageCheck size={16} />
+            <PackageCheck size={18} />
             <span>Bepul yetkazish</span>
           </button>
         )}
 
         <button
           onClick={() => navigate('/customer/checkout')}
-          className={`flex h-[48px] flex-1 items-center justify-center gap-2 rounded-[24px] bg-[#FFD700] px-4 text-[14px] font-semibold text-black transition-all hover:bg-[#FFC400] active:scale-[0.98] ${
+          className={`flex h-[44px] flex-1 items-center justify-center gap-2 rounded-[22px] bg-[#FFD700] px-4 text-[14px] font-bold text-[#1A1A1A] transition-all hover:bg-[#FFC400] active:scale-[0.96] ${
             totalPrice < 80000 ? 'w-full flex-none' : ''
           }`}
         >
           <span>To'lovga</span>
-          <ChevronRight size={20} />
+          <ChevronRight size={18} />
         </button>
       </footer>
     </div>

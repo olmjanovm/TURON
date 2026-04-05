@@ -15,6 +15,14 @@ enum UserRoleEnum {
   @@map("user_role_enum")
 }
 
+enum UserTypeEnum {
+  REGULAR
+  VIP
+  TEST
+
+  @@map("user_type_enum")
+}
+
 enum LanguageEnum {
   UZ
   RU
@@ -104,6 +112,15 @@ enum NotificationTypeEnum {
   @@map("notification_type_enum")
 }
 
+enum SpecialEventTypeEnum {
+  BIRTHDAY
+  FRIDAY
+  HOLIDAY
+  CAMPAIGN
+
+  @@map("special_event_type_enum")
+}
+
 model User {
   id                 String                @id @default(uuid())
   telegramId         BigInt                @unique @map("telegram_id")
@@ -111,10 +128,19 @@ model User {
   fullName           String                @map("full_name")
   phoneNumber        String?               @map("phone")
   role               UserRoleEnum          @default(CUSTOMER)
+  type               UserTypeEnum          @default(REGULAR)
   language           LanguageEnum          @default(UZ)
   isActive           Boolean               @default(true) @map("is_active")
+  
+  preferredPaymentMethod PaymentMethodEnum? @map("preferred_payment_method")
+  userDiscountPercent    Decimal?           @db.Decimal(5, 2) @default(0) @map("user_discount_percent")
+  birthday               DateTime?          @map("birthday")
+  registrationDate       DateTime           @default(now()) @map("registration_date")
+  totalSpent             Decimal            @db.Decimal(12, 2) @default(0) @map("total_spent")
+
   createdAt          DateTime              @default(now()) @map("created_at")
   updatedAt          DateTime              @updatedAt @map("updated_at")
+  
   addresses          DeliveryAddress[]
   orders             Order[]               @relation("CustomerOrders")
   courierOrders      Order[]               @relation("CourierOrders")
@@ -125,8 +151,15 @@ model User {
   verifiedPayments   Payment[]             @relation("PaymentVerifier")
   notifications      Notification[]
   auditLogs          AuditLog[]            @relation("AuditActor")
+  
+  createdMenuItems   MenuItem[]            @relation("MenuItemCreator")
+  updatedMenuItems   MenuItem[]            @relation("MenuItemUpdater")
+  approvedOrders     Order[]               @relation("OrderApprover")
+  restaurantSettings RestaurantSetting[]   @relation("SettingUpdater")
+  paymentSettings    PaymentUserSetting[]
 
   @@index([role, isActive])
+  @@index([type, isActive])
   @@index([createdAt(sort: Desc)])
   @@map("users")
 }
@@ -187,13 +220,29 @@ model MenuItem {
   availabilityStatus MenuAvailabilityStatusEnum @default(AVAILABLE) @map("availability_status")
   stockQuantity      Int?                       @map("stock_quantity")
   sortOrder          Int                        @default(0) @map("sort_order")
+  
+  preparationTime    Int?                       @default(15) @map("preparation_time")
+  calories           Int?
+  ingredients        String?                    @db.Text
+  allergens          String?                    @db.Text
+  
+  createdByUserId    String?                    @map("created_by")
+  updatedByUserId    String?                    @map("updated_by")
+  
   createdAt          DateTime                   @default(now()) @map("created_at")
   updatedAt          DateTime                   @updatedAt @map("updated_at")
+  
   category           MenuCategory               @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   orderItems         OrderItem[]
+  createdBy          User?                      @relation("MenuItemCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  updatedBy          User?                      @relation("MenuItemUpdater", fields: [updatedByUserId], references: [id], onDelete: SetNull)
 
   @@index([categoryId, isActive, availabilityStatus])
   @@index([isActive, availabilityStatus, price])
+  @@index([isFeatured, isActive])
+  @@index([isPopular, isActive])
+  @@index([isNew, isActive])
+  @@index([isDiscounted, isActive])
   @@map("menu_items")
 }
 
@@ -209,11 +258,15 @@ model PromoCode {
   startDate     DateTime              @default(now()) @map("starts_at")
   endDate       DateTime?             @map("expires_at")
   isActive      Boolean               @default(true) @map("is_active")
+  
+  targetUserId  String?               @map("target_user_id") // For user-specific promos
+  
   createdAt     DateTime              @default(now()) @map("created_at")
   updatedAt     DateTime              @updatedAt @map("updated_at")
   orders        Order[]
 
   @@index([isActive, startDate, endDate])
+  @@index([targetUserId])
   @@map("promo_codes")
 }
 
@@ -239,12 +292,23 @@ model Order {
   note               String?
   destinationLat     Decimal                 @db.Decimal(10, 7) @map("customer_latitude")
   destinationLng     Decimal                 @db.Decimal(10, 7) @map("customer_longitude")
+  
+  isTestOrder        Boolean                 @default(false) @map("is_test_order")
+  approvedByUserId   String?                 @map("approved_by")
+  approvedAt         DateTime?               @map("approved_at")
+  cancellationReason String?                 @map("cancellation_reason")
+  cancelledByRole    String?                 @map("cancelled_by_role") // 'customer' or 'admin'
+  cardLast4          String?                 @map("card_last_4")
+
   createdAt          DateTime                @default(now()) @map("created_at")
   updatedAt          DateTime                @updatedAt @map("updated_at")
+  
   user               User                    @relation("CustomerOrders", fields: [userId], references: [id], onDelete: Restrict)
   courier            User?                   @relation("CourierOrders", fields: [courierId], references: [id], onDelete: SetNull)
   promoCode          PromoCode?              @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
   deliveryAddress    DeliveryAddress         @relation("OrderAddress", fields: [deliveryAddressId], references: [id], onDelete: Restrict)
+  approvedBy         User?                   @relation("OrderApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  
   items              OrderItem[]
   payment            Payment?
   courierAssignments CourierAssignment[]
@@ -257,6 +321,8 @@ model Order {
   @@index([paymentStatus])
   @@index([promoCodeId])
   @@index([createdAt(sort: Desc)])
+  @@index([orderNumber(sort: Desc)])
+  @@index([isTestOrder])
   @@map("orders")
 }
 
@@ -410,4 +476,86 @@ model AuditLog {
   @@index([entity, entityId, createdAt(sort: Desc)])
   @@index([action, createdAt(sort: Desc)])
   @@map("audit_logs")
+}
+
+model SpecialEvent {
+  id                  String               @id @default(uuid())
+  name                String               @map("event_name")
+  type                SpecialEventTypeEnum @map("event_type")
+  description         String?
+  isActive            Boolean              @default(true) @map("is_active")
+  
+  occursDate          DateTime?            @map("occurs_date") // One-time
+  occursDayOfWeek     Int?                 @map("occurs_day_of_week") // 1-7 for recurring
+  
+  freeItemIds         String[]             @map("free_item_ids")
+  discountPercent     Decimal?             @db.Decimal(5, 2) @map("discount_percent")
+  discountAmount      Decimal?             @db.Decimal(10, 2) @map("discount_amount")
+  minOrderAmount      Decimal?             @db.Decimal(10, 2) @map("min_order_amount")
+  
+  applicableCategoryIds String[]           @map("applicable_category_ids")
+  
+  createdAt           DateTime             @default(now()) @map("created_at")
+  updatedAt           DateTime             @updatedAt @map("updated_at")
+
+  @@index([isActive, occursDate])
+  @@map("special_events")
+}
+
+model RestaurantSetting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String   @db.Text
+  dataType    String   @map("data_type") // 'string', 'number', 'json'
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  updatedById String?  @map("updated_by")
+  
+  updatedBy   User?    @relation("SettingUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("restaurant_settings")
+}
+
+model PaymentUserSetting {
+  id              String             @id @default(uuid())
+  userId          String             @map("user_id")
+  paymentMethod   PaymentMethodEnum? @map("payment_method")
+  allowFromDate   DateTime?          @map("allow_from_date")
+  allowUntilDate  DateTime?          @map("allow_until_date")
+  minAmount       Decimal?           @db.Decimal(10, 2) @map("min_amount")
+  maxAmount       Decimal?           @db.Decimal(10, 2) @map("max_amount")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("payment_user_settings")
+}
+
+model DailyReport {
+  id                        String   @id @default(uuid())
+  reportDate                DateTime @unique @map("report_date")
+  
+  totalOrders               Int      @default(0) @map("total_orders")
+  completedOrders           Int      @default(0) @map("completed_orders")
+  cancelledOrders           Int      @default(0) @map("cancelled_orders")
+  testOrders                Int      @default(0) @map("test_orders")
+  
+  cashRevenue               Decimal  @db.Decimal(12, 2) @default(0) @map("cash_revenue")
+  cardRevenue               Decimal  @db.Decimal(12, 2) @default(0) @map("card_revenue")
+  totalRevenue              Decimal  @db.Decimal(12, 2) @default(0) @map("total_revenue")
+  totalDiscounts            Decimal  @db.Decimal(12, 2) @default(0) @map("total_discounts")
+  
+  newCustomers              Int      @default(0) @map("new_customers")
+  repeatCustomers           Int      @default(0) @map("repeat_customers")
+  
+  couriersActive            Int      @default(0) @map("couriers_active")
+  totalDistanceKm           Decimal  @db.Decimal(10, 2) @default(0) @map("total_distance_km")
+  avgDeliveryTimeMinutes    Decimal  @db.Decimal(5, 2) @default(0) @map("avg_delivery_time_minutes")
+  
+  avgCustomerRating         Decimal? @db.Decimal(3, 2) @map("avg_customer_rating")
+  
+  createdAt                 DateTime @default(now()) @map("created_at")
+
+  @@index([reportDate])
+  @@map("daily_reports")
 }

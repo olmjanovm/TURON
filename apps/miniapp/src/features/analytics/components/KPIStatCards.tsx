@@ -26,7 +26,11 @@ export const KPIStatCards: React.FC<Props> = ({ metrics }) => {
       </div>
 
       {/* Active Orders */}
-      <div className="bg-white rounded-[24px] p-4 border border-blue-100 shadow-sm flex flex-col justify-between h-28">
+      <div className="bg-white rounded-[24px] p-4 border border-blue-100 shadow-sm flex flex-col justify-between h-28 relative overflow-hidden">
+        <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-blue-50 px-2 py-1 rounded-full">
+           <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+           <span className="text-[10px] font-black uppercase text-blue-600">Live</span>
+        </div>
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center">
             <ShoppingBag size={16} />

@@ -550,8 +550,8 @@ export const UpsellProductCard: React.FC<{
   }, [product, rawImage]);
 
   return (
-    <div className="relative flex h-[150px] w-full flex-col items-center justify-between rounded-[8px] bg-[#2D2D2D] p-2 text-center transition-all active:scale-[0.98]">
-      <div className="h-[80px] w-[80px] overflow-hidden rounded-[6px] bg-[#1A1A1A]">
+    <div className="relative flex min-h-[140px] w-full flex-col items-center justify-between rounded-[12px] bg-[#2D2D2D] p-2.5 text-center transition-all hover:bg-[#333333] active:scale-[0.96]">
+      <div className="aspect-square w-full max-w-[80px] overflow-hidden rounded-[8px] bg-[#1A1A1A]">
         <img
           src={imageSrc}
           alt={formatText(product.name)}
@@ -564,14 +564,15 @@ export const UpsellProductCard: React.FC<{
         />
       </div>
       
-      <div className="flex flex-col items-center pt-1">
-        <p className="line-clamp-2 text-[12px] font-medium leading-[14px] text-white">{formatText(product.name)}</p>
-        <p className="mt-1 text-[13px] font-semibold text-white">{product.price.toLocaleString()} so'm</p>
+      <div className="flex flex-1 flex-col items-center justify-center pt-2">
+        <p className="line-clamp-2 text-[11px] font-medium leading-[13px] text-[#FFFFFF]">{formatText(product.name)}</p>
+        <p className="mt-1 text-[13px] font-bold text-[#FFFFFF]">{product.price.toLocaleString()} so'm</p>
       </div>
 
       <button
         type="button"
-        onClick={() =>
+        onClick={(e) => {
+          e.stopPropagation();
           onAdd({
             id: product.id,
             menuItemId: 'menuItemId' in product ? product.menuItemId ?? product.id : product.id,
@@ -581,9 +582,9 @@ export const UpsellProductCard: React.FC<{
             price: product.price,
             image: imageSrc,
             isAvailable: true,
-          })
-        }
-        className="absolute bottom-1.5 right-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-[#FFD700] text-black shadow-lg transition-transform active:scale-90"
+          });
+        }}
+        className="absolute bottom-1.5 right-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-[#FFD700] text-[#1A1A1A] shadow-lg transition-all hover:bg-[#FFC400] active:scale-90"
       >
         <Plus size={16} strokeWidth={3} />
       </button>
@@ -605,7 +606,7 @@ export const CartItemCard: React.FC<{
   }, [item]);
 
   return (
-    <div className="flex min-h-[80px] gap-3 border-b border-[#333333] px-4 py-3">
+    <div className="flex gap-3 border-b border-[#333333] bg-[#1A1A1A] px-4 py-4">
       <div className="h-[80px] w-[80px] shrink-0 overflow-hidden rounded-[8px] bg-[#2D2D2D]">
         <img
           src={imageSrc}
@@ -621,16 +622,16 @@ export const CartItemCard: React.FC<{
 
       <div className="flex min-w-0 flex-1 flex-col justify-between">
         <div>
-          <h4 className="line-clamp-2 text-[16px] font-medium leading-[20px] text-white">
+          <h4 className="line-clamp-2 text-[16px] font-semibold leading-[20px] text-[#FFFFFF]">
             {formatText(item.name)}
           </h4>
-          <p className="mt-1 text-[12px] text-[#A0A0A0]">
+          <p className="mt-0.5 text-[12px] text-[#A0A0A0]">
             {item.weight || "180 g"}
           </p>
         </div>
 
-        <div className="flex items-baseline gap-2">
-          <span className="text-[14px] font-semibold text-[#10B981]">
+        <div className="flex items-center gap-2">
+          <span className="text-[14px] font-bold text-[#10B981]">
             {(item.price * item.quantity).toLocaleString()} so'm
           </span>
           {item.oldPrice ? (
@@ -642,21 +643,21 @@ export const CartItemCard: React.FC<{
       </div>
 
       <div className="flex items-end">
-        <div className="flex h-8 min-w-[80px] items-center justify-between gap-2 rounded-[6px] bg-[#2D2D2D] px-2 shadow-sm">
+        <div className="flex h-8 min-w-[84px] items-center justify-between rounded-[8px] bg-[#2D2D2D] px-1.5 shadow-sm">
           <button
             type="button"
             onClick={() => onUpdateQuantity(item.id, -1)}
-            className="flex h-6 w-6 items-center justify-center text-[#A0A0A0] transition-colors hover:text-white active:scale-90"
+            className="flex h-6 w-6 items-center justify-center text-[#FFFFFF] transition-opacity hover:opacity-80 active:scale-90"
           >
-            <Minus size={16} />
+            <Minus size={16} strokeWidth={2.5} />
           </button>
-          <span className="min-w-[16px] text-center text-[14px] font-medium text-white">{item.quantity}</span>
+          <span className="text-[14px] font-bold text-[#FFFFFF]">{item.quantity}</span>
           <button
             type="button"
             onClick={() => onUpdateQuantity(item.id, 1)}
-            className="flex h-6 w-6 items-center justify-center text-[#A0A0A0] transition-colors hover:text-white active:scale-90"
+            className="flex h-6 w-6 items-center justify-center text-[#FFFFFF] transition-opacity hover:opacity-80 active:scale-90"
           >
-            <Plus size={16} />
+            <Plus size={16} strokeWidth={2.5} />
           </button>
         </div>
       </div>

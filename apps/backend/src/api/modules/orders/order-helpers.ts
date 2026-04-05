@@ -15,7 +15,29 @@ export const RESTAURANT_COORDS = {
 
 export const ACTIVE_ASSIGNMENT_STATUSES = ['ASSIGNED', 'ACCEPTED', 'PICKED_UP', 'DELIVERING'] as const;
 
-export const ORDER_INCLUDE = {
+export const ORDER_LIST_INCLUDE = {
+  user: {
+    select: {
+      fullName: true,
+      phoneNumber: true,
+    },
+  },
+  deliveryAddress: true,
+  items: true,
+  courierAssignments: {
+    include: {
+      courier: {
+        select: {
+          fullName: true,
+        },
+      },
+    },
+    orderBy: { assignedAt: 'desc' },
+    take: 1, // Only need the latest for list
+  },
+} satisfies Prisma.OrderInclude;
+
+export const ORDER_DETAIL_INCLUDE = {
   user: true,
   promoCode: true,
   payment: true,
@@ -43,8 +65,10 @@ export const ORDER_INCLUDE = {
   },
 } satisfies Prisma.OrderInclude;
 
+export const ORDER_INCLUDE = ORDER_DETAIL_INCLUDE;
+
 export type OrderWithRelations = Prisma.OrderGetPayload<{
-  include: typeof ORDER_INCLUDE;
+  include: typeof ORDER_DETAIL_INCLUDE;
 }>;
 
 export function getActiveCourierAssignment(order: any) {

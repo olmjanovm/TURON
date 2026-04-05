@@ -182,8 +182,26 @@ function normalizeSuggestItem(item: any, index: number): YandexSuggestItem {
 function flattenRoutePolyline(route: any): CoordinatePoint[] {
   const coordinates: CoordinatePoint[] = [];
   const seen = new Set<string>();
-  const legs = Array.isArray(route?.legs) ? route.legs : [];
 
+  // 1. Try to get combined polyline from the route root (if available)
+  const combinedPolyline = route?.polyline?.points || [];
+  if (combinedPolyline.length > 0) {
+    for (const point of combinedPolyline) {
+      const latitude = Number(point?.[0]);
+      const longitude = Number(point?.[1]);
+      if (Number.isNaN(latitude) || Number.isNaN(longitude)) continue;
+      
+      const key = `${latitude.toFixed(6)}:${longitude.toFixed(6)}`;
+      if (seen.has(key)) continue;
+      
+      seen.add(key);
+      coordinates.push({ latitude, longitude });
+    }
+    return coordinates;
+  }
+
+  // 2. Fallback to leg/step iteration
+  const legs = Array.isArray(route?.legs) ? route.legs : [];
   for (const leg of legs) {
     const steps = Array.isArray(leg?.steps) ? leg.steps : [];
     for (const step of steps) {
@@ -191,15 +209,10 @@ function flattenRoutePolyline(route: any): CoordinatePoint[] {
       for (const point of points) {
         const latitude = Number(point?.[0]);
         const longitude = Number(point?.[1]);
-
-        if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
-          continue;
-        }
+        if (Number.isNaN(latitude) || Number.isNaN(longitude)) continue;
 
         const key = `${latitude.toFixed(6)}:${longitude.toFixed(6)}`;
-        if (seen.has(key)) {
-          continue;
-        }
+        if (seen.has(key)) continue;
 
         seen.add(key);
         coordinates.push({ latitude, longitude });

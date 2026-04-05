@@ -12,9 +12,11 @@ import { DeliveryQuoteService } from '../../../services/delivery-quote.service.j
 import { InAppNotificationsService } from '../../../services/in-app-notifications.service.js';
 import { orderTrackingService } from '../../../services/order-tracking.service.js';
 import { StatusService } from '../../../services/status.service.js';
+import { SpecialEventsService } from '../../../services/special-events.service.js';
 import {
   ACTIVE_ASSIGNMENT_STATUSES,
   ORDER_INCLUDE,
+  ORDER_LIST_INCLUDE,
   type OrderWithRelations,
   RESTAURANT_COORDS,
   hasOrderAccess,
@@ -100,7 +102,7 @@ async function continueAutoAssignmentAfterOrderCreation(orderId: string) {
 async function listAccessibleOrders(requester: any) {
   if (requester.role === UserRoleEnum.ADMIN) {
     return prisma.order.findMany({
-      include: ORDER_INCLUDE,
+      include: ORDER_LIST_INCLUDE,
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -117,14 +119,14 @@ async function listAccessibleOrders(requester: any) {
           },
         },
       },
-      include: ORDER_INCLUDE,
+      include: ORDER_LIST_INCLUDE,
       orderBy: { createdAt: 'desc' },
     });
   }
 
   return prisma.order.findMany({
     where: { userId: requester.id },
-    include: ORDER_INCLUDE,
+    include: ORDER_LIST_INCLUDE,
     orderBy: { createdAt: 'desc' },
   });
 }
@@ -223,11 +225,24 @@ async function buildOrderPricing(input: {
 }) {
   const deliveryAddress = await getOwnedDeliveryAddress(input.userId, input.deliveryAddressId);
   const { subtotal, orderItemsData } = await buildValidatedOrderItems(input.items);
-  const { promo, discountAmount } = await resolvePromo(input.promoCode, subtotal);
+  const { promo, discountAmount: promoDiscount } = await resolvePromo(input.promoCode, subtotal);
+
+  // Apply Special Event Benefits
+  const specialBenefits = await SpecialEventsService.getActiveBenefits(input.userId);
+  let specialDiscount = 0;
+  
+  for (const benefit of specialBenefits) {
+    if (benefit.discountPercent > 0) {
+      specialDiscount += subtotal * (benefit.discountPercent / 100);
+    }
+    specialDiscount += benefit.discountAmount;
+  }
+
+  const totalDiscount = roundCurrency(promoDiscount + specialDiscount);
 
   const quote = await DeliveryQuoteService.calculate({
     subtotal,
-    discountAmount,
+    discountAmount: totalDiscount,
     destination: {
       latitude: Number(deliveryAddress.latitude),
       longitude: Number(deliveryAddress.longitude),

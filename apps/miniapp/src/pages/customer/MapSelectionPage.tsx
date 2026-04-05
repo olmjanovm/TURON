@@ -18,6 +18,7 @@ import { getMapProvider } from '../../features/maps/provider';
 import { DEFAULT_RESTAURANT_LOCATION } from '../../features/maps/restaurant';
 import { useCustomerLanguage } from '../../features/i18n/customerLocale';
 import { useAddressStore } from '../../store/useAddressStore';
+import { useCreateAddress } from '../../hooks/queries/useAddresses';
 
 const TASHKENT_CENTER = { lat: 41.2995, lng: 69.2401 };
 
@@ -250,14 +251,45 @@ const MapSelectionPage: React.FC = () => {
       });
   }, [copy, mapProvider]);
 
+  const { mutate: createAddress, isPending: isSaving } = useCreateAddress();
+  const selectAddress = useAddressStore((state) => state.selectAddress);
+
   const handleConfirm = React.useCallback(() => {
-    updateDraft({
-      latitude: selectedPin.lat,
-      longitude: selectedPin.lng,
-      addressText: displayAddress,
-    });
-    navigate('/customer/address/new', { state: { returnTo } });
-  }, [displayAddress, navigate, returnTo, selectedPin, updateDraft]);
+    setIsResolvingAddress(true);
+    
+    // Auto-save the address directly from the map
+    createAddress(
+      {
+        title: draftAddress?.label || 'Boshqa',
+        address: displayAddress,
+        latitude: selectedPin.lat,
+        longitude: selectedPin.lng,
+        note: draftAddress?.note || '',
+      },
+      {
+        onSuccess: (savedAddress) => {
+          // Select this address and go to checkout
+          selectAddress(savedAddress.id);
+          updateDraft({
+            id: savedAddress.id,
+            latitude: selectedPin.lat,
+            longitude: selectedPin.lng,
+            addressText: displayAddress,
+          });
+          
+          if (returnTo) {
+            navigate(returnTo, { replace: true });
+          } else {
+            navigate('/customer/checkout', { replace: true });
+          }
+        },
+        onError: () => {
+          setIsResolvingAddress(false);
+          setSearchFeedback("Manzilni saqlashda xatolik yuz berdi. Iltimos qaytadan urining.");
+        }
+      }
+    );
+  }, [createAddress, displayAddress, draftAddress, navigate, returnTo, selectAddress, selectedPin, updateDraft]);
 
   const handleMapInteractionStart = React.useCallback(() => {
     if (interactionEndTimeoutRef.current) {
@@ -500,10 +532,10 @@ const MapSelectionPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleConfirm}
-                      disabled={isResolvingAddress || isLocatingMe}
+                      disabled={isResolvingAddress || isLocatingMe || isSaving}
                       className="flex h-9 items-center justify-center rounded-full bg-[#ffd600] px-3.5 text-[11px] font-black uppercase tracking-[0.14em] text-slate-950 disabled:opacity-60"
                     >
-                      {copy.confirmBadge}
+                      {isSaving ? <Loader2 size={14} className="animate-spin" /> : copy.confirmBadge}
                     </button>
                   </div>
                 )}

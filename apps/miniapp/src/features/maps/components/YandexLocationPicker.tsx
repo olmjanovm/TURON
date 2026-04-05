@@ -78,12 +78,22 @@ export default function YandexLocationPicker({
       routeRef.current = null;
     }
 
-    routeRef.current = new ymaps.Polyline(coordinates, {}, {
-      strokeColor: '#f59e0b',
-      strokeOpacity: 0.95,
-      strokeWidth: 5,
+    // Shadow polyline for depth
+    const shadow = new ymaps.Polyline(coordinates, {}, {
+      strokeColor: '#FFD700',
+      strokeOpacity: 0.15,
+      strokeWidth: 9,
+      zIndex: 49,
     });
 
+    routeRef.current = new ymaps.Polyline(coordinates, {}, {
+      strokeColor: '#FFD700',
+      strokeOpacity: 0.9,
+      strokeWidth: 4.5,
+      zIndex: 50,
+    });
+
+    map.geoObjects.add(shadow);
     map.geoObjects.add(routeRef.current);
   };
 
@@ -171,13 +181,14 @@ export default function YandexLocationPicker({
               new ymaps.control.ZoomControl({
                 options: {
                   size: 'large',
-                  position: { left: 10, top: 108 }, // Align with the left slider location
+                  position: { left: 10, top: 108 },
                 },
               }),
             ],
           },
           {
             suppressMapOpenBlock: true,
+            suppressLbsEvents: true, // Disable POI balloons
           },
         );
 
@@ -186,18 +197,18 @@ export default function YandexLocationPicker({
           'dblClickZoom',
           'multiTouchZoom',
           'drag',
-          'leftMouseButtonMagnifier',
         ]);
+        map.behaviors.disable(['leftMouseButtonMagnifier']);
 
         const userPlacemark = userLocationPin
           ? new ymaps.Placemark(
               toYandexCoords(userLocationPin),
               {
                 hintContent: 'Sizning joylashuvingiz',
-                balloonContent: 'Sizning joriy joylashuvingiz',
               },
               {
-                preset: 'islands#blueCircleDotIcon',
+                preset: 'islands#blueCircleIcon', // Consistent with tracking
+                iconColor: '#38BDF8',
                 draggable: false,
               },
             )
@@ -207,10 +218,10 @@ export default function YandexLocationPicker({
               toYandexCoords(restaurantLocationPin),
               {
                 hintContent: 'Restoran',
-                balloonContent: 'Restoranning joylashuvi',
               },
               {
-                preset: 'islands#greenDotIcon',
+                preset: 'islands#greenCircleIcon',
+                iconColor: '#10B981',
                 draggable: false,
               },
             )
@@ -245,7 +256,9 @@ export default function YandexLocationPicker({
 
         userPlacemarkRef.current = userPlacemark;
         restaurantPlacemarkRef.current = restaurantPlacemark;
-        focusSelectedCenter();
+
+        // Focus only once on init
+        map.setCenter(toYandexCoords(initialCenter), 17);
       } catch {
         setHasFallback(true);
       } finally {
@@ -289,7 +302,11 @@ export default function YandexLocationPicker({
       return;
     }
 
-    focusSelectedCenter();
+    // Only snap back when requested (e.g. initial load or explicit jumps)
+    // but avoid snapping on every prop change to allow smooth panning
+    mapRef.current.setCenter(toYandexCoords(initialCenter), 17, {
+      duration: getMapAnimationDuration(200),
+    });
   }, [initialCenter.lat, initialCenter.lng]);
 
   useEffect(() => {

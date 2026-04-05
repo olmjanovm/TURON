@@ -10,6 +10,7 @@ import {
   Plus,
   RefreshCw,
   ShoppingBag,
+  FileSpreadsheet,
   Tag,
   UtensilsCrossed,
 } from 'lucide-react';
@@ -506,6 +507,12 @@ const AdminDashboardPage: React.FC = () => {
             title="Promokod yaratish"
             description="Yangi aksiya yoki chegirma kodini ishga tushirish"
             onClick={() => navigate('/admin/promos/new')}
+          />
+          <QuickActionButton
+            icon={<FileSpreadsheet size={20} />}
+            title="Xisobotlar"
+            description="Daromad va buyurtmalar statistikasi (Excel)"
+            onClick={() => navigate('/admin/reports')}
           />
         </div>
       </section>

@@ -88,6 +88,7 @@ export default function YandexRouteMap({
           },
           {
             suppressMapOpenBlock: true,
+            suppressLbsEvents: true,
           },
         );
 
@@ -96,8 +97,8 @@ export default function YandexRouteMap({
           'dblClickZoom',
           'multiTouchZoom',
           'drag',
-          'leftMouseButtonMagnifier',
         ]);
+        map.behaviors.disable(['leftMouseButtonMagnifier']);
 
         const pickupPlacemark = new ymaps.Placemark(
           toYandexCoords(pickup),
@@ -106,7 +107,8 @@ export default function YandexRouteMap({
             balloonContent: 'Restorandan olib ketish nuqtasi',
           },
           {
-            preset: 'islands#greenDotIcon',
+            preset: 'islands#greenCircleIcon',
+            iconColor: '#10B981',
           },
         );
 
@@ -117,7 +119,8 @@ export default function YandexRouteMap({
             balloonContent: 'Yetkazib berish manzili',
           },
           {
-            preset: 'islands#redDotIcon',
+            preset: 'islands#redCircleIcon',
+            iconColor: '#EF4444',
           },
         );
 
@@ -158,18 +161,34 @@ export default function YandexRouteMap({
           emitRouteInfo(routeDetails.distance, routeDetails.eta);
 
           if (ymaps.Polyline) {
+            // Shadow polyline for depth
+            const shadow = new ymaps.Polyline(
+              (routeDetails.polyline?.length ? routeDetails.polyline : [activeRouteFrom, activeRouteTo]).map(
+                toYandexCoords,
+              ),
+              {},
+              {
+                strokeColor: '#FFD700',
+                strokeOpacity: 0.15,
+                strokeWidth: 9,
+                zIndex: 49,
+              },
+            );
+
             routeRef.current = new ymaps.Polyline(
               (routeDetails.polyline?.length ? routeDetails.polyline : [activeRouteFrom, activeRouteTo]).map(
                 toYandexCoords,
               ),
               {},
               {
-                strokeColor: '#f59e0b',
-                strokeOpacity: 0.95,
-                strokeWidth: 6,
+                strokeColor: '#FFD700',
+                strokeOpacity: 0.9,
+                strokeWidth: 4.5,
+                zIndex: 50,
               },
             );
 
+            map.geoObjects.add(shadow);
             map.geoObjects.add(routeRef.current);
           }
         } catch {
@@ -238,7 +257,9 @@ export default function YandexRouteMap({
             balloonContent: 'Kuryerning joriy joylashuvi',
           },
           {
-            preset: 'islands#blueDotIcon',
+            preset: 'islands#yellowCircleIcon',
+            iconColor: '#FFD700',
+            zIndex: 200,
           },
         );
 
@@ -267,18 +288,25 @@ export default function YandexRouteMap({
         }
 
         if (ymaps.Polyline) {
-          routeRef.current = new ymaps.Polyline(
-            (routeDetails.polyline?.length ? routeDetails.polyline : [activeRouteFrom, activeRouteTo]).map(
-              toYandexCoords,
-            ),
-            {},
-            {
-              strokeColor: '#f59e0b',
-              strokeOpacity: 0.95,
-              strokeWidth: 6,
-            },
+          const coords = (routeDetails.polyline?.length ? routeDetails.polyline : [activeRouteFrom, activeRouteTo]).map(
+            toYandexCoords,
           );
 
+          const shadow = new ymaps.Polyline(coords, {}, {
+            strokeColor: '#FFD700',
+            strokeOpacity: 0.15,
+            strokeWidth: 9,
+            zIndex: 49,
+          });
+
+          routeRef.current = new ymaps.Polyline(coords, {}, {
+            strokeColor: '#FFD700',
+            strokeOpacity: 0.9,
+            strokeWidth: 4.5,
+            zIndex: 50,
+          });
+
+          map.geoObjects.add(shadow);
           map.geoObjects.add(routeRef.current);
         }
 

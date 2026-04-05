@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.101.1",
     "@tanstack/react-query": "^5.95.2",
     "@turon/shared": "workspace:*",
     "axios": "^1.6.8",
