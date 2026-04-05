@@ -10,6 +10,13 @@ export const prisma =
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
   });
 
+// Test connection on startup (optional but helpful for logs)
+if (process.env.NODE_ENV === 'production') {
+  prisma.$connect()
+    .then(() => console.log('[Prisma] Database connected successfully.'))
+    .catch((err) => console.error('[Prisma] CRITICAL: Database connection failed.', err));
+}
+
 if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma;
 }

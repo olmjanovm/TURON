@@ -61,7 +61,37 @@ function resolveAdminChatId() {
   return fallbackAdminId || null;
 }
 
-async function getUserRole(telegramId: string): Promise<UserRoleEnum> {
+async function getUserRole(telegramId: string, retryCount = 0): Promise<UserRoleEnum> {
+  const MAX_RETRIES = 2;
+  
+  try {
+    const user = await prisma.user.findUnique({
+      where: { telegramId: BigInt(telegramId) },
+      select: { role: true },
+    });
+
+    if (!user) {
+      console.log(`[Bot] User ${telegramId} not found in DB, defaulting to CUSTOMER.`);
+      return UserRoleEnum.CUSTOMER;
+    }
+
+    return (user.role as UserRoleEnum) || UserRoleEnum.CUSTOMER;
+  } catch (error) {
+    if (retryCount < MAX_RETRIES) {
+      console.warn(`[Bot] Retrying getUserRole for ${telegramId} (attempt ${retryCount + 1})...`);
+      // Small delay before retry
+      await new Promise(resolve => setTimeout(resolve, 500));
+      return getUserRole(telegramId, retryCount + 1);
+    }
+    
+    console.error(`[Bot] CRITICAL: Failed to resolve role for ${telegramId} after ${MAX_RETRIES} retries.`, error);
+    // Even if it fails, we default to customer for safety, but with a clear log
+    return UserRoleEnum.CUSTOMER;
+  }
+}
+
+// Old function removed
+async function _old_getUserRole_stub() {
   try {
     const user = await prisma.user.findUnique({
       where: { telegramId: BigInt(telegramId) },
