@@ -671,6 +671,18 @@ export const FloatingCartBar: React.FC<{
   const navigate = useNavigate();
   const { items, getFinalTotal } = useCartStore();
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+  const [pulse, setPulse] = React.useState(false);
+  const prevTotalRef = React.useRef(totalItems);
+
+  React.useEffect(() => {
+    if (totalItems > prevTotalRef.current) {
+      setPulse(true);
+      const t = window.setTimeout(() => setPulse(false), 420);
+      prevTotalRef.current = totalItems;
+      return () => window.clearTimeout(t);
+    }
+    prevTotalRef.current = totalItems;
+  }, [totalItems]);
 
   if (hidden || totalItems === 0) {
     return null;
@@ -685,10 +697,10 @@ export const FloatingCartBar: React.FC<{
         <button
           type="button"
           onClick={() => navigate('/customer/cart')}
-          className="flex h-[42px] w-full items-center justify-between rounded-[6px] border border-white/10 bg-slate-900/98 px-3.5 text-white shadow-2xl backdrop-blur-xl transition-all active:scale-[0.99]"
+          className={`flex h-[42px] w-full items-center justify-between rounded-[6px] border border-white/10 bg-slate-900/98 px-3.5 text-white shadow-2xl backdrop-blur-xl transition-all active:scale-[0.99] ${pulse ? 'scale-[1.025] border-amber-300/30' : ''}`}
         >
           <div className="flex items-center gap-3">
-            <div className="flex h-7 w-7 items-center justify-center rounded-[4px] bg-white text-slate-950">
+            <div className={`flex h-7 w-7 items-center justify-center rounded-[4px] text-slate-950 transition-colors ${pulse ? 'bg-amber-300' : 'bg-white'}`}>
               <ShoppingBag size={14} />
             </div>
             <div className="flex items-baseline gap-2">

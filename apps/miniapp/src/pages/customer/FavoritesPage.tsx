@@ -17,7 +17,7 @@ const FavoritesPage: React.FC = () => {
     favoriteProductIds,
     toggleCategoryFavorite,
   } = useFavoritesStore();
-  const { formatText } = useCustomerLanguage();
+  const { formatText, language } = useCustomerLanguage();
 
   const favoriteProducts = React.useMemo(
     () => products.filter((product) => favoriteProductIds.includes(product.id)),
@@ -28,6 +28,37 @@ const FavoritesPage: React.FC = () => {
     () => sortCustomerCategories(categories).filter((category) => favoriteCategoryIds.includes(category.id)),
     [categories, favoriteCategoryIds],
   );
+
+  const copy = {
+    badge:
+      language === 'ru' ? 'Избранное' : language === 'uz-cyrl' ? 'Сараланганлар' : 'Saqlanganlar',
+    title:
+      language === 'ru' ? 'Yoqtirganlar' : language === 'uz-cyrl' ? 'Ёқтирганлар' : 'Yoqtirganlar',
+    subtitle:
+      language === 'ru'
+        ? 'Блюда и разделы, которые вам понравились.'
+        : language === 'uz-cyrl'
+          ? 'Ёқтирган таомлар ва бўлимлар шу ерда сақланади.'
+          : "Yoqtirgan taomlar va bo'limlar shu yerda saqlanadi.",
+    products:
+      language === 'ru' ? 'Понравившиеся блюда' : language === 'uz-cyrl' ? 'Сақланган таомлар' : 'Saqlangan taomlar',
+    productsBadge:
+      language === 'ru' ? 'Блюда' : language === 'uz-cyrl' ? 'Таомлар' : 'Taomlar',
+    categories:
+      language === 'ru' ? "Разделы" : language === 'uz-cyrl' ? "Бўлимлар" : "Bo'limlar",
+    categoriesBadge:
+      language === 'ru' ? 'Категории' : language === 'uz-cyrl' ? 'Категориялар' : 'Kategoriyalar',
+    emptyTitle:
+      language === 'ru' ? 'Пока ничего нет' : language === 'uz-cyrl' ? 'Ҳали ҳеч нарса йўқ' : "Hali hech narsa yo'q",
+    emptySubtitle:
+      language === 'ru'
+        ? 'Нажмите на сердечко рядом с блюдом или категорией — оно сохранится здесь.'
+        : language === 'uz-cyrl'
+          ? 'Taom yoki kategoriya yonidagi yurak tugmasini bosing — u shu yerga saqlanadi.'
+          : "Taom yoki kategoriya yonidagi yurak tugmasini bosing — u shu yerga saqlanadi.",
+    home:
+      language === 'ru' ? 'На главную' : language === 'uz-cyrl' ? 'Бош саҳифа' : 'Asosiy sahifa',
+  };
 
   return (
     <div
@@ -44,17 +75,19 @@ const FavoritesPage: React.FC = () => {
             <ArrowLeft size={20} />
           </button>
           <div className="text-center">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/36">Saralanganlar</p>
-            <h1 className="mt-1.5 text-[1.75rem] font-black tracking-[-0.05em] text-white">Yoqtirganlar</h1>
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/36">
+              {copy.badge}
+            </p>
+            <h1 className="mt-1.5 text-[1.75rem] font-black tracking-[-0.05em] text-white">
+              {copy.title}
+            </h1>
           </div>
           <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-rose-400">
             <Heart size={18} className="fill-current" />
           </div>
         </div>
 
-        <p className="mt-4 max-w-[310px] text-[13px] leading-6 text-white/58">
-          Hozircha foundation bosqichi: mahsulot va kategoriya saralash shu yerda saqlanadi.
-        </p>
+        <p className="mt-3 text-[13px] leading-6 text-white/48">{copy.subtitle}</p>
       </section>
 
       <section className="space-y-5 px-4">
@@ -68,41 +101,53 @@ const FavoritesPage: React.FC = () => {
             {favoriteProducts.length > 0 ? (
               <section>
                 <div className="mb-3">
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/36">Mahsulotlar</p>
-                  <h2 className="mt-1.5 text-[1.35rem] font-black tracking-[-0.04em] text-white">Saqlangan taomlar</h2>
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/36">
+                    {copy.productsBadge}
+                  </p>
+                  <h2 className="mt-1.5 text-[1.35rem] font-black tracking-[-0.04em] text-white">
+                    {copy.products}
+                  </h2>
                 </div>
                 <ProductGrid products={favoriteProducts} />
               </section>
             ) : null}
 
             {favoriteCategories.length > 0 ? (
-              <CheckoutSectionCard title="Saqlangan bo'limlar">
+              <section>
+                <div className="mb-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/36">
+                    {copy.categoriesBadge}
+                  </p>
+                  <h2 className="mt-1.5 text-[1.35rem] font-black tracking-[-0.04em] text-white">
+                    {copy.categories}
+                  </h2>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {favoriteCategories.map((category) => (
                     <button
                       key={category.id}
                       type="button"
-                      onClick={() => toggleCategoryFavorite(category.id)}
-                      className="rounded-full border border-white/8 bg-white/[0.04] px-3 py-2 text-[11px] font-black text-white"
+                      onClick={() => navigate(`/customer/category/${category.id}`)}
+                      className="rounded-full border border-white/10 bg-white/[0.06] px-4 py-2.5 text-[12px] font-black text-white transition-transform active:scale-[0.97]"
                     >
                       {formatText(getCustomerCategoryLabel(category.name))}
                     </button>
                   ))}
                 </div>
-              </CheckoutSectionCard>
+              </section>
             ) : null}
           </>
         ) : (
           <EmptyState
-            message="Hali hech narsa saqlanmagan"
-            subMessage="Yoqtirgan kategoriya va mahsulotlaringiz shu yerda jamlanadi."
+            message={copy.emptyTitle}
+            subMessage={copy.emptySubtitle}
             action={
               <button
                 type="button"
                 onClick={() => navigate('/customer')}
                 className="rounded-[12px] bg-white px-5 py-3 text-sm font-black text-slate-950"
               >
-                Asosiy sahifa
+                {copy.home}
               </button>
             }
           />

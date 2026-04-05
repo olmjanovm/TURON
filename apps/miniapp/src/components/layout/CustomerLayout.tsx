@@ -1,6 +1,7 @@
 import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { BottomNavbar, FloatingCartBar, HeaderBar } from '../customer/CustomerComponents';
+import { CustomerErrorBoundary } from '../ui/CustomerErrorBoundary';
 import { useCartStore } from '../../store/useCartStore';
 import { useOrdersRealtimeSync } from '../../hooks/queries/useOrders';
 import { useCustomerLanguage } from '../../features/i18n/customerLocale';
@@ -108,14 +109,16 @@ const CustomerLayout: React.FC = () => {
           />
         ) : null}
 
-        <main 
+        <main
           className={`
-            relative min-h-screen 
-            ${!isImmersiveRoute ? 'px-4 pt-4' : ''} 
+            relative min-h-screen
+            ${!isImmersiveRoute ? 'px-4 pt-4' : ''}
             ${showFloatingCart ? 'pb-[140px]' : (!hideBottomNav ? 'pb-[88px]' : 'pb-[env(safe-area-inset-bottom,20px)]')}
           `}
         >
-          <Outlet />
+          <CustomerErrorBoundary>
+            <Outlet />
+          </CustomerErrorBoundary>
         </main>
 
         <FloatingCartBar hidden={!showFloatingCart} />

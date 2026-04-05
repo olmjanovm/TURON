@@ -35,7 +35,7 @@ const TrackingMapPage: React.FC = () => {
   const { orderId = '' } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
   const { data: order, isLoading, isError, error, refetch } = useOrderDetails(orderId);
-  const { isConnected } = useOrderTrackingStream(orderId, Boolean(orderId));
+  const { isConnected, connectionState } = useOrderTrackingStream(orderId, Boolean(orderId));
   const { language, formatText, intlLocale } = useCustomerLanguage();
   const [activePanel, setActivePanel] = React.useState<TrackingPanelTab>(null);
   const [routeInfo, setRouteInfo] = React.useState<{ distance: string; eta: string } | null>(null);
@@ -213,11 +213,44 @@ const TrackingMapPage: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="rounded-full border border-white/10 bg-slate-950/70 px-3 py-1.5 text-right shadow-[0_18px_40px_rgba(2,6,23,0.42)] backdrop-blur-xl">
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">
-                    {isConnected ? 'Jonli' : 'Offline'}
-                  </p>
-                  <p className="mt-1 text-xs font-black text-white/90">{updatedAtLabel}</p>
+                <div
+                  className={`rounded-full border px-3 py-1.5 text-right shadow-[0_18px_40px_rgba(2,6,23,0.42)] backdrop-blur-xl ${
+                    isConnected
+                      ? 'border-emerald-300/18 bg-emerald-400/10'
+                      : connectionState === 'reconnecting' || connectionState === 'connecting'
+                        ? 'border-amber-300/18 bg-amber-400/10'
+                        : 'border-white/10 bg-slate-950/70'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        isConnected
+                          ? 'animate-pulse bg-emerald-400'
+                          : connectionState === 'reconnecting' || connectionState === 'connecting'
+                            ? 'animate-pulse bg-amber-400'
+                            : 'bg-white/30'
+                      }`}
+                    />
+                    <p
+                      className={`text-[10px] font-black uppercase tracking-[0.14em] ${
+                        isConnected
+                          ? 'text-emerald-200'
+                          : connectionState === 'reconnecting' || connectionState === 'connecting'
+                            ? 'text-amber-200'
+                            : 'text-white/45'
+                      }`}
+                    >
+                      {isConnected
+                        ? language === 'ru' ? 'Онлайн' : 'Jonli'
+                        : connectionState === 'reconnecting'
+                          ? language === 'ru' ? 'Повтор...' : 'Qayta...'
+                          : connectionState === 'connecting'
+                            ? language === 'ru' ? 'Подключение' : 'Ulanish'
+                            : language === 'ru' ? 'Обновлено' : 'Yangilangan'}
+                    </p>
+                  </div>
+                  <p className="mt-0.5 text-[11px] font-black text-white/80">{updatedAtLabel}</p>
                 </div>
               </div>
             </div>

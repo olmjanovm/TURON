@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowLeft, Copy, Headphones, Loader2, MapPinned, RefreshCcw, ShieldCheck, XCircle } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useToast } from '../../components/ui/Toast';
 import { CheckoutSectionCard } from '../../components/customer/CheckoutComponents';
 import { OrderTimeline } from '../../components/customer/OrderHistoryComponents';
 import { ErrorStateCard } from '../../components/ui/FeedbackStates';
@@ -26,6 +27,7 @@ function getPaymentStatusLabel(status: PaymentStatus) {
 const OrderDetailPage: React.FC = () => {
   const { orderId = '' } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const { setItems } = useCartStore();
   const { data: order, isLoading, isError, error, refetch } = useOrderDetails(orderId);
   const { isConnected } = useOrderTrackingStream(orderId, Boolean(orderId));
@@ -110,7 +112,7 @@ const OrderDetailPage: React.FC = () => {
       .filter((item): item is NonNullable<typeof item> => item !== null);
 
     if (!nextItems.length) {
-      window.alert("Qayta buyurtma uchun mavjud mahsulot topilmadi.");
+      showToast("Bu buyurtmadagi taomlar hozir menyuda mavjud emas.", 'warning');
       return;
     }
 

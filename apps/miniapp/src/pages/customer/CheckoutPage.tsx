@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, CheckCircle2, Loader2, LocateFixed, MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '../../components/ui/Toast';
 import { SelectedAddressCard } from '../../components/customer/AddressComponents';
 import PaymentMethodSelector from '../../components/customer/PaymentMethodSelector';
 import OrderSummaryCard from '../../components/customer/OrderSummaryCard';
@@ -16,6 +17,7 @@ import { createRouteInfoFromMeters } from '../../features/maps/route';
 
 const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const { items, getSubtotal, getDiscount, appliedPromo, clearCart, setPromo, syncWithProducts } = useCartStore();
   const { paymentMethod, note, resetCheckout } = useCheckoutStore();
   const { selectedAddressId, selectAddress, setInitialDraft } = useAddressStore();
@@ -78,30 +80,30 @@ const CheckoutPage: React.FC = () => {
     }
 
     if (isProductsLoading) {
-      window.alert('Savat yangilanmoqda. Bir ozdan song yana urinib koring.');
+      showToast("Savat yangilanmoqda. Bir ozdan so'ng urinib ko'ring.", 'warning');
       return;
     }
 
     const unavailableItems = items.filter((item) => item.isAvailable === false || !(item.menuItemId ?? item.id));
     if (unavailableItems.length > 0) {
-      window.alert("Bazi taomlar hozir mavjud emas. Savatni tekshiring.");
+      showToast("Ba'zi taomlar hozir mavjud emas. Savatni tekshiring.", 'warning');
       navigate('/customer/cart');
       return;
     }
 
     if (appliedPromo && discount === 0) {
       setPromo(null);
-      window.alert('Bu savat uchun promokod qayta tasdiqlanmadi.');
+      showToast("Bu savat uchun promokod amal qilmadi.", 'warning');
       return;
     }
 
     if (orderQuoteQuery.isError) {
-      window.alert(orderQuoteQuery.error.message || 'Yetkazish narxi hisoblanmadi');
+      showToast(orderQuoteQuery.error.message || 'Yetkazish narxi hisoblanmadi', 'error');
       return;
     }
 
     if (!orderQuote || orderQuoteQuery.isLoading) {
-      window.alert("Yetkazish narxi hali hisoblanmadi. Bir ozdan so'ng yana urinib ko'ring.");
+      showToast("Yetkazish narxi hisoblanmoqda. Bir ozdan so'ng urinib ko'ring.", 'info');
       return;
     }
 
@@ -124,7 +126,7 @@ const CheckoutPage: React.FC = () => {
         navigate(`/customer/order-success?orderId=${order.id}`, { state: { order } });
       },
       onError: (error: Error) => {
-        window.alert(error.message || 'Buyurtmani yaratishda xatolik yuz berdi');
+        showToast(error.message || 'Buyurtmani yaratishda xatolik yuz berdi', 'error');
       },
     });
   };

@@ -1,8 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppNotification } from '../notificationTypes';
-import { formatDistanceToNow } from 'date-fns';
-import { uz } from 'date-fns/locale';
 import { Bell, CheckCircle2, AlertCircle, Info, Package, ChevronRight, Loader2 } from 'lucide-react';
 import { NotificationTypeEnum, UserRoleEnum } from '@turon/shared';
 import { useCustomerLanguage } from '../../i18n/customerLocale';
@@ -11,6 +9,30 @@ import {
   useMarkNotificationAsRead,
   useNotifications,
 } from '../../../hooks/queries/useNotifications';
+
+function formatTimeAgo(dateString: string, language: string): string {
+  const diffMs = Date.now() - new Date(dateString).getTime();
+  const diffMin = Math.floor(diffMs / 60_000);
+  const diffHr = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHr / 24);
+
+  if (language === 'ru') {
+    if (diffMin < 1) return 'только что';
+    if (diffMin < 60) return `${diffMin} мин. назад`;
+    if (diffHr < 24) return `${diffHr} ч. назад`;
+    return `${diffDay} дн. назад`;
+  }
+  if (language === 'uz-cyrl') {
+    if (diffMin < 1) return 'hozirgina';
+    if (diffMin < 60) return `${diffMin} daq. oldin`;
+    if (diffHr < 24) return `${diffHr} soat oldin`;
+    return `${diffDay} kun oldin`;
+  }
+  if (diffMin < 1) return 'hozirgina';
+  if (diffMin < 60) return `${diffMin} daq. oldin`;
+  if (diffHr < 24) return `${diffHr} soat oldin`;
+  return `${diffDay} kun oldin`;
+}
 
 interface NotificationListProps {
   role: UserRoleEnum;
@@ -148,7 +170,7 @@ const NotificationList: React.FC<NotificationListProps> = ({ role }) => {
                     {notification.title}
                   </h4>
                   <span className="text-[10px] text-slate-400 whitespace-nowrap ml-2">
-                    {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true, locale: uz })}
+                    {formatTimeAgo(notification.createdAt, language)}
                   </span>
                 </div>
                 <p className={`text-xs leading-relaxed ${notification.isRead ? 'text-slate-500' : 'text-slate-700'}`}>

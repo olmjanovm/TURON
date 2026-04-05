@@ -165,97 +165,102 @@ const OrderSuccessPage: React.FC = () => {
         </div>
       </DeliveryHeroCard>
 
-      <div className="mt-6 grid gap-4">
-        <div className="rounded-[32px] border border-slate-100 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between">
+      <div className="mt-6 grid gap-3">
+        {/* Total + Payment status */}
+        <div className="rounded-[20px] border border-white/10 bg-white/[0.05] p-5">
+          <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/38">
                 {tr('success.total')}
               </p>
-              <p className="mt-2 text-3xl font-black tracking-tight text-slate-900">
+              <p className="mt-2 text-[2rem] font-black tracking-[-0.04em] text-white">
                 {order.total.toLocaleString()} so'm
               </p>
             </div>
-            <div className="rounded-2xl bg-amber-50 px-4 py-3 text-right">
-              <p className="text-[10px] font-black uppercase tracking-widest text-amber-500">Holat</p>
-              <p className="mt-1 text-sm font-black text-amber-700">{paymentStatusLabel}</p>
+            <div className="rounded-[12px] border border-amber-400/18 bg-amber-400/10 px-3 py-2 text-right">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-amber-300/70">
+                {tr('success.liveStatus')}
+              </p>
+              <p className="mt-1 text-sm font-black text-amber-200">{paymentStatusLabel}</p>
             </div>
           </div>
         </div>
 
-        <div className="rounded-[32px] border border-slate-100 bg-white p-6 shadow-sm">
-          <div className="mb-4 flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
-              <CreditCard size={20} />
+        {/* Payment + Courier + Address + Next step */}
+        <div className="rounded-[20px] border border-white/10 bg-white/[0.05] p-5 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-[12px] border border-white/8 bg-white/[0.07] text-white/65">
+              <CreditCard size={18} />
             </div>
             <div>
-              <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/36">
                 {tr('success.payment')}
               </p>
-              <p className="text-sm font-bold text-slate-900">{paymentLabel}</p>
+              <p className="mt-0.5 text-sm font-bold text-white/82">{paymentLabel}</p>
             </div>
           </div>
 
           {trackingMeta.courierLabel ? (
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-50 text-sky-600">
-                <ShoppingBag size={20} />
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-[12px] border border-sky-300/12 bg-sky-400/10 text-sky-300">
+                <ShoppingBag size={18} />
               </div>
               <div>
-                <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">
-                  Kuryer
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/36">
+                  {language === 'ru' ? 'Курьер' : language === 'uz-cyrl' ? 'Курьер' : 'Kuryer'}
                 </p>
-                <p className="text-sm font-bold text-slate-900">{trackingMeta.courierLabel}</p>
+                <p className="mt-0.5 text-sm font-bold text-white/82">{trackingMeta.courierLabel}</p>
               </div>
             </div>
           ) : null}
 
-          <div className="mb-4 flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
-              <MapPin size={20} />
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] border border-white/8 bg-white/[0.07] text-white/65">
+              <MapPin size={18} />
             </div>
             <div>
-              <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/36">
                 {tr('success.address')}
               </p>
-              <p className="text-sm font-bold leading-relaxed text-slate-900">
-                {formatText(order.customerAddress?.addressText || "Manzil ko'rsatilmagan")}
+              <p className="mt-0.5 text-sm font-semibold leading-relaxed text-white/76">
+                {formatText(order.customerAddress?.addressText || (language === 'ru' ? "Адрес не указан" : "Manzil ko'rsatilmagan"))}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
-              <Clock3 size={20} />
+            <div className="flex h-10 w-10 items-center justify-center rounded-[12px] border border-white/8 bg-white/[0.07] text-white/65">
+              <Clock3 size={18} />
             </div>
             <div>
-              <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/36">
                 {tr('success.nextStep')}
               </p>
-              <p className="text-sm font-bold text-slate-900">{trackingMeta.statusLine}</p>
+              <p className="mt-0.5 text-sm font-semibold text-white/76">{trackingMeta.statusLine}</p>
             </div>
           </div>
         </div>
 
-        <div className="rounded-[32px] border border-slate-100 bg-white p-6 shadow-sm">
-          <p className="mb-4 text-[11px] font-black uppercase tracking-widest text-slate-400">
+        {/* Order items */}
+        <div className="rounded-[20px] border border-white/10 bg-white/[0.05] p-5">
+          <p className="mb-4 text-[10px] font-black uppercase tracking-[0.2em] text-white/38">
             {tr('success.contents')}
           </p>
           <div className="space-y-3">
             {order.items.map((item, index) => (
               <div key={`${item.id}-${index}`} className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-50 text-[10px] font-black text-slate-500">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-white/8 bg-white/[0.07] text-[10px] font-black text-white/60">
                     {item.quantity}x
                   </div>
                   <div>
-                    <p className="font-bold text-slate-900">{formatText(item.name)}</p>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-sm font-bold text-white/82">{formatText(item.name)}</p>
+                    <p className="mt-0.5 text-[11px] text-white/38">
                       {item.price.toLocaleString()} so'm / dona
                     </p>
                   </div>
                 </div>
-                <p className="text-sm font-black text-slate-900">
+                <p className="text-sm font-black text-white">
                   {(item.price * item.quantity).toLocaleString()} so'm
                 </p>
               </div>
@@ -264,25 +269,25 @@ const OrderSuccessPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="mt-8 space-y-4">
+      <div className="mt-6 space-y-3">
         <button
           onClick={() => navigate(`/customer/orders/${order.id}/tracking`)}
-          className="flex h-16 w-full items-center justify-center gap-3 rounded-[24px] bg-slate-900 text-lg font-black text-white shadow-xl shadow-slate-200 transition-all active:scale-[0.98]"
+          className="flex h-[56px] w-full items-center justify-center gap-3 rounded-[16px] bg-white text-base font-black text-slate-950 shadow-[0_8px_24px_rgba(255,255,255,0.12)] transition-all active:scale-[0.98]"
         >
-          <ShoppingBag size={24} />
+          <ShoppingBag size={20} />
           <span>{tr('success.trackButton')}</span>
         </button>
 
         <button
           onClick={() => navigate('/customer')}
-          className="flex h-16 w-full items-center justify-center gap-3 rounded-[24px] border-2 border-slate-100 bg-white text-lg font-black text-slate-900 transition-all active:scale-[0.98]"
+          className="flex h-[56px] w-full items-center justify-center gap-3 rounded-[16px] border border-white/10 bg-white/[0.05] text-base font-black text-white/75 transition-all active:scale-[0.98]"
         >
-          <Home size={24} />
+          <Home size={20} />
           <span>{tr('success.homeButton')}</span>
         </button>
       </div>
 
-      <div className="mt-8 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-300">
+      <div className="mt-6 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest text-white/24">
         <span>{tr('success.footer')}</span>
         <ArrowRight size={12} />
       </div>

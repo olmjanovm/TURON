@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { MapPin, Plus } from 'lucide-react';
+import { useToast } from '../../components/ui/Toast';
 import { useAddressStore } from '../../store/useAddressStore';
 import { AddressCard, AddressEmptyState, GeoLocationButton } from '../../components/customer/AddressComponents';
 import { ErrorStateCard } from '../../components/ui/FeedbackStates';
@@ -10,6 +11,7 @@ import { useCustomerLanguage } from '../../features/i18n/customerLocale';
 const AddressListPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { showToast, showConfirm } = useToast();
   const { language } = useCustomerLanguage();
   const { selectedAddressId, selectAddress, setInitialDraft } = useAddressStore();
   const { data: addresses = [], isLoading, isError, error, refetch } = useAddresses();
@@ -100,10 +102,15 @@ const AddressListPage: React.FC = () => {
     navigate('/customer/address/new', { state: { returnTo } });
   };
 
-  const handleDelete = (id: string) => {
-    if (!window.confirm(copy.confirmDelete)) {
-      return;
-    }
+  const handleDelete = async (id: string) => {
+    const confirmed = await showConfirm({
+      message: copy.confirmDelete,
+      confirmLabel: language === 'ru' ? "O'chirish" : language === 'uz-cyrl' ? "Ўчириш" : "O'chirish",
+      cancelLabel: language === 'ru' ? 'Otmena' : language === 'uz-cyrl' ? 'Bekor' : 'Bekor',
+      isDanger: true,
+    });
+
+    if (!confirmed) return;
 
     deleteAddressMutation.mutate(id, {
       onSuccess: () => {
@@ -112,7 +119,7 @@ const AddressListPage: React.FC = () => {
         }
       },
       onError: (mutationError: Error) => {
-        window.alert(mutationError.message);
+        showToast(mutationError.message, 'error');
       },
     });
   };

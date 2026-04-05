@@ -72,7 +72,11 @@ const CartPage: React.FC = () => {
             </div>
             <div className="flex items-center gap-1 text-[12px] text-[#A0A0A0]">
               <Clock size={12} />
-              <span>15-25 daq</span>
+              <span>
+                {orderQuoteQuery.data?.deliveryEtaMinutes
+                  ? `~${orderQuoteQuery.data.deliveryEtaMinutes} daq`
+                  : '20-35 daq'}
+              </span>
               <span className="mx-1 opacity-40">•</span>
             </div>
           </div>
