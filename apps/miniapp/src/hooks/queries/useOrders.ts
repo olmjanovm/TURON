@@ -471,6 +471,24 @@ export const useUpdateCourierOrderStage = () => {
   });
 };
 
+export const useDeclineCourierOrder = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id }: { id: string }) =>
+      api.post(`/courier/order/${id}/decline`) as Promise<{ success: boolean; orderId: string }>,
+    onSuccess: (_result, { id }) => {
+      // Remove from courier orders cache immediately — courier no longer owns this order
+      queryClient.setQueryData<import('../data/types').CourierOrderPreview[]>(
+        ['courier-orders'],
+        (current) => current?.filter((o) => o.id !== id) ?? [],
+      );
+      queryClient.invalidateQueries({ queryKey: ['courier-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['courier-status'] });
+    },
+  });
+};
+
 export const useReportCourierProblem = () => {
   const queryClient = useQueryClient();
 

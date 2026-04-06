@@ -1,11 +1,12 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { DeliveryStageEnum, RESTAURANT_COORDINATES } from '@turon/shared';
+import { DeliveryStageEnum, NotificationTypeEnum, RESTAURANT_COORDINATES } from '@turon/shared';
 import { prisma } from '../../../lib/prisma.js';
 import { AuditService } from '../../../services/audit.service.js';
 import {
   CourierOrderActionsService,
   type CourierActionName,
 } from '../../../services/courier-order-actions.service.js';
+import { InAppNotificationsService } from '../../../services/in-app-notifications.service.js';
 import { CourierOperationalStatusService } from '../../../services/courier-operational-status.service.js';
 import { CourierPresenceService } from '../../../services/courier-presence.service.js';
 import { CourierStatsService } from '../../../services/courier-stats.service.js';
@@ -340,6 +341,94 @@ export async function reportCourierProblem(
     action: 'REPORT_PROBLEM',
     problemText: request.body.text,
   });
+}
+
+export async function declineCourierOrder(
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply,
+) {
+  const requester = request.user as any;
+  const { id: orderId } = request.params;
+
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: ORDER_INCLUDE as any,
+    });
+
+    if (!order) {
+      return reply.status(404).send({ error: 'Buyurtma topilmadi' });
+    }
+
+    // Find the ASSIGNED assignment belonging to this courier
+    const assignment = (order as any).courierAssignments?.find(
+      (a: any) => a.courierId === requester.id && a.status === 'ASSIGNED',
+    );
+
+    if (!assignment) {
+      return reply.status(400).send({ error: "Rad etish uchun ASSIGNED topshiriq topilmadi" });
+    }
+
+    const now = new Date();
+
+    await prisma.$transaction(async (tx) => {
+      await tx.courierAssignment.update({
+        where: { id: assignment.id },
+        data: { status: 'REJECTED' as any },
+      });
+
+      await tx.courierAssignmentEvent.create({
+        data: {
+          assignmentId: assignment.id,
+          orderId: order.id,
+          courierId: requester.id,
+          eventType: 'CANCELLED' as any,
+          eventAt: now,
+          actorUserId: requester.id,
+        },
+      });
+
+      await InAppNotificationsService.notifyAdmins(
+        {
+          type: NotificationTypeEnum.WARNING,
+          title: 'Kuryer buyurtmani rad etdi',
+          message: `#${String((order as any).orderNumber)} buyurtma kuryer tomonidan rad etildi. Qayta biriktirish kerak.`,
+          relatedOrderId: order.id,
+        },
+        tx,
+      );
+    });
+
+    // Refresh and broadcast the updated order
+    const refreshedOrder = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: ORDER_INCLUDE as any,
+    });
+
+    if (refreshedOrder) {
+      const serialized = {
+        ...serializeOrder(refreshedOrder),
+        tracking: await orderTrackingService.getSnapshot(orderId),
+      };
+      orderTrackingService.publishOrderUpdate(orderId, serialized);
+    }
+
+    await AuditService.record({
+      userId: requester.id,
+      actorRole: requester.role,
+      action: 'DECLINE_ORDER',
+      entity: 'Order',
+      entityId: orderId,
+      oldValue: { assignmentStatus: 'ASSIGNED' },
+      newValue: { assignmentStatus: 'REJECTED' },
+      metadata: { assignmentId: assignment.id },
+    });
+
+    return reply.send({ success: true, orderId });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Buyurtmani rad etib bo'lmadi";
+    return reply.status(400).send({ error: message });
+  }
 }
 
 export async function updateCourierLocation(

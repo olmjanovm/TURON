@@ -5,6 +5,35 @@ import { UserRoleEnum } from '@turon/shared';
 import NotificationBadge from '../../features/notifications/components/NotificationBadge';
 import { isActiveDeliveryStage } from '../../features/courier/deliveryStage';
 import { useCourierOrders, useCourierStatus, useOrdersRealtimeSync } from '../../hooks/queries/useOrders';
+import { OrderInterruptModal } from '../courier/OrderInterruptModal';
+import { useOrderInterruptStore } from '../../store/useOrderInterruptStore';
+
+// ─── New-order interrupt detection ──────────────────────────────────────────
+function useCourierNewOrderDetection() {
+  const { data: orders = [] } = useCourierOrders();
+  const { initialized, seenOrderIds, showInterrupt, markSeen, setInitialized } =
+    useOrderInterruptStore();
+  const initializedRef = React.useRef(initialized);
+
+  React.useEffect(() => {
+    const assignedOrders = orders.filter((o) => o.courierAssignmentStatus === 'ASSIGNED');
+
+    // First load: mark all currently-ASSIGNED orders as seen so we don't
+    // show stale interrupts for orders that were assigned before app opened.
+    if (!initializedRef.current) {
+      assignedOrders.forEach((o) => markSeen(o.id));
+      setInitialized();
+      initializedRef.current = true;
+      return;
+    }
+
+    // On every subsequent update: check for a NEW assigned order we haven't shown yet.
+    const newOrder = assignedOrders.find((o) => !seenOrderIds.has(o.id));
+    if (newOrder) {
+      showInterrupt(newOrder);
+    }
+  }, [orders, initialized, seenOrderIds, showInterrupt, markSeen, setInitialized]);
+}
 
 const CourierLayout: React.FC = () => {
   const navigate = useNavigate();
@@ -12,6 +41,9 @@ const CourierLayout: React.FC = () => {
   const { data: orders = [] } = useCourierOrders();
   const { data: courierStatus } = useCourierStatus();
   const { connectionState, isConnected } = useOrdersRealtimeSync();
+
+  // Activate interrupt detection for the entire courier session
+  useCourierNewOrderDetection();
   const isMapPage = location.pathname.includes('/map/');
   const activeDelivery = orders.find((order) => isActiveDeliveryStage(order.deliveryStage));
   const syncBadgeClass = isConnected
@@ -64,6 +96,8 @@ const CourierLayout: React.FC = () => {
 
   return (
     <div className="flex min-h-screen flex-col overflow-x-hidden bg-slate-50 pb-32 font-sans text-slate-900">
+      {/* Global new-order interrupt — renders above everything including map */}
+      <OrderInterruptModal />
       {!isMapPage && (
         <header className="fixed left-0 right-0 top-0 z-50 flex h-20 items-center justify-between border-b border-slate-100 bg-white/80 px-6 backdrop-blur-xl">
           <div className="flex items-center gap-3">
