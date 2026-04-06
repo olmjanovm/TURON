@@ -479,7 +479,7 @@ export const useDeclineCourierOrder = () => {
       api.post(`/courier/order/${id}/decline`) as Promise<{ success: boolean; orderId: string }>,
     onSuccess: (_result, { id }) => {
       // Remove from courier orders cache immediately — courier no longer owns this order
-      queryClient.setQueryData<import('../data/types').CourierOrderPreview[]>(
+      queryClient.setQueryData<CourierOrderPreview[]>(
         ['courier-orders'],
         (current) => current?.filter((o) => o.id !== id) ?? [],
       );

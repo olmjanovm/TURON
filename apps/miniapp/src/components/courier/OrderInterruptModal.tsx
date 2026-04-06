@@ -2,8 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, Package, ShoppingBag, X } from 'lucide-react';
 import type { CourierOrderPreview } from '../../data/types';
-import { useDeclineCourierOrder, useUpdateCourierOrderStage } from '../../hooks/queries/useOrders';
+import { useDeclineCourierOrder } from '../../hooks/queries/useOrders';
 import { useOrderInterruptStore } from '../../store/useOrderInterruptStore';
+import { api } from '../../lib/api';
+import type { Order } from '../../data/types';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const COUNTDOWN_SECONDS = 30;
 
@@ -53,7 +56,15 @@ function OrderInterruptContent({ order }: Props) {
   const [error, setError] = useState<string | null>(null);
   const timerRef = useRef<number | null>(null);
 
-  const acceptMutation = useUpdateCourierOrderStage();
+  const queryClient = useQueryClient();
+  const acceptMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/courier/order/${id}/accept`) as Promise<Order>,
+    onSuccess: (updatedOrder) => {
+      queryClient.setQueryData(['courier-order', updatedOrder.id], updatedOrder);
+      queryClient.invalidateQueries({ queryKey: ['courier-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['courier-status'] });
+    },
+  });
   const declineMutation = useDeclineCourierOrder();
 
   const isLoading = acceptMutation.isPending || declineMutation.isPending;
@@ -88,7 +99,7 @@ function OrderInterruptContent({ order }: Props) {
     setError(null);
 
     try {
-      await acceptMutation.mutateAsync({ id: order.id, stage: 'GOING_TO_RESTAURANT' });
+      await acceptMutation.mutateAsync(order.id);
       dismiss();
       navigate(`/courier/map/${order.id}`);
     } catch (err) {
