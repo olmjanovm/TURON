@@ -98,6 +98,8 @@ export interface Order {
   customerAddress?: Address;
   courierId?: string;
   courierName?: string;
+  courierTelegramId?: string | null;
+  courierUsername?: string | null;
   deliveryStage?: DeliveryStage;
   verificationStatus?: boolean;
   verifiedByAdmin?: string;

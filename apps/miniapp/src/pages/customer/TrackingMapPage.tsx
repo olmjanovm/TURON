@@ -1,10 +1,8 @@
 import React from 'react';
-import { ArrowLeft, Loader2, MapPin, Store } from 'lucide-react';
+import { ArrowLeft, Loader2, MessageCircle, Navigation } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { CourierMapView } from '../../components/courier/CourierMapView';
-import { TrackingBottomSheet } from '../../components/customer/CustomerComponents';
 import { ErrorStateCard } from '../../components/ui/FeedbackStates';
-import { PaymentMethod } from '../../data/types';
 import { useCustomerLanguage } from '../../features/i18n/customerLocale';
 import { DEFAULT_RESTAURANT_LOCATION } from '../../features/maps/restaurant';
 import { estimateRouteMetrics, formatEtaMinutes, formatRouteDistance } from '../../features/maps/route';
@@ -17,27 +15,12 @@ import {
 import { useRouteDetails } from '../../hooks/queries/useMaps';
 import { useOrderDetails, useOrderTrackingStream } from '../../hooks/queries/useOrders';
 
-type TrackingPanelTab = 'address' | 'order' | null;
-
-function getPaymentLabel(method: PaymentMethod) {
-  if (method === PaymentMethod.CASH) {
-    return 'Naqd';
-  }
-
-  if (method === PaymentMethod.EXTERNAL_PAYMENT) {
-    return 'Click / Payme';
-  }
-
-  return "Qo'lda o'tkazma";
-}
-
 const TrackingMapPage: React.FC = () => {
   const { orderId = '' } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
   const { data: order, isLoading, isError, error, refetch } = useOrderDetails(orderId);
   const { isConnected, connectionState } = useOrderTrackingStream(orderId, Boolean(orderId));
   const { language, formatText, intlLocale } = useCustomerLanguage();
-  const [activePanel, setActivePanel] = React.useState<TrackingPanelTab>(null);
   const [routeInfo, setRouteInfo] = React.useState<{ distance: string; eta: string } | null>(null);
 
   const restaurantPin = React.useMemo(
@@ -70,10 +53,14 @@ const TrackingMapPage: React.FC = () => {
         lng: order.tracking.courierLocation.longitude,
       }
     : undefined;
-  const courierPin =
-    trackingMeta?.showCourierMarker ? liveCourierPin ?? restaurantPin : undefined;
+
+  const courierPin = trackingMeta?.showCourierMarker
+    ? liveCourierPin ?? restaurantPin
+    : undefined;
+
   const currentTargetPin =
     trackingMeta?.currentTarget === 'customer' ? destinationPin : restaurantPin;
+
   const routeOrigin =
     trackingMeta?.shouldUseCourierRouteOrigin && courierPin ? courierPin : restaurantPin;
 
@@ -99,63 +86,51 @@ const TrackingMapPage: React.FC = () => {
     order?.tracking?.lastEventAt || order?.courierLastEventAt || undefined,
   );
 
+  // ─── Loading ────────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="min-h-[100dvh] bg-slate-950 text-white">
-        <div className="mx-auto flex min-h-[100dvh] w-full max-w-[430px] items-center justify-center">
-          <div className="rounded-[16px] border border-white/10 bg-white/[0.05] px-6 py-5 text-center shadow-2xl backdrop-blur-xl">
-            <Loader2 size={28} className="mx-auto animate-spin text-amber-400" />
-            <p className="mt-4 text-sm font-black uppercase tracking-[0.18em] text-white/65">
-              Xarita yuklanmoqda
-            </p>
-          </div>
-        </div>
+      <div className="fixed inset-0 flex items-center justify-center bg-slate-950">
+        <Loader2 size={28} className="animate-spin text-amber-400" />
       </div>
     );
   }
 
   if (isError) {
     return (
-      <div className="min-h-[100dvh] bg-slate-950 px-4 py-10">
-        <div className="mx-auto max-w-[430px]">
-          <ErrorStateCard
-            title="Tracking"
-            message={(error as Error).message}
-            onRetry={() => {
-              void refetch();
-            }}
-          />
-        </div>
+      <div className="fixed inset-0 bg-slate-950 px-4 py-10">
+        <ErrorStateCard
+          title="Tracking"
+          message={(error as Error).message}
+          onRetry={() => void refetch()}
+        />
       </div>
     );
   }
 
   if (!order || !trackingMeta) {
     return (
-      <div className="min-h-[100dvh] bg-slate-950 px-4 py-10 text-white">
-        <div className="mx-auto flex min-h-[80dvh] max-w-[430px] flex-col items-center justify-center text-center">
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-white/55">Tracking</p>
-          <button
-            type="button"
-            onClick={() => navigate('/customer/orders')}
-            className="mt-6 rounded-[12px] bg-white px-6 py-3 text-sm font-black text-slate-950"
-          >
-            Orqaga
-          </button>
-        </div>
+      <div className="fixed inset-0 flex flex-col items-center justify-center bg-slate-950 text-white">
+        <button
+          type="button"
+          onClick={() => navigate('/customer/orders')}
+          className="rounded-[12px] bg-white px-6 py-3 text-sm font-black text-slate-950"
+        >
+          Orqaga
+        </button>
       </div>
     );
   }
 
+  // ─── Data ────────────────────────────────────────────────────────────────────
   const realRouteInfo = routeDetailsQuery.data ?? routeInfo;
   const fallbackEtaMinutes = getCustomerTrackingEtaFallbackMinutes(order, estimatedMetrics.etaMinutes);
   const fallbackDistanceKm = getCustomerTrackingDistanceFallbackKm(order, estimatedMetrics.distanceKm);
 
   const etaDisplay =
     trackingMeta.isDelivered
-      ? 'Yetkazildi'
+      ? language === 'ru' ? 'Доставлено' : "Yetkazildi"
       : trackingMeta.isCancelled
-        ? 'Bekor qilindi'
+        ? language === 'ru' ? 'Отменено' : 'Bekor qilindi'
         : countdownLabel ||
           (typeof liveEtaMinutes === 'number' ? formatEtaMinutes(liveEtaMinutes) : null) ||
           realRouteInfo?.eta ||
@@ -168,198 +143,138 @@ const TrackingMapPage: React.FC = () => {
 
   const updatedAt = order.tracking?.lastEventAt || order.courierLastEventAt;
   const updatedAtLabel = updatedAt
-    ? new Date(updatedAt).toLocaleTimeString(intlLocale, {
-        hour: '2-digit',
-        minute: '2-digit',
-      })
+    ? new Date(updatedAt).toLocaleTimeString(intlLocale, { hour: '2-digit', minute: '2-digit' })
     : '--:--';
 
+  // Courier Telegram link
+  const courierTelegramHref = order.courierUsername
+    ? `https://t.me/${order.courierUsername}`
+    : order.courierTelegramId
+      ? `tg://user?id=${order.courierTelegramId}`
+      : null;
+
+  const isOnline = isConnected;
+  const isReconnecting = connectionState === 'reconnecting' || connectionState === 'connecting';
+
   return (
-    <div className="min-h-[100dvh] bg-slate-950 text-white">
-      <div className="mx-auto w-full max-w-[430px]">
-        <div className="relative min-h-[100dvh] overflow-hidden bg-slate-950">
-          <div className="absolute inset-0">
-            <CourierMapView
-              pickup={restaurantPin}
-              destination={destinationPin}
-              courierPos={courierPin}
-              routeFrom={routeOrigin}
-              routeTo={currentTargetPin}
-              height="100dvh"
-              className="rounded-none border-0 shadow-none"
-              onRouteInfoChange={setRouteInfo}
-            />
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(15,23,42,0.14),transparent_24%),linear-gradient(180deg,rgba(2,6,23,0.16)_0%,rgba(2,6,23,0.32)_36%,rgba(2,6,23,0.74)_100%)]" />
-            <div className="pointer-events-none absolute inset-0 bg-slate-950/24" />
-          </div>
+    <div className="fixed inset-0 bg-slate-950 text-white">
+      {/* ─── Full-screen Map ─────────────────────────────────────────── */}
+      <div className="absolute inset-0">
+        <CourierMapView
+          pickup={restaurantPin}
+          destination={destinationPin}
+          courierPos={courierPin}
+          routeFrom={routeOrigin}
+          routeTo={currentTargetPin}
+          height="100dvh"
+          className="rounded-none border-0 shadow-none"
+          onRouteInfoChange={setRouteInfo}
+        />
+      </div>
 
-          <div className="relative z-10 flex min-h-[100dvh] flex-col">
-            <div className="px-4" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}>
-              <div className="flex items-start justify-between gap-3">
-                <button
-                  type="button"
-                  onClick={() => navigate(`/customer/orders/${order.id}`)}
-                  className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-slate-950/70 text-white shadow-[0_18px_40px_rgba(2,6,23,0.42)] backdrop-blur-xl"
-                >
-                  <ArrowLeft size={20} />
-                </button>
+      {/* ─── Top bar: back + status ──────────────────────────────────── */}
+      <div
+        className="absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-2 px-4"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top,0px) + 10px)' }}
+      >
+        {/* Back */}
+        <button
+          type="button"
+          onClick={() => navigate(`/customer/orders/${order.id}`)}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-slate-950/72 text-white shadow-lg backdrop-blur-xl"
+        >
+          <ArrowLeft size={18} />
+        </button>
 
-                <div className="min-w-0 rounded-[14px] border border-white/10 bg-slate-950/70 px-4 py-2.5 text-center shadow-[0_20px_44px_rgba(2,6,23,0.42)] backdrop-blur-xl">
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/48">
-                    {DEFAULT_RESTAURANT_LOCATION.name}
-                  </p>
-                  <p className="mt-1.5 text-[13px] font-black tracking-tight text-white">
-                    {trackingMeta.stageLabel}
-                  </p>
-                </div>
+        {/* Stage label */}
+        <div className="min-w-0 flex-1 rounded-[12px] border border-white/10 bg-slate-950/72 px-3 py-2 text-center shadow-lg backdrop-blur-xl">
+          <p className="truncate text-[12px] font-black tracking-tight text-white">
+            {trackingMeta.stageLabel}
+          </p>
+        </div>
 
-                <div
-                  className={`rounded-full border px-3 py-1.5 text-right shadow-[0_18px_40px_rgba(2,6,23,0.42)] backdrop-blur-xl ${
-                    isConnected
-                      ? 'border-emerald-300/18 bg-emerald-400/10'
-                      : connectionState === 'reconnecting' || connectionState === 'connecting'
-                        ? 'border-amber-300/18 bg-amber-400/10'
-                        : 'border-white/10 bg-slate-950/70'
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className={`h-1.5 w-1.5 rounded-full ${
-                        isConnected
-                          ? 'animate-pulse bg-emerald-400'
-                          : connectionState === 'reconnecting' || connectionState === 'connecting'
-                            ? 'animate-pulse bg-amber-400'
-                            : 'bg-white/30'
-                      }`}
-                    />
-                    <p
-                      className={`text-[10px] font-black uppercase tracking-[0.14em] ${
-                        isConnected
-                          ? 'text-emerald-200'
-                          : connectionState === 'reconnecting' || connectionState === 'connecting'
-                            ? 'text-amber-200'
-                            : 'text-white/45'
-                      }`}
-                    >
-                      {isConnected
-                        ? language === 'ru' ? 'Онлайн' : 'Jonli'
-                        : connectionState === 'reconnecting'
-                          ? language === 'ru' ? 'Повтор...' : 'Qayta...'
-                          : connectionState === 'connecting'
-                            ? language === 'ru' ? 'Подключение' : 'Ulanish'
-                            : language === 'ru' ? 'Обновлено' : 'Yangilangan'}
-                    </p>
-                  </div>
-                  <p className="mt-0.5 text-[11px] font-black text-white/80">{updatedAtLabel}</p>
-                </div>
+        {/* Live badge */}
+        <div
+          className={`flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1.5 shadow-lg backdrop-blur-xl ${
+            isOnline
+              ? 'border-emerald-400/20 bg-emerald-400/12'
+              : isReconnecting
+                ? 'border-amber-400/20 bg-amber-400/12'
+                : 'border-white/10 bg-slate-950/72'
+          }`}
+        >
+          <span
+            className={`h-1.5 w-1.5 rounded-full ${
+              isOnline
+                ? 'animate-pulse bg-emerald-400'
+                : isReconnecting
+                  ? 'animate-pulse bg-amber-400'
+                  : 'bg-white/30'
+            }`}
+          />
+          <span
+            className={`text-[10px] font-black uppercase tracking-[0.14em] ${
+              isOnline ? 'text-emerald-200' : isReconnecting ? 'text-amber-200' : 'text-white/45'
+            }`}
+          >
+            {isOnline
+              ? language === 'ru' ? 'Онлайн' : 'Jonli'
+              : isReconnecting
+                ? '...'
+                : updatedAtLabel}
+          </span>
+        </div>
+      </div>
+
+      {/* ─── Bottom strip ────────────────────────────────────────────── */}
+      <div
+        className="absolute inset-x-0 bottom-0 z-20"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom,0px) + 10px)' }}
+      >
+        {/* Gradient fade */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-slate-950/90 to-transparent" />
+
+        <div className="relative px-4">
+          <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-slate-950/82 px-4 py-3 shadow-2xl backdrop-blur-2xl">
+
+            {/* ETA */}
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <Navigation size={16} className="shrink-0 text-amber-400" />
+              <div className="min-w-0">
+                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-white/42">
+                  {trackingMeta.isDelivered
+                    ? language === 'ru' ? 'Статус' : 'Holat'
+                    : language === 'ru' ? 'Прибытие' : 'Yetib kelish'}
+                </p>
+                <p className="text-[17px] font-black leading-tight tracking-[-0.03em] text-white">
+                  {etaDisplay}
+                </p>
               </div>
             </div>
 
-            <div className="pointer-events-none flex-1 px-4 pb-[272px] pt-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="rounded-full border border-emerald-300/30 bg-emerald-400/12 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-200">
-                  <Store size={12} className="mr-1 inline" />
-                  Restoran
-                </div>
-                <div className="rounded-full border border-rose-300/30 bg-rose-400/12 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-rose-200">
-                  <MapPin size={12} className="mr-1 inline" />
-                  Manzil
-                </div>
-                {trackingMeta.showCourierMarker ? (
-                  <div className="rounded-full border border-sky-300/30 bg-sky-400/12 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-sky-200">
-                    <span className="mr-2 inline-block h-2 w-2 rounded-full bg-sky-400" />
-                    {trackingMeta.courierLabel || 'Kuryer'}
-                  </div>
-                ) : null}
+            {/* Distance */}
+            {!trackingMeta.isDelivered && !trackingMeta.isCancelled && (
+              <div className="shrink-0 rounded-[10px] border border-white/8 bg-white/[0.06] px-3 py-2 text-center">
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/40">
+                  {language === 'ru' ? 'Расстояние' : 'Masofa'}
+                </p>
+                <p className="text-[14px] font-black text-white">{distanceDisplay}</p>
               </div>
-            </div>
+            )}
 
-            <TrackingBottomSheet
-              eta={etaDisplay}
-              distance={distanceDisplay}
-              statusLine={trackingMeta.statusLine}
-              activePanel={activePanel}
-              onTogglePanel={(panel) => {
-                setActivePanel((current) => (current === panel ? null : panel));
-              }}
-              onSupport={() => navigate(`/customer/support?orderId=${order.id}`)}
-              addressContent={
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/38">
-                      Yetkazish manzili
-                    </p>
-                    <p className="mt-2 text-sm font-semibold leading-7 text-white/78">
-                      {formatText(order.customerAddress?.addressText || "Manzil ko'rsatilmagan")}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/38">
-                      Qabul qiluvchi
-                    </p>
-                    <p className="mt-2 text-sm font-semibold text-white/78">
-                      {formatText(order.customerName || 'Mijoz')}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/38">
-                      Izoh
-                    </p>
-                    <p className="mt-2 text-sm font-semibold leading-7 text-white/78">
-                      {order.note ? formatText(order.note) : "Izoh qoldirilmagan"}
-                    </p>
-                  </div>
-                </div>
-              }
-              orderContent={
-                <div className="space-y-4">
-                  {trackingMeta.courierLabel ? (
-                    <div className="rounded-[12px] border border-sky-300/18 bg-sky-400/10 px-4 py-3">
-                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-sky-100/72">
-                        Kuryer
-                      </p>
-                      <p className="mt-2 text-sm font-black text-sky-50">
-                        {trackingMeta.courierLabel}
-                      </p>
-                    </div>
-                  ) : null}
-
-                  <div className="space-y-3">
-                    {order.items.slice(0, 4).map((item, index) => (
-                      <div key={`${item.id}-${index}`} className="flex items-center justify-between gap-3">
-                        <div className="flex min-w-0 items-center gap-3">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.06] text-[11px] font-black text-white/72">
-                            {item.quantity}x
-                          </div>
-                          <p className="truncate text-sm font-semibold text-white/78">
-                            {formatText(item.name)}
-                          </p>
-                        </div>
-                        <p className="shrink-0 text-sm font-black text-white">
-                          {(item.price * item.quantity).toLocaleString()} so'm
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="rounded-[12px] border border-white/8 bg-slate-950/42 px-4 py-3">
-                    <div className="flex items-center justify-between text-sm font-semibold text-white/72">
-                      <span>To'lov</span>
-                      <span>{getPaymentLabel(order.paymentMethod)}</span>
-                    </div>
-                    <div className="mt-3 flex items-center justify-between">
-                      <span className="text-sm font-semibold text-white/72">Jami</span>
-                      <span className="text-lg font-black text-white">
-                        {order.total.toLocaleString()} so'm
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              }
-            />
+            {/* Courier message button */}
+            {courierTelegramHref && trackingMeta.showCourierMarker && !trackingMeta.isDelivered && (
+              <a
+                href={courierTelegramHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-sky-400/24 bg-sky-400/14 text-sky-300 transition-transform active:scale-95"
+                title={language === 'ru' ? 'Написать курьеру' : 'Kuryerga yozish'}
+              >
+                <MessageCircle size={18} />
+              </a>
+            )}
           </div>
-
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-slate-950 to-transparent" />
         </div>
       </div>
     </div>

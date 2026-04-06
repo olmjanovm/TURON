@@ -169,6 +169,8 @@ export function serializeOrder(order: any) {
     customerAddress: serializeAddress(order.deliveryAddress),
     courierId: latestAssignment?.courierId || order.courierId,
     courierName: courier?.fullName,
+    courierTelegramId: courier?.telegramId ? String(courier.telegramId) : null,
+    courierUsername: courier?.telegramUsername || null,
     deliveryStage: StatusService.mapAssignmentStatusToDeliveryStage(
       latestAssignment?.status,
       order.status as OrderStatusEnum,
