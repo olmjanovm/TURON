@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(pnpm --filter @turon/backend build)"
+      "Bash(pnpm --filter @turon/backend build)",
+      "Bash(npx tsc:*)"
     ]
   }
 }
