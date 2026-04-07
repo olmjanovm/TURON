@@ -71,7 +71,7 @@ const CourierStatusPage: React.FC = () => {
   if (error || !status) {
     return (
       <div className="px-5 py-10">
-        <div className="rounded-3xl border border-red-100 bg-white p-8 text-center shadow-sm">
+        <div className="rounded-[26px] border border-red-100 bg-white p-8 text-center shadow-sm">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50">
             <AlertCircle size={26} className="text-red-500" />
           </div>
@@ -82,7 +82,7 @@ const CourierStatusPage: React.FC = () => {
           <button
             type="button"
             onClick={() => void refetch()}
-            className="mt-5 h-12 rounded-2xl bg-slate-900 px-6 text-[13px] font-black text-white active:scale-95"
+            className="mt-5 h-12 rounded-[18px] bg-slate-900 px-6 text-[13px] font-black text-white active:scale-95"
           >
             Qayta urinish
           </button>
@@ -102,7 +102,7 @@ const CourierStatusPage: React.FC = () => {
     <div className="space-y-3 px-4 py-5">
 
       {/* ── Online / Offline toggle — primary CTA ──────────────────── */}
-      <div className="rounded-3xl bg-white border border-slate-100 shadow-sm p-5">
+      <div className="rounded-[26px] bg-white border border-slate-100 shadow-sm p-5">
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-[19px] font-black leading-tight text-slate-900">
@@ -157,7 +157,7 @@ const CourierStatusPage: React.FC = () => {
 
       {/* ── Accept orders toggle — only when online ─────────────────── */}
       {isOnline && (
-        <div className="rounded-3xl bg-white border border-slate-100 shadow-sm p-5">
+        <div className="rounded-[26px] bg-white border border-slate-100 shadow-sm p-5">
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-[16px] font-black text-slate-900">Buyurtma qabul qilish</p>
@@ -185,11 +185,11 @@ const CourierStatusPage: React.FC = () => {
         <button
           type="button"
           onClick={() => navigate(`/courier/map/${activeDelivery.id}`)}
-          className="w-full rounded-3xl bg-emerald-500 p-5 text-left shadow-lg shadow-emerald-200 active:scale-[0.98] transition-transform"
+          className="w-full rounded-[26px] bg-emerald-500 p-5 text-left shadow-lg shadow-emerald-200 active:scale-[0.98] transition-transform"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20">
+              <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-white/20">
                 <Navigation size={22} className="text-white" />
               </div>
               <div>
@@ -213,15 +213,15 @@ const CourierStatusPage: React.FC = () => {
 
       {/* ── Today's stats strip ─────────────────────────────────────── */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-2xl bg-white border border-slate-100 shadow-sm p-4 text-center">
+        <div className="rounded-[18px] bg-white border border-slate-100 shadow-sm p-4 text-center">
           <p className="text-[26px] font-black text-slate-900 leading-none">{completedToday}</p>
           <p className="mt-1.5 text-[11px] font-bold text-slate-400">Yetkazildi</p>
         </div>
-        <div className="rounded-2xl bg-white border border-slate-100 shadow-sm p-4 text-center">
+        <div className="rounded-[18px] bg-white border border-slate-100 shadow-sm p-4 text-center">
           <p className="text-[26px] font-black text-slate-900 leading-none">{activeCount}</p>
           <p className="mt-1.5 text-[11px] font-bold text-slate-400">Faol</p>
         </div>
-        <div className="rounded-2xl bg-white border border-slate-100 shadow-sm p-4 text-center">
+        <div className="rounded-[18px] bg-white border border-slate-100 shadow-sm p-4 text-center">
           <p className="text-[16px] font-black text-slate-900 leading-none">
             {feesToday > 0 ? `${(feesToday / 1000).toFixed(0)}K` : '—'}
           </p>
@@ -233,7 +233,7 @@ const CourierStatusPage: React.FC = () => {
       <button
         type="button"
         onClick={() => navigate('/courier/orders')}
-        className="flex w-full items-center justify-between rounded-3xl bg-white border border-slate-100 shadow-sm px-5 py-4 active:scale-[0.98] transition-transform"
+        className="flex w-full items-center justify-between rounded-[26px] bg-white border border-slate-100 shadow-sm px-5 py-4 active:scale-[0.98] transition-transform"
       >
         <p className="text-[15px] font-black text-slate-900">Barcha buyurtmalar</p>
         <ChevronRight size={20} className="text-slate-400" />

@@ -168,7 +168,7 @@ const CourierLayout: React.FC = () => {
                   key={path}
                   type="button"
                   onClick={() => navigate(path)}
-                  className={`flex flex-1 flex-col items-center gap-1 rounded-2xl py-2 transition-colors ${
+                  className={`flex flex-1 flex-col items-center gap-1 rounded-[18px] py-2 transition-colors ${
                     isActive ? 'text-indigo-600' : 'text-slate-400'
                   }`}
                 >

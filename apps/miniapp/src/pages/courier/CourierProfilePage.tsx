@@ -57,7 +57,7 @@ const CourierProfilePage: React.FC = () => {
   if (error || !profile) {
     return (
       <div className="px-5 py-10">
-        <div className="rounded-3xl border border-red-100 bg-white p-8 text-center shadow-sm">
+        <div className="rounded-[26px] border border-red-100 bg-white p-8 text-center shadow-sm">
           <AlertCircle size={28} className="mx-auto text-red-400" />
           <p className="mt-4 text-[15px] font-black text-slate-900">Profil yuklanmadi</p>
           <p className="mt-2 text-[13px] text-slate-500">
@@ -66,7 +66,7 @@ const CourierProfilePage: React.FC = () => {
           <button
             type="button"
             onClick={() => void refetch()}
-            className="mt-5 flex h-12 items-center gap-2 rounded-2xl bg-slate-900 px-5 text-[13px] font-black text-white mx-auto active:scale-95 transition-transform"
+            className="mt-5 flex h-12 items-center gap-2 rounded-[18px] bg-slate-900 px-5 text-[13px] font-black text-white mx-auto active:scale-95 transition-transform"
           >
             Qayta urinish
           </button>
@@ -104,7 +104,7 @@ const CourierProfilePage: React.FC = () => {
     <div className="space-y-3 px-4 py-5 pb-32">
 
       {/* ── Avatar + name + status ───────────────────────────────────── */}
-      <div className="flex items-center gap-4 rounded-3xl bg-white border border-slate-100 shadow-sm p-5">
+      <div className="flex items-center gap-4 rounded-[26px] bg-white border border-slate-100 shadow-sm p-5">
         <div className="relative shrink-0">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-indigo-600 text-[20px] font-black text-white">
             {initials}
@@ -135,7 +135,7 @@ const CourierProfilePage: React.FC = () => {
         ].map((s) => (
           <div
             key={s.label}
-            className="rounded-2xl bg-white border border-slate-100 shadow-sm py-3 text-center"
+            className="rounded-[18px] bg-white border border-slate-100 shadow-sm py-3 text-center"
           >
             <p className="text-[24px] font-black leading-none text-slate-900">{s.value}</p>
             <p className="mt-1 text-[11px] font-bold text-slate-400">{s.label}</p>
@@ -148,7 +148,7 @@ const CourierProfilePage: React.FC = () => {
         <button
           type="button"
           onClick={() => navigate(`/courier/order/${profile.activeAssignment?.orderId}`)}
-          className="flex w-full items-center justify-between rounded-2xl bg-emerald-500 px-4 py-3.5 shadow-md shadow-emerald-200 active:scale-[0.98] transition-transform"
+          className="flex w-full items-center justify-between rounded-[18px] bg-emerald-500 px-4 py-3.5 shadow-md shadow-emerald-200 active:scale-[0.98] transition-transform"
         >
           <div className="flex items-center gap-3">
             <Navigation size={18} className="text-white" />
@@ -164,7 +164,7 @@ const CourierProfilePage: React.FC = () => {
       )}
 
       {/* ── Edit form ────────────────────────────────────────────────── */}
-      <div className="rounded-3xl bg-white border border-slate-100 shadow-sm p-5 space-y-3">
+      <div className="rounded-[26px] bg-white border border-slate-100 shadow-sm p-5 space-y-3">
         <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
           Ma'lumotlarni tahrirlash
         </p>
@@ -174,7 +174,7 @@ const CourierProfilePage: React.FC = () => {
           <input
             value={form.fullName}
             onChange={(e) => setForm((prev) => ({ ...prev, fullName: e.target.value }))}
-            className="mt-1.5 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-[14px] font-semibold text-slate-900 focus:border-slate-400 focus:outline-none"
+            className="mt-1.5 h-12 w-full rounded-[18px] border border-slate-200 bg-slate-50 px-4 text-[14px] font-semibold text-slate-900 focus:border-slate-400 focus:outline-none"
           />
         </label>
 
@@ -184,7 +184,7 @@ const CourierProfilePage: React.FC = () => {
             value={form.phoneNumber}
             onChange={(e) => setForm((prev) => ({ ...prev, phoneNumber: e.target.value }))}
             placeholder="+998901234567"
-            className="mt-1.5 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-[14px] font-semibold text-slate-900 focus:border-slate-400 focus:outline-none"
+            className="mt-1.5 h-12 w-full rounded-[18px] border border-slate-200 bg-slate-50 px-4 text-[14px] font-semibold text-slate-900 focus:border-slate-400 focus:outline-none"
           />
         </label>
 
@@ -194,21 +194,21 @@ const CourierProfilePage: React.FC = () => {
             value={form.telegramUsername}
             onChange={(e) => setForm((prev) => ({ ...prev, telegramUsername: e.target.value }))}
             placeholder="@username"
-            className="mt-1.5 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-[14px] font-semibold text-slate-900 focus:border-slate-400 focus:outline-none"
+            className="mt-1.5 h-12 w-full rounded-[18px] border border-slate-200 bg-slate-50 px-4 text-[14px] font-semibold text-slate-900 focus:border-slate-400 focus:outline-none"
           />
         </label>
 
         {/* Telegram ID (readonly) */}
         <div>
           <span className="text-[12px] font-bold text-slate-500">Telegram ID</span>
-          <div className="mt-1.5 flex h-12 items-center rounded-2xl border border-slate-100 bg-slate-100 px-4 text-[14px] font-semibold text-slate-500">
+          <div className="mt-1.5 flex h-12 items-center rounded-[18px] border border-slate-100 bg-slate-100 px-4 text-[14px] font-semibold text-slate-500">
             {profile.telegramId}
           </div>
         </div>
 
         {/* Feedback */}
         {saved && (
-          <div className="flex items-center gap-2 rounded-2xl bg-emerald-50 px-4 py-2.5">
+          <div className="flex items-center gap-2 rounded-[18px] bg-emerald-50 px-4 py-2.5">
             <CheckCircle2 size={16} className="text-emerald-600" />
             <p className="text-[13px] font-bold text-emerald-700">Saqlandi</p>
           </div>
@@ -221,7 +221,7 @@ const CourierProfilePage: React.FC = () => {
           type="button"
           onClick={handleSave}
           disabled={updateProfile.isPending}
-          className="flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 text-[14px] font-black text-white shadow-sm active:scale-[0.98] transition-transform disabled:opacity-50 py-3.5"
+          className="flex h-13 w-full items-center justify-center gap-2 rounded-[18px] bg-slate-900 text-[14px] font-black text-white shadow-sm active:scale-[0.98] transition-transform disabled:opacity-50 py-3.5"
         >
           {updateProfile.isPending ? (
             <Loader2 size={18} className="animate-spin" />
@@ -236,7 +236,7 @@ const CourierProfilePage: React.FC = () => {
 
       {/* ── Info: contact + account ──────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-2xl bg-white border border-slate-100 shadow-sm p-4">
+        <div className="rounded-[18px] bg-white border border-slate-100 shadow-sm p-4">
           <div className="flex items-center gap-2 mb-2">
             <Phone size={15} className="text-slate-400" />
             <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Aloqa</p>
@@ -249,7 +249,7 @@ const CourierProfilePage: React.FC = () => {
           </p>
         </div>
 
-        <div className="rounded-2xl bg-white border border-slate-100 shadow-sm p-4">
+        <div className="rounded-[18px] bg-white border border-slate-100 shadow-sm p-4">
           <div className="flex items-center gap-2 mb-2">
             <ShieldCheck size={15} className="text-slate-400" />
             <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Akkaunt</p>

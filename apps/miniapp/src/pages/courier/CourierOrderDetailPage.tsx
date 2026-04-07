@@ -200,7 +200,7 @@ const CourierOrderDetailPage: React.FC = () => {
         <button
           type="button"
           onClick={() => navigate('/courier/orders')}
-          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm active:scale-95 transition-transform"
+          className="flex h-11 w-11 items-center justify-center rounded-[18px] border border-slate-200 bg-white shadow-sm active:scale-95 transition-transform"
         >
           <ArrowLeft size={20} className="text-slate-600" />
         </button>
@@ -211,20 +211,20 @@ const CourierOrderDetailPage: React.FC = () => {
         <button
           type="button"
           onClick={() => navigate(`/courier/map/${order.id}`)}
-          className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-400 shadow-md active:scale-95 transition-transform"
+          className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-amber-400 shadow-md active:scale-95 transition-transform"
         >
           <MapPin size={19} className="text-slate-900" />
         </button>
       </div>
 
       {/* ── Stage progress ──────────────────────────────────────────── */}
-      <div className="rounded-2xl bg-white border border-slate-100 shadow-sm px-4 py-4">
+      <div className="rounded-[18px] bg-white border border-slate-100 shadow-sm px-4 py-4">
         <StageProgress currentIndex={stageIndex} />
       </div>
 
       {/* ── Primary action button ───────────────────────────────────── */}
       {!isDelivered ? (
-        <div className="rounded-3xl bg-white border border-slate-100 shadow-sm p-4">
+        <div className="rounded-[26px] bg-white border border-slate-100 shadow-sm p-4">
           <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-slate-400">
             Keyingi qadam
           </p>
@@ -234,7 +234,7 @@ const CourierOrderDetailPage: React.FC = () => {
 
           {confirmingDelivered ? (
             <div className="space-y-2">
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <div className="rounded-[18px] border border-amber-200 bg-amber-50 px-4 py-3">
                 <p className="text-[14px] font-black text-amber-800">
                   Buyurtmani haqiqatan topshirdingizmi?
                 </p>
@@ -246,7 +246,7 @@ const CourierOrderDetailPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setConfirmingDelivered(false)}
-                  className="h-14 rounded-2xl border border-slate-200 bg-white text-[14px] font-black text-slate-700 active:scale-95 transition-transform"
+                  className="h-14 rounded-[18px] border border-slate-200 bg-white text-[14px] font-black text-slate-700 active:scale-95 transition-transform"
                 >
                   Yo'q
                 </button>
@@ -254,7 +254,7 @@ const CourierOrderDetailPage: React.FC = () => {
                   type="button"
                   onClick={handleStageAdvance}
                   disabled={updateStageMutation.isPending}
-                  className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-emerald-500 text-[14px] font-black text-white shadow-lg shadow-emerald-200 active:scale-95 transition-transform disabled:opacity-50"
+                  className="flex h-14 items-center justify-center gap-2 rounded-[18px] bg-emerald-500 text-[14px] font-black text-white shadow-lg shadow-emerald-200 active:scale-95 transition-transform disabled:opacity-50"
                 >
                   {updateStageMutation.isPending ? (
                     <Loader2 size={20} className="animate-spin" />
@@ -272,7 +272,7 @@ const CourierOrderDetailPage: React.FC = () => {
               type="button"
               onClick={handleStageAdvance}
               disabled={updateStageMutation.isPending}
-              className={`flex h-16 w-full items-center justify-center gap-3 rounded-2xl text-[16px] font-black shadow-lg active:scale-[0.98] transition-transform disabled:opacity-50 ${
+              className={`flex h-16 w-full items-center justify-center gap-3 rounded-[18px] text-[16px] font-black shadow-lg active:scale-[0.98] transition-transform disabled:opacity-50 ${
                 isLastAction
                   ? 'bg-emerald-500 text-white shadow-emerald-200'
                   : 'bg-amber-400 text-slate-900 shadow-amber-200'
@@ -290,7 +290,7 @@ const CourierOrderDetailPage: React.FC = () => {
           )}
         </div>
       ) : (
-        <div className="rounded-3xl bg-emerald-50 border border-emerald-200 p-5">
+        <div className="rounded-[26px] bg-emerald-50 border border-emerald-200 p-5">
           <div className="flex items-center gap-3">
             <CheckCircle2 size={28} className="shrink-0 text-emerald-600" />
             <div>
@@ -302,7 +302,7 @@ const CourierOrderDetailPage: React.FC = () => {
       )}
 
       {/* ── Map + route info ────────────────────────────────────────── */}
-      <div className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-[26px] border border-slate-100 bg-white shadow-sm">
         <div className="flex items-center justify-between px-4 py-3">
           <div>
             <p className="text-[13px] font-black text-slate-900">{routeMeta.title}</p>
@@ -331,7 +331,7 @@ const CourierOrderDetailPage: React.FC = () => {
       </div>
 
       {/* ── Customer info ───────────────────────────────────────────── */}
-      <div className="rounded-3xl bg-white border border-slate-100 shadow-sm p-5">
+      <div className="rounded-[26px] bg-white border border-slate-100 shadow-sm p-5">
         <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-slate-400">
           Mijoz
         </p>
@@ -350,7 +350,7 @@ const CourierOrderDetailPage: React.FC = () => {
           {order.customerPhone && (
             <a
               href={`tel:${order.customerPhone}`}
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 active:scale-95 transition-transform"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-emerald-50 text-emerald-600 active:scale-95 transition-transform"
             >
               <Phone size={20} />
             </a>
@@ -358,13 +358,13 @@ const CourierOrderDetailPage: React.FC = () => {
         </div>
 
         {order.note && (
-          <div className="mt-3 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3">
+          <div className="mt-3 rounded-[18px] border border-amber-100 bg-amber-50 px-4 py-3">
             <p className="text-[11px] font-bold uppercase tracking-widest text-amber-600">Izoh</p>
             <p className="mt-1 text-[13px] leading-snug text-amber-800">{order.note}</p>
           </div>
         )}
 
-        <div className="mt-3 flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-2.5">
+        <div className="mt-3 flex items-center gap-2 rounded-[18px] bg-slate-50 px-4 py-2.5">
           <p className="text-[12px] font-bold text-slate-500">To'lov:</p>
           <p className="text-[13px] font-black text-slate-900">
             {getCourierPaymentLabel(order.paymentMethod)}
@@ -376,7 +376,7 @@ const CourierOrderDetailPage: React.FC = () => {
       </div>
 
       {/* ── Order items ─────────────────────────────────────────────── */}
-      <div className="rounded-3xl bg-white border border-slate-100 shadow-sm p-5">
+      <div className="rounded-[26px] bg-white border border-slate-100 shadow-sm p-5">
         <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-slate-400">
           Buyurtma tarkibi · {order.items.length} ta
         </p>
@@ -384,9 +384,9 @@ const CourierOrderDetailPage: React.FC = () => {
           {order.items.map((item, idx) => (
             <div
               key={`${item.id}-${idx}`}
-              className="flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3"
+              className="flex items-center gap-3 rounded-[18px] bg-slate-50 px-4 py-3"
             >
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[12px] font-black text-slate-600 shadow-sm">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] bg-white text-[12px] font-black text-slate-600 shadow-sm">
                 <Package size={16} />
               </div>
               <div className="min-w-0 flex-1">
@@ -406,7 +406,7 @@ const CourierOrderDetailPage: React.FC = () => {
 
       {/* ── Problem report ──────────────────────────────────────────── */}
       {!isDelivered && (
-        <div className="rounded-3xl bg-white border border-slate-100 shadow-sm p-5">
+        <div className="rounded-[26px] bg-white border border-slate-100 shadow-sm p-5">
           <div className="mb-3 flex items-center gap-2">
             <AlertTriangle size={16} className="text-red-400" />
             <p className="text-[13px] font-black text-slate-700">Muammo bormi?</p>
@@ -416,7 +416,7 @@ const CourierOrderDetailPage: React.FC = () => {
           </p>
 
           {problemSent ? (
-            <div className="flex items-center gap-2 rounded-2xl bg-emerald-50 px-4 py-3">
+            <div className="flex items-center gap-2 rounded-[18px] bg-emerald-50 px-4 py-3">
               <CheckCircle2 size={18} className="text-emerald-600" />
               <p className="text-[13px] font-bold text-emerald-700">Muammo operatorga yuborildi</p>
             </div>
@@ -430,13 +430,13 @@ const CourierOrderDetailPage: React.FC = () => {
                   if (problemError) setProblemError(null);
                 }}
                 placeholder="Muammoni yozing..."
-                className="flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none"
+                className="flex-1 rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none"
               />
               <button
                 type="button"
                 onClick={handleProblemSubmit}
                 disabled={reportProblemMutation.isPending || problemDraft.trim().length < 5}
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white active:scale-95 transition-transform disabled:opacity-40"
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-slate-900 text-white active:scale-95 transition-transform disabled:opacity-40"
               >
                 {reportProblemMutation.isPending ? (
                   <Loader2 size={16} className="animate-spin" />
