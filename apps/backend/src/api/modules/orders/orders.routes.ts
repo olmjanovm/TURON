@@ -1,11 +1,11 @@
 import { FastifyInstance } from 'fastify';
-import { 
+import {
   handleQuoteOrder,
-  handleCreateOrder, 
+  handleCreateOrder,
   getAllOrders,
   getAvailableCouriers,
-  getMyOrders, 
-  getOrderDetail, 
+  getMyOrders,
+  getOrderDetail,
   streamOrders,
   streamOrderTracking,
   handleUpdateStatus,
@@ -13,6 +13,7 @@ import {
   handleApprovePayment,
   handleRejectPayment,
 } from './orders.controller.js';
+import { getOrderChat, sendOrderChat, getUnreadCount } from '../chat/chat.controller.js';
 import { 
   AssignCourierSchema,
   CreateOrderSchema, 
@@ -33,6 +34,11 @@ export default async function orderRoutes(fastify: FastifyInstance) {
   fastify.get('/:id', {
     schema: { params: IdParamSchema }
   }, getOrderDetail);
+
+  // ── In-app chat (customer side) ───────────────────────────────────────────
+  fastify.get('/:id/chat', { schema: { params: IdParamSchema } }, getOrderChat);
+  fastify.post('/:id/chat', { schema: { params: IdParamSchema } }, sendOrderChat);
+  fastify.get('/:id/chat/unread', { schema: { params: IdParamSchema } }, getUnreadCount);
   fastify.post('/quote', {
     schema: { body: QuoteOrderSchema }
   }, handleQuoteOrder);

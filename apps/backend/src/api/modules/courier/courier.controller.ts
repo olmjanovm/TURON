@@ -278,13 +278,21 @@ export async function getCourierOrderDetail(
   reply: FastifyReply,
 ) {
   const requester = request.user as any;
-  const result = await getAccessibleCourierOrder(request.params.id, requester);
 
-  if (!result) {
+  // Allow couriers to view any order they were ever assigned to (any status incl. DECLINED/DELIVERED)
+  const order = await prisma.order.findFirst({
+    where: {
+      id: request.params.id,
+      courierAssignments: { some: { courierId: requester.id } },
+    },
+    include: ORDER_INCLUDE as any,
+  });
+
+  if (!order) {
     return reply.status(403).send({ error: 'Ruxsat etilmadi: Bu buyurtma sizga tegishli emas.' });
   }
 
-  return reply.send(await addTracking(result.order));
+  return reply.send(await addTracking(order));
 }
 
 export async function updateOrderStage(

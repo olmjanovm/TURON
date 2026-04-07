@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Loader2, MapPin, Navigation, Store } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { DeliveryStage } from '../../data/types';
 import { CourierMapView } from '../../components/courier/CourierMapView';
 import {
@@ -235,19 +235,25 @@ const CourierMapPage: React.FC = () => {
     canPublishLiveLocation,
   ]);
 
-  // ── Proximity calculations (derived, no extra state) ──────────────────────
+  // ── Proximity calculations — only fire when we have real GPS ────────────
+  // Without this guard, fallback to restaurantPos would make nearRestaurant=true
+  // even when GPS is off, causing the action button to appear incorrectly.
+  const hasLivePos = liveCourierPos !== null;
   const distToRestaurant = distanceMeters(courierPos, restaurantPos);
   const distToCustomer   = distanceMeters(courierPos, customerPos);
 
   const nearRestaurant =
+    hasLivePos &&
     distToRestaurant <= 50 &&
     (currentStage === DeliveryStage.GOING_TO_RESTAURANT || currentStage === DeliveryStage.IDLE);
 
   const nearCustomer =
+    hasLivePos &&
     distToCustomer <= 50 &&
     (currentStage === DeliveryStage.DELIVERING || currentStage === DeliveryStage.ARRIVED_AT_DESTINATION);
 
   const approachingCustomer =
+    hasLivePos &&
     distToCustomer <= 500 &&
     distToCustomer > 50 &&
     currentStage === DeliveryStage.DELIVERING;
@@ -319,11 +325,13 @@ const CourierMapPage: React.FC = () => {
       {
         onSuccess: () => {
           if (window.Telegram?.WebApp?.HapticFeedback) {
-            window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
+            window.Telegram.WebApp.HapticFeedback.notificationOccurred(
+              nextStage === DeliveryStage.DELIVERED ? 'success' : 'success',
+            );
           }
-
+          // Auto-navigate after delivery — 3s gives time to see success state
           if (nextStage === DeliveryStage.DELIVERED) {
-            window.setTimeout(() => navigate('/courier/orders'), 1400);
+            window.setTimeout(() => navigate('/courier/orders'), 3000);
           }
         },
       },
@@ -393,61 +401,51 @@ const CourierMapPage: React.FC = () => {
         <div className="pointer-events-none absolute inset-0 bg-slate-950/24" />
       </div>
 
+      {/* ── Top overlay: back + order info card ──────────────────────── */}
       <div
         className="absolute left-0 right-0 top-0 z-40 px-4"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
       >
-        <div className="flex items-start justify-between gap-3">
+        {/* GPS error banner — prominent, not buried in description */}
+        {geolocationError && (
+          <div className="mb-2 flex items-center gap-2 rounded-[18px] border border-red-400/30 bg-red-500/20 px-4 py-2.5 backdrop-blur-xl animate-in slide-in-from-top duration-300">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-red-400 animate-pulse" />
+            <p className="text-[12px] font-bold text-red-200">{geolocationError}</p>
+          </div>
+        )}
+
+        <div className="flex items-center gap-3">
+          {/* Back → orders list directly */}
           <button
-            onClick={() => navigate(`/courier/order/${order.id}`)}
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-950/72 text-white shadow-[0_18px_44px_rgba(2,6,23,0.45)] backdrop-blur-xl transition-transform active:scale-95"
+            onClick={() => navigate('/courier/orders')}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-950/72 text-white shadow-[0_12px_32px_rgba(2,6,23,0.5)] backdrop-blur-xl transition-transform active:scale-95"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={19} />
           </button>
 
-          <div className="min-w-0 flex-1 rounded-[28px] border border-white/10 bg-slate-950/72 px-5 py-4 shadow-[0_22px_54px_rgba(2,6,23,0.45)] backdrop-blur-xl">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-white/42">
-                  Courier route
-                </p>
-                <p className="mt-2 truncate text-lg font-black text-white">#{order.orderNumber}</p>
-                <p className="mt-2 truncate text-sm font-semibold text-white/72">
-                  {order.customerName || 'Mijoz'}
-                </p>
-              </div>
-              <div className={`shrink-0 rounded-[18px] px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] ${stageMeta.badgeClass}`}>
-                {stageMeta.label}
-              </div>
+          {/* Compact order info — just the essentials */}
+          <div className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-[22px] border border-white/10 bg-slate-950/72 px-4 py-3 shadow-[0_12px_32px_rgba(2,6,23,0.5)] backdrop-blur-xl">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/40">
+                {routeMeta.title}
+              </p>
+              <p className="mt-0.5 truncate text-[15px] font-black text-white">
+                #{order.orderNumber} · {order.customerName || 'Mijoz'}
+              </p>
             </div>
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-400/12 px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-100">
-                <Store size={12} />
-                <span>Restoran</span>
-              </div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-sky-300/20 bg-sky-400/12 px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-sky-100">
-                <Navigation size={12} />
-                <span>Kuryer</span>
-              </div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-rose-300/20 bg-rose-400/12 px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-rose-100">
-                <MapPin size={12} />
-                <span>Mijoz</span>
-              </div>
+            <div className={`shrink-0 rounded-[14px] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] ${stageMeta.badgeClassDark}`}>
+              {stageMeta.label}
             </div>
           </div>
         </div>
       </div>
 
+      {/* ── Route info panel (only when bottom panel collapsed) ───────── */}
       {!isPanelExpanded && (
         <div className="animate-in slide-in-from-top duration-700">
           <RouteInfoPanel
             title={routeMeta.title}
-            subtitle={
-              geolocationError
-                ? `${routeMeta.description} ${geolocationError}`
-                : routeMeta.description
-            }
+            subtitle={routeMeta.description}
             fromLabel={routeMeta.fromLabel}
             toLabel={routeMeta.toLabel}
             stageLabel={stageMeta.label}
@@ -466,6 +464,7 @@ const CourierMapPage: React.FC = () => {
         onAction={handleStageAction}
         onCall={handleCall}
         onOpenDetails={() => navigate(`/courier/order/${order.id}`)}
+        onDeliveredNavigate={() => navigate('/courier/orders')}
         nearRestaurant={nearRestaurant}
         nearCustomer={nearCustomer}
         approachingCustomer={approachingCustomer}

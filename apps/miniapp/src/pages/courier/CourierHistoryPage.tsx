@@ -204,9 +204,11 @@ const CourierHistoryPage: React.FC = () => {
                 </div>
                 <div className="text-right">
                   <p className="text-[15px] font-black text-slate-900">{formatMoney(entry.total)}</p>
-                  <p className="mt-0.5 text-[11px] text-slate-400">
-                    yetkazish: {formatMoney(entry.deliveryFee)}
-                  </p>
+                  {entry.deliveryFee > 0 && (
+                    <p className="mt-0.5 text-[11px] text-slate-400">
+                      yetkazish: {formatMoney(entry.deliveryFee)}
+                    </p>
+                  )}
                 </div>
               </div>
 

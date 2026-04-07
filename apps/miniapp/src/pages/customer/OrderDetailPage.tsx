@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Copy, Headphones, Loader2, MapPinned, RefreshCcw, ShieldCheck, XCircle } from 'lucide-react';
+import { ArrowLeft, Copy, Headphones, Loader2, MapPinned, MessageCircle, ShieldCheck, XCircle } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useToast } from '../../components/ui/Toast';
 import { CheckoutSectionCard } from '../../components/customer/CheckoutComponents';
@@ -11,6 +11,8 @@ import { getCustomerTrackingMeta } from '../../features/tracking/customerTrackin
 import { useProducts } from '../../hooks/queries/useMenu';
 import { useOrderDetails, useOrderTrackingStream } from '../../hooks/queries/useOrders';
 import { useCartStore } from '../../store/useCartStore';
+import { OrderChatPanel } from '../../components/chat/OrderChatPanel';
+import { useOrderChatUnread } from '../../hooks/queries/useOrderChat';
 
 function getPaymentLabel(method: PaymentMethod) {
   if (method === PaymentMethod.CASH) return 'Naqd';
@@ -34,6 +36,8 @@ const OrderDetailPage: React.FC = () => {
   const { data: products = [] } = useProducts();
   const { formatText, language, intlLocale } = useCustomerLanguage();
   const [copyState, setCopyState] = React.useState<'idle' | 'copied' | 'failed'>('idle');
+  const [isChatOpen, setIsChatOpen] = React.useState(false);
+  const { data: unreadCount = 0 } = useOrderChatUnread(orderId, 'customer');
 
   if (isLoading) {
     return (
@@ -200,7 +204,7 @@ const OrderDetailPage: React.FC = () => {
       </section>
 
       <section className="px-4 pt-5">
-        <div className="grid grid-cols-3 gap-3">
+        <div className={`grid gap-3 ${isActiveOrder && order.courierId ? 'grid-cols-4' : 'grid-cols-3'}`}>
           <button
             type="button"
             onClick={() => navigate(`/customer/support?orderId=${order.id}`)}
@@ -217,6 +221,21 @@ const OrderDetailPage: React.FC = () => {
             <MapPinned size={18} />
             <span className="text-[11px] font-black">Xarita</span>
           </button>
+          {isActiveOrder && order.courierId && (
+            <button
+              type="button"
+              onClick={() => setIsChatOpen(true)}
+              className="relative flex flex-col items-center justify-center gap-2 rounded-[12px] border border-indigo-300/20 bg-indigo-400/10 px-3 py-3.5 text-indigo-200"
+            >
+              <MessageCircle size={18} />
+              <span className="text-[11px] font-black">Kuryer</span>
+              {unreadCount > 0 && (
+                <span className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-black text-white">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => navigate(`/customer/support?orderId=${order.id}&topic=cancel`)}
@@ -227,6 +246,16 @@ const OrderDetailPage: React.FC = () => {
           </button>
         </div>
       </section>
+
+      {/* ── In-app chat overlay ──────────────────────────────────────────────── */}
+      {isChatOpen && (
+        <OrderChatPanel
+          orderId={order.id}
+          role="customer"
+          theme="dark"
+          onClose={() => setIsChatOpen(false)}
+        />
+      )}
 
       <section className="px-4 pt-5">
         <OrderTimeline status={order.orderStatus} />

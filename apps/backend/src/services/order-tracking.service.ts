@@ -17,11 +17,23 @@ export interface OrderTrackingSnapshot {
   courierLocation?: CourierLocationSnapshot;
 }
 
+export interface ChatMessagePayload {
+  id: string;
+  orderId: string;
+  senderId: string;
+  senderRole: 'COURIER' | 'CUSTOMER';
+  senderName: string;
+  content: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
 export interface OrderTrackingEvent {
-  type: 'snapshot' | 'order.updated' | 'courier.location';
+  type: 'snapshot' | 'order.updated' | 'courier.location' | 'chat.message';
   orderId: string;
   order?: unknown;
   tracking?: OrderTrackingSnapshot;
+  chatMessage?: ChatMessagePayload;
 }
 
 class OrderTrackingService {
@@ -127,6 +139,14 @@ class OrderTrackingService {
   private emit(event: OrderTrackingEvent) {
     this.emitter.emit(this.getEventName(event.orderId), event);
     this.emitter.emit(this.globalEventName, event);
+  }
+
+  publishChatMessage(orderId: string, message: ChatMessagePayload) {
+    this.emit({
+      type: 'chat.message',
+      orderId,
+      chatMessage: message,
+    });
   }
 
   clearSnapshot(orderId: string) {

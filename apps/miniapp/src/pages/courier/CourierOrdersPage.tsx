@@ -9,7 +9,7 @@ type CourierOrdersTab = 'new' | 'active' | 'completed';
 const TAB_META: Array<{ key: CourierOrdersTab; label: string; emptyText: string }> = [
   { key: 'new',       label: 'Yangi',      emptyText: "Yangi biriktirilgan buyurtma yo'q" },
   { key: 'active',    label: 'Faol',       emptyText: "Faol yetkazib berish yo'q" },
-  { key: 'completed', label: 'Tugatilgan', emptyText: "Bugun tugatilgan buyurtma yo'q" },
+  { key: 'completed', label: 'Yakunlangan', emptyText: "Yakunlangan buyurtma yo'q" },
 ];
 
 const CourierOrdersPage: React.FC = () => {
@@ -23,7 +23,9 @@ const CourierOrdersPage: React.FC = () => {
   const activeOrders    = courierOrders.filter((o) =>
     ['ACCEPTED', 'PICKED_UP', 'DELIVERING'].includes(o.courierAssignmentStatus || ''),
   );
-  const completedOrders = courierOrders.filter((o) => o.courierAssignmentStatus === 'DELIVERED');
+  const completedOrders = courierOrders.filter((o) =>
+    ['DELIVERED', 'DECLINED', 'CANCELLED'].includes(o.courierAssignmentStatus || ''),
+  );
 
   // ── Only auto-select tab on first data load, never override user choice after ──
   React.useEffect(() => {

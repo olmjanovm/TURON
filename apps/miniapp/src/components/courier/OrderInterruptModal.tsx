@@ -7,6 +7,7 @@ import { useOrderInterruptStore } from '../../store/useOrderInterruptStore';
 import { api } from '../../lib/api';
 import type { Order } from '../../data/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { SlideToConfirmAction } from './CourierComponents';
 
 const COUNTDOWN_SECONDS = 30;
 
@@ -243,32 +244,23 @@ function OrderInterruptContent({ order }: Props) {
       )}
 
       {/* ── Action buttons ── */}
-      <div className="mt-auto flex gap-3 px-4 pb-5">
-        {/* Decline */}
+      <div className="mt-auto px-4 pb-5">
+        <SlideToConfirmAction
+          label="O'ngga torting — qabul qilish"
+          hint="Xaritaga o'tib navigatsiya boshlanadi"
+          onConfirm={() => void handleAccept()}
+          isLoading={acceptMutation.isPending}
+          disabled={declineMutation.isPending}
+          theme="dark"
+        />
         <button
           type="button"
           onClick={() => void handleDecline()}
           disabled={isLoading}
-          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/8 text-white/60 transition-all active:scale-95 disabled:opacity-40"
+          className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 text-[13px] font-black text-white/50 transition-all active:scale-95 disabled:opacity-40"
         >
-          <X size={22} />
-        </button>
-
-        {/* Accept */}
-        <button
-          type="button"
-          onClick={() => void handleAccept()}
-          disabled={isLoading}
-          className="flex h-14 flex-1 items-center justify-center gap-2.5 rounded-2xl bg-emerald-500 font-black text-white shadow-lg shadow-emerald-900/50 transition-all active:scale-95 disabled:opacity-40"
-        >
-          {acceptMutation.isPending ? (
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-          ) : (
-            <>
-              <ShoppingBag size={20} />
-              <span className="text-[16px] tracking-tight">Qabul qilish</span>
-            </>
-          )}
+          <X size={16} />
+          <span>Rad etish</span>
         </button>
       </div>
     </div>

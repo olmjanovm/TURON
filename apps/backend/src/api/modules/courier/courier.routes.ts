@@ -16,6 +16,7 @@ import {
   updateCourierStatus,
   updateOrderStage,
 } from './courier.controller.js';
+import { getOrderChat, sendOrderChat, getUnreadCount } from '../chat/chat.controller.js';
 import {
   CourierProblemSchema,
   IdParamSchema,
@@ -106,4 +107,9 @@ export default async function courierRoutes(fastify: FastifyInstance) {
       body: TrackingLocationSchema,
     }
   }, updateCourierLocation);
+
+  // ── In-app chat (courier ↔ customer) ─────────────────────────────────────
+  fastify.get('/order/:id/chat', { schema: { params: IdParamSchema } }, getOrderChat);
+  fastify.post('/order/:id/chat', { schema: { params: IdParamSchema } }, sendOrderChat);
+  fastify.get('/order/:id/chat/unread', { schema: { params: IdParamSchema } }, getUnreadCount);
 }

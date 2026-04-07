@@ -8,6 +8,7 @@ import {
   CreditCard,
   Loader2,
   MapPin,
+  MessageCircle,
   Navigation,
   Package,
   Phone,
@@ -18,6 +19,8 @@ import {
   TriangleAlert,
   User,
 } from 'lucide-react';
+import { OrderChatPanel } from '../chat/OrderChatPanel';
+import { useOrderChatUnread } from '../../hooks/queries/useOrderChat';
 import { DeliveryStage, PaymentMethod } from '../../data/types';
 import type { CourierOrderPreview, Order } from '../../data/types';
 import {
@@ -167,28 +170,13 @@ export function CourierStageButtons({
           statusCls = isDark ? 'text-white/25' : 'text-slate-300';
         }
 
-        return (
-          <button
-            key={button.key}
-            type="button"
-            onClick={() => { if (canClick) onStageSelect(button.target); }}
-            disabled={!canClick}
-            aria-pressed={isCurrent}
-            className={`
-              relative overflow-hidden rounded-[22px] border p-3.5 text-left
-              transition-all duration-200
-              ${canClick ? 'cursor-pointer active:scale-[0.95] hover:brightness-105' : 'cursor-default'}
-              ${isLast ? 'col-span-2' : ''}
-              ${cardCls}
-            `}
-          >
-            {/* Glow pulse for available button */}
+        const inner = (
+          <>
+            {/* Glow pulse for available interactive button */}
             {isAvailable && interactive && (
               <span className="pointer-events-none absolute inset-0 rounded-[22px] animate-pulse opacity-30 bg-amber-400/20" />
             )}
-
             <div className="relative flex items-center justify-between gap-2">
-              {/* Step badge circle */}
               <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-black ${badgeCls}`}>
                 {isCompleted ? (
                   <CheckCircle2 size={14} strokeWidth={2.5} />
@@ -198,8 +186,6 @@ export function CourierStageButtons({
                   index + 1
                 )}
               </div>
-
-              {/* Status label */}
               <span className={`text-[10px] font-black uppercase tracking-[0.16em] ${statusCls}`}>
                 {isCompleted
                   ? 'Tayyor ✓'
@@ -210,10 +196,38 @@ export function CourierStageButtons({
                       : 'Keyin'}
               </span>
             </div>
-
             <p className={`mt-2.5 text-[13px] font-black leading-snug ${labelCls}`}>
               {button.label}
             </p>
+          </>
+        );
+
+        const sharedCls = `
+          relative overflow-hidden rounded-[22px] border p-3.5 text-left
+          transition-all duration-200
+          ${isLast ? 'col-span-2' : ''}
+          ${cardCls}
+        `;
+
+        // Non-interactive: render as div so it never looks tappable
+        if (!interactive) {
+          return (
+            <div key={button.key} className={sharedCls}>
+              {inner}
+            </div>
+          );
+        }
+
+        return (
+          <button
+            key={button.key}
+            type="button"
+            onClick={() => { if (canClick) onStageSelect(button.target); }}
+            disabled={!canClick}
+            aria-pressed={isCurrent}
+            className={`${sharedCls} ${canClick ? 'cursor-pointer active:scale-[0.95]' : 'cursor-default'}`}
+          >
+            {inner}
           </button>
         );
       })}
@@ -593,6 +607,8 @@ export const DeliveryBottomPanel: React.FC<{
   nearCustomer?: boolean;
   /** true when courier is ≤500m from customer (notification already sent) */
   approachingCustomer?: boolean;
+  /** called when courier taps "Ro'yxatga qaytish" on the DELIVERED success screen */
+  onDeliveredNavigate?: () => void;
 }> = ({
   order,
   currentStage,
@@ -615,9 +631,12 @@ export const DeliveryBottomPanel: React.FC<{
   nearRestaurant = false,
   nearCustomer = false,
   approachingCustomer = false,
+  onDeliveredNavigate,
 }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [isProblemOpen, setIsProblemOpen] = React.useState(false);
+  const [isChatOpen, setIsChatOpen] = React.useState(false);
+  const { data: unreadCount = 0 } = useOrderChatUnread(order.id, 'courier');
   const stageMeta = getDeliveryStageMeta(currentStage);
   const primaryAction = getDeliveryStageAction(currentStage);
   const stageIndex = getDeliveryStageIndex(currentStage);
@@ -644,28 +663,45 @@ export const DeliveryBottomPanel: React.FC<{
       <div className="pointer-events-auto mx-auto w-full max-w-[430px] px-4 pb-[calc(env(safe-area-inset-bottom)+14px)]">
         <div className="overflow-hidden rounded-[36px] border border-white/10 bg-slate-950/88 shadow-[0_36px_90px_rgba(2,6,23,0.6)] backdrop-blur-2xl">
           <div className="px-5 pt-4">
-            <div className="mb-4 flex items-center justify-between gap-3">
+            {/* ── Collapsed header: ETA + route title + muammo + expand ── */}
+            <div className="mb-3 flex items-center gap-2">
+              {/* Drag handle + expand (tappable area) */}
               <button
                 type="button"
                 onClick={() => setIsExpanded((prev) => !prev)}
-                className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
               >
-                <div className="h-1.5 w-12 shrink-0 rounded-full bg-white/12" />
-                <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-white/40">
-                    Courier ops
-                  </p>
-                  <p className="mt-1 truncate text-sm font-black text-white/86">{routeTitle}</p>
+                <div className="h-1 w-8 shrink-0 rounded-full bg-white/15" />
+                {/* ETA pill — always visible */}
+                <div className="flex shrink-0 items-center gap-1.5 rounded-[12px] bg-white/[0.07] px-2.5 py-1.5">
+                  <TimerReset size={11} className="text-amber-300" />
+                  <span className="text-[13px] font-black text-white">{eta}</span>
+                  {isEtaLive && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[12px] font-black text-white/65">{routeTitle}</p>
                 </div>
               </button>
 
+              {/* Muammo — always reachable without expanding */}
+              {problemPanel && currentStage !== DeliveryStage.DELIVERED && (
+                <button
+                  type="button"
+                  onClick={() => { setIsExpanded(true); setIsProblemOpen((p) => !p); }}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-red-400/25 bg-red-400/12 text-red-300 transition-transform active:scale-95"
+                  aria-label="Muammo yuborish"
+                >
+                  <TriangleAlert size={14} />
+                </button>
+              )}
+
+              {/* Expand/collapse */}
               <button
                 type="button"
                 onClick={() => setIsExpanded((prev) => !prev)}
-                className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/8 bg-white/[0.06] text-white/72 transition-transform active:scale-95"
-                aria-label={isExpanded ? 'Panelni yig\'ish' : 'Panelni kengaytirish'}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/8 bg-white/[0.06] text-white/60 transition-transform active:scale-95"
               >
-                {isExpanded ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+                {isExpanded ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
               </button>
             </div>
 
@@ -680,7 +716,7 @@ export const DeliveryBottomPanel: React.FC<{
                   </p>
                 </div>
 
-                <div className={`rounded-[20px] px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] ${stageMeta.badgeClass}`}>
+                <div className={`rounded-[20px] px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] ${stageMeta.badgeClassDark}`}>
                   {stageMeta.label}
                 </div>
               </div>
@@ -732,23 +768,37 @@ export const DeliveryBottomPanel: React.FC<{
               </div>
             </div>
 
-            <div className={`mt-4 grid gap-3 ${hasProblemPanel ? 'grid-cols-3' : 'grid-cols-2'}`}>
+            <div className={`mt-4 grid gap-2 grid-cols-4`}>
               <button
                 type="button"
                 onClick={onCall}
                 disabled={!canCall}
-                className="flex h-14 items-center justify-center gap-2 rounded-[22px] border border-white/8 bg-white/[0.06] text-[11px] font-black uppercase tracking-[0.18em] text-white transition-transform active:scale-[0.98] disabled:opacity-45"
+                className="flex h-14 flex-col items-center justify-center gap-1 rounded-[22px] border border-white/8 bg-white/[0.06] text-[10px] font-black uppercase tracking-[0.14em] text-white transition-transform active:scale-[0.98] disabled:opacity-45"
               >
-                <Phone size={16} />
+                <Phone size={15} />
                 <span>Qo'ng'iroq</span>
               </button>
               <button
                 type="button"
                 onClick={onOpenDetails}
-                className="flex h-14 items-center justify-center gap-2 rounded-[22px] border border-white/8 bg-white/[0.06] text-[11px] font-black uppercase tracking-[0.18em] text-white transition-transform active:scale-[0.98]"
+                className="flex h-14 flex-col items-center justify-center gap-1 rounded-[22px] border border-white/8 bg-white/[0.06] text-[10px] font-black uppercase tracking-[0.14em] text-white transition-transform active:scale-[0.98]"
               >
-                <Package size={16} />
+                <Package size={15} />
                 <span>Tafsilot</span>
+              </button>
+              {/* Chat button with unread badge */}
+              <button
+                type="button"
+                onClick={() => setIsChatOpen(true)}
+                className="relative flex h-14 flex-col items-center justify-center gap-1 rounded-[22px] border border-indigo-400/25 bg-indigo-400/12 text-[10px] font-black uppercase tracking-[0.14em] text-indigo-200 transition-transform active:scale-[0.98]"
+              >
+                <MessageCircle size={15} />
+                <span>Chat</span>
+                {unreadCount > 0 && (
+                  <span className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-black text-white">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
               </button>
               {hasProblemPanel ? (
                 <button
@@ -757,27 +807,33 @@ export const DeliveryBottomPanel: React.FC<{
                     setIsExpanded(true);
                     setIsProblemOpen((prev) => !prev);
                   }}
-                  className="flex h-14 items-center justify-center gap-2 rounded-[22px] border border-white/8 bg-white/[0.06] text-[11px] font-black uppercase tracking-[0.18em] text-white transition-transform active:scale-[0.98]"
+                  className="flex h-14 flex-col items-center justify-center gap-1 rounded-[22px] border border-red-400/25 bg-red-400/10 text-[10px] font-black uppercase tracking-[0.14em] text-red-300 transition-transform active:scale-[0.98]"
                 >
-                  <TriangleAlert size={16} />
+                  <TriangleAlert size={15} />
                   <span>Muammo</span>
                 </button>
-              ) : null}
+              ) : (
+                <div />
+              )}
             </div>
 
-            {/* ── Proximity banners ───────────────────────────────────── */}
-            {nearRestaurant && (
-              <div className="mt-4 flex items-center gap-3 rounded-[22px] border border-emerald-400/30 bg-emerald-400/15 px-4 py-3 animate-in slide-in-from-bottom duration-300">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-400/20 text-emerald-300">
-                  <Store size={16} />
-                </span>
-                <div>
-                  <p className="text-[11px] font-black uppercase tracking-widest text-emerald-300">
-                    Restoranga yetdingiz!
-                  </p>
-                  <p className="text-[12px] text-emerald-200/80">50 metrdan kamroq — "Yetdim" ni bosing</p>
-                </div>
-              </div>
+            {/* ── Proximity action buttons ────────────────────────────── */}
+            {nearRestaurant && currentStage === DeliveryStage.GOING_TO_RESTAURANT && (
+              <button
+                type="button"
+                onClick={() => onAction(DeliveryStage.ARRIVED_AT_RESTAURANT)}
+                disabled={isUpdating}
+                className="mt-4 flex w-full items-center justify-center gap-3 rounded-[22px] border border-emerald-400/40 bg-gradient-to-r from-emerald-500 to-emerald-400 py-4 font-black text-slate-950 shadow-lg shadow-emerald-900/40 transition-transform active:scale-[0.97] disabled:opacity-60 animate-in slide-in-from-bottom duration-300"
+              >
+                {isUpdating ? (
+                  <Loader2 size={18} className="animate-spin" />
+                ) : (
+                  <>
+                    <Store size={18} />
+                    <span className="text-[15px] tracking-tight">Restoranga yetdim</span>
+                  </>
+                )}
+              </button>
             )}
 
             {approachingCustomer && !nearCustomer && (
@@ -794,47 +850,79 @@ export const DeliveryBottomPanel: React.FC<{
               </div>
             )}
 
-            {nearCustomer && (
-              <div className="mt-4 flex items-center gap-3 rounded-[22px] border border-amber-400/35 bg-amber-400/15 px-4 py-3 animate-in slide-in-from-bottom duration-300">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-400/25 text-amber-300 animate-pulse">
-                  <MapPin size={16} />
-                </span>
-                <div>
-                  <p className="text-[11px] font-black uppercase tracking-widest text-amber-300">
-                    Mijoz manzilida!
-                  </p>
-                  <p className="text-[12px] text-amber-200/80">Buyurtmani topshiring va tasdiqlang</p>
-                </div>
-              </div>
+            {nearCustomer && currentStage === DeliveryStage.DELIVERING && (
+              <button
+                type="button"
+                onClick={() => onAction(DeliveryStage.ARRIVED_AT_DESTINATION)}
+                disabled={isUpdating}
+                className="mt-4 flex w-full items-center justify-center gap-3 rounded-[22px] border border-amber-400/40 bg-gradient-to-r from-amber-500 to-orange-400 py-4 font-black text-slate-950 shadow-lg shadow-amber-900/40 transition-transform active:scale-[0.97] disabled:opacity-60 animate-pulse-once animate-in slide-in-from-bottom duration-300"
+              >
+                {isUpdating ? (
+                  <Loader2 size={18} className="animate-spin" />
+                ) : (
+                  <>
+                    <MapPin size={18} />
+                    <span className="text-[15px] tracking-tight">Mijoz manziliga yetdim</span>
+                  </>
+                )}
+              </button>
             )}
 
-            {primaryAction.next ? (
-              <div className="mt-4 rounded-[24px] border border-amber-300/12 bg-amber-400/10 px-4 py-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-200/75">
-                  Hozirgi vazifa
-                </p>
-                <p className="mt-2 text-sm font-black text-white">{primaryAction.slideLabel}</p>
-              </div>
-            ) : null}
+            {/* Hide task card + slider when proximity button is showing (avoids two competing actions) */}
+            {(() => {
+              const proximityButtonActive =
+                (nearRestaurant && currentStage === DeliveryStage.GOING_TO_RESTAURANT) ||
+                (nearCustomer && currentStage === DeliveryStage.DELIVERING);
 
-            <div className="mt-4">
-              {primaryAction.next ? (
-                <SlideToConfirmAction
-                  label={primaryAction.slideLabel}
-                  hint={primaryAction.hint}
-                  onConfirm={() => onAction(primaryAction.next!)}
-                  isLoading={isUpdating}
-                  theme="dark"
-                />
-              ) : (
-                <div className="rounded-[24px] border border-emerald-300/20 bg-emerald-400/12 px-4 py-4">
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-200/75">
-                    Holat
-                  </p>
-                  <p className="mt-2 text-sm font-black text-white">Buyurtma muvaffaqiyatli yakunlandi.</p>
-                </div>
-              )}
-            </div>
+              if (proximityButtonActive) return null;
+
+              return (
+                <>
+                  {primaryAction.next ? (
+                    <div className="mt-4 rounded-[24px] border border-amber-300/12 bg-amber-400/10 px-4 py-3">
+                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-200/75">
+                        Hozirgi vazifa
+                      </p>
+                      <p className="mt-2 text-sm font-black text-white">{primaryAction.slideLabel}</p>
+                    </div>
+                  ) : null}
+
+                  <div className="mt-4">
+                    {primaryAction.next ? (
+                      <SlideToConfirmAction
+                        label={primaryAction.slideLabel}
+                        hint={primaryAction.hint}
+                        onConfirm={() => onAction(primaryAction.next!)}
+                        isLoading={isUpdating}
+                        theme="dark"
+                      />
+                    ) : (
+                      <div className="rounded-[24px] border border-emerald-300/20 bg-emerald-400/12 px-4 py-4">
+                        {/* DELIVERED: full success screen with navigate button */}
+                        <div className="flex flex-col items-center gap-3 py-2 text-center">
+                          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-400/20">
+                            <CheckCircle2 size={28} className="text-emerald-300" />
+                          </div>
+                          <div>
+                            <p className="text-[16px] font-black text-emerald-200">Buyurtma topshirildi!</p>
+                            <p className="mt-1 text-[12px] text-white/50">Ajoyib ish — davom eting</p>
+                          </div>
+                          {onDeliveredNavigate && (
+                            <button
+                              type="button"
+                              onClick={onDeliveredNavigate}
+                              className="mt-1 flex h-11 w-full items-center justify-center gap-2 rounded-[18px] bg-emerald-500 text-[13px] font-black text-white shadow-lg shadow-emerald-900/40 transition-transform active:scale-[0.97]"
+                            >
+                              Buyurtmalar ro'yxatiga
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
 
             <div className="mt-4">
               <CourierStageButtons
@@ -842,10 +930,20 @@ export const DeliveryBottomPanel: React.FC<{
                 onStageSelect={onAction}
                 isUpdating={isUpdating}
                 theme="dark"
-                interactive={false}
+                interactive={true}
               />
             </div>
           </div>
+
+          {/* ── Chat overlay ──────────────────────────────────────────────── */}
+          {isChatOpen && (
+            <OrderChatPanel
+              orderId={order.id}
+              role="courier"
+              theme="dark"
+              onClose={() => setIsChatOpen(false)}
+            />
+          )}
 
           {isExpanded ? (
             <div className="mt-5 border-t border-white/8 bg-slate-950/70 px-5 pb-5 pt-4">

@@ -54,10 +54,10 @@ const CourierLayout: React.FC = () => {
   const isOnline = courierStatus?.isOnline ?? false;
 
   const tabs = [
-    { path: '/courier', icon: Home, label: 'Asosiy', exact: true },
-    { path: '/courier/orders', icon: List, label: 'Buyurtmalar', exact: false },
-    { path: '/courier/history', icon: History, label: 'Tarix', exact: false },
-    { path: '/courier/profile', icon: CircleUserRound, label: 'Profil', exact: false },
+    { path: '/courier', icon: Home, label: 'Asosiy', exact: true, matchPrefix: undefined },
+    { path: '/courier/orders', icon: List, label: 'Buyurtmalar', exact: false, matchPrefix: '/courier/order' },
+    { path: '/courier/history', icon: History, label: 'Tarix', exact: false, matchPrefix: undefined },
+    { path: '/courier/profile', icon: CircleUserRound, label: 'Profil', exact: false, matchPrefix: undefined },
   ];
 
   return (
@@ -158,10 +158,10 @@ const CourierLayout: React.FC = () => {
           style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)', height: 'calc(env(safe-area-inset-bottom, 0px) + 80px)' }}
         >
           <div className="flex w-full items-center justify-around px-2 pt-2">
-            {tabs.map(({ path, icon: Icon, label, exact }) => {
+            {tabs.map(({ path, icon: Icon, label, exact, matchPrefix }) => {
               const isActive = exact
                 ? location.pathname === path
-                : location.pathname.startsWith(path);
+                : location.pathname.startsWith(matchPrefix ?? path);
 
               return (
                 <button

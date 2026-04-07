@@ -1,28 +1,31 @@
 import React from 'react';
-import NotificationList from '../../features/notifications/components/NotificationList';
-import { UserRoleEnum } from '@turon/shared';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Rocket } from 'lucide-react';
+import { ArrowLeft, Bell } from 'lucide-react';
+import { UserRoleEnum } from '@turon/shared';
+import NotificationList from '../../features/notifications/components/NotificationList';
 
 const CourierNotificationsPage: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-24 animate-in fade-in duration-500">
-      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md px-6 py-4 flex items-center gap-4 border-b border-slate-100 shadow-sm">
-        <button 
+    <div className="min-h-screen bg-slate-50 pb-8">
+      <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-100 bg-white/95 px-4 py-4 backdrop-blur-xl"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}
+      >
+        <button
+          type="button"
           onClick={() => navigate(-1)}
-          className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center active:bg-slate-200 transition-colors"
+          className="flex h-10 w-10 items-center justify-center rounded-[18px] border border-slate-200 bg-white text-slate-600 shadow-sm transition-transform active:scale-95"
         >
-          <ArrowLeft size={20} className="text-slate-600" />
+          <ArrowLeft size={20} />
         </button>
         <div className="flex items-center gap-2">
-          <Rocket size={20} className="text-emerald-600" />
-          <h1 className="text-lg font-black text-slate-800 tracking-tight uppercase">Kuryer Bildirishnomalari</h1>
+          <Bell size={18} className="text-slate-500" />
+          <p className="text-[18px] font-black text-slate-900">Bildirishnomalar</p>
         </div>
       </header>
 
-      <main className="p-6">
+      <main className="px-4 py-4">
         <NotificationList role={UserRoleEnum.COURIER} />
       </main>
     </div>

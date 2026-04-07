@@ -122,6 +122,7 @@ const CourierStatusPage: React.FC = () => {
             <Toggle
               checked={isOnline}
               onChange={() => updateStatus.mutate({ isOnline: !isOnline })}
+              disabled={updateStatus.isPending}
             />
           )}
         </div>
@@ -173,6 +174,7 @@ const CourierStatusPage: React.FC = () => {
               <Toggle
                 checked={isAccepting}
                 onChange={() => updateStatus.mutate({ isAcceptingOrders: !isAccepting })}
+                disabled={updateStatus.isPending}
                 size="sm"
               />
             )}

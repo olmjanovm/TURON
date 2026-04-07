@@ -121,7 +121,7 @@ const CourierProfilePage: React.FC = () => {
             {statusLabel}
           </p>
           <p className="mt-1 text-[11px] text-slate-400">
-            Oxirgi ko'rinish: {formatClock(profile.lastSeenAt)}
+            Oxirgi faollik: {formatClock(profile.lastSeenAt)}
           </p>
         </div>
       </div>
