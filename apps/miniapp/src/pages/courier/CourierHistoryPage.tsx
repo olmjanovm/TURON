@@ -2,13 +2,15 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
+  CheckCircle2,
   Clock3,
   Loader2,
+  MapPin,
   Package,
   Phone,
   RefreshCw,
-  Route,
   Search,
+  XCircle,
 } from 'lucide-react';
 import { useCourierHistory } from '../../hooks/queries/useCouriers';
 
@@ -19,16 +21,38 @@ function formatMoney(value: number) {
 }
 
 function formatDate(value?: string | null) {
-  if (!value) {
-    return "Hali yo'q";
-  }
-
+  if (!value) return "—";
   return new Date(value).toLocaleString('uz-UZ', {
     day: '2-digit',
     month: 'short',
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function StatusBadge({ status }: { status: string }) {
+  if (status === 'DELIVERED') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-emerald-700">
+        <CheckCircle2 size={11} />
+        Topshirildi
+      </span>
+    );
+  }
+  if (status === 'CANCELLED' || status === 'REJECTED') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-black text-red-600">
+        <XCircle size={11} />
+        Bekor
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-black text-amber-700">
+      <Clock3 size={11} />
+      Faol
+    </span>
+  );
 }
 
 const CourierHistoryPage: React.FC = () => {
@@ -38,46 +62,34 @@ const CourierHistoryPage: React.FC = () => {
   const [activeFilter, setActiveFilter] = React.useState<HistoryFilter>('ALL');
 
   const filteredHistory = React.useMemo(() => {
-    const normalizedQuery = searchQuery.trim().toLowerCase();
-
+    const q = searchQuery.trim().toLowerCase();
     return history.filter((entry) => {
       const matchesSearch =
-        !normalizedQuery ||
-        entry.orderNumber.toLowerCase().includes(normalizedQuery) ||
-        entry.customerName.toLowerCase().includes(normalizedQuery) ||
-        entry.destinationAddress.toLowerCase().includes(normalizedQuery);
-
-      if (!matchesSearch) {
-        return false;
-      }
-
-      if (activeFilter === 'ACTIVE') {
+        !q ||
+        entry.orderNumber.toLowerCase().includes(q) ||
+        entry.customerName.toLowerCase().includes(q) ||
+        entry.destinationAddress.toLowerCase().includes(q);
+      if (!matchesSearch) return false;
+      if (activeFilter === 'ACTIVE')
         return ['ASSIGNED', 'ACCEPTED', 'PICKED_UP', 'DELIVERING'].includes(entry.assignmentStatus);
-      }
-
-      if (activeFilter === 'DELIVERED') {
-        return entry.assignmentStatus === 'DELIVERED';
-      }
-
-      if (activeFilter === 'CANCELLED') {
+      if (activeFilter === 'DELIVERED') return entry.assignmentStatus === 'DELIVERED';
+      if (activeFilter === 'CANCELLED')
         return ['CANCELLED', 'REJECTED'].includes(entry.assignmentStatus);
-      }
-
       return true;
     });
   }, [activeFilter, history, searchQuery]);
 
-  const deliveredCount = history.filter((entry) => entry.assignmentStatus === 'DELIVERED').length;
-  const cancelledCount = history.filter((entry) => ['CANCELLED', 'REJECTED'].includes(entry.assignmentStatus)).length;
+  const deliveredCount = history.filter((e) => e.assignmentStatus === 'DELIVERED').length;
+  const cancelledCount = history.filter((e) =>
+    ['CANCELLED', 'REJECTED'].includes(e.assignmentStatus),
+  ).length;
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center px-6 py-24">
-        <div className="rounded-[28px] border border-slate-200 bg-white px-6 py-5 shadow-sm">
-          <Loader2 size={28} className="mx-auto animate-spin text-indigo-600" />
-          <p className="mt-4 text-sm font-black uppercase tracking-[0.22em] text-slate-500">
-            Tarix yuklanmoqda
-          </p>
+      <div className="flex items-center justify-center py-32">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 size={32} className="animate-spin text-indigo-500" />
+          <p className="text-[13px] font-bold text-slate-400">Yuklanmoqda...</p>
         </div>
       </div>
     );
@@ -85,24 +97,18 @@ const CourierHistoryPage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="px-6 py-10">
-        <div className="rounded-[32px] border border-red-100 bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-500">
-            <AlertCircle size={30} />
-          </div>
-          <h3 className="mt-5 text-xl font-black tracking-tight text-slate-900">Tarix yuklanmadi</h3>
-          <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-500">
-            {(error as Error).message}
-          </p>
+      <div className="px-5 py-10">
+        <div className="rounded-3xl border border-red-100 bg-white p-8 text-center shadow-sm">
+          <AlertCircle size={28} className="mx-auto text-red-400" />
+          <p className="mt-4 text-[15px] font-black text-slate-900">Tarix yuklanmadi</p>
+          <p className="mt-2 text-[13px] text-slate-500">{(error as Error).message}</p>
           <button
             type="button"
-            onClick={() => {
-              void refetch();
-            }}
-            className="mt-6 inline-flex h-12 items-center justify-center gap-2 rounded-full bg-slate-900 px-5 text-xs font-black uppercase tracking-[0.18em] text-white"
+            onClick={() => void refetch()}
+            className="mt-5 flex h-12 items-center gap-2 rounded-2xl bg-slate-900 px-5 text-[13px] font-black text-white mx-auto active:scale-95 transition-transform"
           >
             <RefreshCw size={15} />
-            <span>Qayta urinish</span>
+            Qayta urinish
           </button>
         </div>
       </div>
@@ -110,160 +116,149 @@ const CourierHistoryPage: React.FC = () => {
   }
 
   return (
-    <div className="animate-in fade-in space-y-6 px-6 py-6 pb-36 duration-500">
-      <section className="rounded-[34px] bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.25),transparent_28%),linear-gradient(135deg,#0f172a_0%,#111827_100%)] p-6 text-white shadow-[0_28px_72px_rgba(15,23,42,0.18)]">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-white/50">Courier history</p>
-            <h1 className="mt-3 text-3xl font-black tracking-[-0.04em] text-white">Buyurtmalar tarixi</h1>
-            <p className="mt-3 max-w-[320px] text-sm font-semibold leading-relaxed text-white/72">
-              Yetkazilgan, bekor qilingan va faol topshiriqlar tarixini qidiring, solishtiring va qayta oching.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              void refetch();
-            }}
-            className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-white"
+    <div className="space-y-3 px-4 py-5 pb-32">
+
+      {/* ── Header ──────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between">
+        <p className="text-[22px] font-black text-slate-900">Buyurtmalar tarixi</p>
+        <button
+          type="button"
+          onClick={() => void refetch()}
+          className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 active:scale-95 transition-transform"
+        >
+          <RefreshCw size={17} className={isFetching ? 'animate-spin' : ''} />
+        </button>
+      </div>
+
+      {/* ── Stats strip ─────────────────────────────────────────────── */}
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          { label: 'Jami', value: history.length, color: 'text-slate-900' },
+          { label: 'Topshirildi', value: deliveredCount, color: 'text-emerald-600' },
+          { label: 'Bekor', value: cancelledCount, color: 'text-red-500' },
+        ].map((s) => (
+          <div
+            key={s.label}
+            className="rounded-2xl bg-white border border-slate-100 shadow-sm py-3 text-center"
           >
-            <RefreshCw size={18} className={isFetching ? 'animate-spin' : ''} />
+            <p className={`text-[24px] font-black leading-none ${s.color}`}>{s.value}</p>
+            <p className="mt-1 text-[11px] font-bold text-slate-400">{s.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Search ──────────────────────────────────────────────────── */}
+      <div className="relative">
+        <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Raqam, mijoz yoki manzil..."
+          className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-4 text-[14px] text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-slate-400 focus:outline-none"
+        />
+      </div>
+
+      {/* ── Filter tabs ─────────────────────────────────────────────── */}
+      <div className="flex gap-2">
+        {[
+          { key: 'ALL', label: 'Barchasi' },
+          { key: 'ACTIVE', label: 'Faol' },
+          { key: 'DELIVERED', label: 'Topshirildi' },
+          { key: 'CANCELLED', label: 'Bekor' },
+        ].map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            onClick={() => setActiveFilter(f.key as HistoryFilter)}
+            className={`flex-1 h-10 rounded-2xl text-[11px] font-black transition-colors ${
+              activeFilter === f.key
+                ? 'bg-slate-900 text-white'
+                : 'bg-white border border-slate-100 text-slate-500'
+            }`}
+          >
+            {f.label}
           </button>
-        </div>
+        ))}
+      </div>
 
-        <div className="mt-5 grid grid-cols-3 gap-3">
-          <SummaryCard label="Jami" value={history.length.toString()} />
-          <SummaryCard label="Topshirildi" value={deliveredCount.toString()} />
-          <SummaryCard label="Bekor" value={cancelledCount.toString()} />
-        </div>
-      </section>
+      {/* ── Results count ───────────────────────────────────────────── */}
+      <p className="px-1 text-[11px] font-bold text-slate-400">
+        {filteredHistory.length} ta natija
+      </p>
 
-      <section className="rounded-[30px] border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="relative">
-          <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Order raqami, mijoz yoki manzil bo'yicha qidiring"
-            className="h-12 w-full rounded-[18px] border border-slate-200 bg-slate-50 pl-11 pr-4 text-sm font-semibold text-slate-900 outline-none"
-          />
-        </div>
-
-        <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4">
-          {[
-            { key: 'ALL', label: 'Barchasi' },
-            { key: 'ACTIVE', label: 'Faol' },
-            { key: 'DELIVERED', label: 'Topshirildi' },
-            { key: 'CANCELLED', label: 'Bekor' },
-          ].map((filter) => (
-            <button
-              key={filter.key}
-              type="button"
-              onClick={() => setActiveFilter(filter.key as HistoryFilter)}
-              className={`h-11 rounded-[18px] text-[11px] font-black uppercase tracking-[0.18em] ${
-                activeFilter === filter.key
-                  ? 'bg-slate-900 text-white'
-                  : 'bg-slate-100 text-slate-500'
-              }`}
-            >
-              {filter.label}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {filteredHistory.length ? (
-        <section className="space-y-4">
+      {/* ── History list ────────────────────────────────────────────── */}
+      {filteredHistory.length > 0 ? (
+        <div className="space-y-3">
           {filteredHistory.map((entry) => (
             <button
               key={entry.assignmentId}
               type="button"
               onClick={() => navigate(`/courier/order/${entry.orderId}`)}
-              className="w-full rounded-[30px] border border-slate-200 bg-white p-5 text-left shadow-sm transition-transform active:scale-[0.985]"
+              className="w-full rounded-3xl border border-slate-100 bg-white p-4 text-left shadow-sm active:scale-[0.98] transition-transform"
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-                    {entry.assignmentStatus}
-                  </p>
-                  <h3 className="mt-2 text-xl font-black tracking-tight text-slate-900">
-                    #{entry.orderNumber}
-                  </h3>
-                  <p className="mt-2 text-sm font-semibold text-slate-600">{entry.customerName}</p>
+              {/* Top row: order number + status + total */}
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-[17px] font-black text-slate-900">#{entry.orderNumber}</p>
+                  <p className="mt-0.5 text-[13px] text-slate-500">{entry.customerName}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-base font-black text-slate-900">{formatMoney(entry.total)}</p>
-                  <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-                    Fee {formatMoney(entry.deliveryFee)}
+                  <p className="text-[15px] font-black text-slate-900">{formatMoney(entry.total)}</p>
+                  <p className="mt-0.5 text-[11px] text-slate-400">
+                    yetkazish: {formatMoney(entry.deliveryFee)}
                   </p>
                 </div>
               </div>
 
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
-                <div className="rounded-[22px] bg-slate-50 px-4 py-4">
-                  <div className="flex items-start gap-3">
-                    <Route size={16} className="mt-0.5 shrink-0 text-amber-500" />
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Manzil</p>
-                      <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-700">
-                        {entry.destinationAddress}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-[22px] bg-slate-50 px-4 py-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <InfoLabel icon={<Clock3 size={14} />} label="Biriktirildi" value={formatDate(entry.assignedAt)} />
-                    <InfoLabel icon={<Package size={14} />} label="Yakun" value={formatDate(entry.deliveredAt || entry.cancelledAt)} />
-                    <InfoLabel icon={<Phone size={14} />} label="Telefon" value={entry.customerPhone || "Yo'q"} />
-                    <InfoLabel icon={<Route size={14} />} label="Item" value={`${entry.itemCount} ta`} />
-                  </div>
-                </div>
+              {/* Status + time row */}
+              <div className="mt-2.5 flex items-center gap-2">
+                <StatusBadge status={entry.assignmentStatus} />
+                <span className="text-[11px] text-slate-400">
+                  {formatDate(entry.deliveredAt || entry.cancelledAt || entry.assignedAt)}
+                </span>
               </div>
 
-              {entry.note ? (
-                <div className="mt-4 rounded-[22px] border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+              {/* Address */}
+              <div className="mt-2.5 flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-2.5">
+                <MapPin size={14} className="mt-0.5 shrink-0 text-slate-400" />
+                <p className="text-[12px] leading-snug text-slate-600">{entry.destinationAddress}</p>
+              </div>
+
+              {/* Meta: items + phone */}
+              <div className="mt-2 flex items-center gap-3">
+                <span className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                  <Package size={12} />
+                  {entry.itemCount} ta mahsulot
+                </span>
+                {entry.customerPhone && (
+                  <span className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                    <Phone size={12} />
+                    {entry.customerPhone}
+                  </span>
+                )}
+              </div>
+
+              {entry.note && (
+                <div className="mt-2 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
                   {entry.note}
                 </div>
-              ) : null}
+              )}
             </button>
           ))}
-        </section>
+        </div>
       ) : (
-        <div className="rounded-[32px] border border-slate-200 bg-white px-6 py-12 text-center shadow-sm">
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 text-slate-300">
-            <Package size={34} />
+        <div className="rounded-3xl border border-slate-100 bg-white px-6 py-12 text-center shadow-sm">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
+            <Package size={28} className="text-slate-300" />
           </div>
-          <h4 className="mt-6 text-2xl font-black tracking-tight text-slate-900">Mos tarix topilmadi</h4>
-          <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-500">
-            Qidiruv yoki filtrni o'zgartirib ko'ring.
+          <p className="text-[16px] font-black text-slate-700">Natija topilmadi</p>
+          <p className="mt-1 text-[13px] text-slate-400">
+            Qidiruv yoki filtrni o'zgartirib ko'ring
           </p>
         </div>
       )}
     </div>
   );
 };
-
-const SummaryCard: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <div className="rounded-[22px] border border-white/10 bg-white/10 px-4 py-4">
-    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/50">{label}</p>
-    <p className="mt-2 text-2xl font-black text-white">{value}</p>
-  </div>
-);
-
-const InfoLabel: React.FC<{ icon: React.ReactNode; label: string; value: string }> = ({
-  icon,
-  label,
-  value,
-}) => (
-  <div className="min-w-0">
-    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-      {icon}
-      <span>{label}</span>
-    </div>
-    <p className="mt-2 truncate text-sm font-semibold text-slate-700">{value}</p>
-  </div>
-);
 
 export default CourierHistoryPage;

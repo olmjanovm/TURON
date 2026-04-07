@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle, Loader2, Map, Navigation, Package, RefreshCw, Route } from 'lucide-react';
+import { AlertCircle, Loader2, Map, Navigation, Package, RefreshCw } from 'lucide-react';
 import { CourierOrderCard } from '../../components/courier/CourierComponents';
 import { useCourierOrders } from '../../hooks/queries/useOrders';
 
@@ -11,48 +11,30 @@ const CourierOrdersPage: React.FC = () => {
   const [activeTab, setActiveTab] = React.useState<CourierOrdersTab>('new');
   const { data: courierOrders = [], isLoading, error, refetch, isFetching } = useCourierOrders();
 
-  const newOrders = courierOrders.filter((order) => order.courierAssignmentStatus === 'ASSIGNED');
-  const activeOrders = courierOrders.filter((order) =>
-    ['ACCEPTED', 'PICKED_UP', 'DELIVERING'].includes(order.courierAssignmentStatus || ''),
+  const newOrders = courierOrders.filter((o) => o.courierAssignmentStatus === 'ASSIGNED');
+  const activeOrders = courierOrders.filter((o) =>
+    ['ACCEPTED', 'PICKED_UP', 'DELIVERING'].includes(o.courierAssignmentStatus || ''),
   );
-  const completedOrders = courierOrders.filter((order) => order.courierAssignmentStatus === 'DELIVERED');
+  const completedOrders = courierOrders.filter((o) => o.courierAssignmentStatus === 'DELIVERED');
 
   React.useEffect(() => {
-    const activeTabHasData =
+    const hasData =
       (activeTab === 'new' && newOrders.length > 0) ||
       (activeTab === 'active' && activeOrders.length > 0) ||
       (activeTab === 'completed' && completedOrders.length > 0);
-
-    if (activeTabHasData) {
-      return;
-    }
-
-    if (newOrders.length > 0) {
-      setActiveTab('new');
-      return;
-    }
-
-    if (activeOrders.length > 0) {
-      setActiveTab('active');
-      return;
-    }
-
-    if (completedOrders.length > 0) {
-      setActiveTab('completed');
-      return;
-    }
-
+    if (hasData) return;
+    if (newOrders.length > 0) { setActiveTab('new'); return; }
+    if (activeOrders.length > 0) { setActiveTab('active'); return; }
+    if (completedOrders.length > 0) { setActiveTab('completed'); return; }
     setActiveTab('new');
   }, [activeOrders.length, activeTab, completedOrders.length, newOrders.length]);
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center px-6 py-24">
-        <div className="rounded-[28px] border border-slate-200 bg-white px-6 py-5 shadow-sm">
-          <Loader2 size={28} className="mx-auto animate-spin text-sky-600" />
-          <p className="mt-4 text-sm font-black uppercase tracking-[0.22em] text-slate-500">
-            Vazifalar yuklanmoqda
-          </p>
+      <div className="flex items-center justify-center py-32">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 size={32} className="animate-spin text-indigo-500" />
+          <p className="text-[13px] font-bold text-slate-400">Yuklanmoqda...</p>
         </div>
       </div>
     );
@@ -60,186 +42,137 @@ const CourierOrdersPage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="px-6 py-10">
-        <div className="rounded-[32px] border border-red-100 bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-500">
-            <AlertCircle size={30} />
-          </div>
-          <h3 className="mt-5 text-xl font-black tracking-tight text-slate-900">Buyurtmalar yuklanmadi</h3>
-          <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-500">
-            {(error as Error).message}
-          </p>
+      <div className="px-5 py-10">
+        <div className="rounded-3xl border border-red-100 bg-white p-8 text-center shadow-sm">
+          <AlertCircle size={28} className="mx-auto text-red-400" />
+          <p className="mt-4 text-[15px] font-black text-slate-900">Buyurtmalar yuklanmadi</p>
+          <p className="mt-2 text-[13px] text-slate-500">{(error as Error).message}</p>
           <button
             type="button"
-            onClick={() => {
-              void refetch();
-            }}
-            className="mt-6 inline-flex h-12 items-center justify-center gap-2 rounded-full bg-slate-900 px-5 text-xs font-black uppercase tracking-[0.18em] text-white"
+            onClick={() => void refetch()}
+            className="mt-5 flex h-12 items-center gap-2 rounded-2xl bg-slate-900 px-5 text-[13px] font-black text-white mx-auto active:scale-95 transition-transform"
           >
             <RefreshCw size={15} />
-            <span>Qayta urinish</span>
+            Qayta urinish
           </button>
         </div>
       </div>
     );
   }
 
-  const currentOrders =
-    activeTab === 'new'
-      ? newOrders
-      : activeTab === 'active'
-        ? activeOrders
-        : completedOrders;
-  const highlightedActiveOrder = activeOrders[0] || null;
-
-  const tabMeta: Array<{ key: CourierOrdersTab; label: string; count: number }> = [
+  const tabs: Array<{ key: CourierOrdersTab; label: string; count: number }> = [
     { key: 'new', label: 'Yangi', count: newOrders.length },
     { key: 'active', label: 'Faol', count: activeOrders.length },
     { key: 'completed', label: 'Tugatilgan', count: completedOrders.length },
   ];
 
-  const emptyStateText =
+  const currentOrders =
+    activeTab === 'new' ? newOrders : activeTab === 'active' ? activeOrders : completedOrders;
+  const highlightedActive = activeOrders[0] ?? null;
+
+  const emptyText =
     activeTab === 'new'
-      ? "Yangi biriktirilgan topshiriq hozircha yo'q."
+      ? "Yangi biriktirilgan buyurtma yo'q"
       : activeTab === 'active'
-        ? "Faol yetkazib berish hozircha yo'q."
-        : "Bugun tugatilgan buyurtmalar hozircha yo'q.";
+        ? "Faol yetkazib berish yo'q"
+        : "Bugun tugatilgan buyurtma yo'q";
 
   return (
-    <div className="animate-in fade-in space-y-6 px-6 py-6 pb-36 duration-500">
-      <section className="relative overflow-hidden rounded-[36px] bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.3),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(14,165,233,0.22),transparent_24%),linear-gradient(135deg,#0f172a_0%,#111827_100%)] p-6 text-white shadow-[0_30px_80px_rgba(15,23,42,0.24)]">
-        <div className="absolute -right-10 top-6 h-28 w-28 rounded-full bg-white/10 blur-3xl" />
-        <div className="absolute -left-8 bottom-0 h-24 w-24 rounded-full bg-sky-300/10 blur-3xl" />
+    <div className="space-y-3 px-4 py-5 pb-32">
 
-        <div className="relative z-10">
-          <div className="flex items-start justify-between gap-4">
+      {/* ── Page header ─────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between">
+        <p className="text-[22px] font-black text-slate-900">Kuryer operatsiyasi</p>
+        <button
+          type="button"
+          onClick={() => void refetch()}
+          className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 active:scale-95 transition-transform"
+        >
+          <RefreshCw size={17} className={isFetching ? 'animate-spin' : ''} />
+        </button>
+      </div>
+
+      {/* ── Tab switcher ─────────────────────────────────────────────── */}
+      <div className="grid grid-cols-3 gap-2">
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setActiveTab(tab.key)}
+            className={`flex flex-col items-center gap-1 rounded-2xl py-3 transition-colors ${
+              activeTab === tab.key
+                ? 'bg-slate-900 text-white'
+                : 'bg-white border border-slate-100 text-slate-500'
+            }`}
+          >
+            <span
+              className={`text-[22px] font-black leading-none ${
+                activeTab === tab.key ? 'text-white' : 'text-slate-900'
+              }`}
+            >
+              {tab.count}
+            </span>
+            <span className={`text-[11px] font-bold ${activeTab === tab.key ? 'text-white/70' : 'text-slate-400'}`}>
+              {tab.label}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* ── Active route shortcut ────────────────────────────────────── */}
+      {highlightedActive && (
+        <button
+          type="button"
+          onClick={() => navigate(`/courier/map/${highlightedActive.id}`)}
+          className="flex w-full items-center justify-between rounded-2xl bg-emerald-500 px-4 py-3.5 text-left shadow-md shadow-emerald-200 active:scale-[0.98] transition-transform"
+        >
+          <div className="flex items-center gap-3">
+            <Navigation size={18} className="text-white" />
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.26em] text-white/50">
-                Kuryer operatsiyasi
-              </p>
-              <h2 className="mt-3 text-3xl font-black tracking-[-0.04em] text-white">
-                Buyurtmalar paneli
-              </h2>
-              <p className="mt-3 max-w-[270px] text-sm font-semibold leading-relaxed text-white/72">
-                Yangi, faol va tugatilgan topshiriqlarni alohida boshqaring. Faol marshrutga shu yerdan tez o'ting.
-              </p>
+              <p className="text-[11px] font-bold text-emerald-100">Faol marshrut</p>
+              <p className="text-[14px] font-black text-white">#{highlightedActive.orderNumber}</p>
             </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                void refetch();
-              }}
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-white backdrop-blur-md transition-transform active:scale-95"
-              aria-label="Buyurtmalarni yangilash"
-            >
-              <RefreshCw size={18} className={isFetching ? 'animate-spin' : ''} />
-            </button>
           </div>
-
-          <div className="mt-5 grid grid-cols-3 gap-3">
-            {tabMeta.map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setActiveTab(tab.key)}
-                className={`rounded-[22px] border px-4 py-4 text-left transition-transform active:scale-[0.98] ${
-                  activeTab === tab.key
-                    ? 'border-white/20 bg-white/18 text-white'
-                    : 'border-white/10 bg-white/10 text-white/70'
-                }`}
-              >
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-inherit">{tab.label}</p>
-                <p className="mt-2 text-2xl font-black text-inherit">{tab.count}</p>
-              </button>
-            ))}
+          <div className="flex items-center gap-1.5 text-[12px] font-black text-white">
+            <Map size={15} />
+            <span>Xarita</span>
           </div>
+        </button>
+      )}
 
-          {highlightedActiveOrder ? (
-            <button
-              type="button"
-              onClick={() => navigate(`/courier/map/${highlightedActiveOrder.id}`)}
-              className="mt-5 flex w-full items-center justify-between rounded-[24px] border border-emerald-300/20 bg-emerald-400/14 px-5 py-4 text-left shadow-[0_18px_40px_rgba(16,185,129,0.18)] transition-transform active:scale-[0.985]"
-            >
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400/18 text-emerald-100">
-                  <Navigation size={22} />
-                </div>
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-100/70">
-                    Faol marshrut
-                  </p>
-                  <p className="mt-2 text-base font-black text-white">#{highlightedActiveOrder.orderNumber}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-white">
-                <span>Xaritani ochish</span>
-                <Map size={16} />
-              </div>
-            </button>
-          ) : null}
+      {/* ── Orders list ──────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between px-1 pt-1">
+        <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+          {activeTab === 'new'
+            ? 'Yangi buyurtmalar'
+            : activeTab === 'active'
+              ? 'Faol buyurtmalar'
+              : 'Tugatilgan buyurtmalar'}
+        </p>
+        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-black text-slate-500">
+          {currentOrders.length} ta
+        </span>
+      </div>
+
+      {currentOrders.length > 0 ? (
+        <div className="space-y-3">
+          {currentOrders.map((order) => (
+            <CourierOrderCard
+              key={order.id}
+              order={order}
+              onClick={() => navigate(`/courier/order/${order.id}`)}
+            />
+          ))}
         </div>
-      </section>
-
-      {highlightedActiveOrder ? (
-        <section className="space-y-3">
-          <div className="flex items-center justify-between px-1">
-            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">
-              Hozir ishlayotgan buyurtma
-            </h3>
-            <button
-              type="button"
-              onClick={() => navigate(`/courier/order/${highlightedActiveOrder.id}`)}
-              className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-[0.18em] text-slate-900"
-            >
-              <span>Batafsil</span>
-              <Route size={14} />
-            </button>
+      ) : (
+        <div className="rounded-3xl border border-slate-100 bg-white px-6 py-12 text-center shadow-sm">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
+            <Package size={28} className="text-slate-300" />
           </div>
-          <CourierOrderCard
-            order={highlightedActiveOrder}
-            onClick={() => navigate(`/courier/order/${highlightedActiveOrder.id}`)}
-          />
-        </section>
-      ) : null}
-
-      <section className="space-y-3">
-        <div className="flex items-center justify-between px-1">
-          <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">
-            {activeTab === 'new'
-              ? 'Yangi biriktirilgan buyurtmalar'
-              : activeTab === 'active'
-                ? 'Faol buyurtmalar'
-                : 'Tugatilgan buyurtmalar'}
-          </h3>
-          <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
-            <Package size={14} />
-            <span>{currentOrders.length} ta</span>
-          </div>
+          <p className="text-[16px] font-black text-slate-700">Bo'sh</p>
+          <p className="mt-1 text-[13px] text-slate-400">{emptyText}</p>
         </div>
-
-        {currentOrders.length > 0 ? (
-          <div className="space-y-4">
-            {currentOrders.map((order) => (
-              <CourierOrderCard
-                key={order.id}
-                order={order}
-                onClick={() => navigate(`/courier/order/${order.id}`)}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-[32px] border border-slate-200 bg-white px-6 py-12 text-center shadow-sm">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 text-slate-300">
-              <Package size={34} />
-            </div>
-            <h4 className="mt-6 text-2xl font-black tracking-tight text-slate-900">Bu bo'lim bo'sh</h4>
-            <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-500">
-              {emptyStateText}
-            </p>
-          </div>
-        )}
-      </section>
+      )}
     </div>
   );
 };
