@@ -1,23 +1,15 @@
 import React from 'react';
 import {
-  ArrowRight,
   CheckCircle2,
-  ChevronDown,
   ChevronRight,
-  ChevronUp,
-  CreditCard,
   Loader2,
   MapPin,
   MessageCircle,
-  Navigation,
   Package,
   Phone,
-  Route,
-  ShieldCheck,
   Store,
   TimerReset,
   TriangleAlert,
-  User,
 } from 'lucide-react';
 import { OrderChatPanel } from '../chat/OrderChatPanel';
 import { useOrderChatUnread } from '../../hooks/queries/useOrderChat';
@@ -32,6 +24,7 @@ import {
   getDeliveryStageMeta,
   getNextCourierStage,
 } from '../../features/courier/deliveryStage';
+// Note: DELIVERY_STAGE_FLOW, getCourierStageProgressIndex, getDeliveryStageIndex, getNextCourierStage used by CourierStageButtons below
 
 export function getCourierPaymentLabel(paymentMethod: PaymentMethod) {
   switch (paymentMethod) {
@@ -643,13 +636,9 @@ export const DeliveryBottomPanel: React.FC<{
   distanceLabel?: string;
   etaLabel?: string;
   isEtaLive?: boolean;
-  /** true when courier is ≤50m from restaurant and hasn't arrived yet */
   nearRestaurant?: boolean;
-  /** true when courier is ≤50m from customer and is delivering */
   nearCustomer?: boolean;
-  /** true when courier is ≤500m from customer (notification already sent) */
   approachingCustomer?: boolean;
-  /** called when courier taps "Ro'yxatga qaytish" on the DELIVERED success screen */
   onDeliveredNavigate?: () => void;
 }> = ({
   order,
@@ -661,430 +650,189 @@ export const DeliveryBottomPanel: React.FC<{
   onExpandedChange,
   isUpdating = false,
   canCall = true,
-  routeTitle,
-  routeDescription,
-  pickupLabel,
-  destinationLabel,
+  routeTitle: _routeTitle,
+  routeDescription: _routeDescription,
+  pickupLabel: _pickupLabel,
+  destinationLabel: _destinationLabel,
   distance,
   eta,
-  distanceLabel = 'Qolgan masofa',
-  etaLabel = 'Qolgan ETA',
+  distanceLabel: _distanceLabel,
+  etaLabel: _etaLabel,
   isEtaLive = false,
   nearRestaurant = false,
   nearCustomer = false,
   approachingCustomer = false,
   onDeliveredNavigate,
 }) => {
-  const [isExpanded, setIsExpanded] = React.useState(false);
   const [isProblemOpen, setIsProblemOpen] = React.useState(false);
   const [isChatOpen, setIsChatOpen] = React.useState(false);
   const { data: unreadCount = 0 } = useOrderChatUnread(order.id, 'courier');
   const stageMeta = getDeliveryStageMeta(currentStage);
   const primaryAction = getDeliveryStageAction(currentStage);
-  const stageIndex = getDeliveryStageIndex(currentStage);
   const hasProblemPanel = Boolean(problemPanel);
+  const isDelivered = currentStage === DeliveryStage.DELIVERED;
 
+  // Close problem panel on delivery complete
   React.useEffect(() => {
-    if (currentStage === DeliveryStage.DELIVERED) {
-      setIsExpanded(true);
-    }
-  }, [currentStage]);
+    if (isDelivered) setIsProblemOpen(false);
+  }, [isDelivered]);
 
+  // Always report not-expanded so RouteInfoPanel stays visible on the map
   React.useEffect(() => {
-    if (currentStage === DeliveryStage.DELIVERED) {
-      setIsProblemOpen(false);
-    }
-  }, [currentStage]);
+    onExpandedChange?.(false);
+  }, [onExpandedChange]);
 
-  React.useEffect(() => {
-    onExpandedChange?.(isExpanded);
-  }, [isExpanded, onExpandedChange]);
+  // Show slider only when proximity triggered OR manually at station
+  const showSlider =
+    !isDelivered &&
+    Boolean(primaryAction.next) &&
+    (currentStage === DeliveryStage.ARRIVED_AT_RESTAURANT ||
+      currentStage === DeliveryStage.PICKED_UP ||
+      currentStage === DeliveryStage.ARRIVED_AT_DESTINATION ||
+      (nearRestaurant && currentStage === DeliveryStage.GOING_TO_RESTAURANT) ||
+      (nearCustomer && currentStage === DeliveryStage.DELIVERING));
+
+  const isProximitySlider =
+    (nearRestaurant && currentStage === DeliveryStage.GOING_TO_RESTAURANT) ||
+    (nearCustomer && currentStage === DeliveryStage.DELIVERING);
 
   return (
     <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-50">
       <div className="pointer-events-auto mx-auto w-full max-w-[430px] px-4 pb-[calc(env(safe-area-inset-bottom)+14px)]">
-        <div className="overflow-hidden rounded-[36px] border border-white/10 bg-slate-950/88 shadow-[0_36px_90px_rgba(2,6,23,0.6)] backdrop-blur-2xl">
-          <div className="px-5 pt-4">
-            {/* ── Collapsed header: ETA + route title + muammo + expand ── */}
-            <div className="mb-3 flex items-center gap-2">
-              {/* Drag handle + expand (tappable area) */}
-              <button
-                type="button"
-                onClick={() => setIsExpanded((prev) => !prev)}
-                className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
-              >
-                <div className="h-1 w-8 shrink-0 rounded-full bg-white/15" />
-                {/* ETA pill — always visible */}
-                <div className="flex shrink-0 items-center gap-1.5 rounded-[12px] bg-white/[0.07] px-2.5 py-1.5">
-                  <TimerReset size={11} className="text-amber-300" />
-                  <span className="text-[13px] font-black text-white">{eta}</span>
-                  {isEtaLive && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[12px] font-black text-white/65">{routeTitle}</p>
-                </div>
-              </button>
 
-              {/* Muammo — always reachable without expanding */}
-              {problemPanel && currentStage !== DeliveryStage.DELIVERED && (
+        {/* ── DELIVERED success card ───────────────────────────────── */}
+        {isDelivered && (
+          <div className="mb-3 overflow-hidden rounded-[28px] border border-emerald-300/20 bg-slate-950/92 px-5 py-5 shadow-2xl backdrop-blur-2xl animate-in slide-in-from-bottom duration-300">
+            <div className="flex flex-col items-center gap-3 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-400/15">
+                <CheckCircle2 size={30} className="text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-[18px] font-black text-emerald-200">Buyurtma topshirildi!</p>
+                <p className="mt-1 text-[12px] text-white/45">Ajoyib ish — davom eting</p>
+              </div>
+              {onDeliveredNavigate && (
                 <button
                   type="button"
-                  onClick={() => { setIsExpanded(true); setIsProblemOpen((p) => !p); }}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-red-400/25 bg-red-400/12 text-red-300 transition-transform active:scale-95"
-                  aria-label="Muammo yuborish"
+                  onClick={onDeliveredNavigate}
+                  className="mt-1 flex h-11 w-full items-center justify-center gap-2 rounded-[18px] bg-emerald-500 text-[13px] font-black text-white shadow-lg shadow-emerald-900/40 active:scale-[0.97] transition-transform"
                 >
-                  <TriangleAlert size={14} />
+                  Buyurtmalar ro'yxatiga
                 </button>
               )}
-
-              {/* Expand/collapse */}
-              <button
-                type="button"
-                onClick={() => setIsExpanded((prev) => !prev)}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/8 bg-white/[0.06] text-white/60 transition-transform active:scale-95"
-              >
-                {isExpanded ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
-              </button>
             </div>
+          </div>
+        )}
 
-            <div className="rounded-[28px] border border-white/8 bg-white/[0.05] p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/45">
-                    Yetib borish vaqti
-                  </p>
-                  <p className="mt-3 text-[34px] font-black leading-none tracking-[-0.05em] text-white">
-                    {eta}
-                  </p>
-                </div>
+        {/* ── Approaching customer (500m) notification ─────────────── */}
+        {approachingCustomer && !nearCustomer && !isDelivered && (
+          <div className="mb-2 flex items-center gap-2 rounded-[18px] border border-sky-400/25 bg-sky-400/12 px-4 py-2.5 backdrop-blur-xl animate-in slide-in-from-bottom duration-300">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-sky-400" />
+            <p className="text-[12px] font-black text-sky-300">Mijozga 500m qoldi — xabar yuborildi</p>
+          </div>
+        )}
 
-                <div className={`rounded-[20px] px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] ${stageMeta.badgeClassDark}`}>
-                  {stageMeta.label}
-                </div>
-              </div>
-
-              <p className="mt-4 max-w-[320px] text-sm font-semibold leading-relaxed text-white/72">
-                {routeDescription}
-              </p>
-
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <div className="rounded-[20px] border border-white/8 bg-slate-950/50 px-4 py-3">
-                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-white/45">
-                    <TimerReset size={14} className="text-amber-300" />
-                    <span>{etaLabel}</span>
-                    {isEtaLive ? <span className="h-2 w-2 rounded-full bg-emerald-300 animate-pulse" /> : null}
-                  </div>
-                  <p className="mt-3 text-lg font-black text-white">{eta}</p>
-                </div>
-                <div className="rounded-[20px] border border-white/8 bg-slate-950/50 px-4 py-3">
-                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-white/45">
-                    <Route size={14} className="text-sky-300" />
-                    <span>{distanceLabel}</span>
-                  </div>
-                  <p className="mt-3 text-lg font-black text-white">{distance}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 rounded-[24px] border border-white/8 bg-white/[0.04] px-4 py-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-400/12 text-emerald-200">
-                    <Store size={18} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Restoran</p>
-                    <p className="truncate text-sm font-black text-white/88">{pickupLabel}</p>
-                  </div>
-                </div>
-                <ArrowRight size={16} className="shrink-0 text-white/35" />
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="min-w-0 text-right">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Mijoz</p>
-                    <p className="truncate text-sm font-black text-white/88">{destinationLabel}</p>
-                  </div>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-rose-400/12 text-rose-200">
-                    <MapPin size={18} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Map legend — shows courier what each pin means */}
-              <div className="mt-3 flex items-center justify-center gap-4 rounded-[14px] border border-white/6 bg-white/[0.03] px-3 py-2">
-                <div className="flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]" />
-                  <span className="text-[10px] font-black text-white/50">Restoran</span>
-                </div>
-                <span className="text-white/20">·</span>
-                <div className="flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.6)]" />
-                  <span className="text-[10px] font-black text-white/50">Siz</span>
-                </div>
-                <span className="text-white/20">·</span>
-                <div className="flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-full bg-rose-400 shadow-[0_0_6px_rgba(251,113,133,0.6)]" />
-                  <span className="text-[10px] font-black text-white/50">Mijoz</span>
-                </div>
-              </div>
-            </div>
-
-            <div className={`mt-4 grid gap-2 grid-cols-4`}>
-              <button
-                type="button"
-                onClick={onCall}
-                disabled={!canCall}
-                className="flex h-14 flex-col items-center justify-center gap-1 rounded-[22px] border border-white/8 bg-white/[0.06] text-[10px] font-black uppercase tracking-[0.14em] text-white transition-transform active:scale-[0.98] disabled:opacity-45"
-              >
-                <Phone size={15} />
-                <span>Qo'ng'iroq</span>
-              </button>
-              <button
-                type="button"
-                onClick={onOpenDetails}
-                className="flex h-14 flex-col items-center justify-center gap-1 rounded-[22px] border border-white/8 bg-white/[0.06] text-[10px] font-black uppercase tracking-[0.14em] text-white transition-transform active:scale-[0.98]"
-              >
-                <Package size={15} />
-                <span>Tafsilot</span>
-              </button>
-              {/* Chat button with unread badge */}
-              <button
-                type="button"
-                onClick={() => setIsChatOpen(true)}
-                className="relative flex h-14 flex-col items-center justify-center gap-1 rounded-[22px] border border-indigo-400/25 bg-indigo-400/12 text-[10px] font-black uppercase tracking-[0.14em] text-indigo-200 transition-transform active:scale-[0.98]"
-              >
-                <MessageCircle size={15} />
-                <span>Chat</span>
-                {unreadCount > 0 && (
-                  <span className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-black text-white">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </button>
-              {hasProblemPanel ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsExpanded(true);
-                    setIsProblemOpen((prev) => !prev);
-                  }}
-                  className="flex h-14 flex-col items-center justify-center gap-1 rounded-[22px] border border-red-400/25 bg-red-400/10 text-[10px] font-black uppercase tracking-[0.14em] text-red-300 transition-transform active:scale-[0.98]"
-                >
-                  <TriangleAlert size={15} />
-                  <span>Muammo</span>
-                </button>
-              ) : (
-                <div />
-              )}
-            </div>
-
-            {/* ── Proximity action buttons ────────────────────────────── */}
-            {nearRestaurant && currentStage === DeliveryStage.GOING_TO_RESTAURANT && (
-              <button
-                type="button"
-                onClick={() => onAction(DeliveryStage.ARRIVED_AT_RESTAURANT)}
-                disabled={isUpdating}
-                className="mt-4 flex w-full items-center justify-center gap-3 rounded-[22px] border border-emerald-400/40 bg-gradient-to-r from-emerald-500 to-emerald-400 py-4 font-black text-slate-950 shadow-lg shadow-emerald-900/40 transition-transform active:scale-[0.97] disabled:opacity-60 animate-in slide-in-from-bottom duration-300"
-              >
-                {isUpdating ? (
-                  <Loader2 size={18} className="animate-spin" />
-                ) : (
-                  <>
-                    <Store size={18} />
-                    <span className="text-[15px] tracking-tight">Restoranga yetdim</span>
-                  </>
-                )}
-              </button>
-            )}
-
-            {approachingCustomer && !nearCustomer && (
-              <div className="mt-4 flex items-center gap-3 rounded-[22px] border border-sky-400/25 bg-sky-400/12 px-4 py-3 animate-in slide-in-from-bottom duration-300">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-400/20 text-sky-300">
-                  <Navigation size={16} />
+        {/* ── Action slider (proximity or at-station) ──────────────── */}
+        {showSlider && (
+          <div className="mb-3 animate-in slide-in-from-bottom duration-300">
+            {isProximitySlider && (
+              <div className="mb-2 flex justify-center">
+                <span className="rounded-full border border-amber-400/30 bg-amber-400/15 px-3 py-1 text-[11px] font-black text-amber-300">
+                  {nearRestaurant ? 'Restoranga 50m yaqindasiz' : 'Mijozga 50m yaqindasiz'}
                 </span>
-                <div>
-                  <p className="text-[11px] font-black uppercase tracking-widest text-sky-300">
-                    Mijozga yaqinlashmoqdasiz
-                  </p>
-                  <p className="text-[12px] text-sky-200/80">500 metrdan kam qoldi — mijozga xabar yuborildi</p>
-                </div>
               </div>
             )}
+            <SlideToConfirmAction
+              label={primaryAction.slideLabel}
+              hint={primaryAction.hint}
+              onConfirm={() => onAction(primaryAction.next!)}
+              isLoading={isUpdating}
+              theme="dark"
+            />
+          </div>
+        )}
 
-            {nearCustomer && currentStage === DeliveryStage.DELIVERING && (
-              <button
-                type="button"
-                onClick={() => onAction(DeliveryStage.ARRIVED_AT_DESTINATION)}
-                disabled={isUpdating}
-                className="mt-4 flex w-full items-center justify-center gap-3 rounded-[22px] border border-amber-400/40 bg-gradient-to-r from-amber-500 to-orange-400 py-4 font-black text-slate-950 shadow-lg shadow-amber-900/40 transition-transform active:scale-[0.97] disabled:opacity-60 animate-pulse-once animate-in slide-in-from-bottom duration-300"
-              >
-                {isUpdating ? (
-                  <Loader2 size={18} className="animate-spin" />
-                ) : (
-                  <>
-                    <MapPin size={18} />
-                    <span className="text-[15px] tracking-tight">Mijoz manziliga yetdim</span>
-                  </>
-                )}
-              </button>
-            )}
+        {/* ── Problem panel (toggleable) ───────────────────────────── */}
+        {isProblemOpen && hasProblemPanel && (
+          <div className="mb-2 rounded-[24px] border border-white/8 bg-slate-950/92 p-4 backdrop-blur-xl animate-in slide-in-from-bottom duration-200">
+            {problemPanel}
+          </div>
+        )}
 
-            {/* Hide task card + slider when proximity button is showing (avoids two competing actions) */}
-            {(() => {
-              const proximityButtonActive =
-                (nearRestaurant && currentStage === DeliveryStage.GOING_TO_RESTAURANT) ||
-                (nearCustomer && currentStage === DeliveryStage.DELIVERING);
-
-              if (proximityButtonActive) return null;
-
-              return (
-                <>
-                  {primaryAction.next ? (
-                    <div className="mt-4 rounded-[24px] border border-amber-300/12 bg-amber-400/10 px-4 py-3">
-                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-200/75">
-                        Hozirgi vazifa
-                      </p>
-                      <p className="mt-2 text-sm font-black text-white">{primaryAction.slideLabel}</p>
-                    </div>
-                  ) : null}
-
-                  <div className="mt-4">
-                    {primaryAction.next ? (
-                      <SlideToConfirmAction
-                        label={primaryAction.slideLabel}
-                        hint={primaryAction.hint}
-                        onConfirm={() => onAction(primaryAction.next!)}
-                        isLoading={isUpdating}
-                        theme="dark"
-                      />
-                    ) : (
-                      <div className="rounded-[24px] border border-emerald-300/20 bg-emerald-400/12 px-4 py-4">
-                        {/* DELIVERED: full success screen with navigate button */}
-                        <div className="flex flex-col items-center gap-3 py-2 text-center">
-                          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-400/20">
-                            <CheckCircle2 size={28} className="text-emerald-300" />
-                          </div>
-                          <div>
-                            <p className="text-[16px] font-black text-emerald-200">Buyurtma topshirildi!</p>
-                            <p className="mt-1 text-[12px] text-white/50">Ajoyib ish — davom eting</p>
-                          </div>
-                          {onDeliveredNavigate && (
-                            <button
-                              type="button"
-                              onClick={onDeliveredNavigate}
-                              className="mt-1 flex h-11 w-full items-center justify-center gap-2 rounded-[18px] bg-emerald-500 text-[13px] font-black text-white shadow-lg shadow-emerald-900/40 transition-transform active:scale-[0.97]"
-                            >
-                              Buyurtmalar ro'yxatiga
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </>
-              );
-            })()}
-
-            <div className="mt-4">
-              <CourierStageButtons
-                currentStage={currentStage}
-                onStageSelect={onAction}
-                isUpdating={isUpdating}
-                theme="dark"
-                interactive={true}
-              />
+        {/* ── Compact bottom bar ───────────────────────────────────── */}
+        <div className="flex items-center gap-2 rounded-[28px] border border-white/10 bg-slate-950/88 px-4 py-3 shadow-[0_24px_60px_rgba(2,6,23,0.7)] backdrop-blur-2xl">
+          {/* Stage badge + ETA + distance */}
+          <div className="min-w-0 flex-1">
+            <div className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${stageMeta.badgeClassDark}`}>
+              {stageMeta.label}
+            </div>
+            <div className="mt-1 flex items-center gap-1.5">
+              <TimerReset size={11} className="text-amber-300" />
+              <span className="text-[14px] font-black text-white">{eta}</span>
+              {isEtaLive && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />}
+              <span className="text-[11px] text-white/35">· {distance}</span>
             </div>
           </div>
 
-          {/* ── Chat overlay ──────────────────────────────────────────────── */}
-          {isChatOpen && (
-            <OrderChatPanel
-              orderId={order.id}
-              role="courier"
-              theme="dark"
-              onClose={() => setIsChatOpen(false)}
-            />
-          )}
-
-          {isExpanded ? (
-            <div className="mt-5 border-t border-white/8 bg-slate-950/70 px-5 pb-5 pt-4">
-              <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
-                {DELIVERY_STAGE_FLOW.map((step, index) => {
-                  const isCompleted = index <= stageIndex;
-                  const isCurrent = index === stageIndex;
-
-                  return (
-                    <div
-                      key={step.key}
-                      className={`min-w-[92px] rounded-[20px] border px-3 py-3 text-center ${
-                        isCompleted
-                          ? 'border-emerald-300/20 bg-emerald-400/10 text-emerald-100'
-                          : 'border-white/8 bg-white/[0.04] text-white/45'
-                      }`}
-                    >
-                      <div
-                        className={`mx-auto mb-2 h-2.5 w-2.5 rounded-full ${
-                          isCurrent ? 'bg-amber-300' : isCompleted ? 'bg-emerald-300' : 'bg-white/15'
-                        }`}
-                      />
-                      <p className="text-[10px] font-black uppercase tracking-[0.18em]">{step.title}</p>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="grid gap-3">
-                <div className="rounded-[22px] border border-white/8 bg-white/[0.05] p-4">
-                  <div className="mb-3 flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/[0.06] text-white/80">
-                      <User size={18} />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/40">
-                        Mijoz
-                      </p>
-                      <p className="truncate text-sm font-black text-white">{order.customerName || 'Mijoz'}</p>
-                    </div>
-                  </div>
-                  <p className="text-sm font-semibold leading-relaxed text-white/72">
-                    {order.customerAddress?.addressText || "Manzil ko'rsatilmagan"}
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-[22px] border border-white/8 bg-white/[0.05] p-4">
-                    <div className="mb-2 flex items-center gap-2 text-white/45">
-                      <CreditCard size={15} className="text-amber-300" />
-                      <span className="text-[10px] font-black uppercase tracking-[0.18em]">
-                        To'lov
-                      </span>
-                    </div>
-                    <p className="text-sm font-black text-white">{getCourierPaymentLabel(order.paymentMethod)}</p>
-                  </div>
-                  <div className="rounded-[22px] border border-white/8 bg-white/[0.05] p-4">
-                    <div className="mb-2 flex items-center gap-2 text-white/45">
-                      <ShieldCheck size={15} className="text-emerald-300" />
-                      <span className="text-[10px] font-black uppercase tracking-[0.18em]">
-                        Jami
-                      </span>
-                    </div>
-                    <p className="text-sm font-black text-white">{order.total.toLocaleString()} so'm</p>
-                  </div>
-                </div>
-
-                {order.note ? (
-                  <div className="rounded-[22px] border border-amber-300/20 bg-amber-400/10 px-4 py-3">
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-200/75">
-                      Kuryer uchun izoh
-                    </p>
-                    <p className="mt-2 text-sm font-semibold leading-relaxed text-white/82">{order.note}</p>
-                  </div>
-                ) : null}
-
-                {hasProblemPanel && isProblemOpen ? problemPanel : null}
-              </div>
-            </div>
-          ) : null}
+          {/* Quick action buttons */}
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={onCall}
+              disabled={!canCall}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/8 bg-white/[0.07] text-white disabled:opacity-35 active:scale-95 transition-transform"
+              aria-label="Qo'ng'iroq"
+            >
+              <Phone size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsChatOpen(true)}
+              className="relative flex h-10 w-10 items-center justify-center rounded-full border border-indigo-400/25 bg-indigo-400/12 text-indigo-200 active:scale-95 transition-transform"
+              aria-label="Chat"
+            >
+              <MessageCircle size={16} />
+              {unreadCount > 0 && (
+                <span className="absolute right-0 top-0 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-black text-white">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={onOpenDetails}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/8 bg-white/[0.07] text-white active:scale-95 transition-transform"
+              aria-label="Tafsilot"
+            >
+              <Package size={16} />
+            </button>
+            {hasProblemPanel && !isDelivered && (
+              <button
+                type="button"
+                onClick={() => setIsProblemOpen((p) => !p)}
+                className={`flex h-10 w-10 items-center justify-center rounded-full border transition-all active:scale-95 ${
+                  isProblemOpen
+                    ? 'border-red-400/50 bg-red-400/20 text-red-200'
+                    : 'border-red-400/25 bg-red-400/10 text-red-300'
+                }`}
+                aria-label="Muammo"
+              >
+                <TriangleAlert size={16} />
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* ── Chat overlay ─────────────────────────────────────────── */}
+        {isChatOpen && (
+          <OrderChatPanel
+            orderId={order.id}
+            role="courier"
+            theme="dark"
+            onClose={() => setIsChatOpen(false)}
+          />
+        )}
+
       </div>
     </div>
   );
