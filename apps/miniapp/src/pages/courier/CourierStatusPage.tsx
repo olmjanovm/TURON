@@ -2,12 +2,10 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertCircle, ChevronRight, Loader2, Navigation } from 'lucide-react';
 import {
-  useCourierOrders,
   useCourierStatus,
   useCourierTodayStats,
   useUpdateCourierStatus,
 } from '../../hooks/queries/useOrders';
-import { isActiveDeliveryStage } from '../../features/courier/deliveryStage';
 
 // ─── iOS-style toggle ─────────────────────────────────────────────────────────
 function Toggle({
@@ -48,7 +46,6 @@ const CourierStatusPage: React.FC = () => {
     refetch,
   } = useCourierStatus();
   const { data: todayStats } = useCourierTodayStats();
-  const { data: orders = [] } = useCourierOrders();
   const updateStatus = useUpdateCourierStatus();
 
   if (isLoading) {
@@ -86,7 +83,6 @@ const CourierStatusPage: React.FC = () => {
   }
 
   const isOnline = status.isOnline;
-  const activeDelivery = orders.find((o) => isActiveDeliveryStage(o.deliveryStage));
   const completedToday = todayStats?.completedCount ?? status.completedToday ?? 0;
   const feesToday = todayStats?.deliveryFeesTotal ?? 0;
   const activeCount = status.activeAssignments ?? 0;
@@ -145,36 +141,6 @@ const CourierStatusPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Active delivery card ─────────────────────────────────────── */}
-      {activeDelivery && (
-        <button
-          type="button"
-          onClick={() => navigate(`/courier/map/${activeDelivery.id}`)}
-          className="w-full rounded-[26px] bg-emerald-500 p-5 text-left shadow-lg shadow-emerald-200 active:scale-[0.98] transition-transform"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-white/20">
-                <Navigation size={22} className="text-white" />
-              </div>
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-widest text-emerald-100">
-                  Faol yetkazish
-                </p>
-                <p className="text-[17px] font-black text-white">
-                  #{activeDelivery.orderNumber}
-                </p>
-                <p className="text-[12px] text-emerald-100">
-                  {activeDelivery.destinationArea || activeDelivery.restaurantName}
-                </p>
-              </div>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20">
-              <ChevronRight size={20} className="text-white" />
-            </div>
-          </div>
-        </button>
-      )}
 
       {/* ── Today's stats strip ─────────────────────────────────────── */}
       <div className="grid grid-cols-3 gap-3">
