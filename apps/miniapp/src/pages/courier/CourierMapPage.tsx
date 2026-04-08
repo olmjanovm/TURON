@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ClipboardCopy, Crosshair, ExternalLink, Loader2 } from 'lucide-react';
+import { ArrowLeft, ClipboardCopy, Crosshair, Loader2, Navigation } from 'lucide-react';
 import { useToast } from '../../components/ui/Toast';
 import { DeliveryStage } from '../../data/types';
 import { CourierMapView } from '../../components/courier/CourierMapView';
@@ -123,6 +123,7 @@ const CourierMapPage: React.FC = () => {
   const [liveCourierPos, setLiveCourierPos]     = useState<{ lat: number; lng: number } | null>(null);
   const [routeInfo, setRouteInfo]               = useState<{ distance: string; eta: string } | null>(null);
   const [followMode, setFollowMode]             = useState(true);
+  const [navMode, setNavMode]                   = useState(false);
   const [geolocationError, setGeolocationError] = useState<string | null>(null);
   const [problemDraft, setProblemDraft]         = useState('');
   const [problemFeedback, setProblemFeedback]   = useState<{
@@ -248,19 +249,16 @@ const CourierMapPage: React.FC = () => {
     });
   }, [order?.customerAddress?.addressText]);
 
-  // Open destination in Yandex Maps (stays inside mini-app via openLink)
-  const openExternalNavigation = useCallback(() => {
-    const label =
-      currentState === 'ACCEPTED' || currentState === 'ARRIVED'
-        ? 'Restoran'
-        : order?.customerAddress?.label || 'Mijoz manzili';
-    const url = `https://yandex.uz/maps/?rtext=~${currentTarget.lat},${currentTarget.lng}&rtt=auto&text=${encodeURIComponent(label)}`;
-    if (window.Telegram?.WebApp?.openLink) {
-      window.Telegram.WebApp.openLink(url);
+  // Toggle in-app navigation mode (full-screen map + follow + turn instructions)
+  const handleToggleNavMode = useCallback(() => {
+    if (navMode) {
+      setNavMode(false);
     } else {
-      window.open(url, '_blank');
+      setNavMode(true);
+      setFollowMode(true);
+      window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('medium');
     }
-  }, [currentState, currentTarget.lat, currentTarget.lng, order?.customerAddress?.label]);
+  }, [navMode]);
 
   // ── GPS watch ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -448,8 +446,8 @@ const CourierMapPage: React.FC = () => {
           routeTo={currentTarget}
           height="100%"
           className="rounded-none border-0 shadow-none"
-          followMode={followMode}
-          onMapInteraction={handleMapInteraction}
+          followMode={followMode || navMode}
+          onMapInteraction={navMode ? undefined : handleMapInteraction}
           onRouteInfoChange={setRouteInfo}
         />
         {/* Gradient overlays for UI legibility */}
@@ -528,11 +526,11 @@ const CourierMapPage: React.FC = () => {
             </button>
           )}
 
-          {/* Re-center on courier (shown only when user has panned away) */}
+          {/* Re-center (when panned away) */}
           {!followMode && liveCourierPos && (
             <button
               type="button"
-              onClick={() => setFollowMode(true)}
+              onClick={() => { setFollowMode(true); setNavMode(true); }}
               title="Mening joylashuvim"
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-amber-400/40 bg-slate-950/72 text-white shadow-[0_8px_24px_rgba(2,6,23,0.4)] backdrop-blur-xl transition-transform active:scale-95 animate-in fade-in duration-200"
             >
@@ -540,20 +538,24 @@ const CourierMapPage: React.FC = () => {
             </button>
           )}
 
-          {/* Open in Yandex Maps / Navigator (stays inside mini-app) */}
+          {/* Navigator — in-app mode toggle */}
           <button
             type="button"
-            onClick={openExternalNavigation}
-            className="flex h-9 items-center gap-1.5 rounded-full border border-sky-400/30 bg-slate-950/72 px-3 text-[11px] font-black text-white shadow-[0_8px_24px_rgba(2,6,23,0.4)] backdrop-blur-xl transition-transform active:scale-95"
+            onClick={handleToggleNavMode}
+            className={`flex h-9 items-center gap-1.5 rounded-full border px-3 text-[11px] font-black text-white shadow-[0_8px_24px_rgba(2,6,23,0.4)] backdrop-blur-xl transition-transform active:scale-95 ${
+              navMode
+                ? 'border-amber-400/40 bg-amber-400/20 text-amber-200'
+                : 'border-sky-400/30 bg-slate-950/72'
+            }`}
           >
-            <ExternalLink size={13} className="text-sky-300" />
-            <span>Navigator</span>
+            <Navigation size={13} className={navMode ? 'text-amber-300' : 'text-sky-300'} />
+            <span>{navMode ? 'Xarita' : 'Navigator'}</span>
           </button>
         </div>
       </div>
 
-      {/* ── Mid-screen route info (collapsed panel only) ─────────────────── */}
-      {!isPanelExpanded && (
+      {/* ── Mid-screen route info — hidden in nav mode ───────────────────── */}
+      {!isPanelExpanded && !navMode && (
         <div className="animate-in slide-in-from-top duration-500">
           <RouteInfoPanel
             title={routeMeta.title}
