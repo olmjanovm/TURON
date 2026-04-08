@@ -36,6 +36,13 @@ export function formatEtaMinutes(etaMinutes: number) {
   return `${etaMinutes} daq`;
 }
 
+/** Returns wall-clock arrival time string like "15:30" */
+export function formatArrivalTime(etaMinutes: number): string | null {
+  if (etaMinutes <= 0) return null;
+  const arrival = new Date(Date.now() + etaMinutes * 60 * 1000);
+  return arrival.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
+}
+
 export function getEtaCountdownSeconds(
   etaMinutes: number,
   lastUpdatedAt?: string,

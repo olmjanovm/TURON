@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { RouteMapProps } from '../MapProvider';
+import type { RouteMapProps, RouteStep } from '../MapProvider';
 import { getMapAnimationDuration, getMapZoomMargin } from '../performance';
 import MockMapComponent from './MockMapComponent';
 import { createBoundsFromPins, isYandexMapsEnabled, loadYandexMaps, toYandexCoords } from '../yandex';
@@ -31,6 +31,7 @@ export default function YandexRouteMap({
   const followModeRef = useRef(followMode);
   const [isLoading, setIsLoading] = useState(isYandexMapsEnabled());
   const [hasFallback, setHasFallback] = useState(!isYandexMapsEnabled());
+  const [nextStep, setNextStep] = useState<RouteStep | null>(null);
 
   const activeRouteFrom = routeFrom ?? pickup;
   const activeRouteTo = routeTo ?? destination;
@@ -104,6 +105,28 @@ export default function YandexRouteMap({
             const etaMin = Math.ceil(durationS / 60);
             emitRouteInfo(distStr, `${etaMin} daq`);
           }
+
+          // Extract first meaningful turn instruction for in-app navigation hint
+          const steps: RouteStep[] = [];
+          route.getPaths().each((path: any) => {
+            try {
+              path.getSegments().each((seg: any) => {
+                const text: string = seg.properties?.get?.('text') ?? '';
+                const dist: number = seg.properties?.get?.('distance.value') ?? 0;
+                if (text && text.trim()) {
+                  const dm = typeof dist === 'number' ? dist : 0;
+                  steps.push({
+                    instruction: text.trim(),
+                    distanceText: dm < 1000 ? `${Math.round(dm)} m` : `${(dm / 1000).toFixed(1)} km`,
+                    distanceMeters: dm,
+                  });
+                }
+              });
+            } catch {
+              // segment info unavailable
+            }
+          });
+          setNextStep(steps[0] ?? null);
         } catch {
           // ignore info extraction errors
         }
@@ -303,6 +326,29 @@ export default function YandexRouteMap({
   return (
     <div className={`relative overflow-hidden rounded-2xl bg-gray-100 shadow-inner ${className}`} style={{ height }}>
       <div ref={mapContainerRef} className="h-full w-full" />
+
+      {/* ── Next turn instruction overlay ────────────────────────────── */}
+      {nextStep && !isLoading && (
+        <div className="pointer-events-none absolute bottom-4 left-4 right-4 z-10">
+          <div className="flex items-center gap-3 rounded-[18px] border border-white/20 bg-slate-950/80 px-4 py-3 backdrop-blur-xl shadow-lg">
+            {/* Arrow icon based on instruction text */}
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-400 text-slate-950">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 19V5M5 12l7-7 7 7" />
+              </svg>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-black text-white leading-tight">
+                {nextStep.instruction}
+              </p>
+              <p className="mt-0.5 text-[11px] font-semibold text-white/55">
+                {nextStep.distanceText} keyin
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-slate-50/80 backdrop-blur-sm">
           <div className="flex items-center gap-3 rounded-full bg-white px-5 py-3 shadow-lg">

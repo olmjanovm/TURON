@@ -14,17 +14,11 @@ function Toggle({
   checked,
   onChange,
   disabled,
-  size = 'lg',
 }: {
   checked: boolean;
   onChange: () => void;
   disabled?: boolean;
-  size?: 'sm' | 'lg';
 }) {
-  const trackW = size === 'lg' ? 'w-16' : 'w-12';
-  const trackH = size === 'lg' ? 'h-9' : 'h-7';
-  const thumbW = size === 'lg' ? 'w-7 h-7' : 'w-5 h-5';
-  const translateOn = size === 'lg' ? 'translate-x-8' : 'translate-x-6';
   return (
     <button
       type="button"
@@ -32,13 +26,13 @@ function Toggle({
       aria-checked={checked}
       onClick={onChange}
       disabled={disabled}
-      className={`relative inline-flex shrink-0 cursor-pointer items-center rounded-full transition-colors duration-300 focus:outline-none disabled:opacity-40 ${trackW} ${trackH} ${
+      className={`relative inline-flex h-9 w-16 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-300 focus:outline-none disabled:opacity-40 ${
         checked ? 'bg-emerald-500' : 'bg-slate-300'
       }`}
     >
       <span
-        className={`ml-1 inline-block transform rounded-full bg-white shadow-md transition-transform duration-300 ${thumbW} ${
-          checked ? translateOn : 'translate-x-0'
+        className={`ml-1 inline-block h-7 w-7 transform rounded-full bg-white shadow-md transition-transform duration-300 ${
+          checked ? 'translate-x-8' : 'translate-x-0'
         }`}
       />
     </button>
@@ -92,27 +86,32 @@ const CourierStatusPage: React.FC = () => {
   }
 
   const isOnline = status.isOnline;
-  const isAccepting = status.isAcceptingOrders;
   const activeDelivery = orders.find((o) => isActiveDeliveryStage(o.deliveryStage));
   const completedToday = todayStats?.completedCount ?? status.completedToday ?? 0;
   const feesToday = todayStats?.deliveryFeesTotal ?? 0;
   const activeCount = status.activeAssignments ?? 0;
 
+  // Single toggle: turns on/off both isOnline and isAcceptingOrders together
+  const handleToggle = () => {
+    updateStatus.mutate({
+      isOnline: !isOnline,
+      isAcceptingOrders: !isOnline, // sync with isOnline
+    });
+  };
+
   return (
     <div className="space-y-3 px-4 py-5">
 
-      {/* ── Online / Offline toggle — primary CTA ──────────────────── */}
+      {/* ── Single online/offline toggle ────────────────────────────── */}
       <div className="rounded-[26px] bg-white border border-slate-100 shadow-sm p-5">
         <div className="flex items-center justify-between gap-4">
-          <div>
+          <div className="min-w-0">
             <p className="text-[19px] font-black leading-tight text-slate-900">
-              {isOnline ? 'Ishlamoqdaman' : 'Hozir dam olmoqdaman'}
+              {isOnline ? 'Ishlamoqdaman' : 'Dam olmoqdaman'}
             </p>
             <p className="mt-1 text-[13px] text-slate-500">
               {isOnline
-                ? isAccepting
-                  ? 'Yangi topshiriqlar kelishi mumkin'
-                  : 'Yangi buyurtma qabul qilinmaydi'
+                ? 'Yangi topshiriqlar kelishi mumkin'
                 : 'Hech qanday topshiriq kelmaydi'}
             </p>
           </div>
@@ -121,7 +120,7 @@ const CourierStatusPage: React.FC = () => {
           ) : (
             <Toggle
               checked={isOnline}
-              onChange={() => updateStatus.mutate({ isOnline: !isOnline })}
+              onChange={handleToggle}
               disabled={updateStatus.isPending}
             />
           )}
@@ -132,57 +131,21 @@ const CourierStatusPage: React.FC = () => {
           <span
             className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[12px] font-black ${
               isOnline
-                ? isAccepting
-                  ? 'bg-emerald-50 text-emerald-700'
-                  : 'bg-amber-50 text-amber-700'
+                ? 'bg-emerald-50 text-emerald-700'
                 : 'bg-slate-100 text-slate-500'
             }`}
           >
             <span
               className={`h-2 w-2 rounded-full ${
-                isOnline
-                  ? isAccepting
-                    ? 'bg-emerald-500'
-                    : 'bg-amber-500'
-                  : 'bg-slate-400'
+                isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'
               }`}
             />
-            {isOnline
-              ? isAccepting
-                ? 'Faol — buyurtma qabul qilmoqda'
-                : 'Onlayn — qabul yopiq'
-              : 'Offline'}
+            {isOnline ? 'Faol — buyurtma qabul qilmoqda' : 'Offline'}
           </span>
         </div>
       </div>
 
-      {/* ── Accept orders toggle — only when online ─────────────────── */}
-      {isOnline && (
-        <div className="rounded-[26px] bg-white border border-slate-100 shadow-sm p-5">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-[16px] font-black text-slate-900">Buyurtma qabul qilish</p>
-              <p className="mt-0.5 text-[13px] text-slate-500">
-                {isAccepting
-                  ? "Yangi topshiriqlar avtomatik keladi"
-                  : "Yangi topshiriq kelmaydi"}
-              </p>
-            </div>
-            {updateStatus.isPending ? (
-              <Loader2 size={22} className="shrink-0 animate-spin text-slate-400" />
-            ) : (
-              <Toggle
-                checked={isAccepting}
-                onChange={() => updateStatus.mutate({ isAcceptingOrders: !isAccepting })}
-                disabled={updateStatus.isPending}
-                size="sm"
-              />
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ── Active delivery — prominent card ────────────────────────── */}
+      {/* ── Active delivery card ─────────────────────────────────────── */}
       {activeDelivery && (
         <button
           type="button"
@@ -241,7 +204,9 @@ const CourierStatusPage: React.FC = () => {
             <div>
               <p className="text-[14px] font-black text-slate-900">Ishni boshlash uchun</p>
               <p className="mt-1 text-[12px] leading-snug text-slate-500">
-                Yuqoridagi <span className="font-black text-slate-700">"Ishlamoqdaman"</span> tugmasini yoqing. Shunda yangi buyurtmalar avtomatik keladi.
+                Yuqoridagi{' '}
+                <span className="font-black text-slate-700">"Ishlamoqdaman"</span>{' '}
+                tugmasini yoqing. Shunda yangi buyurtmalar avtomatik keladi.
               </p>
             </div>
           </div>

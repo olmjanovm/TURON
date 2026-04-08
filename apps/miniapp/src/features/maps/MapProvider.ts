@@ -50,6 +50,12 @@ export interface LocationPickerProps {
   className?: string;
 }
 
+export interface RouteStep {
+  instruction: string;
+  distanceText: string;
+  distanceMeters: number;
+}
+
 export interface RouteInfo {
   distance: string;
   eta: string;
@@ -57,6 +63,7 @@ export interface RouteInfo {
   etaSeconds?: number;
   polyline?: MapPin[];
   source?: string;
+  steps?: RouteStep[];
 }
 
 export interface UserGeolocation {

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Crosshair, ExternalLink, Loader2 } from 'lucide-react';
+import { ArrowLeft, ClipboardCopy, Crosshair, ExternalLink, Loader2 } from 'lucide-react';
 import { useToast } from '../../components/ui/Toast';
 import { DeliveryStage } from '../../data/types';
 import { CourierMapView } from '../../components/courier/CourierMapView';
@@ -19,6 +19,7 @@ import {
 import {
   createRouteInfo,
   estimateRouteMetrics,
+  formatArrivalTime,
   formatEtaMinutes,
   formatRouteDistance,
   type RouteMetrics,
@@ -30,10 +31,18 @@ import {
 } from '../../features/maps/geolocation';
 import { DEFAULT_RESTAURANT_LOCATION } from '../../features/maps/restaurant';
 import { api } from '../../lib/api';
-import { getDeliveryRouteMeta, getDeliveryStageMeta, getDeliveryStateKey } from '../../features/courier/deliveryStage';
+import {
+  getDeliveryRouteMeta,
+  getDeliveryStageMeta,
+  getDeliveryStateKey,
+} from '../../features/courier/deliveryStage';
 
-/** Haversine distance in meters between two GPS points */
-function distanceMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+// ─── Pure helpers (no hooks) ──────────────────────────────────────────────────
+
+function haversineMeters(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number {
   const R = 6371000;
   const dLat = ((b.lat - a.lat) * Math.PI) / 180;
   const dLng = ((b.lng - a.lng) * Math.PI) / 180;
@@ -41,67 +50,45 @@ function distanceMeters(a: { lat: number; lng: number }, b: { lat: number; lng: 
   const sinLng = Math.sin(dLng / 2);
   const c =
     sinLat * sinLat +
-    Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * sinLng * sinLng;
+    Math.cos((a.lat * Math.PI) / 180) *
+      Math.cos((b.lat * Math.PI) / 180) *
+      sinLng * sinLng;
   return R * 2 * Math.atan2(Math.sqrt(c), Math.sqrt(1 - c));
 }
 
-function getHeadingDegrees(from: { lat: number; lng: number }, to: { lat: number; lng: number }) {
-  const latDelta = to.lat - from.lat;
-  const lngDelta = to.lng - from.lng;
-
-  if (Math.abs(latDelta) < 0.000001 && Math.abs(lngDelta) < 0.000001) {
-    return undefined;
-  }
-
-  const degrees = (Math.atan2(lngDelta, latDelta) * 180) / Math.PI;
-  return (degrees + 360) % 360;
+function getHeadingDegrees(
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number },
+): number | undefined {
+  const dLat = to.lat - from.lat;
+  const dLng = to.lng - from.lng;
+  if (Math.abs(dLat) < 1e-6 && Math.abs(dLng) < 1e-6) return undefined;
+  return ((Math.atan2(dLng, dLat) * 180) / Math.PI + 360) % 360;
 }
 
-function getCourierSpeed(currentState: ReturnType<typeof getDeliveryStateKey>) {
-  switch (currentState) {
-    case 'ACCEPTED':
-      return 18;
-    case 'PICKED_UP':
-      return 24;
-    case 'DELIVERING':
-      return 28;
-    default:
-      return 0;
+function getCourierSpeedKmh(state: ReturnType<typeof getDeliveryStateKey>): number {
+  switch (state) {
+    case 'ACCEPTED':   return 18;
+    case 'PICKED_UP':  return 24;
+    case 'DELIVERING': return 28;
+    default:           return 0;
   }
 }
 
-function getRemainingRouteMetrics(
-  currentState: ReturnType<typeof getDeliveryStateKey>,
-  courierPos: { lat: number; lng: number },
-  activeTarget: { lat: number; lng: number },
+function computeRemainingMetrics(
+  state: ReturnType<typeof getDeliveryStateKey>,
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number },
 ): RouteMetrics {
-  if (currentState === 'ARRIVED' || currentState === 'DELIVERED') {
-    return {
-      distanceKm: 0,
-      etaMinutes: 0,
-    };
+  if (state === 'ARRIVED' || state === 'DELIVERED') {
+    return { distanceKm: 0, etaMinutes: 0 };
   }
-
-  const metrics = estimateRouteMetrics(courierPos, activeTarget, {
-    minimumDistanceKm: 0,
-    minimumEtaMinutes: 0,
-  });
-
-  if (metrics.distanceKm < 0.05) {
-    return {
-      distanceKm: 0,
-      etaMinutes: 0,
-    };
-  }
-
-  return {
-    distanceKm: metrics.distanceKm,
-    etaMinutes: Math.max(metrics.etaMinutes, 1),
-  };
+  const m = estimateRouteMetrics(from, to, { minimumDistanceKm: 0, minimumEtaMinutes: 0 });
+  if (m.distanceKm < 0.05) return { distanceKm: 0, etaMinutes: 0 };
+  return { distanceKm: m.distanceKm, etaMinutes: Math.max(m.etaMinutes, 1) };
 }
 
-// Contextual toast message per stage
-function getStagToastMessage(stage: DeliveryStage): { text: string; type: 'success' | 'info' } {
+function stageToast(stage: DeliveryStage): { text: string; type: 'success' | 'info' } {
   switch (stage) {
     case DeliveryStage.ARRIVED_AT_RESTAURANT:
       return { text: 'Restoranda — Taomni oling', type: 'info' };
@@ -118,28 +105,39 @@ function getStagToastMessage(stage: DeliveryStage): { text: string; type: 'succe
   }
 }
 
+// ─── Component ────────────────────────────────────────────────────────────────
+
 const CourierMapPage: React.FC = () => {
   const { orderId = '' } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
   const { showToast } = useToast();
+
+  // ── Server data ────────────────────────────────────────────────────────────
   const { data: order, isLoading, isError, error, refetch } = useCourierOrderDetails(orderId);
-  const updateStageMutation = useUpdateCourierOrderStage();
+  const updateStageMutation   = useUpdateCourierOrderStage();
   const reportProblemMutation = useReportCourierProblem();
   const updateLocationMutation = useUpdateCourierLocation();
-  const [isPanelExpanded, setIsPanelExpanded] = useState(false);
-  const [liveCourierPos, setLiveCourierPos] = useState<{ lat: number; lng: number } | null>(null);
-  const [routeInfo, setRouteInfo] = useState<{ distance: string; eta: string } | null>(null);
-  const [followMode, setFollowMode] = useState(true);
+
+  // ── UI state — ALL hooks before any conditional return ─────────────────────
+  const [isPanelExpanded, setIsPanelExpanded]   = useState(false);
+  const [liveCourierPos, setLiveCourierPos]     = useState<{ lat: number; lng: number } | null>(null);
+  const [routeInfo, setRouteInfo]               = useState<{ distance: string; eta: string } | null>(null);
+  const [followMode, setFollowMode]             = useState(true);
   const [geolocationError, setGeolocationError] = useState<string | null>(null);
-  const [problemDraft, setProblemDraft] = useState('');
-  const [problemFeedback, setProblemFeedback] = useState<{
+  const [problemDraft, setProblemDraft]         = useState('');
+  const [problemFeedback, setProblemFeedback]   = useState<{
     text: string;
     tone: 'success' | 'error' | 'neutral';
   } | null>(null);
-  const lastHeartbeatRef = useRef('');
-  const previousCourierPosRef = useRef<{ lat: number; lng: number } | null>(null);
-  const approachingNotifiedRef = useRef(false); // prevent duplicate 500m notifications
+  const [copied, setCopied]                     = useState(false);
 
+  // ── Refs ───────────────────────────────────────────────────────────────────
+  const lastHeartbeatRef        = useRef('');
+  const previousCourierPosRef   = useRef<{ lat: number; lng: number } | null>(null);
+  const approachingNotifiedRef  = useRef(false);
+  const copiedTimerRef          = useRef<number | null>(null);
+
+  // ── Derived positions (memoised) ───────────────────────────────────────────
   const restaurantPos = useMemo(
     () => ({
       lat: order?.pickupLat ?? DEFAULT_RESTAURANT_LOCATION.pin.lat,
@@ -163,79 +161,142 @@ const CourierMapPage: React.FC = () => {
     ],
   );
 
-  const trackedCourierPos = order?.tracking?.courierLocation
-    ? {
-        lat: order.tracking.courierLocation.latitude,
-        lng: order.tracking.courierLocation.longitude,
-      }
-    : null;
+  const trackedCourierPos = useMemo(
+    () =>
+      order?.tracking?.courierLocation
+        ? {
+            lat: order.tracking.courierLocation.latitude,
+            lng: order.tracking.courierLocation.longitude,
+          }
+        : null,
+    [order?.tracking?.courierLocation],
+  );
 
+  // ── Stage / route derived values ───────────────────────────────────────────
   const currentStage = order?.deliveryStage ?? DeliveryStage.IDLE;
   const currentState = getDeliveryStateKey(currentStage);
-  const stageMeta = getDeliveryStageMeta(currentStage);
-  const routeMeta = getDeliveryRouteMeta(currentStage);
+  const stageMeta    = getDeliveryStageMeta(currentStage);
+  const routeMeta    = getDeliveryRouteMeta(currentStage);
+
   const canPublishLiveLocation =
     currentStage !== DeliveryStage.IDLE && currentStage !== DeliveryStage.DELIVERED;
-  const courierPos = liveCourierPos ?? trackedCourierPos ?? restaurantPos;
+
+  const courierPos    = liveCourierPos ?? trackedCourierPos ?? restaurantPos;
   const currentTarget =
     currentState === 'ACCEPTED' || currentState === 'ARRIVED' ? restaurantPos : customerPos;
-  const remainingMetrics = getRemainingRouteMetrics(currentState, courierPos, currentTarget);
-  const metricsRouteInfo = createRouteInfo(remainingMetrics);
+
+  const remainingMetrics = useMemo(
+    () => computeRemainingMetrics(currentState, courierPos, currentTarget),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [currentState, courierPos.lat, courierPos.lng, currentTarget.lat, currentTarget.lng],
+  );
+
+  const metricsRouteInfo = useMemo(() => createRouteInfo(remainingMetrics), [remainingMetrics]);
   const displayRouteInfo = routeInfo ?? metricsRouteInfo;
 
-  useEffect(() => {
-    if (!order?.id) {
-      return;
-    }
+  const isEtaLive =
+    currentState === 'ACCEPTED' || currentState === 'PICKED_UP' || currentState === 'DELIVERING';
 
+  const arrivalTime = useMemo(
+    () => formatArrivalTime(remainingMetrics.etaMinutes),
+    [remainingMetrics.etaMinutes],
+  );
+
+  const hasLivePos       = liveCourierPos !== null;
+  const distToRestaurant = haversineMeters(courierPos, restaurantPos);
+  const distToCustomer   = haversineMeters(courierPos, customerPos);
+
+  const nearRestaurant = useMemo(
+    () =>
+      hasLivePos &&
+      distToRestaurant <= 50 &&
+      (currentStage === DeliveryStage.GOING_TO_RESTAURANT || currentStage === DeliveryStage.IDLE),
+    [hasLivePos, distToRestaurant, currentStage],
+  );
+
+  const nearCustomer = useMemo(
+    () =>
+      hasLivePos &&
+      distToCustomer <= 50 &&
+      (currentStage === DeliveryStage.DELIVERING ||
+        currentStage === DeliveryStage.ARRIVED_AT_DESTINATION),
+    [hasLivePos, distToCustomer, currentStage],
+  );
+
+  const approachingCustomer = useMemo(
+    () =>
+      hasLivePos &&
+      distToCustomer <= 500 &&
+      distToCustomer > 50 &&
+      currentStage === DeliveryStage.DELIVERING,
+    [hasLivePos, distToCustomer, currentStage],
+  );
+
+  // ── Stable callbacks ────────────────────────────────────────────────────────
+
+  // Disable auto-follow when user manually pans the map
+  const handleMapInteraction = useCallback(() => setFollowMode(false), []);
+
+  // Copy destination address to clipboard
+  const handleCopyAddress = useCallback(() => {
+    const address = order?.customerAddress?.addressText;
+    if (!address) return;
+    void navigator.clipboard.writeText(address).then(() => {
+      setCopied(true);
+      if (copiedTimerRef.current) window.clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = window.setTimeout(() => setCopied(false), 2000);
+    });
+  }, [order?.customerAddress?.addressText]);
+
+  // Open destination in Yandex Maps (stays inside mini-app via openLink)
+  const openExternalNavigation = useCallback(() => {
+    const label =
+      currentState === 'ACCEPTED' || currentState === 'ARRIVED'
+        ? 'Restoran'
+        : order?.customerAddress?.label || 'Mijoz manzili';
+    const url = `https://yandex.uz/maps/?rtext=~${currentTarget.lat},${currentTarget.lng}&rtt=auto&text=${encodeURIComponent(label)}`;
+    if (window.Telegram?.WebApp?.openLink) {
+      window.Telegram.WebApp.openLink(url);
+    } else {
+      window.open(url, '_blank');
+    }
+  }, [currentState, currentTarget.lat, currentTarget.lng, order?.customerAddress?.label]);
+
+  // ── GPS watch ──────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!order?.id) return;
     const watchId = watchBrowserGeolocation(
       (location) => {
         setGeolocationError(null);
         setLiveCourierPos(location.pin);
       },
-      (watchError) => {
-        setGeolocationError(getUserGeolocationErrorMessage(watchError));
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 12000,
-        maximumAge: 3000,
-      },
+      (watchError) => setGeolocationError(getUserGeolocationErrorMessage(watchError)),
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 3000 },
     );
-
-    return () => {
-      stopWatchingBrowserGeolocation(watchId);
-    };
+    return () => stopWatchingBrowserGeolocation(watchId);
   }, [order?.id]);
 
+  // ── Location heartbeat to server ───────────────────────────────────────────
   useEffect(() => {
-    if (!order?.id || !liveCourierPos || !canPublishLiveLocation) {
-      return;
-    }
+    if (!order?.id || !liveCourierPos || !canPublishLiveLocation) return;
 
-    const previousCourierPos = previousCourierPosRef.current;
-    const latitude = Number(liveCourierPos.lat.toFixed(6));
-    const longitude = Number(liveCourierPos.lng.toFixed(6));
+    const latitude            = Number(liveCourierPos.lat.toFixed(6));
+    const longitude           = Number(liveCourierPos.lng.toFixed(6));
     const remainingDistanceKm = Number(remainingMetrics.distanceKm.toFixed(2));
     const remainingEtaMinutes = remainingMetrics.etaMinutes;
-    const heading = previousCourierPos ? getHeadingDegrees(previousCourierPos, liveCourierPos) : undefined;
-    const speedKmh = getCourierSpeed(currentState);
-    const heartbeatSignature = [
-      order.id,
-      currentStage,
-      latitude,
-      longitude,
-      remainingDistanceKm,
-      remainingEtaMinutes,
+    const heading             = previousCourierPosRef.current
+      ? getHeadingDegrees(previousCourierPosRef.current, liveCourierPos)
+      : undefined;
+    const speedKmh = getCourierSpeedKmh(currentState);
+
+    const sig = [
+      order.id, currentStage, latitude, longitude, remainingDistanceKm, remainingEtaMinutes,
     ].join(':');
 
     previousCourierPosRef.current = liveCourierPos;
+    if (lastHeartbeatRef.current === sig) return;
+    lastHeartbeatRef.current = sig;
 
-    if (lastHeartbeatRef.current === heartbeatSignature) {
-      return;
-    }
-
-    lastHeartbeatRef.current = heartbeatSignature;
     updateLocationMutation.mutate({
       id: order.id,
       latitude,
@@ -252,48 +313,31 @@ const CourierMapPage: React.FC = () => {
     order?.id,
     remainingMetrics.distanceKm,
     remainingMetrics.etaMinutes,
-    updateLocationMutation,
     canPublishLiveLocation,
+    updateLocationMutation,
   ]);
 
-  // ── Proximity calculations — only fire when we have real GPS ────────────
-  // Without this guard, fallback to restaurantPos would make nearRestaurant=true
-  // even when GPS is off, causing the action button to appear incorrectly.
-  const hasLivePos = liveCourierPos !== null;
-  const distToRestaurant = distanceMeters(courierPos, restaurantPos);
-  const distToCustomer   = distanceMeters(courierPos, customerPos);
-
-  const nearRestaurant =
-    hasLivePos &&
-    distToRestaurant <= 50 &&
-    (currentStage === DeliveryStage.GOING_TO_RESTAURANT || currentStage === DeliveryStage.IDLE);
-
-  const nearCustomer =
-    hasLivePos &&
-    distToCustomer <= 50 &&
-    (currentStage === DeliveryStage.DELIVERING || currentStage === DeliveryStage.ARRIVED_AT_DESTINATION);
-
-  const approachingCustomer =
-    hasLivePos &&
-    distToCustomer <= 500 &&
-    distToCustomer > 50 &&
-    currentStage === DeliveryStage.DELIVERING;
-
-  // ── Send "almost there" notification once when within 500m ────────────────
+  // ── "Approaching customer" notification ────────────────────────────────────
   useEffect(() => {
     if (!approachingCustomer || approachingNotifiedRef.current || !order?.id) return;
     approachingNotifiedRef.current = true;
-    // Fire-and-forget — best effort, no UI feedback needed
     void api.post(`/courier/order/${order.id}/approaching`).catch(() => {});
   }, [approachingCustomer, order?.id]);
 
-  // Reset notification flag when stage changes away from DELIVERING
   useEffect(() => {
     if (currentStage !== DeliveryStage.DELIVERING) {
       approachingNotifiedRef.current = false;
     }
   }, [currentStage]);
 
+  // ── Cleanup timer on unmount ───────────────────────────────────────────────
+  useEffect(() => {
+    return () => {
+      if (copiedTimerRef.current) window.clearTimeout(copiedTimerRef.current);
+    };
+  }, []);
+
+  // ── Loading / error screens ────────────────────────────────────────────────
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950">
@@ -313,9 +357,7 @@ const CourierMapPage: React.FC = () => {
         <ErrorStateCard
           title="Xarita yuklanmadi"
           message={(error as Error).message}
-          onRetry={() => {
-            void refetch();
-          }}
+          onRetry={() => void refetch()}
         />
       </div>
     );
@@ -336,21 +378,17 @@ const CourierMapPage: React.FC = () => {
     );
   }
 
-  const handleStageAction = (nextStage: DeliveryStage) => {
-    if (updateStageMutation.isPending) {
-      return;
-    }
+  // ── Event handlers (after null-guard: order is guaranteed non-null) ─────────
 
+  const handleStageAction = (nextStage: DeliveryStage) => {
+    if (updateStageMutation.isPending) return;
     updateStageMutation.mutate(
       { id: order.id, stage: nextStage },
       {
         onSuccess: () => {
-          if (window.Telegram?.WebApp?.HapticFeedback) {
-            window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-          }
-          const { text, type } = getStagToastMessage(nextStage);
+          window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
+          const { text, type } = stageToast(nextStage);
           showToast(text, type);
-          // Auto-navigate after delivery — 3s gives time to see success state
           if (nextStage === DeliveryStage.DELIVERED) {
             window.setTimeout(() => navigate('/courier/orders'), 3000);
           }
@@ -364,38 +402,26 @@ const CourierMapPage: React.FC = () => {
       window.alert('Mijozning telefon raqami mavjud emas');
       return;
     }
-
     window.location.href = `tel:${order.customerPhone}`;
   };
 
   const handleProblemSubmit = () => {
     const text = problemDraft.trim();
-
     if (text.length < 5) {
-      setProblemFeedback({
-        text: "Muammoni kamida 5 ta belgi bilan yozing.",
-        tone: 'error',
-      });
+      setProblemFeedback({ text: 'Muammoni kamida 5 ta belgi bilan yozing.', tone: 'error' });
       return;
     }
-
     reportProblemMutation.mutate(
       { id: order.id, text },
       {
         onSuccess: () => {
           setProblemDraft('');
-          setProblemFeedback({
-            text: 'Muammo operatorga yuborildi.',
-            tone: 'success',
-          });
-
-          if (window.Telegram?.WebApp?.HapticFeedback) {
-            window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-          }
+          setProblemFeedback({ text: 'Muammo operatorga yuborildi.', tone: 'success' });
+          window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
         },
-        onError: (mutationError) => {
+        onError: (err) => {
           setProblemFeedback({
-            text: mutationError instanceof Error ? mutationError.message : "Muammoni yuborib bo'lmadi",
+            text: err instanceof Error ? err.message : "Muammoni yuborib bo'lmadi",
             tone: 'error',
           });
         },
@@ -403,29 +429,16 @@ const CourierMapPage: React.FC = () => {
     );
   };
 
-  const isEtaLive = currentState === 'ACCEPTED' || currentState === 'PICKED_UP' || currentState === 'DELIVERING';
+  const showCopyButton =
+    Boolean(order.customerAddress?.addressText) &&
+    currentState !== 'ACCEPTED' &&
+    currentState !== 'ARRIVED';
 
-  // Disable follow mode when user manually pans the map
-  const handleMapInteraction = useCallback(() => {
-    setFollowMode(false);
-  }, []);
-
-  // Open the active destination in Yandex Maps (redirects to Yandex Navigator app if installed)
-  const openExternalNavigation = () => {
-    const target = currentTarget;
-    const label = currentState === 'ACCEPTED' || currentState === 'ARRIVED'
-      ? 'Restoran'
-      : order?.customerAddress?.label || 'Mijoz manzili';
-    const url = `https://yandex.uz/maps/?rtext=~${target.lat},${target.lng}&rtt=auto&text=${encodeURIComponent(label)}`;
-    if (window.Telegram?.WebApp?.openLink) {
-      window.Telegram.WebApp.openLink(url);
-    } else {
-      window.open(url, '_blank');
-    }
-  };
-
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="relative h-screen w-full overflow-hidden bg-slate-950 font-sans text-white">
+
+      {/* ── Full-screen map ─────────────────────────────────────────────── */}
       <div className="absolute inset-0 z-0">
         <CourierMapView
           pickup={restaurantPos}
@@ -439,33 +452,34 @@ const CourierMapPage: React.FC = () => {
           onMapInteraction={handleMapInteraction}
           onRouteInfoChange={setRouteInfo}
         />
+        {/* Gradient overlays for UI legibility */}
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(15,23,42,0.1),transparent_25%),linear-gradient(180deg,rgba(2,6,23,0.14)_0%,rgba(2,6,23,0.28)_35%,rgba(2,6,23,0.76)_100%)]" />
-        <div className="pointer-events-none absolute inset-0 bg-slate-950/24" />
+        <div className="pointer-events-none absolute inset-0 bg-slate-950/20" />
       </div>
 
-      {/* ── Top overlay: back + order info card ──────────────────────── */}
+      {/* ── Top overlay ─────────────────────────────────────────────────── */}
       <div
         className="absolute left-0 right-0 top-0 z-40 px-4"
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
       >
-        {/* GPS error banner — prominent, not buried in description */}
+        {/* GPS error banner */}
         {geolocationError && (
           <div className="mb-2 flex items-center gap-2 rounded-[18px] border border-red-400/30 bg-red-500/20 px-4 py-2.5 backdrop-blur-xl animate-in slide-in-from-top duration-300">
-            <span className="h-2 w-2 shrink-0 rounded-full bg-red-400 animate-pulse" />
+            <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-red-400" />
             <p className="text-[12px] font-bold text-red-200">{geolocationError}</p>
           </div>
         )}
 
+        {/* Back + order pill */}
         <div className="flex items-center gap-3">
-          {/* Back → orders list */}
           <button
+            type="button"
             onClick={() => navigate('/courier/orders')}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-950/72 text-white shadow-[0_12px_32px_rgba(2,6,23,0.5)] backdrop-blur-xl transition-transform active:scale-95"
           >
             <ArrowLeft size={19} />
           </button>
 
-          {/* Compact order info */}
           <div className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-[22px] border border-white/10 bg-slate-950/72 px-4 py-3 shadow-[0_12px_32px_rgba(2,6,23,0.5)] backdrop-blur-xl">
             <div className="min-w-0">
               <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/40">
@@ -475,41 +489,72 @@ const CourierMapPage: React.FC = () => {
                 #{order.orderNumber} · {order.customerName || 'Mijoz'}
               </p>
             </div>
-            <div className={`shrink-0 rounded-[14px] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] ${stageMeta.badgeClassDark}`}>
+            <div
+              className={`shrink-0 rounded-[14px] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] ${stageMeta.badgeClassDark}`}
+            >
               {stageMeta.label}
             </div>
           </div>
         </div>
 
-        {/* ── Map action row: re-center + external navigator ─────────── */}
-        <div className="mt-3 flex items-center justify-end gap-2">
-          {/* Re-center button — only shown when user has panned away */}
+        {/* ── Action bar: ETA clock · copy address · re-center · navigator ── */}
+        <div className="mt-2 flex items-center gap-2">
+
+          {/* Wall-clock arrival time — e.g. "15:30 da yetaman" */}
+          {arrivalTime && remainingMetrics.etaMinutes > 0 && (
+            <div className="flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/72 px-3 shadow-[0_8px_24px_rgba(2,6,23,0.4)] backdrop-blur-xl">
+              <span className="text-[10px] font-semibold text-white/45">Yetib borish:</span>
+              <span className="text-[12px] font-black text-amber-300">{arrivalTime}</span>
+            </div>
+          )}
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Copy address to clipboard */}
+          {showCopyButton && (
+            <button
+              type="button"
+              onClick={handleCopyAddress}
+              className="flex h-9 items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/72 px-3 text-[11px] font-black text-white shadow-[0_8px_24px_rgba(2,6,23,0.4)] backdrop-blur-xl transition-transform active:scale-95"
+            >
+              <ClipboardCopy
+                size={13}
+                className={copied ? 'text-emerald-400' : 'text-white/55'}
+              />
+              <span className={copied ? 'text-emerald-300' : ''}>
+                {copied ? 'Nusxalandi!' : 'Manzil'}
+              </span>
+            </button>
+          )}
+
+          {/* Re-center on courier (shown only when user has panned away) */}
           {!followMode && liveCourierPos && (
             <button
               type="button"
               onClick={() => setFollowMode(true)}
-              className="flex h-10 items-center gap-2 rounded-full border border-white/10 bg-slate-950/72 px-3.5 text-[11px] font-black text-white shadow-[0_12px_32px_rgba(2,6,23,0.5)] backdrop-blur-xl transition-transform active:scale-95 animate-in fade-in duration-200"
+              title="Mening joylashuvim"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-amber-400/40 bg-slate-950/72 text-white shadow-[0_8px_24px_rgba(2,6,23,0.4)] backdrop-blur-xl transition-transform active:scale-95 animate-in fade-in duration-200"
             >
               <Crosshair size={15} className="text-amber-300" />
-              <span>Mening joylashuvim</span>
             </button>
           )}
 
-          {/* Open in Yandex Maps / Navigator */}
+          {/* Open in Yandex Maps / Navigator (stays inside mini-app) */}
           <button
             type="button"
             onClick={openExternalNavigation}
-            className="flex h-10 items-center gap-2 rounded-full border border-white/10 bg-slate-950/72 px-3.5 text-[11px] font-black text-white shadow-[0_12px_32px_rgba(2,6,23,0.5)] backdrop-blur-xl transition-transform active:scale-95"
+            className="flex h-9 items-center gap-1.5 rounded-full border border-sky-400/30 bg-slate-950/72 px-3 text-[11px] font-black text-white shadow-[0_8px_24px_rgba(2,6,23,0.4)] backdrop-blur-xl transition-transform active:scale-95"
           >
-            <ExternalLink size={15} className="text-sky-300" />
-            <span>Navigatorda</span>
+            <ExternalLink size={13} className="text-sky-300" />
+            <span>Navigator</span>
           </button>
         </div>
       </div>
 
-      {/* ── Route info panel (only when bottom panel collapsed) ───────── */}
+      {/* ── Mid-screen route info (collapsed panel only) ─────────────────── */}
       {!isPanelExpanded && (
-        <div className="animate-in slide-in-from-top duration-700">
+        <div className="animate-in slide-in-from-top duration-500">
           <RouteInfoPanel
             title={routeMeta.title}
             subtitle={routeMeta.description}
@@ -525,6 +570,7 @@ const CourierMapPage: React.FC = () => {
         </div>
       )}
 
+      {/* ── Bottom action panel ──────────────────────────────────────────── */}
       <DeliveryBottomPanel
         order={order}
         currentStage={currentStage}
@@ -541,16 +587,14 @@ const CourierMapPage: React.FC = () => {
               value={problemDraft}
               onChange={(value) => {
                 setProblemDraft(value);
-                if (problemFeedback) {
-                  setProblemFeedback(null);
-                }
+                if (problemFeedback) setProblemFeedback(null);
               }}
               onSubmit={handleProblemSubmit}
               isSubmitting={reportProblemMutation.isPending}
               theme="dark"
               helperText="Mijoz bilan bog'lana olmasangiz yoki manzil topilmasa shu yerdan yozing."
-              feedbackText={problemFeedback?.text || null}
-              feedbackTone={problemFeedback?.tone || 'neutral'}
+              feedbackText={problemFeedback?.text ?? null}
+              feedbackTone={problemFeedback?.tone ?? 'neutral'}
             />
           ) : null
         }
@@ -558,7 +602,7 @@ const CourierMapPage: React.FC = () => {
         isUpdating={updateStageMutation.isPending}
         canCall={Boolean(order.customerPhone)}
         routeTitle={routeMeta.title}
-        routeDescription={geolocationError ? geolocationError : routeMeta.description}
+        routeDescription={geolocationError ?? routeMeta.description}
         pickupLabel={DEFAULT_RESTAURANT_LOCATION.name}
         destinationLabel={order.customerAddress?.label || 'Mijoz manzili'}
         distance={displayRouteInfo.distance || formatRouteDistance(remainingMetrics.distanceKm)}
