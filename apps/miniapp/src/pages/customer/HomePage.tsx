@@ -113,11 +113,14 @@ const HomePage: React.FC = () => {
   return (
     <div
       className="min-h-screen animate-in fade-in duration-500"
-      style={{ paddingBottom: 'calc(var(--customer-floating-content-clearance, 164px) + 16px)' }}
+      style={{
+        paddingTop: 'calc(64px + var(--tg-header-safe, env(safe-area-inset-top, 0px)))',
+        paddingBottom: 'calc(var(--customer-floating-content-clearance, 164px) + 16px)',
+      }}
     >
       <header
         className="fixed inset-x-0 top-0 z-40 border-b border-white/8 bg-[#0b1220]/96 backdrop-blur-xl"
-        style={{ paddingTop: 'env(safe-area-inset-top,0px)' }}
+        style={{ paddingTop: 'var(--tg-header-safe, env(safe-area-inset-top, 0px))' }}
       >
         <div className="mx-auto flex h-[64px] w-full max-w-[430px] items-center justify-between px-4">
           <h1 className="text-[18px] font-semibold text-white">Turon Bot</h1>

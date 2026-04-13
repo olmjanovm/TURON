@@ -134,6 +134,17 @@ function installIosOverscrollGuard() {
   return cleanupTouchGuard;
 }
 
+/** Update --tg-header-safe CSS var so content doesn't hide under Telegram's buttons */
+function updateHeaderSafeArea() {
+  const wa = window.Telegram?.WebApp as any;
+  // contentSafeAreaInset is available from Bot API 8.0+
+  const top: number =
+    wa?.contentSafeAreaInset?.top ??
+    wa?.safeAreaInset?.top ??
+    0;
+  document.documentElement.style.setProperty('--tg-header-safe', `${top}px`);
+}
+
 export function ensureTelegramMiniAppFullscreen() {
   const webApp = getTelegramWebApp();
   if (!webApp) return;
@@ -143,6 +154,7 @@ export function ensureTelegramMiniAppFullscreen() {
   safeCall(() => webApp.requestFullscreen?.());
   safeCall(() => webApp.expand?.());
   safeCall(() => webApp.disableVerticalSwipes?.());
+  updateHeaderSafeArea();
 }
 
 function scheduleFullscreenRetries() {
@@ -166,6 +178,9 @@ export function initializeTelegramMiniApp() {
   // Telegram can recalculate the viewport during keyboard/orientation changes.
   safeCall(() => webApp.onEvent?.('viewportChanged', ensureTelegramMiniAppFullscreen));
   safeCall(() => webApp.onEvent?.('fullscreenFailed', scheduleFullscreenRetries));
+  safeCall(() => webApp.onEvent?.('safeAreaChanged', updateHeaderSafeArea));
+  safeCall(() => webApp.onEvent?.('contentSafeAreaChanged', updateHeaderSafeArea));
+  updateHeaderSafeArea();
   window.addEventListener('focus', scheduleFullscreenRetries);
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) scheduleFullscreenRetries();
