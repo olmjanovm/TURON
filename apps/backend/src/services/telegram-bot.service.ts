@@ -113,7 +113,6 @@ async function storeMessageId(chatId: number, messageId: number): Promise<void> 
       where: { key },
       update: { value: String(messageId) },
       create: {
-        id: `bot-msg-${chatId}`,
         key,
         value: String(messageId),
         dataType: 'number',
@@ -351,7 +350,7 @@ async function storeOrderMessageId(orderId: string, messageId: number): Promise<
     await prisma.restaurantSetting.upsert({
       where: { key },
       update: { value: String(messageId) },
-      create: { id: `order-msg-${orderId}`, key, value: String(messageId), dataType: 'number' },
+      create: { key, value: String(messageId), dataType: 'number' },
     });
   } catch { /* non-critical */ }
 }
