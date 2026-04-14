@@ -8,10 +8,11 @@ export function toLngLat(pin: MapPin): [number, number] {
   return [pin.lng, pin.lat];
 }
 
+const YANDEX_JS_API_KEY = import.meta.env.VITE_MAP_API_KEY || 'c3e2b675-cbbf-4886-b77a-3ed4e0d4f3f8';
+
 export function isYandexMaps3Enabled() {
-  const key = import.meta.env.VITE_MAP_API_KEY ?? '';
   const provider = import.meta.env.VITE_MAPS_PROVIDER ?? 'yandex';
-  return provider === 'yandex' && key.trim().length > 0;
+  return provider === 'yandex';
 }
 
 export async function loadYandexMaps3(): Promise<any> {
@@ -23,7 +24,7 @@ export async function loadYandexMaps3(): Promise<any> {
 
   if (loadPromise) return loadPromise;
 
-  const apiKey = import.meta.env.VITE_MAP_API_KEY ?? '';
+  const apiKey = YANDEX_JS_API_KEY;
   const lang = import.meta.env.VITE_MAP_LANGUAGE ?? 'uz_UZ';
 
   loadPromise = new Promise<any>((resolve, reject) => {

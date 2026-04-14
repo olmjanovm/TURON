@@ -6,7 +6,7 @@ import {
 } from './api';
 
 const MAP_PROVIDER = import.meta.env.VITE_MAPS_PROVIDER ?? 'yandex';
-const MAP_API_KEY = import.meta.env.VITE_MAP_API_KEY ?? '';
+const MAP_API_KEY = import.meta.env.VITE_MAP_API_KEY || 'c3e2b675-cbbf-4886-b77a-3ed4e0d4f3f8';
 const MAP_LANGUAGE = import.meta.env.VITE_MAP_LANGUAGE ?? 'uz_UZ';
 const SCRIPT_ID = 'turon-yandex-maps-script';
 
