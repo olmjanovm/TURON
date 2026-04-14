@@ -8,7 +8,7 @@ export function toLngLat(pin: MapPin): [number, number] {
   return [pin.lng, pin.lat];
 }
 
-const YANDEX_JS_API_KEY = import.meta.env.VITE_MAP_API_KEY || 'c3e2b675-cbbf-4886-b77a-3ed4e0d4f3f8';
+const YANDEX_JS_API_KEY = 'c3e2b675-cbbf-4886-b77a-3ed4e0d4f3f8';
 
 export function isYandexMaps3Enabled() {
   const provider = import.meta.env.VITE_MAPS_PROVIDER ?? 'yandex';
@@ -56,7 +56,7 @@ export async function loadYandexMaps3(): Promise<any> {
 
     const script = document.createElement('script');
     script.id = SCRIPT_ID;
-    script.src = `https://api-maps.yandex.ru/3.x/?apikey=${encodeURIComponent(apiKey)}&lang=${encodeURIComponent(lang)}`;
+    script.src = `https://api-maps.yandex.ru/v3/?apikey=${encodeURIComponent(apiKey)}&lang=${encodeURIComponent(lang)}`;
     script.async = true;
     script.onload = () => void onReady();
     script.onerror = onError;
