@@ -37,6 +37,10 @@
   border-radius: 6px !important;
 }
 
+.admin-shell *:not(.rounded-full):not([class*="rounded-full"]) {
+  border-radius: revert-layer !important;
+}
+
 html {
   min-height: 100%;
   background: #060810;

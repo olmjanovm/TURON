@@ -4,19 +4,16 @@ import { AppErrorBoundary } from '../ui/AppErrorBoundary';
 import {
   LayoutDashboard, 
   ShoppingBag, 
-  Users, 
-  Clock, 
-  Settings,
   Bell,
   Search,
   Truck,
-  UtensilsCrossed
+  Tag,
+  UtensilsCrossed,
 } from 'lucide-react';
 import { useOrdersStore } from '../../store/useOrdersStore';
 import { useAdminOrders, useOrdersRealtimeSync } from '../../hooks/queries/useOrders';
 import NotificationBadge from '../../features/notifications/components/NotificationBadge';
 import { OrderStatusEnum, UserRoleEnum } from '@turon/shared';
-import { MiniAppCloseButton } from '../telegram/MiniAppCloseButton';
 
 /** Play a short beep using Web Audio API when a new order arrives */
 function playNewOrderBeep() {
@@ -70,13 +67,8 @@ const AdminLayout: React.FC = () => {
   const orders = adminOrders.length > 0 ? adminOrders : storeOrders;
   const newOrdersCount = orders.filter((order) => order.orderStatus === OrderStatusEnum.PENDING).length;
   const { flashActive } = useAdminNewOrderAlert(newOrdersCount);
-  const syncBadgeClass = isConnected
-    ? 'bg-emerald-50 text-emerald-700'
-    : connectionState === 'reconnecting' || connectionState === 'connecting'
-      ? 'bg-amber-50 text-amber-700'
-      : 'bg-slate-100 text-slate-500';
   const syncLabel = isConnected
-    ? 'Jonli sync'
+    ? 'Main Branch'
     : connectionState === 'reconnecting'
       ? 'Qayta ulanmoqda'
       : connectionState === 'connecting'
@@ -93,18 +85,18 @@ const AdminLayout: React.FC = () => {
     return (
       <button 
         onClick={() => navigate(path)}
-        className={`flex flex-col items-center justify-center gap-1.5 transition-all relative px-4 py-2 rounded-2xl
-          ${isActive ? 'text-blue-600 bg-blue-50' : 'text-slate-400 hover:bg-slate-50'}
+        className={`relative flex h-14 min-w-[58px] flex-col items-center justify-center gap-1 transition-colors
+          ${isActive ? 'text-blue-600' : 'text-slate-500'}
         `}
       >
-        <div className={`transition-transform duration-300 ${isActive ? 'scale-110' : 'scale-100'}`}>
+        <div className="relative">
           {icon}
         </div>
-        <span className={`text-[10px] font-black uppercase tracking-widest ${isActive ? 'text-blue-700' : 'text-slate-400'}`}>
+        <span className={`text-[10px] font-bold ${isActive ? 'text-blue-600' : 'text-slate-500'}`}>
           {label}
         </span>
         {badge !== undefined && badge > 0 && (
-          <span className="absolute -top-1 right-2 w-5 h-5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-sm animate-bounce">
+          <span className="absolute right-1 top-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">
             {badge}
           </span>
         )}
@@ -113,73 +105,74 @@ const AdminLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900 pb-32">
+    <div className="admin-shell min-h-screen bg-[#f4f6fa] flex flex-col font-sans text-slate-950 pb-24">
       {/* Admin Header */}
-      <header className="fixed top-0 left-0 right-0 h-20 bg-white/80 backdrop-blur-xl border-b border-slate-100 z-50 px-6 flex items-center justify-between">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white px-4 py-4 shadow-[0_16px_40px_rgba(15,23,42,0.06)]">
+        <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white shadow-lg">
-            <Settings size={20} />
+          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-600 text-lg font-black text-white">
+            T
           </div>
           <div>
-            <h2 className="text-lg font-black tracking-tighter italic uppercase leading-none">Admin</h2>
-            <div className="mt-1 flex items-center gap-2">
-              <p className="text-[10px] font-black tracking-widest text-slate-400 uppercase">Turon Kafesi</p>
-              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-widest ${syncBadgeClass}`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${isConnected ? 'animate-pulse bg-emerald-500' : 'bg-current/50'}`} />
-                <span>{syncLabel}</span>
-              </span>
-            </div>
+            <h2 className="text-base font-black leading-none tracking-tight text-slate-950">TURON</h2>
+            <p className="mt-1 text-xs font-semibold text-slate-500">Admin Panel · {syncLabel}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
+           <button
+             type="button"
+             aria-label="Izlash"
+             className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-50 text-slate-400 active:scale-95"
+           >
+             <Search size={21} />
+           </button>
            <button 
+             type="button"
              onClick={() => navigate('/admin/notifications')}
-             className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 relative active:scale-95 transition-transform"
+             aria-label="Bildirishnomalar"
+             className="relative flex h-11 w-11 items-center justify-center rounded-full bg-slate-50 text-slate-500 active:scale-95"
            >
              <Bell size={20} />
              <NotificationBadge role={UserRoleEnum.ADMIN} />
            </button>
-           <button className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400">
-             <Search size={20} />
-           </button>
-           <MiniAppCloseButton tone="light" />
+        </div>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 mt-20 px-6 pt-6 overflow-x-hidden">
+      <main className="flex-1 mt-[76px] px-4 pt-4 overflow-x-hidden">
         <AppErrorBoundary theme="light" homeUrl="/admin">
           <Outlet />
         </AppErrorBoundary>
       </main>
 
       {/* Admin Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 h-24 bg-white/95 backdrop-blur-md border-t border-slate-100 px-6 flex items-center justify-around z-50 shadow-2xl safe-area-inset-bottom">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-[68px] items-center justify-around border-t border-slate-100 bg-white px-4 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] safe-area-inset-bottom">
         <NavItem 
           path="/admin/dashboard" 
-          icon={<LayoutDashboard size={24} />} 
-          label="Statistika" 
+          icon={<LayoutDashboard size={22} />}
+          label="Home"
         />
         <NavItem
           path="/admin/orders"
-          icon={<ShoppingBag size={24} className={flashActive ? 'text-rose-500' : ''} />}
-          label="Buyurtmalar"
+          icon={<ShoppingBag size={22} className={flashActive ? 'text-rose-500' : ''} />}
+          label="Buyurtma"
           badge={newOrdersCount}
         />
         <NavItem 
           path="/admin/menu" 
-          icon={<UtensilsCrossed size={24} />} 
-          label="Menyu" 
+          icon={<UtensilsCrossed size={22} />}
+          label="Menu"
         />
         <NavItem 
           path="/admin/couriers" 
-          icon={<Truck size={24} />} 
-          label="Kuryerlar" 
+          icon={<Truck size={22} />}
+          label="Kuryer"
         />
         <NavItem 
           path="/admin/promos" 
-          icon={<Settings size={24} />} 
-          label="Aksiyalar" 
+          icon={<Tag size={22} />}
+          label="Promo"
         />
       </nav>
     </div>
