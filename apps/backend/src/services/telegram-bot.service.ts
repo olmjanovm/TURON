@@ -15,6 +15,7 @@ import { SupportService } from './support.service.js';
 
 const botToken = env.BOT_TOKEN;
 const webAppUrl = env.WEB_APP_URL;
+const MINI_APP_RELEASE = '20260414-mobile-bootstrap';
 
 // ─── In-memory role cache (TTL: 5 min) ───────────────────────────────────────
 const roleCache = new Map<string, { role: UserRoleEnum; expiresAt: number }>();
@@ -213,6 +214,7 @@ function resolveMiniAppLaunchUrl(path: string): string {
   // asks Telegram for requestFullscreen() + disabled vertical swipes on boot.
   url.searchParams.set('tg_fullscreen', '1');
   url.searchParams.set('tg_swipe', 'disabled');
+  url.searchParams.set('v', MINI_APP_RELEASE);
 
   return url.toString();
 }
