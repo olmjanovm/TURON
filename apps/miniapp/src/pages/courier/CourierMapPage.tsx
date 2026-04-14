@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CornerUpLeft, CornerUpRight, Loader2, MoveUp, RefreshCw } from 'lucide-react';
-import type { RouteStep } from '../../features/maps/MapProvider';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useToast } from '../../components/ui/Toast';
 import { DeliveryStage } from '../../data/types';
 import { CourierMapView } from '../../components/courier/CourierMapView';
@@ -121,7 +120,6 @@ const CourierMapPage: React.FC = () => {
   // ── UI state — ALL hooks before any conditional return ─────────────────────
   const [liveCourierPos, setLiveCourierPos]     = useState<{ lat: number; lng: number } | null>(null);
   const [heading, setHeading]                   = useState<number | undefined>(undefined);
-  const [nextStep, setNextStep]                 = useState<RouteStep | null>(null);
   const [routeInfo, setRouteInfo]               = useState<{ distance: string; eta: string } | null>(null);
   const [geolocationError, setGeolocationError] = useState<string | null>(null);
   const [problemDraft, setProblemDraft]         = useState('');
@@ -441,74 +439,23 @@ const CourierMapPage: React.FC = () => {
           followMode={true}
           heading={heading}
           onRouteInfoChange={setRouteInfo}
-          onNextStepChange={setNextStep}
         />
-        {/* Gradient overlays for UI legibility */}
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(15,23,42,0.1),transparent_25%),linear-gradient(180deg,rgba(2,6,23,0.14)_0%,rgba(2,6,23,0.28)_35%,rgba(2,6,23,0.76)_100%)]" />
-        <div className="pointer-events-none absolute inset-0 bg-slate-950/20" />
+        {/* Subtle bottom gradient for panel legibility */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-slate-950/70 to-transparent" />
       </div>
 
-      {/* ── Top overlay ─────────────────────────────────────────────────── */}
+      {/* ── Floating back button (top-left only) ────────────────────────── */}
       <div
-        className="absolute left-0 right-0 top-0 z-40 px-4"
+        className="absolute left-0 top-0 z-40 px-4"
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
       >
-        {/* GPS error banner */}
-        {geolocationError && (
-          <div className="mb-2 flex items-center gap-2 rounded-[18px] border border-red-400/30 bg-red-500/20 px-4 py-2.5 backdrop-blur-xl animate-in slide-in-from-top duration-300">
-            <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-red-400" />
-            <p className="text-[12px] font-bold text-red-200">{geolocationError}</p>
-          </div>
-        )}
-
-        {/* Back + order pill */}
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => navigate('/courier/orders')}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-950/72 text-white shadow-[0_12px_32px_rgba(2,6,23,0.5)] backdrop-blur-xl transition-transform active:scale-95"
-          >
-            <ArrowLeft size={19} />
-          </button>
-
-          <div className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-[22px] border border-white/10 bg-slate-950/72 px-4 py-3 shadow-[0_12px_32px_rgba(2,6,23,0.5)] backdrop-blur-xl">
-            <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/40">
-                {routeMeta.title}
-              </p>
-              <p className="mt-0.5 truncate text-[15px] font-black text-white">
-                #{order.orderNumber} · {order.customerName || 'Mijoz'}
-              </p>
-            </div>
-            <div
-              className={`shrink-0 rounded-[14px] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] ${stageMeta.badgeClassDark}`}
-            >
-              {stageMeta.label}
-            </div>
-          </div>
-        </div>
-
-        {/* ── Turn-by-turn instruction (Yandex blue box style) ──────────── */}
-        {nextStep && liveCourierPos && (
-          <div className="mt-3 animate-in slide-in-from-top duration-300">
-            <div className="inline-flex items-center gap-3 rounded-[22px] bg-blue-600 px-4 py-3 shadow-[0_8px_24px_rgba(0,82,204,0.5)]">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20 text-white">
-                {(() => {
-                  const t = nextStep.instruction.toLowerCase();
-                  if (t.match(/chap|left|налево/)) return <CornerUpLeft size={20} strokeWidth={2.5} />;
-                  if (t.match(/o'ng|right|направо/)) return <CornerUpRight size={20} strokeWidth={2.5} />;
-                  if (t.match(/qayt|u-turn|разворот/)) return <RefreshCw size={18} strokeWidth={2.5} />;
-                  return <MoveUp size={20} strokeWidth={2.5} />;
-                })()}
-              </div>
-              <div>
-                <p className="text-[22px] font-black leading-none text-white">{nextStep.distanceText}</p>
-                <p className="mt-0.5 max-w-[180px] truncate text-[11px] text-blue-200">{nextStep.instruction}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
+        <button
+          type="button"
+          onClick={() => navigate('/courier/orders')}
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-slate-950/72 text-white shadow-[0_8px_24px_rgba(2,6,23,0.5)] backdrop-blur-xl transition-transform active:scale-95"
+        >
+          <ArrowLeft size={19} />
+        </button>
       </div>
 
       {/* ── Bottom action panel ──────────────────────────────────────────── */}
