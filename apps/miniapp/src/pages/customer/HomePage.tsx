@@ -13,6 +13,7 @@ import {
 } from '../../features/menu/customerCatalog';
 import type { MenuCategory, MenuProduct } from '../../features/menu/types';
 import { useCategories, useProducts } from '../../hooks/queries/useMenu';
+import { useAuthStore } from '../../store/useAuthStore';
 import { useCartStore } from '../../store/useCartStore';
 
 const normalize = (value: string) =>
@@ -164,10 +165,16 @@ const MenuProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
 
 const HomePage: React.FC = () => {
   const { formatText } = useCustomerLanguage();
+  const user = useAuthStore((state) => state.user);
   const { data: categories = [], isLoading: isCategoriesLoading } = useCategories();
   const { data: products = [], isLoading: isProductsLoading } = useProducts();
   const [activeCategoryId, setActiveCategoryId] = React.useState('all');
   const [searchQuery, setSearchQuery] = React.useState('');
+  const firstName = React.useMemo(() => {
+    const fallback = 'Mijoz';
+    const rawName = user?.fullName?.trim() || fallback;
+    return rawName.split(/\s+/)[0] || fallback;
+  }, [user?.fullName]);
 
   const sortedCategories = React.useMemo(() => sortCustomerCategories(categories), [categories]);
   const normalizedSearch = React.useMemo(() => normalize(searchQuery), [searchQuery]);
@@ -187,7 +194,7 @@ const HomePage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#f6f6f7] text-[#202020]" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 92px)' }}>
+    <div className="min-h-screen bg-[#f6f6f7] text-[#202020]">
       <header className="sticky top-0 z-30 border-b border-black/[0.06] bg-white/95 px-4 backdrop-blur-xl">
         <div className="mx-auto flex h-[50px] max-w-[430px] items-center justify-center">
           <h1 className="text-[18px] font-black tracking-[-0.02em]">Menyu</h1>
@@ -195,6 +202,15 @@ const HomePage: React.FC = () => {
       </header>
 
       <main className="mx-auto max-w-[430px] px-4 pb-6 pt-4">
+        <section className="mb-4 rounded-[24px] bg-white px-4 py-4 shadow-[0_10px_26px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.035]">
+          <p className="text-[13px] font-extrabold uppercase tracking-[0.16em] text-[#a0a0a8]">
+            Salom, {formatText(firstName)}
+          </p>
+          <h2 className="mt-2 text-[22px] font-black leading-[1.08] tracking-[-0.05em] text-[#202020]">
+            Bugun nima ovqat buyurtma qilamiz?
+          </h2>
+        </section>
+
         <label className="flex h-[48px] w-full items-center gap-3 rounded-[16px] bg-[#f0f0f3] px-4 text-[#9a9aa3] shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
           <Search size={20} strokeWidth={2.2} />
           <input
