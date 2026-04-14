@@ -31,10 +31,10 @@ import { ensureTelegramMiniAppFullscreen } from '../../lib/telegramMiniApp';
 import { ErrorStateCard, LoadingScreen } from '../ui/FeedbackStates';
 
 const API_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:3000';
-/** Minimum time the splash screen is visible (keeps branding visible) */
-const MIN_SPLASH_MS = 2_500;
+/** Minimum time the splash screen is visible — long enough to show one food cycle */
+const MIN_SPLASH_MS = 2_000;
 /** Hard limit on auth for new users before we abort the TCP connection */
-const AUTH_HARD_TIMEOUT_MS = 12_000;
+const AUTH_HARD_TIMEOUT_MS = 10_000;
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
