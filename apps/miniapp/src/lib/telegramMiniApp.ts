@@ -174,7 +174,6 @@ export function initializeTelegramMiniApp() {
   // Signal readiness first, then repeatedly ask Telegram for a stable fullscreen viewport.
   // Some iOS/Android clients recalculate the viewport after first paint or after launch source changes.
   scheduleFullscreenRetries();
-  safeCall(() => webApp.enableClosingConfirmation?.());
 
   // Telegram can recalculate the viewport during keyboard/orientation changes.
   safeCall(() => webApp.onEvent?.('viewportChanged', ensureTelegramMiniAppFullscreen));
