@@ -14,7 +14,18 @@ type TelegramWebApp = {
 let isInitialized = false;
 let cleanupTouchGuard: (() => void) | null = null;
 
-const FULLSCREEN_RETRY_DELAYS_MS = [0, 80, 240, 700, 1500];
+/**
+ * CRITICAL: requestFullscreen() causes Telegram to fire viewportChanged.
+ * If the viewportChanged handler calls requestFullscreen() again we get:
+ *   requestFullscreen → viewportChanged → requestFullscreen → viewportChanged → ...
+ * On iOS WKWebView this infinite transition loop renders content normally
+ * but SWALLOWS EVERY TOUCH EVENT — the app looks alive but nothing responds.
+ *
+ * Guard: enforce a 3 s minimum between actual requestFullscreen() calls.
+ */
+let lastFullscreenRequestAt = 0;
+const FULLSCREEN_COOLDOWN_MS = 3_000;
+
 const PULL_TO_REFRESH_THRESHOLD_PX = 88;
 
 function getTelegramWebApp(): TelegramWebApp | undefined {
@@ -25,7 +36,7 @@ function safeCall(action: (() => void) | undefined) {
   try {
     action?.();
   } catch {
-    // Telegram WebApp API calls are best-effort because older clients may no-op or throw.
+    // Telegram WebApp API calls are best-effort — older clients may no-op or throw.
   }
 }
 
@@ -112,10 +123,7 @@ function installIosOverscrollGuard() {
     if (Math.abs(deltaX) > Math.abs(deltaY) * 0.75) return;
 
     const isSwipingDown = deltaY > 0;
-    const isSwipingUp = deltaY < 0;
     const atTop = scrollTarget.scrollTop <= 0;
-    const atBottom =
-      Math.ceil(scrollTarget.scrollTop + scrollTarget.clientHeight) >= scrollTarget.scrollHeight;
 
     if (isSwipingDown && atTop && pullStartedAtTop && !pullRefreshTriggered) {
       const progress = Math.min(deltaY / PULL_TO_REFRESH_THRESHOLD_PX, 1.15);
@@ -135,7 +143,6 @@ function installIosOverscrollGuard() {
     startX = 0;
     pullStartedAtTop = false;
     pullRefreshTriggered = false;
-    // Let the React indicator know the finger lifted without reaching the threshold.
     window.dispatchEvent(new CustomEvent('turon:pull-cancel'));
   };
 
@@ -166,6 +173,25 @@ function updateHeaderSafeArea() {
   document.documentElement.style.setProperty('--tg-header-safe', `${top}px`);
 }
 
+/**
+ * Request fullscreen with a cooldown guard.
+ *
+ * Every requestFullscreen() call fires viewportChanged. Without this guard the
+ * viewportChanged handler would call back into requestFullscreen() and create
+ * an infinite loop that permanently blocks touch input on iOS WKWebView.
+ */
+function requestFullscreenGuarded(webApp: TelegramWebApp) {
+  const now = Date.now();
+  if (now - lastFullscreenRequestAt < FULLSCREEN_COOLDOWN_MS) return;
+  lastFullscreenRequestAt = now;
+  safeCall(() => webApp.requestFullscreen?.());
+}
+
+/**
+ * Safe to call any time — updates client mode tag + safe area.
+ * Does NOT call requestFullscreen() so it is safe to use as a
+ * viewportChanged handler without causing a re-entrancy loop.
+ */
 export function ensureTelegramMiniAppFullscreen() {
   const webApp = getTelegramWebApp();
   if (!webApp) return;
@@ -173,23 +199,14 @@ export function ensureTelegramMiniAppFullscreen() {
   safeCall(() => webApp.ready?.());
   syncTelegramClientMode(webApp);
 
-  // True fullscreen is good on phones, but on Telegram Desktop it turns the app
-  // into a huge notebook-size page. Desktop should stay in a mobile-style panel.
   if (isMobileTelegramClient(webApp)) {
-    safeCall(() => webApp.requestFullscreen?.());
+    requestFullscreenGuarded(webApp);
     safeCall(() => webApp.expand?.());
   } else {
     safeCall(() => webApp.exitFullscreen?.());
   }
 
-  safeCall(() => webApp.disableVerticalSwipes?.());
   updateHeaderSafeArea();
-}
-
-function scheduleFullscreenRetries() {
-  FULLSCREEN_RETRY_DELAYS_MS.forEach((delayMs) => {
-    window.setTimeout(ensureTelegramMiniAppFullscreen, delayMs);
-  });
 }
 
 export function initializeTelegramMiniApp() {
@@ -199,20 +216,57 @@ export function initializeTelegramMiniApp() {
   if (!webApp) return;
   isInitialized = true;
 
-  // Signal readiness first, then repeatedly ask Telegram for a stable fullscreen viewport.
-  // Some iOS/Android clients recalculate the viewport after first paint or after launch source changes.
-  scheduleFullscreenRetries();
+  // One-time setup
+  safeCall(() => webApp.ready?.());
+  syncTelegramClientMode(webApp);
 
-  // Telegram can recalculate the viewport during keyboard/orientation changes.
-  safeCall(() => webApp.onEvent?.('viewportChanged', ensureTelegramMiniAppFullscreen));
-  safeCall(() => webApp.onEvent?.('fullscreenFailed', scheduleFullscreenRetries));
+  // disableVerticalSwipes — called ONCE here, never repeated on viewport changes
+  safeCall(() => webApp.disableVerticalSwipes?.());
+
+  // Initial fullscreen request (guarded — inline script in index.html already
+  // called ready()+expand() but not requestFullscreen, so this is the first call)
+  if (isMobileTelegramClient(webApp)) {
+    requestFullscreenGuarded(webApp);
+    safeCall(() => webApp.expand?.());
+  } else {
+    safeCall(() => webApp.exitFullscreen?.());
+  }
+
+  updateHeaderSafeArea();
+
+  /**
+   * viewportChanged must NEVER call requestFullscreen().
+   *
+   * requestFullscreen() → viewportChanged → requestFullscreen() → ...
+   * is an infinite loop that freezes ALL touch input on iOS WKWebView.
+   *
+   * Safe actions on viewport change: expand() + update safe area only.
+   */
+  const onViewportChanged = () => {
+    safeCall(() => webApp.expand?.());
+    updateHeaderSafeArea();
+  };
+  safeCall(() => webApp.onEvent?.('viewportChanged', onViewportChanged));
+
+  // If fullscreen explicitly fails, retry once after cooldown expires
+  safeCall(() => webApp.onEvent?.('fullscreenFailed', () => {
+    const app = getTelegramWebApp();
+    if (app && isMobileTelegramClient(app)) {
+      // Force the cooldown to expire so the next guarded call goes through
+      lastFullscreenRequestAt = 0;
+      requestFullscreenGuarded(app);
+    }
+  }));
+
   safeCall(() => webApp.onEvent?.('safeAreaChanged', updateHeaderSafeArea));
   safeCall(() => webApp.onEvent?.('contentSafeAreaChanged', updateHeaderSafeArea));
-  updateHeaderSafeArea();
-  window.addEventListener('focus', scheduleFullscreenRetries);
+
+  // On app focus/resume re-check fullscreen — guarded, so no-op within cooldown
+  window.addEventListener('focus', ensureTelegramMiniAppFullscreen);
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) scheduleFullscreenRetries();
+    if (!document.hidden) ensureTelegramMiniAppFullscreen();
   });
+
   installIosOverscrollGuard();
 }
 

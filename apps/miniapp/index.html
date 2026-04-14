@@ -10,8 +10,12 @@
     <title>Turon Kafesi</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <!--
-      Expand + go fullscreen as early as possible — before any JS bundle loads.
-      This prevents Telegram's "card/panel" mode from ever showing the side gaps.
+      Signal readiness and expand the viewport as early as possible.
+      requestFullscreen() and disableVerticalSwipes() are intentionally
+      NOT called here — they are called once by initializeTelegramMiniApp()
+      in the JS bundle with a cooldown guard. Calling requestFullscreen()
+      here AND in the bundle causes two back-to-back viewport transitions
+      on iOS which permanently blocks touch input (WKWebView touch freeze bug).
     -->
     <script>
       (function () {
@@ -21,13 +25,7 @@
         var isMobile = platform === 'ios' || platform === 'android' || platform === 'android_x';
         document.documentElement.dataset.tgClient = isMobile ? 'mobile' : 'desktop';
         try { tg.ready(); } catch (e) {}
-        if (isMobile) {
-          try { tg.expand(); } catch (e) {}
-          try { if (tg.requestFullscreen) tg.requestFullscreen(); } catch (e) {}
-        } else {
-          try { if (tg.exitFullscreen) tg.exitFullscreen(); } catch (e) {}
-        }
-        try { if (tg.disableVerticalSwipes) tg.disableVerticalSwipes(); } catch (e) {}
+        try { tg.expand(); } catch (e) {}
       })();
     </script>
     <!--
