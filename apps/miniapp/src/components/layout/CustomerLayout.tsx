@@ -45,11 +45,11 @@ const CustomerLayout: React.FC = () => {
   const { connectionState, isConnected } = useOrdersRealtimeSync();
   const { tr } = useCustomerLanguage();
   const layoutVars: React.CSSProperties & Record<string, string> = {
-    '--customer-nav-height': '62px',
+    '--customer-nav-height': '74px',
     '--customer-nav-bottom-gap': 'calc(env(safe-area-inset-bottom, 0px) + 10px)',
-    '--customer-nav-top-edge': 'calc(env(safe-area-inset-bottom, 0px) + 72px)',
+    '--customer-nav-top-edge': 'calc(env(safe-area-inset-bottom, 0px) + 84px)',
     '--customer-floating-cart-offset':
-      'calc(env(safe-area-inset-bottom, 0px) + 78px)',
+      'calc(env(safe-area-inset-bottom, 0px) + 88px)',
     '--customer-sticky-panel-clearance':
       'calc(env(safe-area-inset-bottom, 0px) + 168px)',
     '--customer-floating-content-clearance':

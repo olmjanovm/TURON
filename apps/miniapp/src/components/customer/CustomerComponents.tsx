@@ -691,7 +691,7 @@ export const FloatingCartBar: React.FC<{
   return (
     <div
       className="fixed inset-x-0 z-40"
-      style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 72px)' }}
+      style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 78px)' }}
     >
       <div className="mx-auto w-full max-w-[360px] px-4">
         <button
@@ -840,11 +840,11 @@ export const BottomNavbar: React.FC = () => {
   ];
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 bg-white/96 shadow-[0_-14px_32px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+    <nav className="fixed inset-x-0 bottom-0 z-[80] bg-white text-[#202124] shadow-[0_-16px_34px_rgba(15,23,42,0.14)]">
       <div
-        className="mx-auto flex w-full max-w-[430px] items-center justify-around border-t border-slate-200/80 px-1.5"
+        className="mx-auto flex w-full max-w-[430px] items-center justify-around border-t border-slate-200 px-1.5"
         style={{
-          height: 'calc(70px + env(safe-area-inset-bottom, 0px))',
+          height: 'calc(74px + env(safe-area-inset-bottom, 0px))',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         }}
       >
@@ -860,13 +860,13 @@ export const BottomNavbar: React.FC = () => {
             <NavLink
               key={item.path}
               to={item.path}
-              className={`group relative flex min-w-[58px] flex-col items-center gap-1 px-1 transition-all active:scale-95 ${
-                isActive ? 'text-[#202124]' : 'text-[#8c8c96]'
+              className={`group relative flex min-w-[58px] flex-col items-center gap-1 px-1 py-1 transition-all active:scale-95 ${
+                isActive ? 'text-blue-600' : 'text-slate-400'
               }`}
             >
               <div
                 className={`relative flex h-9 w-9 items-center justify-center rounded-[14px] transition-all duration-200 group-active:-translate-y-0.5 ${
-                  isActive ? 'bg-[#202124] text-white shadow-[0_10px_18px_rgba(15,23,42,0.18)]' : 'bg-transparent'
+                  isActive ? 'bg-blue-50 text-blue-600 shadow-[0_4px_12px_rgba(37,99,235,0.15)]' : 'bg-transparent'
                 }`}
               >
                 <Icon size={19} strokeWidth={isActive ? 2.6 : 2.2} />
@@ -877,7 +877,7 @@ export const BottomNavbar: React.FC = () => {
                 ) : null}
                 {item.isNotification ? <NotificationBadge role={UserRoleEnum.CUSTOMER} /> : null}
               </div>
-              <span className={`text-[10px] font-semibold leading-none ${isActive ? 'opacity-100' : 'opacity-85'}`}>
+              <span className={`text-[10px] leading-none ${isActive ? 'font-black opacity-100' : 'font-bold opacity-100'}`}>
                 {item.label}
               </span>
             </NavLink>

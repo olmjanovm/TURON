@@ -314,7 +314,7 @@ const CartPage: React.FC = () => {
 
       <div
         className="fixed inset-x-0 z-40 border-t border-slate-200/80 bg-white/96 px-4 py-3 shadow-[0_-16px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl"
-        style={{ bottom: 'calc(70px + env(safe-area-inset-bottom, 0px))' }}
+        style={{ bottom: 'calc(74px + env(safe-area-inset-bottom, 0px))' }}
       >
         <div className="mx-auto max-w-[430px]">
           <button

@@ -25,7 +25,11 @@
         var isMobile = platform === 'ios' || platform === 'android' || platform === 'android_x';
         document.documentElement.dataset.tgClient = isMobile ? 'mobile' : 'desktop';
         try { tg.ready(); } catch (e) {}
-        try { tg.expand(); } catch (e) {}
+        if (isMobile) {
+          try { tg.expand(); } catch (e) {}
+        } else {
+          try { tg.exitFullscreen && tg.exitFullscreen(); } catch (e) {}
+        }
       })();
     </script>
     <!--
