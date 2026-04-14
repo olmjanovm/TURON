@@ -5,6 +5,7 @@ type TelegramWebApp = {
   close?: () => void;
   disableVerticalSwipes?: () => void;
   enableClosingConfirmation?: () => void;
+  platform?: string;
   onEvent?: (eventType: string, eventHandler: (event?: unknown) => void) => void;
   offEvent?: (eventType: string, eventHandler: (event?: unknown) => void) => void;
 };
@@ -25,6 +26,20 @@ function safeCall(action: (() => void) | undefined) {
   } catch {
     // Telegram WebApp API calls are best-effort because older clients may no-op or throw.
   }
+}
+
+function isMobileTelegramClient(webApp: TelegramWebApp) {
+  const platform = (webApp.platform || '').toLowerCase();
+
+  if (['ios', 'android', 'android_x'].includes(platform)) {
+    return true;
+  }
+
+  if (['tdesktop', 'macos', 'weba', 'webk', 'web', 'unknown'].includes(platform)) {
+    return false;
+  }
+
+  return window.matchMedia?.('(hover: none) and (pointer: coarse)').matches ?? false;
 }
 
 function getDocumentScrollElement(): HTMLElement {
@@ -150,10 +165,15 @@ export function ensureTelegramMiniAppFullscreen() {
   const webApp = getTelegramWebApp();
   if (!webApp) return;
 
-  // Bot API 8.0+ gives true fullscreen; expand remains the safe fallback for older clients.
   safeCall(() => webApp.ready?.());
-  safeCall(() => webApp.requestFullscreen?.());
-  safeCall(() => webApp.expand?.());
+
+  // True fullscreen is good on phones, but on Telegram Desktop it turns the app
+  // into a huge notebook-size page. Desktop should stay in a mobile-style panel.
+  if (isMobileTelegramClient(webApp)) {
+    safeCall(() => webApp.requestFullscreen?.());
+    safeCall(() => webApp.expand?.());
+  }
+
   safeCall(() => webApp.disableVerticalSwipes?.());
   updateHeaderSafeArea();
 }

@@ -65,6 +65,25 @@ body {
   min-height: 100dvh;
 }
 
+@media (min-width: 768px) and (hover: hover) and (pointer: fine) {
+  body {
+    display: flex;
+    justify-content: center;
+  }
+
+  #root,
+  .tg-app-shell {
+    max-width: 430px;
+  }
+
+  #root {
+    overflow: hidden;
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.04),
+      0 0 80px rgba(0, 0, 0, 0.6);
+  }
+}
+
 @supports not (min-height: 100dvh) {
   body,
   #root,
