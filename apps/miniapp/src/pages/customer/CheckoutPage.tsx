@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { ArrowLeft, CheckCircle2, Loader2, LocateFixed, MapPin } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ArrowLeft, CheckCircle2, Loader2, LocateFixed, MapPin, Phone, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../components/ui/Toast';
 import { SelectedAddressCard } from '../../components/customer/AddressComponents';
@@ -13,7 +13,112 @@ import { useCreateOrder, useOrderQuote } from '../../hooks/queries/useOrders';
 import { useAddressStore } from '../../store/useAddressStore';
 import { useCartStore } from '../../store/useCartStore';
 import { useCheckoutStore } from '../../store/useCheckoutStore';
+import { useAuthStore } from '../../store/useAuthStore';
+import { api } from '../../lib/api';
 import { createRouteInfoFromMeters } from '../../features/maps/route';
+
+// ── Phone entry modal ─────────────────────────────────────────────────────────
+
+function normalizePhone(raw: string): string | null {
+  const d = raw.replace(/\D/g, '');
+  if (d.length === 12 && d.startsWith('998')) return `+${d}`;
+  if (d.length === 10 && d.startsWith('0')) return `+998${d.slice(1)}`;
+  if (d.length === 9) return `+998${d}`;
+  return null;
+}
+
+interface PhoneModalProps {
+  onSaved: (phone: string) => void;
+  onClose: () => void;
+}
+
+function PhoneModal({ onSaved, onClose }: PhoneModalProps) {
+  const [value, setValue] = useState('');
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const updateUser = useAuthStore((s) => s.updateUser);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    const normalized = normalizePhone(value);
+    if (!normalized) {
+      setError("Noto'g'ri format. Masalan: +998 90 123 45 67");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await api.patch('/users/me/phone', { phone: normalized }) as { phoneNumber: string };
+      updateUser({ phoneNumber: res.phoneNumber });
+      onSaved(res.phoneNumber);
+    } catch (err: any) {
+      setError(err?.response?.data?.error || "Saqlashda xatolik");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[400] flex items-end justify-center"
+      style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="w-full max-w-[390px] rounded-t-[28px] bg-white px-5 pt-6 pb-8 shadow-2xl">
+        {/* Handle + close */}
+        <div className="mb-5 flex items-start justify-between">
+          <div>
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-50">
+              <Phone size={22} className="text-amber-500" />
+            </div>
+            <h2 className="text-[18px] font-black text-slate-900">Telefon raqam kerak</h2>
+            <p className="mt-1 text-[13px] font-medium text-slate-500">
+              Yetkazish uchun kuryer siz bilan bog'lanishi kerak
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-400 active:scale-95"
+          >
+            <X size={15} />
+          </button>
+        </div>
+
+        <form onSubmit={(e) => void handleSubmit(e)}>
+          <div className="mb-4">
+            <input
+              ref={inputRef}
+              type="tel"
+              value={value}
+              onChange={(e) => { setValue(e.target.value); setError(''); }}
+              placeholder="+998 90 123 45 67"
+              className={`h-14 w-full rounded-[14px] border px-4 text-[15px] font-bold outline-none transition-colors ${
+                error
+                  ? 'border-red-300 bg-red-50 text-red-700 placeholder:text-red-300'
+                  : 'border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400 focus:border-amber-400 focus:bg-white'
+              }`}
+            />
+            {error && (
+              <p className="mt-2 text-[12px] font-semibold text-red-600">{error}</p>
+            )}
+          </div>
+
+          <button
+            type="submit"
+            disabled={saving || !value.trim()}
+            className="flex h-14 w-full items-center justify-center gap-2 rounded-[14px] bg-amber-500 text-[14px] font-black text-white shadow-lg shadow-amber-200 transition-all active:scale-[0.98] disabled:opacity-50"
+          >
+            {saving ? <Loader2 size={18} className="animate-spin" /> : null}
+            {saving ? 'Saqlanmoqda...' : 'Tasdiqlash va buyurtma berish'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
@@ -27,6 +132,9 @@ const CheckoutPage: React.FC = () => {
   const { data: products = [], isLoading: isProductsLoading, isError: isProductsError } = useProducts();
   const [addressHint, setAddressHint] = useState<string | null>(null);
   const [addressError, setAddressError] = useState<string | null>(null);
+  const [showPhoneModal, setShowPhoneModal] = useState(false);
+  // Holds the payload to re-submit after user saves their phone
+  const pendingPayloadRef = useRef<object | null>(null);
 
   const selectedAddress = addresses.find((address) => address.id === selectedAddressId);
   const subtotal = getSubtotal();
@@ -122,17 +230,25 @@ const CheckoutPage: React.FC = () => {
       receiptImageBase64: paymentMethod === 'MANUAL_TRANSFER' ? receiptImage : undefined,
     };
 
+    pendingPayloadRef.current = payload;
+
     createOrderMutation.mutate(payload, {
       onSuccess: (order) => {
+        pendingPayloadRef.current = null;
         if (window.Telegram?.WebApp?.HapticFeedback) {
           window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
         }
-
         clearCart();
         resetCheckout();
         navigate(`/customer/order-success?orderId=${order.id}`, { state: { order } });
       },
       onError: (error: Error) => {
+        // Backend: phone number missing — show the quick-entry modal
+        if ((error as any).code === 'PHONE_REQUIRED') {
+          setShowPhoneModal(true);
+          return;
+        }
+        pendingPayloadRef.current = null;
         showToast(error.message || 'Buyurtmani yaratishda xatolik yuz berdi', 'error');
       },
     });
@@ -272,6 +388,34 @@ const CheckoutPage: React.FC = () => {
           <PaymentMethodSelector />
         </CheckoutSectionCard>
       </section>
+
+      {/* ── Phone entry modal — shown when backend rejects with PHONE_REQUIRED ── */}
+      {showPhoneModal && (
+        <PhoneModal
+          onSaved={() => {
+            setShowPhoneModal(false);
+            // Re-submit the order now that we have a phone number
+            if (pendingPayloadRef.current) {
+              createOrderMutation.mutate(pendingPayloadRef.current as any, {
+                onSuccess: (order) => {
+                  pendingPayloadRef.current = null;
+                  if (window.Telegram?.WebApp?.HapticFeedback) {
+                    window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+                  }
+                  clearCart();
+                  resetCheckout();
+                  navigate(`/customer/order-success?orderId=${order.id}`, { state: { order } });
+                },
+                onError: (err: Error) => {
+                  pendingPayloadRef.current = null;
+                  showToast(err.message || 'Buyurtmani yaratishda xatolik yuz berdi', 'error');
+                },
+              });
+            }
+          }}
+          onClose={() => setShowPhoneModal(false)}
+        />
+      )}
 
       <div
         className="fixed inset-x-0 z-40 px-4"

@@ -43,6 +43,9 @@ api.interceptors.response.use(
       (!error.response
         ? "Server bilan aloqa uzildi. Internetni tekshirib yana urinib ko'ring."
         : fallbackServerMessage || 'Tizim xatosi. Iltimos birozdan so\'ng urunib ko\'ring.');
-    return Promise.reject(new Error(message));
+    const apiError = new Error(message) as Error & { code?: string };
+    // Preserve machine-readable code (e.g. PHONE_REQUIRED) so callers can branch
+    if (responseData?.code) apiError.code = responseData.code;
+    return Promise.reject(apiError);
   }
 );

@@ -78,6 +78,25 @@ export class OrderChatService {
     // Publish via SSE so the other party receives it instantly
     orderTrackingService.publishChatMessage(orderId, dto);
 
+    // ── 60-second unread reminder ────────────────────────────────────────────
+    // If the recipient hasn't opened the chat after 1 minute, push a
+    // "chat.unread_reminder" event so the frontend can show a "call?" prompt.
+    const recipientRole: 'COURIER' | 'CUSTOMER' =
+      senderRole === 'COURIER' ? 'CUSTOMER' : 'COURIER';
+    const msgId = msg.id;
+
+    setTimeout(async () => {
+      try {
+        const stillUnread = await prisma.orderChatMessage.findFirst({
+          where: { id: msgId, isRead: false },
+          select: { id: true },
+        });
+        if (stillUnread) {
+          orderTrackingService.publishChatUnreadReminder(orderId, recipientRole, msgId);
+        }
+      } catch { /* best-effort — never crash the process */ }
+    }, 60_000);
+
     return dto;
   }
 
@@ -86,10 +105,15 @@ export class OrderChatService {
     const senderRole: ChatSenderRoleEnum =
       readerRole === 'COURIER' ? ChatSenderRoleEnum.CUSTOMER : ChatSenderRoleEnum.COURIER;
 
-    await prisma.orderChatMessage.updateMany({
+    const updated = await prisma.orderChatMessage.updateMany({
       where: { orderId, senderRole, isRead: false },
       data: { isRead: true },
     });
+
+    // Notify the sender their messages were read (read receipt)
+    if (updated.count > 0) {
+      orderTrackingService.publishChatRead(orderId, readerRole);
+    }
   }
 
   static async getUnreadCount(orderId: string, readerRole: 'COURIER' | 'CUSTOMER'): Promise<number> {

@@ -15,10 +15,24 @@ export interface ChatMessage {
   createdAt: string;
 }
 
+interface ChatReadPayload {
+  orderId: string;
+  readerRole: 'COURIER' | 'CUSTOMER';
+  readAt: string;
+}
+
+interface ChatUnreadReminderPayload {
+  orderId: string;
+  forRole: 'COURIER' | 'CUSTOMER';
+  messageId: string;
+}
+
 interface ChatStreamEvent {
   type: string;
   orderId?: string;
   chatMessage?: ChatMessage;
+  chatRead?: ChatReadPayload;
+  chatUnreadReminder?: ChatUnreadReminderPayload;
 }
 
 function chatKey(orderId: string) {
@@ -66,10 +80,18 @@ export function useOrderChatUnread(orderId: string, role: 'courier' | 'customer'
  * When a `chat.message` event arrives it appends the message to the query cache
  * without a re-fetch. Falls back to polling every 15s if SSE is unavailable.
  */
-export function useOrderChat(orderId: string, role: 'courier' | 'customer') {
+export function useOrderChat(
+  orderId: string,
+  role: 'courier' | 'customer',
+  callbacks?: {
+    onUnreadReminder?: (messageId: string) => void;
+  },
+) {
   const queryClient = useQueryClient();
   const token = useAuthStore((s) => s.token);
   const [connected, setConnected] = useState(false);
+  const callbacksRef = useRef(callbacks);
+  callbacksRef.current = callbacks;
 
   // ── Initial fetch ─────────────────────────────────────────────────────────
   const { data: messages = [], isLoading, error } = useQuery({
@@ -148,8 +170,34 @@ export function useOrderChat(orderId: string, role: 'courier' | 'customer') {
 
             try {
               const payload = JSON.parse(dataLines.join('\n')) as ChatStreamEvent;
+
               if (payload.type === 'chat.message' && payload.chatMessage) {
                 appendMessage(payload.chatMessage);
+              }
+
+              // Update isRead flag on our own messages when the other party reads them
+              if (payload.type === 'chat.read' && payload.chatRead) {
+                const { readerRole } = payload.chatRead;
+                // My messages are read by the other role
+                const myRole = role === 'courier' ? 'COURIER' : 'CUSTOMER';
+                const otherRole = myRole === 'COURIER' ? 'CUSTOMER' : 'COURIER';
+                if (readerRole === otherRole) {
+                  queryClient.setQueryData<ChatMessage[]>(chatKey(orderId), (prev) =>
+                    prev
+                      ? prev.map((m) =>
+                          m.senderRole === myRole ? { ...m, isRead: true } : m,
+                        )
+                      : prev,
+                  );
+                }
+              }
+
+              // Unread reminder: backend says the recipient hasn't opened chat in 60 s
+              if (payload.type === 'chat.unread_reminder' && payload.chatUnreadReminder) {
+                const myRole = role === 'courier' ? 'COURIER' : 'CUSTOMER';
+                if (payload.chatUnreadReminder.forRole === myRole) {
+                  callbacksRef.current?.onUnreadReminder?.(payload.chatUnreadReminder.messageId);
+                }
               }
             } catch {
               // ignore parse errors

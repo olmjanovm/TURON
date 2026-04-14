@@ -420,6 +420,25 @@ export async function handleCreateOrder(
 ) {
   const user = request.user as any;
   const { items, deliveryAddressId, paymentMethod, promoCode, note, receiptImageBase64 } = request.body as any;
+
+  // ── Phone number is required to place an order ─────────────────────────────
+  // Check JWT first; if absent there (old token), fall back to a quick DB read.
+  let phoneNumber: string | null = user.phoneNumber ?? null;
+  if (!phoneNumber) {
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { phoneNumber: true },
+    });
+    phoneNumber = dbUser?.phoneNumber ?? null;
+  }
+
+  if (!phoneNumber) {
+    return reply.status(422).send({
+      code: 'PHONE_REQUIRED',
+      error: 'Buyurtma berish uchun telefon raqamingizni kiriting',
+    });
+  }
+
   let orderPricing: Awaited<ReturnType<typeof buildOrderPricing>>;
 
   try {

@@ -17,6 +17,7 @@ import mapRoutes from './modules/maps/maps.routes.js';
 import notificationsRoutes from './modules/notifications/notifications.routes.js';
 import supportRoutes from './modules/support/support.routes.js';
 import reportsRoutes from './modules/reports/reports.routes.js';
+import usersRoutes from './modules/users/users.routes.js';
 
 export default fp(async function (fastify: FastifyInstance, opts: FastifyPluginOptions) {
   // 1. Core Plugins
@@ -46,6 +47,7 @@ export default fp(async function (fastify: FastifyInstance, opts: FastifyPluginO
     authenticated.register(notificationsRoutes, { prefix: '/notifications' });
     authenticated.register(supportRoutes, { prefix: '/support' });
     authenticated.register(reportsRoutes, { prefix: '/reports' });
+    authenticated.register(usersRoutes, { prefix: '/users' });
   });
 
   // 4. Health Check

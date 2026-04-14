@@ -28,12 +28,28 @@ export interface ChatMessagePayload {
   createdAt: string;
 }
 
+export interface ChatReadPayload {
+  orderId: string;
+  /** Role that just read the messages (the OTHER role's messages are now read) */
+  readerRole: 'COURIER' | 'CUSTOMER';
+  readAt: string;
+}
+
+export interface ChatUnreadReminderPayload {
+  orderId: string;
+  /** Which side should see the "want to call?" reminder */
+  forRole: 'COURIER' | 'CUSTOMER';
+  messageId: string;
+}
+
 export interface OrderTrackingEvent {
-  type: 'snapshot' | 'order.updated' | 'courier.location' | 'chat.message';
+  type: 'snapshot' | 'order.updated' | 'courier.location' | 'chat.message' | 'chat.read' | 'chat.unread_reminder';
   orderId: string;
   order?: unknown;
   tracking?: OrderTrackingSnapshot;
   chatMessage?: ChatMessagePayload;
+  chatRead?: ChatReadPayload;
+  chatUnreadReminder?: ChatUnreadReminderPayload;
 }
 
 class OrderTrackingService {
@@ -150,6 +166,38 @@ class OrderTrackingService {
       type: 'chat.message',
       orderId,
       chatMessage: message,
+    });
+  }
+
+  /**
+   * Notify the sender that their messages have been read.
+   * Emitted when the receiver opens the chat (markRead is called).
+   */
+  publishChatRead(orderId: string, readerRole: 'COURIER' | 'CUSTOMER') {
+    this.emit({
+      type: 'chat.read',
+      orderId,
+      chatRead: {
+        orderId,
+        readerRole,
+        readAt: new Date().toISOString(),
+      },
+    });
+  }
+
+  /**
+   * Prompt the recipient to call the other party.
+   * Emitted ~60 s after a message is sent if it is still unread.
+   */
+  publishChatUnreadReminder(
+    orderId: string,
+    forRole: 'COURIER' | 'CUSTOMER',
+    messageId: string,
+  ) {
+    this.emit({
+      type: 'chat.unread_reminder',
+      orderId,
+      chatUnreadReminder: { orderId, forRole, messageId },
     });
   }
 
