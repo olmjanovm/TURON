@@ -1159,7 +1159,7 @@ export function translate(
 
   return Object.entries(variables).reduce(
     (currentMessage, [variableKey, variableValue]) =>
-      currentMessage.replaceAll(`{{${variableKey}}}`, String(variableValue)),
+      currentMessage.split(`{{${variableKey}}}`).join(String(variableValue)),
     message,
   );
 }

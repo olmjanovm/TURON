@@ -9,11 +9,9 @@ import { ensureTelegramMiniAppFullscreen } from '../../lib/telegramMiniApp';
 import { ErrorStateCard, LoadingScreen } from '../ui/FeedbackStates';
 
 const API_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:3000';
-const MIN_SPLASH_MS   = 2_500;   // burger always visible at least this long
-const AUTH_TIMEOUT_MS = 8_000;   // max wait for /auth/telegram
-const HARD_TIMEOUT_MS = 13_000;  // absolute max — then show retry
-
-// ── Fetch helpers (raw axios, no auth needed for public endpoints) ────────────
+const MIN_SPLASH_MS = 2_500;
+const AUTH_TIMEOUT_MS = 8_000;
+const HARD_TIMEOUT_MS = 13_000;
 
 async function fetchPublicJson<T>(url: string): Promise<T> {
   const { data } = await axios.get<T>(url, { timeout: 10_000 });
@@ -39,19 +37,97 @@ async function resolveInitData(
   if (initData) return initData;
 
   return new Promise<string | null>((resolve) => {
-    let tries = 4;
+    let tries = 16;
+
     const poll = () => {
-      if (signal.aborted) return resolve(null);
-      const d = window.Telegram?.WebApp?.initData;
-      if (d) return resolve(d);
-      if (--tries <= 0) return resolve(null);
-      window.setTimeout(poll, 380);
+      if (signal.aborted) {
+        resolve(null);
+        return;
+      }
+
+      const freshInitData = window.Telegram?.WebApp?.initData;
+
+      if (freshInitData) {
+        resolve(freshInitData);
+        return;
+      }
+
+      tries -= 1;
+
+      if (tries <= 0) {
+        resolve(null);
+        return;
+      }
+
+      window.setTimeout(poll, 250);
     };
+
     poll();
   });
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+function isAbortLikeError(err: unknown) {
+  return err instanceof Error && (err.name === 'AbortError' || err.message === 'aborted');
+}
+
+function wait(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      reject(new Error('aborted'));
+      return;
+    }
+
+    let timer: number | undefined;
+    const onAbort = () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      reject(new Error('aborted'));
+    };
+
+    timer = window.setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  message: string,
+  signal: AbortSignal,
+): Promise<T> {
+  let timer: number | undefined;
+  let onAbort: (() => void) | undefined;
+
+  const timeout = new Promise<never>((_, reject) => {
+    if (signal.aborted) {
+      reject(new Error('aborted'));
+      return;
+    }
+
+    timer = window.setTimeout(() => reject(new Error(message)), ms);
+    onAbort = () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      reject(new Error('aborted'));
+    };
+
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    if (timer !== undefined) window.clearTimeout(timer);
+    if (onAbort) signal.removeEventListener('abort', onAbort);
+  }
+}
+
+function hasCachedAuth() {
+  const state = useAuthStore.getState();
+  return state.isAuthenticated && !!state.user && !!state.token;
+}
 
 export const AppBootstrapGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { initData } = useTelegram();
@@ -60,104 +136,106 @@ export const AppBootstrapGate: React.FC<{ children: React.ReactNode }> = ({ chil
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [ready, setReady]       = useState(false);
-  const [error, setError]       = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
+  const hadCachedAuthRef = useRef(isAuthenticated && !!user && !!token);
 
-  // Snapshot session state at effect-run time so re-renders don't restart the flow
-  const hasCachedRef = useRef(isAuthenticated && !!user && !!token);
-
-  // ── Hard timeout ──────────────────────────────────────────────────────────
   useEffect(() => {
-    if (ready || error) return;
-    const t = window.setTimeout(() => {
-      setError("Ulanish vaqti tugadi. Internetni tekshirib, qayta urining.");
-    }, HARD_TIMEOUT_MS);
-    return () => window.clearTimeout(t);
-  }, [ready, error, retryKey]);
-
-  // ── Bootstrap ─────────────────────────────────────────────────────────────
-  useEffect(() => {
-    hasCachedRef.current = isAuthenticated && !!user && !!token;
-    const hasCached = hasCachedRef.current;
-
     const controller = new AbortController();
     const { signal } = controller;
 
+    hadCachedAuthRef.current = hasCachedAuth();
     setReady(false);
     setError(null);
+    ensureTelegramMiniAppFullscreen();
 
-    // 1. Auth flow
-    const authPromise: Promise<void> = hasCached
-      ? // Returning user: fire-and-forget silent refresh
-        (async () => {
-          const id = await resolveInitData(initData, signal);
-          if (!id || signal.aborted) return;
-          try {
-            const result = await doAuthRequest(id, signal);
-            if (signal.aborted) return;
-            const role = normalizeRole(result.user?.role);
-            if (role) setAuth({ ...result.user, role }, result.token);
-            ensureTelegramMiniAppFullscreen();
-          } catch { /* silent — cached token still works */ }
-        })()
-      : // New user: must succeed before showing the app
-        (async () => {
-          const id = await resolveInitData(initData, signal);
-          if (signal.aborted) return;
-          if (!id) throw new Error('Telegram muhiti topilmadi. Bot orqali kiring.');
-          const result = await doAuthRequest(id, signal);
-          if (signal.aborted) return;
-          const role = normalizeRole(result.user?.role);
-          if (!role) throw new Error("Foydalanuvchi roli qo'llab-quvvatlanmaydi");
-          setAuth({ ...result.user, role }, result.token);
-          ensureTelegramMiniAppFullscreen();
-        })();
+    const prefetchMenu = () => {
+      void Promise.allSettled([
+        queryClient.prefetchQuery({
+          queryKey: ['menu', 'categories'],
+          queryFn: () => fetchPublicJson(`${API_URL}/menu/categories`),
+          staleTime: 5 * 60_000,
+        }),
+        queryClient.prefetchQuery({
+          queryKey: ['menu', 'products'],
+          queryFn: () => fetchPublicJson(`${API_URL}/menu/products`),
+          staleTime: 5 * 60_000,
+        }),
+      ]);
+    };
 
-    // 2. Prefetch public menu data (runs immediately, no auth needed)
-    const menuPromise = Promise.allSettled([
-      queryClient.prefetchQuery({
-        queryKey: ['menu', 'categories'],
-        queryFn: () => fetchPublicJson(`${API_URL}/menu/categories`),
-        staleTime: 5 * 60_000,
-      }),
-      queryClient.prefetchQuery({
-        queryKey: ['menu', 'products'],
-        queryFn: () => fetchPublicJson(`${API_URL}/menu/products`),
-        staleTime: 5 * 60_000,
-      }),
-    ]);
+    const authenticate = async () => {
+      const id = await resolveInitData(initData, signal);
 
-    // 3. Minimum splash so the burger animation is actually seen
-    const splashPromise = new Promise<void>((r) => window.setTimeout(r, MIN_SPLASH_MS));
+      if (signal.aborted) return;
 
-    // Show the app once: auth + splash done (menu finishes in background)
-    Promise.all([authPromise, splashPromise])
-      .then(() => {
-        if (!signal.aborted) setReady(true);
-        // Let menu finish quietly even if app is already shown
-        void menuPromise;
-      })
-      .catch((err: Error) => {
-        if (!signal.aborted) setError(err.message || 'Tizimga ulanishda xato yuz berdi.');
-      });
+      if (!id) {
+        if (hasCachedAuth() || hadCachedAuthRef.current) return;
+        throw new Error('Telegram muhiti topilmadi. Bot orqali kiring.');
+      }
+
+      try {
+        const result = await doAuthRequest(id, signal);
+        if (signal.aborted) return;
+
+        const role = normalizeRole(result.user?.role);
+        if (!role) throw new Error("Foydalanuvchi roli qo'llab-quvvatlanmaydi");
+
+        setAuth({ ...result.user, role }, result.token);
+      } catch (err) {
+        if (signal.aborted || isAbortLikeError(err)) throw err;
+        if (hasCachedAuth() || hadCachedAuthRef.current) return;
+        throw err;
+      }
+    };
+
+    const bootstrap = async () => {
+      prefetchMenu();
+
+      await Promise.all([
+        withTimeout(
+          authenticate(),
+          HARD_TIMEOUT_MS,
+          "Ulanish vaqti tugadi. Internetni tekshirib, qayta urining.",
+          signal,
+        ),
+        wait(MIN_SPLASH_MS, signal),
+      ]);
+
+      if (!signal.aborted) {
+        ensureTelegramMiniAppFullscreen();
+        setReady(true);
+      }
+    };
+
+    void bootstrap().catch((err: Error) => {
+      if (!signal.aborted && !isAbortLikeError(err)) {
+        setError(err.message || 'Tizimga ulanishda xato yuz berdi.');
+      }
+    });
 
     return () => controller.abort();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // We intentionally run this once per retry. resolveInitData polls the Telegram WebApp object directly.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [retryKey]);
 
-  // ── Navigate to correct route once ready ──────────────────────────────────
   useEffect(() => {
     if (!ready || error || !isAuthenticated || !user) return;
+
     const role = normalizeRole(user.role);
-    if (!role) { setError("Foydalanuvchi roli noto'g'ri."); return; }
+
+    if (!role) {
+      setError("Foydalanuvchi roli noto'g'ri.");
+      return;
+    }
+
     const redirect = resolveRoleEntryRedirect(role, location.pathname);
+
     if (redirect && redirect !== location.pathname) {
       navigate(redirect, { replace: true });
     }
   }, [ready, error, isAuthenticated, user, location.pathname, navigate]);
-
-  // ── Render ────────────────────────────────────────────────────────────────
 
   if (error) {
     return (

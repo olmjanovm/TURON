@@ -8,7 +8,8 @@
       "Bash(npx prisma:*)",
       "Bash(pnpm --filter @turon/miniapp exec tsc --noEmit)",
       "Bash(pnpm --filter @turon/backend exec tsc --noEmit)",
-      "Bash(DATABASE_URL=\"postgresql://placeholder:placeholder@localhost:5432/placeholder\" npx prisma generate)"
+      "Bash(DATABASE_URL=\"postgresql://placeholder:placeholder@localhost:5432/placeholder\" npx prisma generate)",
+      "Bash(xargs grep:*)"
     ]
   }
 }
