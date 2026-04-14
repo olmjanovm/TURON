@@ -39,7 +39,6 @@
 
 html {
   min-height: 100%;
-  /* Desktop background — visible outside the 430 px mobile column */
   background: #060810;
   color: var(--app-text);
 }
@@ -51,19 +50,13 @@ body {
   color: var(--app-text);
   background: transparent;
   -webkit-tap-highlight-color: transparent;
-  /* Center the mobile column on desktop */
-  display: flex;
-  justify-content: center;
 }
 
 #root {
   width: 100%;
-  max-width: 430px;
   min-height: 100dvh;
   position: relative;
   z-index: 1;
-  /* Subtle side shadow so the mobile frame stands out on desktop */
-  box-shadow: 0 0 0 1px rgba(255,255,255,0.04), 0 0 80px rgba(0,0,0,0.6);
 }
 
 .tg-app-shell {
