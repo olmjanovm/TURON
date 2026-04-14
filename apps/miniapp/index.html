@@ -17,9 +17,16 @@
       (function () {
         var tg = window.Telegram && window.Telegram.WebApp;
         if (!tg) return;
+        var platform = (tg.platform || '').toLowerCase();
+        var isMobile = platform === 'ios' || platform === 'android' || platform === 'android_x';
+        document.documentElement.dataset.tgClient = isMobile ? 'mobile' : 'desktop';
         try { tg.ready(); } catch (e) {}
-        try { tg.expand(); } catch (e) {}
-        try { if (tg.requestFullscreen) tg.requestFullscreen(); } catch (e) {}
+        if (isMobile) {
+          try { tg.expand(); } catch (e) {}
+          try { if (tg.requestFullscreen) tg.requestFullscreen(); } catch (e) {}
+        } else {
+          try { if (tg.exitFullscreen) tg.exitFullscreen(); } catch (e) {}
+        }
         try { if (tg.disableVerticalSwipes) tg.disableVerticalSwipes(); } catch (e) {}
       })();
     </script>

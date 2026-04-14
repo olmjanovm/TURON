@@ -6,6 +6,7 @@ import { UserRoleEnum } from '@turon/shared';
 // Guards & State Shells
 import { AppBootstrapGate } from './components/auth/AppBootstrapGate';
 import { RoleGuard } from './components/auth/RoleGuard';
+import { AppErrorBoundary } from './components/ui/AppErrorBoundary';
 import { NotFoundPage } from './components/ui/FeedbackStates';
 
 // --- Layouts ---
@@ -70,6 +71,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
       <AppBootstrapGate>
+        <AppErrorBoundary theme="dark" homeUrl="/">
         <Routes>
           {/* Base Redirect is handled inside AppBootstrapGate */}
           <Route path="/" element={<div />} />
@@ -151,6 +153,7 @@ export default function App() {
           {/* Fallback 404 */}
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
+        </AppErrorBoundary>
       </AppBootstrapGate>
       </BrowserRouter>
     </QueryClientProvider>

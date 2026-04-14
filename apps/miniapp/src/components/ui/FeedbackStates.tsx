@@ -58,6 +58,8 @@ export const LoadingScreen: React.FC<{ message?: string }> = () => {
           justifyContent: 'center',
           background: 'linear-gradient(160deg,#0a0d18 0%,#141830 55%,#0a0d18 100%)',
           overflow: 'hidden',
+          position: 'relative',
+          isolation: 'isolate',
         }}
       >
         {/* Glow behind burger */}

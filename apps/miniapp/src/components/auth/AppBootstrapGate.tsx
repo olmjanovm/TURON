@@ -45,7 +45,7 @@ async function doAuthRequest(
   const { data } = await axios.post(
     `${API_URL}/auth/telegram`,
     { initData: initDataStr },
-    { signal },
+    { signal, timeout: AUTH_HARD_TIMEOUT_MS + 1_000 },
   );
   return data;
 }
@@ -181,40 +181,54 @@ export const AppBootstrapGate: React.FC<{ children: React.ReactNode }> = ({ chil
       const onUnmount = () => reqCtrl.abort();
       signal.addEventListener('abort', onUnmount, { once: true });
 
-      // Force-cancel TCP after hard timeout
       let timedOut = false;
-      const hardTimer = window.setTimeout(() => { timedOut = true; reqCtrl.abort(); }, AUTH_HARD_TIMEOUT_MS);
+      let hardTimer: number | undefined;
 
       try {
-        const id = await resolveInitData(initData, reqCtrl.signal);
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          hardTimer = window.setTimeout(() => {
+            timedOut = true;
+            reqCtrl.abort();
+            reject(new Error('Ulanish vaqti tugadi. Internetni tekshirib, qayta urining.'));
+          }, AUTH_HARD_TIMEOUT_MS);
+        });
 
-        if (signal.aborted) return;
+        const authWork = (async () => {
+          const id = await resolveInitData(initData, reqCtrl.signal);
 
-        if (!id) {
-          throw new Error('Telegram muhiti topilmadi. Bot orqali kiring.');
-        }
+          if (signal.aborted) return;
 
-        const result = await doAuthRequest(id, reqCtrl.signal);
+          if (!id) {
+            throw new Error('Telegram muhiti topilmadi. Bot orqali kiring.');
+          }
 
-        if (signal.aborted) return;
+          const result = await doAuthRequest(id, reqCtrl.signal);
 
-        const role = normalizeRole(result.user?.role);
-        if (!role) throw new Error("Foydalanuvchi roli aniqlanmadi.");
+          if (signal.aborted) return;
 
-        // Auth succeeded — populate the store BEFORE we return so that
-        // every child page that renders immediately after setReady(true)
-        // already sees isAuthenticated = true.
-        setAuth({ ...result.user, role }, result.token);
+          const role = normalizeRole(result.user?.role);
+          if (!role) throw new Error("Foydalanuvchi roli aniqlanmadi.");
+
+          // Auth succeeded before the app renders, so RoleGuard sees a valid session immediately.
+          setAuth({ ...result.user, role }, result.token);
+
+          const redirect = resolveRoleEntryRedirect(role, location.pathname);
+          if (redirect && redirect !== location.pathname) {
+            navigate(redirect, { replace: true });
+          }
+        })();
+
+        await Promise.race([authWork, timeoutPromise]);
       } catch (err) {
         if (signal.aborted) return; // component unmounted — swallow silently
 
         // Our hard timer fired → emit a human-readable timeout message
-        if (timedOut && isAbortLike(err)) {
+        if (timedOut) {
           throw new Error('Ulanish vaqti tugadi. Internetni tekshirib, qayta urining.');
         }
         throw err;
       } finally {
-        window.clearTimeout(hardTimer);
+        if (hardTimer !== undefined) window.clearTimeout(hardTimer);
         signal.removeEventListener('abort', onUnmount);
       }
     };
