@@ -3,6 +3,15 @@ import { OrderChatService } from '../../../services/order-chat.service.js';
 
 interface IdParams { id: string }
 interface SendBody { content: string }
+type ChatRequester = { id: string; role: string };
+
+function getRequester(request: FastifyRequest): ChatRequester | null {
+  return ((request as any).user || (request as any).requester || null) as ChatRequester | null;
+}
+
+function getReaderRole(requester: ChatRequester): 'COURIER' | 'CUSTOMER' {
+  return requester.role === 'COURIER' ? 'COURIER' : 'CUSTOMER';
+}
 
 /**
  * GET /courier/order/:id/chat   — courier fetches messages
@@ -13,8 +22,9 @@ export async function getOrderChat(
   reply: FastifyReply,
 ) {
   const { id: orderId } = request.params;
-  const requester = (request as any).requester as { id: string; role: string };
-  const role = requester.role === 'COURIER' ? 'COURIER' : 'CUSTOMER';
+  const requester = getRequester(request);
+  if (!requester) return reply.status(401).send({ error: 'Unauthorized' });
+  const role = getReaderRole(requester);
 
   const hasAccess = await OrderChatService.verifyAccess(orderId, requester.id, role);
   if (!hasAccess) return reply.status(403).send({ error: 'Ruxsat yo\'q' });
@@ -36,8 +46,9 @@ export async function sendOrderChat(
 ) {
   const { id: orderId } = request.params;
   const { content } = request.body;
-  const requester = (request as any).requester as { id: string; role: string };
-  const role = requester.role === 'COURIER' ? 'COURIER' : 'CUSTOMER';
+  const requester = getRequester(request);
+  if (!requester) return reply.status(401).send({ error: 'Unauthorized' });
+  const role = getReaderRole(requester);
 
   const hasAccess = await OrderChatService.verifyAccess(orderId, requester.id, role);
   if (!hasAccess) return reply.status(403).send({ error: 'Ruxsat yo\'q' });
@@ -59,8 +70,9 @@ export async function getUnreadCount(
   reply: FastifyReply,
 ) {
   const { id: orderId } = request.params;
-  const requester = (request as any).requester as { id: string; role: string };
-  const role = requester.role === 'COURIER' ? 'COURIER' : 'CUSTOMER';
+  const requester = getRequester(request);
+  if (!requester) return reply.status(401).send({ error: 'Unauthorized' });
+  const role = getReaderRole(requester);
 
   const hasAccess = await OrderChatService.verifyAccess(orderId, requester.id, role);
   if (!hasAccess) return reply.status(403).send({ error: 'Ruxsat yo\'q' });
