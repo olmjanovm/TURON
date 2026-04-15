@@ -7,6 +7,9 @@ import { env } from '../../config.js';
 export default fp(async function authPlugin(fastify: FastifyInstance) {
   fastify.register(fastifyJwt, {
     secret: env.JWT_SECRET,
+    sign: {
+      expiresIn: '7d',
+    },
   });
 
   // Authenticate middleware
@@ -14,7 +17,7 @@ export default fp(async function authPlugin(fastify: FastifyInstance) {
     try {
       await request.jwtVerify();
     } catch (err) {
-      reply.send(err);
+      return reply.status(401).send({ error: 'Unauthorized' });
     }
   });
 

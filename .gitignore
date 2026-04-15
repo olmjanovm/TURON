@@ -1,5 +1,6 @@
 node_modules
 .env
+.env.production
 dist
 build
 .turbo
@@ -7,3 +8,6 @@ build
 .pnpm-debug.log
 .DS_Store
 *.local
+
+# App-specific env files
+apps/miniapp/.env.production

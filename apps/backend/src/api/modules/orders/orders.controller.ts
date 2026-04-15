@@ -2,6 +2,7 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import {
   NotificationTypeEnum,
   OrderStatusEnum,
+  PaymentMethodEnum,
   PaymentStatusEnum,
   UserRoleEnum,
 } from '@turon/shared';
@@ -463,6 +464,15 @@ export async function handleCreateOrder(
     });
   }
 
+  if (paymentMethod === PaymentMethodEnum.MANUAL_TRANSFER) {
+    if (typeof receiptImageBase64 !== 'string' || !receiptImageBase64.trim()) {
+      return reply.status(422).send({
+        code: 'RECEIPT_REQUIRED',
+        error: "Manual transfer uchun to'lov cheki (rasm) yuborilishi shart",
+      });
+    }
+  }
+
   let orderPricing: Awaited<ReturnType<typeof buildOrderPricing>>;
 
   try {
@@ -488,10 +498,14 @@ export async function handleCreateOrder(
 
   const createdOrder = await prisma.$transaction(async (tx) => {
     if (promo?.id) {
-      await tx.promoCode.update({
+      const updated = await tx.promoCode.update({
         where: { id: promo.id },
         data: { timesUsed: { increment: 1 } },
       });
+
+      if (typeof updated.usageLimit === 'number' && updated.usageLimit > 0 && updated.timesUsed > updated.usageLimit) {
+        throw new Error('Promokod limiti tugagan');
+      }
     }
 
     return tx.order.create({
@@ -1053,6 +1067,12 @@ export async function handleApprovePayment(
     return reply.status(400).send({ error: "Bekor qilingan buyurtma to'lovini tasdiqlab bo'lmaydi" });
   }
 
+  if (order.paymentMethod !== PaymentMethodEnum.MANUAL_TRANSFER) {
+    return reply.status(400).send({
+      error: "Bu endpoint faqat MANUAL_TRANSFER to'lovini tasdiqlash uchun",
+    });
+  }
+
   const now = new Date();
 
   await prisma.$transaction(async (tx) => {
@@ -1070,6 +1090,10 @@ export async function handleApprovePayment(
       where: { id: order.id },
       data: {
         paymentStatus: PaymentStatusEnum.COMPLETED as any,
+        status:
+          order.status === OrderStatusEnum.PENDING
+            ? (OrderStatusEnum.PREPARING as any)
+            : undefined,
       },
     });
   });
@@ -1137,6 +1161,12 @@ export async function handleRejectPayment(
 
   if (order.status === OrderStatusEnum.DELIVERED) {
     return reply.status(400).send({ error: "Yetkazilgan buyurtma to'lovini rad etib bo'lmaydi" });
+  }
+
+  if (order.paymentMethod !== PaymentMethodEnum.MANUAL_TRANSFER) {
+    return reply.status(400).send({
+      error: "Bu endpoint faqat MANUAL_TRANSFER to'lovini rad etish uchun",
+    });
   }
 
   const now = new Date();

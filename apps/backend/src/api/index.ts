@@ -20,9 +20,13 @@ async function main() {
 
     // Never block API health/startup on Telegram bot launch.
     if (env.NODE_ENV === 'production') {
-      void launchTelegramBot('api').catch((botError) => {
-        server.log.error(botError, 'Telegram bot failed to launch inside API process');
-      });
+      if (process.env.RUN_TELEGRAM_BOT === 'true') {
+        void launchTelegramBot('api').catch((botError) => {
+          server.log.error(botError, 'Telegram bot failed to launch inside API process');
+        });
+      } else {
+        server.log.warn('RUN_TELEGRAM_BOT != true, skipping bot launch inside API process');
+      }
     }
   } catch (err) {
     server.log.error(err);

@@ -11,6 +11,24 @@ import crypto from 'crypto';
 export function verifyTelegramWebAppData(initData: string, botToken: string): boolean {
   const urlParams = new URLSearchParams(initData);
   const hash = urlParams.get('hash');
+  const authDateRaw = urlParams.get('auth_date');
+
+  if (!hash || !authDateRaw) {
+    return false;
+  }
+
+  const authDate = Number(authDateRaw);
+  if (!Number.isFinite(authDate)) {
+    return false;
+  }
+
+  // Anti-replay: reject initData older than 10 minutes
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const maxAgeSeconds = 10 * 60;
+  if (authDate <= 0 || nowSeconds - authDate > maxAgeSeconds) {
+    return false;
+  }
+
   urlParams.delete('hash');
 
   const dataCheckString = Array.from(urlParams.entries())
@@ -28,7 +46,14 @@ export function verifyTelegramWebAppData(initData: string, botToken: string): bo
     .update(dataCheckString)
     .digest('hex');
 
-  return hmac === hash;
+  try {
+    const a = Buffer.from(hmac, 'utf8');
+    const b = Buffer.from(hash, 'utf8');
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
 }
 
 /**

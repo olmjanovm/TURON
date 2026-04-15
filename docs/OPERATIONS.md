@@ -13,6 +13,7 @@ Turon is a monorepo consisting of a React/Vite frontend and a Fastify/Node.js ba
 -   **Database**: PostgreSQL is required.
 -   **Build**: `pnpm build:backend`.
 -   **Process Manager**: `pm2` or Docker containers are recommended for production.
+-   **Telegram Bot**: The bot uses **long polling** by default. Ensure **only one bot instance** is running at a time.
 
 ---
 
@@ -37,6 +38,19 @@ Ensure your Telegram bot webhook points to the backend:
 curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://api.yourdomain.com/bot/webhook"
 ```
 
+> Note: the current bot implementation is **polling-based** (no webhook). If you switch to webhooks later, document the exact webhook handler endpoint and TLS requirements.
+
+### Telegram Bot Instance Safety (P0)
+- Run the bot in **exactly one** process/instance (avoid multiple replicas for the same `BOT_TOKEN`).
+- If you run the bot inside the API process, gate it via `RUN_TELEGRAM_BOT=true` to prevent accidental multi-launch.
+- Recommended production split:
+  - `api` service: `RUN_TELEGRAM_BOT=false`
+  - `bot` service: `RUN_TELEGRAM_BOT=true` (single replica)
+
+### Backups (Minimum)
+- Configure **daily Postgres backups** with at least **7-day retention**.
+- Perform a **restore drill** at least once before going live (verify you can restore to a fresh DB).
+
 ---
 
 ## 3. Operations & Safety
@@ -50,6 +64,7 @@ curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://api.you
 2.  **Verify Database Connectivity**: Can the backend connect to PostgreSQL? Check `DATABASE_URL`.
 3.  **Check CORS**: Are requests from the Mini App frontend blocked? Verify `CORS_ORIGIN` in the backend.
 4.  **Confirm Role Access**: Can the Admin access the dashboard? Check the `isAdmin` flag in the `User` table via Prisma Studio.
+5.  **Check Bot Health**: Look for polling errors (including 409 conflicts) and verify only one bot instance is running.
 
 ### Rollback Procedures
 -   **Database**: Avoid destructive migrations if possible. If a database rollback is required, ensure you have a fresh dump before running `prisma migrate resolve`.

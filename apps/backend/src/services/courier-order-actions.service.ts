@@ -102,11 +102,16 @@ function buildActionMutationPlan(input: {
   const { action, order, assignment, problemText } = input;
   const now = new Date();
   const latestEvent = getLatestAssignmentEvent(assignment);
+  const orderStatus = order.status as OrderStatusEnum;
 
   switch (action) {
     case 'ACCEPT': {
       if (assignment.status !== 'ASSIGNED') {
         throw new Error("Buyurtmani qabul qilish uchun u hali biriktirilgan holatda bo'lishi kerak");
+      }
+
+      if (orderStatus === OrderStatusEnum.CANCELLED || orderStatus === OrderStatusEnum.DELIVERED) {
+        throw new Error("Yakunlangan buyurtmani qabul qilib bo'lmaydi");
       }
 
       return {
@@ -131,6 +136,10 @@ function buildActionMutationPlan(input: {
         throw new Error("Restoranga yetdim deyishdan oldin buyurtmani qabul qiling");
       }
 
+      if (orderStatus !== OrderStatusEnum.READY_FOR_PICKUP && orderStatus !== OrderStatusEnum.PREPARING) {
+        throw new Error("Restoranga yetish uchun buyurtma tayyorlanayotgan bo'lishi kerak");
+      }
+
       if (latestEvent?.eventType === 'ARRIVED_AT_RESTAURANT') {
         throw new Error("Restoranga yetganingiz allaqachon qayd etilgan");
       }
@@ -149,6 +158,10 @@ function buildActionMutationPlan(input: {
     case 'PICKUP': {
       if (assignment.status !== 'ACCEPTED') {
         throw new Error("Taomni olishdan oldin buyurtmani qabul qiling");
+      }
+
+      if (orderStatus !== OrderStatusEnum.READY_FOR_PICKUP) {
+        throw new Error("Taomni olish uchun buyurtma READY_FOR_PICKUP holatida bo'lishi kerak");
       }
 
       return {
@@ -174,6 +187,10 @@ function buildActionMutationPlan(input: {
     case 'START_DELIVERY': {
       if (assignment.status !== 'PICKED_UP') {
         throw new Error("Yo'lga chiqishdan oldin taom olingan bo'lishi kerak");
+      }
+
+      if (orderStatus !== OrderStatusEnum.DELIVERING) {
+        throw new Error("Yo'lga chiqish uchun buyurtma DELIVERING holatida bo'lishi kerak");
       }
 
       return {
@@ -202,6 +219,10 @@ function buildActionMutationPlan(input: {
         throw new Error("Mijoz manziliga yetdim deyishdan oldin yo'lga chiqing");
       }
 
+      if (orderStatus !== OrderStatusEnum.DELIVERING) {
+        throw new Error("Mijoz manziliga yetish uchun buyurtma DELIVERING holatida bo'lishi kerak");
+      }
+
       if (latestEvent?.eventType === 'ARRIVED_AT_DESTINATION') {
         throw new Error("Mijoz manziliga yetganingiz allaqachon qayd etilgan");
       }
@@ -224,6 +245,10 @@ function buildActionMutationPlan(input: {
     case 'DELIVER': {
       if (assignment.status !== 'DELIVERING') {
         throw new Error("Buyurtmani topshirishdan oldin yo'lga chiqqan bo'lishingiz kerak");
+      }
+
+      if (orderStatus !== OrderStatusEnum.DELIVERING) {
+        throw new Error("Buyurtmani topshirish uchun buyurtma DELIVERING holatida bo'lishi kerak");
       }
 
       return {
@@ -261,7 +286,7 @@ function buildActionMutationPlan(input: {
       return {
         eventType: 'PROBLEM_REPORTED',
         assignmentStatus: assignment.status,
-        orderStatus: order.status as OrderStatusEnum,
+        orderStatus,
         payload: {
           message,
         },

@@ -5,6 +5,7 @@ import authPlugin from './plugins/auth.js';
 import securityPlugin from './plugins/security.js';
 import validationPlugin from './plugins/validation.js';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
+import { env } from '../config.js';
 
 import authRoutes from './modules/auth/auth.routes.js';
 import courierRoutes from './modules/courier/courier.routes.js';
@@ -21,7 +22,18 @@ import usersRoutes from './modules/users/users.routes.js';
 
 export default fp(async function (fastify: FastifyInstance, opts: FastifyPluginOptions) {
   // 1. Core Plugins
-  fastify.register(cors);
+  const allowedOrigins = env.CORS_ORIGIN.split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  fastify.register(cors, {
+    origin: (origin, cb) => {
+      // Allow non-browser clients / server-to-server requests
+      if (!origin) return cb(null, true);
+      const isAllowed = allowedOrigins.includes(origin);
+      cb(isAllowed ? null : new Error('Not allowed by CORS'), isAllowed);
+    },
+    credentials: false,
+  });
   fastify.register(securityPlugin);
   fastify.register(validationPlugin);
   

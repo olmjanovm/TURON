@@ -14,6 +14,7 @@ These variables must be set for the Fastify API to function correctly. Ensure th
 | `WEB_APP_URL` | Yes | `https://turon.app/` | The URL where the Mini App is hosted. |
 | `REDIS_URL` | No | `redis://localhost:6379` | Required only if using Redis for caching or sessions. |
 | `CORS_ORIGIN` | No | `*` | Allowed origins for the API. Recommend specific URL in production. |
+| `RUN_TELEGRAM_BOT` | No | `true` | If `true`, launches the Telegram bot inside the API process. Use `false` when the bot runs as a separate single-replica service. |
 
 ---
 
