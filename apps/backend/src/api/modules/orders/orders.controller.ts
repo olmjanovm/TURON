@@ -498,6 +498,9 @@ export async function handleCreateOrder(
 
   const createdOrder = await prisma.$transaction(async (tx) => {
     if (promo?.id) {
+      // Atomic increment — acquires an exclusive row lock on this promo row.
+      // All concurrent transactions must serialise here, so any check that
+      // follows is guaranteed to see fully committed state from earlier txns.
       const updated = await tx.promoCode.update({
         where: { id: promo.id },
         data: { timesUsed: { increment: 1 } },
@@ -505,6 +508,22 @@ export async function handleCreateOrder(
 
       if (typeof updated.usageLimit === 'number' && updated.usageLimit > 0 && updated.timesUsed > updated.usageLimit) {
         throw new Error('Promokod limiti tugagan');
+      }
+
+      // Per-user single-use guard inside the transaction.
+      // Because the UPDATE above holds an exclusive row lock, concurrent
+      // requests are serialised at this point. By the time TX-2 reaches
+      // here TX-1 has already committed its order, so the count is accurate
+      // and prevents two simultaneous orders from both using the same promo.
+      const existingUserUsage = await tx.order.count({
+        where: {
+          userId: user.id,
+          promoCodeId: promo.id,
+          status: { not: 'CANCELLED' as any },
+        },
+      });
+      if (existingUserUsage > 0) {
+        throw new Error('Siz bu promokoddan avval foydalangansiz');
       }
     }
 
