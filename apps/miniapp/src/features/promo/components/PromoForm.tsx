@@ -40,7 +40,9 @@ export const PromoForm: React.FC<Props> = ({
   
   const [usageLimit, setUsageLimit] = useState(initialData?.usageLimit || 0);
   const [isActive, setIsActive] = useState(initialData?.isActive ?? true);
-  
+  const [isFirstOrderOnly, setIsFirstOrderOnly] = useState(initialData?.isFirstOrderOnly ?? false);
+  const [targetUserId, setTargetUserId] = useState(initialData?.targetUserId ?? '');
+
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validate = (): boolean => {
@@ -65,10 +67,12 @@ export const PromoForm: React.FC<Props> = ({
       discountType,
       discountValue,
       minOrderValue,
-      startDate: new Date(startDate).toISOString(), // Parse to iso string
-      endDate: endDate ? new Date(endDate + 'T23:59:59.999Z').toISOString() : '', // end of day or empty
+      startDate: new Date(startDate).toISOString(),
+      endDate: endDate ? new Date(endDate + 'T23:59:59.999Z').toISOString() : '',
       usageLimit,
       isActive,
+      isFirstOrderOnly,
+      targetUserId: targetUserId.trim(),
     });
   };
 
@@ -201,6 +205,34 @@ export const PromoForm: React.FC<Props> = ({
         >
           <div className={`w-6 h-6 bg-white rounded-full shadow-md absolute top-1 transition-transform ${isActive ? 'translate-x-7' : 'translate-x-1'}`} />
         </button>
+      </div>
+
+      {/* First-order-only Toggle */}
+      <div className="flex items-center justify-between bg-white rounded-2xl p-4 border-2 border-slate-100">
+        <div>
+          <p className="font-bold text-slate-800 text-sm">Faqat birinchi buyurtma</p>
+          <p className="text-xs text-slate-400 mt-0.5">Foydalanuvchi oldin buyurtma bergan bo'lsa ishlamaydi (FIRST50 kabi)</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsFirstOrderOnly(!isFirstOrderOnly)}
+          className={`w-14 h-8 rounded-full transition-colors relative ${isFirstOrderOnly ? 'bg-emerald-500' : 'bg-slate-200'}`}
+        >
+          <div className={`w-6 h-6 bg-white rounded-full shadow-md absolute top-1 transition-transform ${isFirstOrderOnly ? 'translate-x-7' : 'translate-x-1'}`} />
+        </button>
+      </div>
+
+      {/* VIP Target User */}
+      <div className="space-y-1.5">
+        <label className="text-[11px] font-bold text-slate-500 uppercase">Mijoz ID (VIP promo — ixtiyoriy)</label>
+        <input
+          type="text"
+          value={targetUserId}
+          onChange={(e) => setTargetUserId(e.target.value.trim())}
+          placeholder="UUID (bo'sh = hamma uchun)"
+          className="w-full h-12 px-3 rounded-xl border border-slate-200 font-mono text-sm bg-white focus:outline-none focus:border-indigo-400 text-slate-700"
+        />
+        <p className="text-[10px] text-slate-400">To'ldirilsa faqat shu foydalanuvchi ishlata oladi</p>
       </div>
 
       {/* Submit */}

@@ -218,11 +218,14 @@ export const PromoCodeSchema = z.object({
   endDate: z.string().datetime().nullable().optional(),
   usageLimit: z.number().int().min(0).optional(),
   isActive: z.boolean().optional(),
+  isFirstOrderOnly: z.boolean().optional(),
+  targetUserId: UuidSchema.nullable().optional(),
 });
 
 export const ValidatePromoSchema = z.object({
   code: z.string().min(1).transform(val => val.toUpperCase()),
   subtotal: z.number().min(0),
+  userId: UuidSchema.optional(),
 });
 
 export const RejectPaymentSchema = z.object({

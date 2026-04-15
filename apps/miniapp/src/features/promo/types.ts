@@ -25,6 +25,8 @@ export interface AdminPromo {
   usageLimit?: number; // 0 or undefined means unlimited
   timesUsed: number;
   isActive: boolean;
+  isFirstOrderOnly: boolean;
+  targetUserId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -49,6 +51,8 @@ export interface PromoFormData {
   endDate: string; // YYYY-MM-DD
   usageLimit: number; // 0 for unlimited
   isActive: boolean;
+  isFirstOrderOnly: boolean;
+  targetUserId: string; // empty string means null
 }
 
 export interface PromoFilterState {

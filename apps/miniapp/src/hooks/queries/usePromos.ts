@@ -45,15 +45,18 @@ function toPromoPayload(data: PromoFormData) {
     endDate: data.endDate || null,
     usageLimit: data.usageLimit,
     isActive: data.isActive,
+    isFirstOrderOnly: data.isFirstOrderOnly,
+    targetUserId: data.targetUserId?.trim() || null,
   };
 }
 
 export const useValidatePromo = () =>
   useMutation({
-    mutationFn: async ({ code, subtotal }: { code: string; subtotal: number }) =>
+    mutationFn: async ({ code, subtotal, userId }: { code: string; subtotal: number; userId?: string }) =>
       (await api.post('/promos/validate', {
         code: code.trim().toUpperCase(),
         subtotal,
+        ...(userId ? { userId } : {}),
       })) as PromoValidationResult,
   });
 

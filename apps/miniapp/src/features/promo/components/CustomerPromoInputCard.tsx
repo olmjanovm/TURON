@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowRight, Loader2, Tag, X } from 'lucide-react';
 import { useCartStore } from '../../../store/useCartStore';
+import { useAuthStore } from '../../../store/useAuthStore';
 import { useValidatePromo } from '../../../hooks/queries/usePromos';
 
 interface Props {
@@ -13,6 +14,7 @@ export const CustomerPromoInputCard: React.FC<Props> = ({ subtotal, compact = fa
   const [feedback, setFeedback] = useState<{ success: boolean; message: string } | null>(null);
   const validatePromoMutation = useValidatePromo();
   const { appliedPromo, setPromo } = useCartStore();
+  const userId = useAuthStore((s) => s.user?.id);
 
   useEffect(() => {
     if (!appliedPromo) {
@@ -37,7 +39,7 @@ export const CustomerPromoInputCard: React.FC<Props> = ({ subtotal, compact = fa
     }
 
     try {
-      const result = await validatePromoMutation.mutateAsync({ code, subtotal });
+      const result = await validatePromoMutation.mutateAsync({ code, subtotal, userId });
       setFeedback({ success: result.isValid, message: result.message });
 
       if (result.isValid && result.promo) {

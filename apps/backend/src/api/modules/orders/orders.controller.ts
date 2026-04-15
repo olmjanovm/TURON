@@ -214,7 +214,7 @@ async function buildValidatedOrderItems(items: Array<{ menuItemId: string; quant
   };
 }
 
-async function resolvePromo(promoCode: string | undefined, subtotal: number) {
+async function resolvePromo(promoCode: string | undefined, subtotal: number, userId: string) {
   if (!promoCode?.trim()) {
     return {
       promo: null,
@@ -226,10 +226,34 @@ async function resolvePromo(promoCode: string | undefined, subtotal: number) {
     where: { code: promoCode.trim().toUpperCase() },
   });
 
-  const promoValidation = evaluatePromoForSubtotal(promo, subtotal);
+  // Short-circuit early if promo doesn't exist — avoid pointless DB queries
+  if (!promo || !promo.isActive) {
+    throw new Error('Promokod topilmadi');
+  }
+
+  // Fetch counts needed for user-scoped rules in a single parallel query
+  const [previousUsageCount, totalOrderCount] = await Promise.all([
+    // Has this user already used this specific promo?
+    prisma.order.count({
+      where: { userId, promoCodeId: promo.id, status: { not: 'CANCELLED' as any } },
+    }),
+    // Total non-cancelled orders for this user (needed only when isFirstOrderOnly is set)
+    promo.isFirstOrderOnly
+      ? prisma.order.count({ where: { userId, status: { not: 'CANCELLED' as any } } })
+      : Promise.resolve(0),
+  ]);
+
+  const promoValidation = evaluatePromoForSubtotal(promo, subtotal, {
+    userId,
+    previousOrderCount: totalOrderCount,
+  });
 
   if (!promoValidation.isValid) {
     throw new Error(promoValidation.message);
+  }
+
+  if (previousUsageCount > 0) {
+    throw new Error('Siz bu promokoddan avval foydalangansiz');
   }
 
   return {
@@ -246,7 +270,7 @@ async function buildOrderPricing(input: {
 }) {
   const deliveryAddress = await getOwnedDeliveryAddress(input.userId, input.deliveryAddressId);
   const { subtotal, orderItemsData } = await buildValidatedOrderItems(input.items);
-  const { promo, discountAmount: promoDiscount } = await resolvePromo(input.promoCode, subtotal);
+  const { promo, discountAmount: promoDiscount } = await resolvePromo(input.promoCode, subtotal, input.userId);
 
   // Apply Special Event Benefits
   const specialBenefits = await SpecialEventsService.getActiveBenefits(input.userId);
@@ -463,6 +487,13 @@ export async function handleCreateOrder(
   const { deliveryAddress, orderItemsData, promo, quote } = orderPricing;
 
   const createdOrder = await prisma.$transaction(async (tx) => {
+    if (promo?.id) {
+      await tx.promoCode.update({
+        where: { id: promo.id },
+        data: { timesUsed: { increment: 1 } },
+      });
+    }
+
     return tx.order.create({
       data: {
         userId: user.id,
@@ -819,7 +850,14 @@ export async function handleUpdateStatus(
       });
     }
 
-    if (status === OrderStatusEnum.CANCELLED) {
+    if (status === OrderStatusEnum.CANCELLED as any) {
+      if (order.promoCodeId) {
+        await tx.promoCode.update({
+          where: { id: order.promoCodeId },
+          data: { timesUsed: { decrement: 1 } },
+        });
+      }
+
       const activeAssignments = order.courierAssignments.filter((assignment: any) =>
         StatusService.isActiveAssignmentStatus(assignment.status),
       );
@@ -1120,6 +1158,13 @@ export async function handleRejectPayment(
         status: shouldCancelOrder ? (OrderStatusEnum.CANCELLED as any) : undefined,
       },
     });
+
+    if (shouldCancelOrder && order.promoCodeId) {
+      await tx.promoCode.update({
+        where: { id: order.promoCodeId },
+        data: { timesUsed: { decrement: 1 } },
+      });
+    }
 
     const activeAssignments = order.courierAssignments.filter((assignment: any) =>
       StatusService.isActiveAssignmentStatus(assignment.status),

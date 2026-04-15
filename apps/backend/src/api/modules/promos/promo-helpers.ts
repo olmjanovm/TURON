@@ -24,12 +24,25 @@ export function serializePromoForAdmin(promo: any) {
     startDate: promo.startDate.toISOString(),
     endDate: promo.endDate?.toISOString(),
     isActive: promo.isActive,
+    isFirstOrderOnly: promo.isFirstOrderOnly ?? false,
+    targetUserId: promo.targetUserId ?? null,
     createdAt: promo.createdAt.toISOString(),
     updatedAt: promo.updatedAt.toISOString(),
   };
 }
 
-export function evaluatePromoForSubtotal(promo: any, subtotal: number) {
+interface EvaluatePromoContext {
+  /** If provided, checks targetUserId restriction */
+  userId?: string;
+  /** Total non-cancelled orders this user has placed (for isFirstOrderOnly check) */
+  previousOrderCount?: number;
+}
+
+export function evaluatePromoForSubtotal(
+  promo: any,
+  subtotal: number,
+  ctx: EvaluatePromoContext = {},
+) {
   const normalizedSubtotal = roundCurrency(subtotal);
   const serializedPromo = promo ? serializePromoForValidation(promo) : undefined;
 
@@ -66,6 +79,26 @@ export function evaluatePromoForSubtotal(promo: any, subtotal: number) {
     return {
       isValid: false,
       message: 'Promokod limiti tugagan',
+      discountAmount: 0,
+      promo: serializedPromo,
+    };
+  }
+
+  // ── Target-user restriction ───────────────────────────────────────────────
+  if (promo.targetUserId && ctx.userId && promo.targetUserId !== ctx.userId) {
+    return {
+      isValid: false,
+      message: 'Bu promokod siz uchun mo\'ljallanmagan',
+      discountAmount: 0,
+      promo: serializedPromo,
+    };
+  }
+
+  // ── First-order-only restriction ─────────────────────────────────────────
+  if (promo.isFirstOrderOnly && ctx.previousOrderCount !== undefined && ctx.previousOrderCount > 0) {
+    return {
+      isValid: false,
+      message: 'Bu promokod faqat birinchi buyurtma uchun',
       discountAmount: 0,
       promo: serializedPromo,
     };

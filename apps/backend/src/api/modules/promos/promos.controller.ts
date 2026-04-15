@@ -7,17 +7,25 @@ import {
 } from './promo-helpers.js';
 
 export async function validatePromoCode(
-  request: FastifyRequest<{ Body: { code: string; subtotal: number } }>,
+  request: FastifyRequest<{ Body: { code: string; subtotal: number; userId?: string } }>,
   reply: FastifyReply
 ) {
-  const { code, subtotal } = request.body;
+  const { code, subtotal, userId } = request.body;
   const promo = await prisma.promoCode.findFirst({
-    where: {
-      code: code.toUpperCase(),
-    },
+    where: { code: code.toUpperCase() },
   });
 
-  return reply.send(evaluatePromoForSubtotal(promo, subtotal));
+  // Build user context for target/first-order checks when userId provided
+  let previousOrderCount: number | undefined;
+  if (userId && promo) {
+    previousOrderCount = await prisma.order.count({
+      where: { userId, status: { not: 'CANCELLED' as any } },
+    });
+  }
+
+  return reply.send(
+    evaluatePromoForSubtotal(promo, subtotal, { userId, previousOrderCount }),
+  );
 }
 
 export async function getAllPromos(request: FastifyRequest, reply: FastifyReply) {
@@ -54,6 +62,8 @@ export async function handleCreatePromo(
       endDate: data.endDate ? new Date(data.endDate) : null,
       usageLimit: data.usageLimit > 0 ? data.usageLimit : null,
       isActive: data.isActive ?? true,
+      isFirstOrderOnly: data.isFirstOrderOnly ?? false,
+      targetUserId: data.targetUserId ?? null,
     }
   });
 
@@ -112,6 +122,8 @@ export async function handleUpdatePromo(
       endDate: data.endDate ? new Date(data.endDate) : null,
       usageLimit: data.usageLimit > 0 ? data.usageLimit : null,
       isActive: data.isActive ?? existingPromo.isActive,
+      isFirstOrderOnly: data.isFirstOrderOnly ?? existingPromo.isFirstOrderOnly,
+      targetUserId: data.targetUserId !== undefined ? data.targetUserId : existingPromo.targetUserId,
     },
   });
 
