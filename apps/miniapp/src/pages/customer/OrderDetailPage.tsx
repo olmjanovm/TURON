@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Copy, RefreshCcw, Headphones, Loader2, MessageCircle, ShieldCheck, XCircle } from 'lucide-react';
+import { ArrowLeft, Copy, RefreshCcw, Headphones, Loader2, MapPinned, MessageCircle, ShieldCheck, XCircle } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useToast } from '../../components/ui/Toast';
 import { CheckoutSectionCard } from '../../components/customer/CheckoutComponents';
@@ -234,7 +234,18 @@ const OrderDetailPage: React.FC = () => {
       </section>
 
       <section className="px-4 pt-5">
-        <div className={`grid gap-3 ${isActiveOrder && order.courierId ? 'grid-cols-3' : 'grid-cols-2'}`}>
+        <div className="grid grid-cols-2 gap-3">
+          {isActiveOrder ? (
+            <button
+              type="button"
+              onClick={() => navigate(`/customer/orders/${order.id}/tracking`)}
+              className="flex flex-col items-center justify-center gap-2 rounded-[12px] border border-emerald-300/18 bg-emerald-400/10 px-3 py-3.5 text-emerald-200"
+            >
+              <MapPinned size={18} />
+              <span className="text-[11px] font-black">Xaritada</span>
+            </button>
+          ) : null}
+
           <button
             type="button"
             onClick={() => navigate(`/customer/support?orderId=${order.id}`)}

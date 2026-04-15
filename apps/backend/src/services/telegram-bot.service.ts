@@ -172,10 +172,46 @@ function resolveAdminChatId(): string | null {
   if (env.ADMIN_CHAT_ID?.trim()) return env.ADMIN_CHAT_ID.trim();
 
   return (
-    env.ADMIN_IDS?.split(',')
-      .map((v) => v.trim())
+    parseConfiguredChatIds(env.ADMIN_IDS)
       .find(Boolean) ?? null
   );
+}
+
+function parseConfiguredChatIds(rawValue?: string | null): string[] {
+  if (!rawValue?.trim()) {
+    return [];
+  }
+
+  const trimmed = rawValue.trim();
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) {
+      return parsed
+        .map((value) => String(value).trim())
+        .filter(Boolean);
+    }
+  } catch {
+    // Fall back to comma-separated parsing below.
+  }
+
+  return trimmed
+    .split(',')
+    .map((value) => value.replace(/[[\]"]/g, '').trim())
+    .filter(Boolean);
+}
+
+function resolveConfiguredAdminIds(): string[] {
+  return parseConfiguredChatIds(env.ADMIN_IDS);
+}
+
+function resolveOrderNotificationRecipientChatIds(): string[] {
+  const recipients = [
+    ...(env.ADMIN_CHAT_ID?.trim() ? [env.ADMIN_CHAT_ID.trim()] : []),
+    ...resolveConfiguredAdminIds(),
+  ].filter(Boolean);
+
+  return [...new Set(recipients)];
 }
 
 async function getUserRole(telegramId: string): Promise<UserRoleEnum> {
@@ -340,30 +376,83 @@ async function sendOrUpdateStartMessage(
 // ─── Order notification message ID storage ────────────────────────────────────
 
 const ORDER_MSG_PREFIX = '_order_msg_';
+const ORDER_MSG_TEXT_PREFIX = '_order_msg_text_';
 
-async function getOrderMessageId(orderId: string): Promise<number | null> {
+function buildOrderMessageKey(orderId: string, chatId: string | number) {
+  return `${ORDER_MSG_PREFIX}${orderId}:${chatId}`;
+}
+
+async function listOrderMessages(orderId: string): Promise<Array<{ chatId: string; messageId: number }>> {
   try {
-    const row = await prisma.restaurantSetting.findUnique({
-      where: { key: `${ORDER_MSG_PREFIX}${orderId}` },
-      select: { value: true },
+    const rows = await prisma.restaurantSetting.findMany({
+      where: {
+        key: {
+          startsWith: `${ORDER_MSG_PREFIX}${orderId}:`,
+        },
+      },
+      select: {
+        key: true,
+        value: true,
+      },
     });
-    if (!row) return null;
-    const id = parseInt(row.value, 10);
-    return isNaN(id) ? null : id;
+
+    return rows
+      .map((row) => {
+        const chatId = row.key.slice(`${ORDER_MSG_PREFIX}${orderId}:`.length);
+        const messageId = parseInt(row.value, 10);
+
+        if (!chatId || Number.isNaN(messageId)) {
+          return null;
+        }
+
+        return { chatId, messageId };
+      })
+      .filter((entry): entry is { chatId: string; messageId: number } => Boolean(entry));
   } catch {
-    return null;
+    return [];
   }
 }
 
-async function storeOrderMessageId(orderId: string, messageId: number): Promise<void> {
+async function storeOrderMessageId(
+  orderId: string,
+  chatId: string | number,
+  messageId: number,
+): Promise<void> {
   try {
-    const key = `${ORDER_MSG_PREFIX}${orderId}`;
+    const key = buildOrderMessageKey(orderId, chatId);
     await prisma.restaurantSetting.upsert({
       where: { key },
       update: { value: String(messageId) },
       create: { key, value: String(messageId), dataType: 'number' },
     });
-  } catch { /* non-critical */ }
+  } catch {
+    // Non-critical.
+  }
+}
+
+async function storeOrderMessageText(orderId: string, text: string): Promise<void> {
+  try {
+    const key = `${ORDER_MSG_TEXT_PREFIX}${orderId}`;
+    await prisma.restaurantSetting.upsert({
+      where: { key },
+      update: { value: text },
+      create: { key, value: text, dataType: 'string' },
+    });
+  } catch {
+    // Non-critical.
+  }
+}
+
+async function getStoredOrderMessageText(orderId: string): Promise<string | null> {
+  try {
+    const row = await prisma.restaurantSetting.findUnique({
+      where: { key: `${ORDER_MSG_TEXT_PREFIX}${orderId}` },
+      select: { value: true },
+    });
+    return row?.value ?? null;
+  } catch {
+    return null;
+  }
 }
 
 // ─── Order notification helpers ───────────────────────────────────────────────
@@ -379,8 +468,56 @@ function formatMoney(value: number): string {
   return Number(value || 0).toLocaleString('uz-UZ');
 }
 
+function formatTelegramOrderDisplayNumber(orderNumber: string | number | bigint): string {
+  const normalized = String(orderNumber).replace(/[^\d]/g, '');
+  const numeric = Number.parseInt(normalized, 10);
+
+  if (!Number.isNaN(numeric)) {
+    return `ORD-${String(numeric).padStart(3, '0')}`;
+  }
+
+  return `ORD-${String(orderNumber)}`;
+}
+
+function formatTelegramOrderDate(value?: string | Date | null): string {
+  const date = value instanceof Date ? value : value ? new Date(value) : new Date();
+
+  if (Number.isNaN(date.getTime())) {
+    return '-';
+  }
+
+  return new Intl.DateTimeFormat('uz-UZ', {
+    timeZone: 'Asia/Tashkent',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
+function getTelegramOrderStatusLabel(status?: string | null): string {
+  switch (status) {
+    case OrderStatusEnum.PREPARING:
+      return 'Qabul qilindi';
+    case OrderStatusEnum.READY_FOR_PICKUP:
+      return 'Tayyor';
+    case OrderStatusEnum.DELIVERING:
+      return "Yo'lda";
+    case OrderStatusEnum.DELIVERED:
+      return 'Yetkazildi';
+    case OrderStatusEnum.CANCELLED:
+      return 'Bekor qilindi';
+    case OrderStatusEnum.PENDING:
+    default:
+      return 'Kutilmoqda';
+  }
+}
+
 function buildOrderNotificationText(order: {
   orderNumber: string | number | bigint;
+  createdAt?: string | Date | null;
+  orderStatus?: string | null;
   customerName: string;
   customerPhone?: string | null;
   customerAddress: string;
@@ -418,6 +555,56 @@ function buildOrderNotificationText(order: {
     `📦 Taomlar: ${formatMoney(order.subtotal)} so'm`,
     `🚚 Yetkazish: ${formatMoney(order.deliveryFee)} so'm`,
     `💰 <b>Jami: ${formatMoney(order.total)} so'm</b>`,
+  ].filter((line) => line !== null).join('\n');
+}
+
+function buildAdminOrderNotificationText(order: {
+  orderNumber: string | number | bigint;
+  createdAt?: string | Date | null;
+  orderStatus?: string | null;
+  customerName: string;
+  customerPhone?: string | null;
+  customerAddress: string;
+  customerAddressNote?: string | null;
+  paymentMethod: string;
+  items: Array<{ name: string; quantity: number; totalPrice: number }>;
+  subtotal: number;
+  deliveryFee: number;
+  total: number;
+  hasReceipt: boolean;
+}): string {
+  const paymentLabel =
+    order.paymentMethod === PaymentMethodEnum.MANUAL_TRANSFER
+      ? 'Karta orqali'
+      : order.paymentMethod === PaymentMethodEnum.EXTERNAL_PAYMENT
+        ? 'Click / Payme'
+        : 'Naqd pul';
+
+  const itemLines = order.items
+    .map((item) => `${item.quantity}x ${escapeHtml(item.name)} - ${formatMoney(item.totalPrice)} so'm`)
+    .join('\n');
+
+  return [
+    `<b>Buyurtma ${escapeHtml(formatTelegramOrderDisplayNumber(order.orderNumber))}</b>`,
+    '',
+    `Vaqt: <b>${escapeHtml(formatTelegramOrderDate(order.createdAt))}</b>`,
+    `Holat: <b>${escapeHtml(getTelegramOrderStatusLabel(order.orderStatus))}</b>`,
+    '',
+    `<b>Mijoz ma'lumotlari</b>`,
+    `Ism: ${escapeHtml(order.customerName)}`,
+    order.customerPhone ? `Telefon: ${escapeHtml(order.customerPhone)}` : null,
+    `Manzil: ${escapeHtml(order.customerAddress)}`,
+    order.customerAddressNote ? `Izoh: ${escapeHtml(order.customerAddressNote)}` : null,
+    '',
+    `<b>Buyurtma tarkibi</b>`,
+    itemLines,
+    '',
+    `<b>To'lov</b>`,
+    `Usul: ${escapeHtml(paymentLabel)}`,
+    order.hasReceipt ? `Chek: yuborilgan` : null,
+    `Mahsulotlar: ${formatMoney(order.subtotal)} so'm`,
+    `Yetkazib berish: ${formatMoney(order.deliveryFee)} so'm`,
+    `<b>Jami: ${formatMoney(order.total)} so'm</b>`,
   ].filter((line) => line !== null).join('\n');
 }
 
@@ -464,6 +651,61 @@ async function editTelegramOrderMessage(ctx: any, resultLine: string) {
   }
 
   await ctx.telegram.editMessageText(chatId, messageId, undefined, nextText, editOptions);
+}
+
+function updateTelegramOrderStatusLine(messageText: string, statusLabel: string): string {
+  return messageText.replace(
+    /Holat:\s*<b>.*?<\/b>/,
+    `Holat: <b>${escapeHtml(statusLabel)}</b>`,
+  );
+}
+
+async function syncTelegramOrderMessages(orderId: string, statusLabel: string) {
+  const baseText = await getStoredOrderMessageText(orderId);
+  if (!baseText) {
+    return;
+  }
+
+  const nextText = updateTelegramOrderStatusLine(baseText, statusLabel);
+  const messageTargets = await listOrderMessages(orderId);
+  const state = getBotState();
+
+  await Promise.all(
+    messageTargets.map(async (target) => {
+      try {
+        await state.bot.telegram.editMessageText(
+          target.chatId,
+          target.messageId,
+          undefined,
+          nextText,
+          {
+            parse_mode: 'HTML',
+            reply_markup: { inline_keyboard: [] },
+          },
+        );
+      } catch (error) {
+        console.warn('[Bot] Could not sync order message state:', {
+          orderId,
+          chatId: target.chatId,
+          messageId: target.messageId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }),
+  );
+}
+
+function deriveStatusLabelFromTelegramResultLine(resultLine: string): string {
+  if (resultLine.toLowerCase().includes('bekor')) {
+    return 'Bekor qilindi';
+  }
+  if (resultLine.toLowerCase().includes('tasdiq')) {
+    return 'Qabul qilindi';
+  }
+  if (resultLine.toLowerCase().includes('topilmadi')) {
+    return 'Topilmadi';
+  }
+  return 'Kutilmoqda';
 }
 
 async function applyTelegramOrderAction(params: {
@@ -639,11 +881,11 @@ function bindHandlers(bot: Telegraf) {
     const data = (ctx.callbackQuery as any).data as string | undefined;
     if (!data) return ctx.answerCbQuery();
 
-    const adminChatId = resolveAdminChatId();
+    const allowedRecipientChatIds = resolveOrderNotificationRecipientChatIds();
     const chatId = (ctx.callbackQuery as any).message?.chat?.id;
 
-    // Only process if this callback comes from the configured admin chat
-    if (adminChatId && String(chatId) !== String(adminChatId)) {
+    // Only process if this callback comes from an allowed order-recipient chat.
+    if (allowedRecipientChatIds.length > 0 && !allowedRecipientChatIds.includes(String(chatId))) {
       return ctx.answerCbQuery('Ruxsat yo\'q');
     }
 
@@ -657,7 +899,10 @@ function bindHandlers(bot: Telegraf) {
           isApprove,
           telegramUserId: ctx.from?.id,
         });
-        await editTelegramOrderMessage(ctx, result.resultLine);
+        await syncTelegramOrderMessages(
+          orderId,
+          deriveStatusLabelFromTelegramResultLine(result.resultLine),
+        );
         await ctx.answerCbQuery(result.answerText);
       } catch (err) {
         console.error('[Bot] Order callback error:', err);
@@ -751,6 +996,8 @@ export async function forwardSupportMessageToAdmin(payload: {
 export async function sendOrderNotificationToAdmin(payload: {
   orderId: string;
   orderNumber: string | number | bigint;
+  createdAt?: string | Date | null;
+  orderStatus?: string | null;
   customerName: string;
   customerPhone?: string | null;
   customerAddress: string;
@@ -762,8 +1009,8 @@ export async function sendOrderNotificationToAdmin(payload: {
   total: number;
   receiptImageBase64?: string;
 }) {
-  const adminChatId = resolveAdminChatId();
-  if (!adminChatId) return; // silently skip if not configured
+  const recipientChatIds = resolveOrderNotificationRecipientChatIds();
+  if (recipientChatIds.length === 0) return; // silently skip if not configured
 
   const state = getBotState();
   if (!state.handlersBound) {
@@ -771,7 +1018,11 @@ export async function sendOrderNotificationToAdmin(payload: {
     state.handlersBound = true;
   }
 
-  const text = buildOrderNotificationText({ ...payload, hasReceipt: Boolean(payload.receiptImageBase64) });
+  const text = buildAdminOrderNotificationText({
+    ...payload,
+    hasReceipt: Boolean(payload.receiptImageBase64),
+  });
+  void storeOrderMessageText(payload.orderId, text);
 
   const keyboard = Markup.inlineKeyboard([
     [
@@ -780,48 +1031,45 @@ export async function sendOrderNotificationToAdmin(payload: {
     ],
   ]);
 
+  const orderKeyboard = Markup.inlineKeyboard([
+    [
+      Markup.button.callback('Bekor qilish', `order_reject:${payload.orderId}`),
+      Markup.button.callback('Qabul qilish', `order_approve:${payload.orderId}`),
+    ],
+  ]);
+
   try {
-    let sentMessageId: number;
+    const imageBuffer = payload.receiptImageBase64
+      ? Buffer.from(payload.receiptImageBase64.replace(/^data:image\/[^;]+;base64,/, ''), 'base64')
+      : null;
 
-    if (payload.receiptImageBase64) {
-      // Strip "data:image/...;base64," prefix and convert to Buffer
-      const base64Data = payload.receiptImageBase64.replace(/^data:image\/[^;]+;base64,/, '');
-      const imageBuffer = Buffer.from(base64Data, 'base64');
+    for (const recipientChatId of recipientChatIds) {
+      try {
+        const sent = await state.bot.telegram.sendMessage(recipientChatId, text, {
+          parse_mode: 'HTML',
+          ...orderKeyboard,
+        });
+        void storeOrderMessageId(payload.orderId, recipientChatId, sent.message_id);
 
-      if (text.length <= 950) {
-        const sent = await state.bot.telegram.sendPhoto(
-          adminChatId,
-          { source: imageBuffer },
-          { caption: text, parse_mode: 'HTML', ...keyboard },
-        );
-        sentMessageId = sent.message_id;
-      } else {
-        const photo = await state.bot.telegram.sendPhoto(
-          adminChatId,
-          { source: imageBuffer },
-          { caption: `#${escapeHtml(payload.orderNumber)} to'lov cheki`, parse_mode: 'HTML' },
-        );
-        const sent = await state.bot.telegram.sendMessage(
-          adminChatId,
-          `${text}\n\n<i>Chek rasmi yuqoridagi xabarda.</i>`,
-          {
-            parse_mode: 'HTML',
-            reply_parameters: { message_id: photo.message_id },
-            ...keyboard,
-          },
-        );
-        sentMessageId = sent.message_id;
+        if (imageBuffer) {
+          await state.bot.telegram.sendPhoto(
+            recipientChatId,
+            { source: imageBuffer },
+            {
+              caption: `To'lov cheki - ${escapeHtml(formatTelegramOrderDisplayNumber(payload.orderNumber))}`,
+              parse_mode: 'HTML',
+              reply_parameters: { message_id: sent.message_id },
+            },
+          );
+        }
+      } catch (error) {
+        console.warn('[Bot] Could not send order notification to recipient:', {
+          orderId: payload.orderId,
+          chatId: recipientChatId,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
-    } else {
-      const sent = await state.bot.telegram.sendMessage(adminChatId, text, {
-        parse_mode: 'HTML',
-        ...keyboard,
-      });
-      sentMessageId = sent.message_id;
     }
-
-    // Store message ID so callback can edit/reference it
-    void storeOrderMessageId(payload.orderId, sentMessageId);
   } catch (err) {
     console.error('[Bot] sendOrderNotificationToAdmin error:', err);
   }

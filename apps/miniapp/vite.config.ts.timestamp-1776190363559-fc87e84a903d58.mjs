@@ -1,0 +1,24 @@
+// vite.config.ts
+import { defineConfig } from "file:///C:/Users/isroi/Downloads/Telegram%20Desktop/TURON%20FULL/TURON/node_modules/.pnpm/vite@5.4.21_@types+node@25.5.0_lightningcss@1.32.0/node_modules/vite/dist/node/index.js";
+import react from "file:///C:/Users/isroi/Downloads/Telegram%20Desktop/TURON%20FULL/TURON/node_modules/.pnpm/@vitejs+plugin-react@4.7.0__f7d2495779ecee785a83fed33a3bf0ca/node_modules/@vitejs/plugin-react/dist/index.js";
+import tailwindcss from "file:///C:/Users/isroi/Downloads/Telegram%20Desktop/TURON%20FULL/TURON/node_modules/.pnpm/@tailwindcss+vite@4.2.2_vit_2694785378cb586b7e160007f09c30cb/node_modules/@tailwindcss/vite/dist/index.mjs";
+import { fileURLToPath, URL } from "node:url";
+var __vite_injected_original_import_meta_url = "file:///C:/Users/isroi/Downloads/Telegram%20Desktop/TURON%20FULL/TURON/apps/miniapp/vite.config.ts";
+var vite_config_default = defineConfig({
+  envDir: "../../",
+  plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: {
+      "@turon/shared": fileURLToPath(new URL("../../packages/shared/src/index.ts", __vite_injected_original_import_meta_url))
+    }
+  },
+  server: {
+    port: 5173,
+    allowedHosts: true,
+    proxy: { "/api": { target: "http://localhost:3000", changeOrigin: true } }
+  }
+});
+export {
+  vite_config_default as default
+};
+//# sourceMappingURL=data:application/json;base64,ewogICJ2ZXJzaW9uIjogMywKICAic291cmNlcyI6IFsidml0ZS5jb25maWcudHMiXSwKICAic291cmNlc0NvbnRlbnQiOiBbImNvbnN0IF9fdml0ZV9pbmplY3RlZF9vcmlnaW5hbF9kaXJuYW1lID0gXCJDOlxcXFxVc2Vyc1xcXFxpc3JvaVxcXFxEb3dubG9hZHNcXFxcVGVsZWdyYW0gRGVza3RvcFxcXFxUVVJPTiBGVUxMXFxcXFRVUk9OXFxcXGFwcHNcXFxcbWluaWFwcFwiO2NvbnN0IF9fdml0ZV9pbmplY3RlZF9vcmlnaW5hbF9maWxlbmFtZSA9IFwiQzpcXFxcVXNlcnNcXFxcaXNyb2lcXFxcRG93bmxvYWRzXFxcXFRlbGVncmFtIERlc2t0b3BcXFxcVFVST04gRlVMTFxcXFxUVVJPTlxcXFxhcHBzXFxcXG1pbmlhcHBcXFxcdml0ZS5jb25maWcudHNcIjtjb25zdCBfX3ZpdGVfaW5qZWN0ZWRfb3JpZ2luYWxfaW1wb3J0X21ldGFfdXJsID0gXCJmaWxlOi8vL0M6L1VzZXJzL2lzcm9pL0Rvd25sb2Fkcy9UZWxlZ3JhbSUyMERlc2t0b3AvVFVST04lMjBGVUxML1RVUk9OL2FwcHMvbWluaWFwcC92aXRlLmNvbmZpZy50c1wiO2ltcG9ydCB7IGRlZmluZUNvbmZpZyB9IGZyb20gJ3ZpdGUnXG5pbXBvcnQgcmVhY3QgZnJvbSAnQHZpdGVqcy9wbHVnaW4tcmVhY3QnXG5pbXBvcnQgdGFpbHdpbmRjc3MgZnJvbSAnQHRhaWx3aW5kY3NzL3ZpdGUnXG5pbXBvcnQgeyBmaWxlVVJMVG9QYXRoLCBVUkwgfSBmcm9tICdub2RlOnVybCdcblxuLy8gaHR0cHM6Ly92aXRlanMuZGV2L2NvbmZpZy9cbmV4cG9ydCBkZWZhdWx0IGRlZmluZUNvbmZpZyh7XG4gIGVudkRpcjogJy4uLy4uLycsXG4gIHBsdWdpbnM6IFtyZWFjdCgpLCB0YWlsd2luZGNzcygpXSxcbiAgcmVzb2x2ZToge1xuICAgIGFsaWFzOiB7XG4gICAgICAnQHR1cm9uL3NoYXJlZCc6IGZpbGVVUkxUb1BhdGgobmV3IFVSTCgnLi4vLi4vcGFja2FnZXMvc2hhcmVkL3NyYy9pbmRleC50cycsIGltcG9ydC5tZXRhLnVybCkpXG4gICAgfVxuICB9LFxuICBzZXJ2ZXI6IHtcbiAgICBwb3J0OiA1MTczLFxuICAgIGFsbG93ZWRIb3N0czogdHJ1ZSxcbiAgICBwcm94eTogeyAnL2FwaSc6IHsgdGFyZ2V0OiAnaHR0cDovL2xvY2FsaG9zdDozMDAwJywgY2hhbmdlT3JpZ2luOiB0cnVlIH0gfVxyXG4gIH1cclxufSlcclxuXHJcblxyXG4iXSwKICAibWFwcGluZ3MiOiAiO0FBQTZaLFNBQVMsb0JBQW9CO0FBQzFiLE9BQU8sV0FBVztBQUNsQixPQUFPLGlCQUFpQjtBQUN4QixTQUFTLGVBQWUsV0FBVztBQUhvTyxJQUFNLDJDQUEyQztBQU14VCxJQUFPLHNCQUFRLGFBQWE7QUFBQSxFQUMxQixRQUFRO0FBQUEsRUFDUixTQUFTLENBQUMsTUFBTSxHQUFHLFlBQVksQ0FBQztBQUFBLEVBQ2hDLFNBQVM7QUFBQSxJQUNQLE9BQU87QUFBQSxNQUNMLGlCQUFpQixjQUFjLElBQUksSUFBSSxzQ0FBc0Msd0NBQWUsQ0FBQztBQUFBLElBQy9GO0FBQUEsRUFDRjtBQUFBLEVBQ0EsUUFBUTtBQUFBLElBQ04sTUFBTTtBQUFBLElBQ04sY0FBYztBQUFBLElBQ2QsT0FBTyxFQUFFLFFBQVEsRUFBRSxRQUFRLHlCQUF5QixjQUFjLEtBQUssRUFBRTtBQUFBLEVBQzNFO0FBQ0YsQ0FBQzsiLAogICJuYW1lcyI6IFtdCn0K

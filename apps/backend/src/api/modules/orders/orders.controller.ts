@@ -562,6 +562,8 @@ export async function handleCreateOrder(
     void sendOrderNotificationToAdmin({
       orderId: createdOrder.id,
       orderNumber: serializedOrder.orderNumber,
+      createdAt: serializedOrder.createdAt,
+      orderStatus: serializedOrder.orderStatus,
       customerName: serializedOrder.customerName ?? user.fullName ?? 'Mijoz',
       customerPhone: serializedOrder.customerPhone ?? user.phoneNumber ?? null,
       customerAddress: serializedOrder.customerAddress?.addressText ?? 'Manzil yo\'q',

@@ -129,42 +129,42 @@ enum ChatSenderRoleEnum {
 }
 
 model User {
-  id                 String                @id @default(uuid())
-  telegramId         BigInt                @unique @map("telegram_id")
-  telegramUsername   String?               @map("telegram_username")
-  fullName           String                @map("full_name")
-  phoneNumber        String?               @map("phone")
-  role               UserRoleEnum          @default(CUSTOMER)
-  type               UserTypeEnum          @default(REGULAR)
-  language           LanguageEnum          @default(UZ)
-  isActive           Boolean               @default(true) @map("is_active")
-  
+  id               String       @id @default(uuid())
+  telegramId       BigInt       @unique @map("telegram_id")
+  telegramUsername String?      @map("telegram_username")
+  fullName         String       @map("full_name")
+  phoneNumber      String?      @map("phone")
+  role             UserRoleEnum @default(CUSTOMER)
+  type             UserTypeEnum @default(REGULAR)
+  language         LanguageEnum @default(UZ)
+  isActive         Boolean      @default(true) @map("is_active")
+
   preferredPaymentMethod PaymentMethodEnum? @map("preferred_payment_method")
-  userDiscountPercent    Decimal?           @db.Decimal(5, 2) @default(0) @map("user_discount_percent")
+  userDiscountPercent    Decimal?           @default(0) @map("user_discount_percent") @db.Decimal(5, 2)
   birthday               DateTime?          @map("birthday")
   registrationDate       DateTime           @default(now()) @map("registration_date")
-  totalSpent             Decimal            @db.Decimal(12, 2) @default(0) @map("total_spent")
+  totalSpent             Decimal            @default(0) @map("total_spent") @db.Decimal(12, 2)
 
-  createdAt          DateTime              @default(now()) @map("created_at")
-  updatedAt          DateTime              @updatedAt @map("updated_at")
-  
-  addresses          DeliveryAddress[]
-  orders             Order[]               @relation("CustomerOrders")
-  courierOrders      Order[]               @relation("CourierOrders")
-  courierAssignments CourierAssignment[]   @relation("CourierAssignments")
-  courierAssignmentEvents CourierAssignmentEvent[] @relation("CourierAssignmentEventCourier")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  addresses                DeliveryAddress[]
+  orders                   Order[]                   @relation("CustomerOrders")
+  courierOrders            Order[]                   @relation("CourierOrders")
+  courierAssignments       CourierAssignment[]       @relation("CourierAssignments")
+  courierAssignmentEvents  CourierAssignmentEvent[]  @relation("CourierAssignmentEventCourier")
   courierOperationalStatus CourierOperationalStatus?
-  courierPresence    CourierPresence?
-  verifiedPayments   Payment[]             @relation("PaymentVerifier")
-  notifications      Notification[]
-  auditLogs          AuditLog[]            @relation("AuditActor")
-  
-  createdMenuItems   MenuItem[]            @relation("MenuItemCreator")
-  updatedMenuItems   MenuItem[]            @relation("MenuItemUpdater")
-  approvedOrders     Order[]               @relation("OrderApprover")
-  restaurantSettings RestaurantSetting[]   @relation("SettingUpdater")
+  courierPresence          CourierPresence?
+  verifiedPayments         Payment[]                 @relation("PaymentVerifier")
+  notifications            Notification[]
+  auditLogs                AuditLog[]                @relation("AuditActor")
+
+  createdMenuItems   MenuItem[]           @relation("MenuItemCreator")
+  updatedMenuItems   MenuItem[]           @relation("MenuItemUpdater")
+  approvedOrders     Order[]              @relation("OrderApprover")
+  restaurantSettings RestaurantSetting[]  @relation("SettingUpdater")
   paymentSettings    PaymentUserSetting[]
-  sentChatMessages   OrderChatMessage[]    @relation("ChatSender")
+  sentChatMessages   OrderChatMessage[]   @relation("ChatSender")
 
   @@index([role, isActive])
   @@index([type, isActive])
@@ -173,18 +173,18 @@ model User {
 }
 
 model DeliveryAddress {
-  id         String   @id @default(uuid())
-  userId     String   @map("user_id")
-  title      String   @map("label")
-  address    String   @map("address_text")
-  latitude   Decimal  @db.Decimal(10, 7)
-  longitude  Decimal  @db.Decimal(10, 7)
-  note       String?
-  isDefault  Boolean  @default(false) @map("is_default")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  orders     Order[]  @relation("OrderAddress")
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  title     String   @map("label")
+  address   String   @map("address_text")
+  latitude  Decimal  @db.Decimal(10, 7)
+  longitude Decimal  @db.Decimal(10, 7)
+  note      String?
+  isDefault Boolean  @default(false) @map("is_default")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders    Order[]  @relation("OrderAddress")
 
   @@index([userId])
   @@index([userId, createdAt(sort: Desc)])
@@ -228,22 +228,22 @@ model MenuItem {
   availabilityStatus MenuAvailabilityStatusEnum @default(AVAILABLE) @map("availability_status")
   stockQuantity      Int?                       @map("stock_quantity")
   sortOrder          Int                        @default(0) @map("sort_order")
-  
-  preparationTime    Int?                       @default(15) @map("preparation_time")
-  calories           Int?
-  ingredients        String?                    @db.Text
-  allergens          String?                    @db.Text
-  
-  createdByUserId    String?                    @map("created_by")
-  updatedByUserId    String?                    @map("updated_by")
-  
-  createdAt          DateTime                   @default(now()) @map("created_at")
-  updatedAt          DateTime                   @updatedAt @map("updated_at")
-  
-  category           MenuCategory               @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  orderItems         OrderItem[]
-  createdBy          User?                      @relation("MenuItemCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
-  updatedBy          User?                      @relation("MenuItemUpdater", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+
+  preparationTime Int?    @default(15) @map("preparation_time")
+  calories        Int?
+  ingredients     String? @db.Text
+  allergens       String? @db.Text
+
+  createdByUserId String? @map("created_by")
+  updatedByUserId String? @map("updated_by")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  category   MenuCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  orderItems OrderItem[]
+  createdBy  User?        @relation("MenuItemCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  updatedBy  User?        @relation("MenuItemUpdater", fields: [updatedByUserId], references: [id], onDelete: SetNull)
 
   @@index([categoryId, isActive, availabilityStatus])
   @@index([isActive, availabilityStatus, price])
@@ -255,23 +255,24 @@ model MenuItem {
 }
 
 model PromoCode {
-  id            String                @id @default(uuid())
-  code          String                @unique
-  title         String
-  discountType  PromoDiscountTypeEnum @map("discount_type")
-  discountValue Decimal               @db.Decimal(12, 2) @map("discount_value")
-  minOrderValue Decimal               @db.Decimal(12, 2) @default(0) @map("min_order_amount")
-  usageLimit    Int?                  @map("usage_limit")
-  timesUsed     Int                   @default(0) @map("used_count")
-  startDate     DateTime              @default(now()) @map("starts_at")
-  endDate       DateTime?             @map("expires_at")
-  isActive      Boolean               @default(true) @map("is_active")
-  
-  targetUserId  String?               @map("target_user_id") // For user-specific promos
-  
-  createdAt     DateTime              @default(now()) @map("created_at")
-  updatedAt     DateTime              @updatedAt @map("updated_at")
-  orders        Order[]
+  id               String                @id @default(uuid())
+  code             String                @unique
+  title            String
+  discountType     PromoDiscountTypeEnum @map("discount_type")
+  discountValue    Decimal               @map("discount_value") @db.Decimal(12, 2)
+  minOrderValue    Decimal               @default(0) @map("min_order_amount") @db.Decimal(12, 2)
+  usageLimit       Int?                  @map("usage_limit")
+  timesUsed        Int                   @default(0) @map("used_count")
+  startDate        DateTime              @default(now()) @map("starts_at")
+  endDate          DateTime?             @map("expires_at")
+  isActive         Boolean               @default(true) @map("is_active")
+  isFirstOrderOnly Boolean               @default(false) @map("is_first_order_only")
+
+  targetUserId String? @map("target_user_id") // For user-specific promos
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  orders    Order[]
 
   @@index([isActive, startDate, endDate])
   @@index([targetUserId])
@@ -279,55 +280,55 @@ model PromoCode {
 }
 
 model Order {
-  id                 String                  @id @default(uuid())
-  userId             String                  @map("user_id")
-  deliveryAddressId  String                  @map("address_id")
-  courierId          String?                 @map("courier_id")
-  promoCodeId        String?                 @map("promo_code_id")
-  orderNumber        BigInt                  @unique @default(autoincrement()) @map("order_number")
-  status             OrderStatusEnum         @default(PENDING)
-  subtotal           Decimal                 @db.Decimal(12, 2)
-  discountAmount     Decimal                 @db.Decimal(12, 2) @default(0) @map("discount_amount")
-  deliveryFee        Decimal                 @db.Decimal(12, 2) @default(0) @map("delivery_fee")
-  deliveryDistanceMeters Int?                @map("delivery_distance_meters")
-  deliveryEtaMinutes  Int?                   @map("delivery_eta_minutes")
-  deliveryFeeRuleCode String?                @map("delivery_fee_rule_code")
-  deliveryFeeBaseAmount Decimal?             @db.Decimal(12, 2) @map("delivery_fee_base_amount")
-  deliveryFeeExtraAmount Decimal?            @db.Decimal(12, 2) @map("delivery_fee_extra_amount")
-  totalAmount        Decimal                 @db.Decimal(12, 2) @map("total_amount")
-  paymentMethod      PaymentMethodEnum       @map("payment_method")
-  paymentStatus      PaymentStatusEnum       @default(PENDING) @map("payment_status")
-  note               String?
-  destinationLat     Decimal                 @db.Decimal(10, 7) @map("customer_latitude")
-  destinationLng     Decimal                 @db.Decimal(10, 7) @map("customer_longitude")
-  
-  isTestOrder        Boolean                 @default(false) @map("is_test_order")
-  approvedByUserId   String?                 @map("approved_by")
-  approvedAt         DateTime?               @map("approved_at")
-  cancellationReason String?                 @map("cancellation_reason")
-  cancelledByRole    String?                 @map("cancelled_by_role") // 'customer' or 'admin'
-  cardLast4          String?                 @map("card_last_4")
+  id                     String            @id @default(uuid())
+  userId                 String            @map("user_id")
+  deliveryAddressId      String            @map("address_id")
+  courierId              String?           @map("courier_id")
+  promoCodeId            String?           @map("promo_code_id")
+  orderNumber            BigInt            @unique @default(autoincrement()) @map("order_number")
+  status                 OrderStatusEnum   @default(PENDING)
+  subtotal               Decimal           @db.Decimal(12, 2)
+  discountAmount         Decimal           @default(0) @map("discount_amount") @db.Decimal(12, 2)
+  deliveryFee            Decimal           @default(0) @map("delivery_fee") @db.Decimal(12, 2)
+  deliveryDistanceMeters Int?              @map("delivery_distance_meters")
+  deliveryEtaMinutes     Int?              @map("delivery_eta_minutes")
+  deliveryFeeRuleCode    String?           @map("delivery_fee_rule_code")
+  deliveryFeeBaseAmount  Decimal?          @map("delivery_fee_base_amount") @db.Decimal(12, 2)
+  deliveryFeeExtraAmount Decimal?          @map("delivery_fee_extra_amount") @db.Decimal(12, 2)
+  totalAmount            Decimal           @map("total_amount") @db.Decimal(12, 2)
+  paymentMethod          PaymentMethodEnum @map("payment_method")
+  paymentStatus          PaymentStatusEnum @default(PENDING) @map("payment_status")
+  note                   String?
+  destinationLat         Decimal           @map("customer_latitude") @db.Decimal(10, 7)
+  destinationLng         Decimal           @map("customer_longitude") @db.Decimal(10, 7)
+
+  isTestOrder        Boolean   @default(false) @map("is_test_order")
+  approvedByUserId   String?   @map("approved_by")
+  approvedAt         DateTime? @map("approved_at")
+  cancellationReason String?   @map("cancellation_reason")
+  cancelledByRole    String?   @map("cancelled_by_role") // 'customer' or 'admin'
+  cardLast4          String?   @map("card_last_4")
 
   // ── Customer rating after delivery ───────────────────────────────────────
-  customerRating     Int?                    @map("customer_rating")      // 1–5
-  customerRatingNote String?                 @map("customer_rating_note") // optional comment
+  customerRating     Int?    @map("customer_rating") // 1–5
+  customerRatingNote String? @map("customer_rating_note") // optional comment
 
-  createdAt          DateTime                @default(now()) @map("created_at")
-  updatedAt          DateTime                @updatedAt @map("updated_at")
-  
-  user               User                    @relation("CustomerOrders", fields: [userId], references: [id], onDelete: Restrict)
-  courier            User?                   @relation("CourierOrders", fields: [courierId], references: [id], onDelete: SetNull)
-  promoCode          PromoCode?              @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
-  deliveryAddress    DeliveryAddress         @relation("OrderAddress", fields: [deliveryAddressId], references: [id], onDelete: Restrict)
-  approvedBy         User?                   @relation("OrderApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
-  
-  items              OrderItem[]
-  payment            Payment?
-  courierAssignments CourierAssignment[]
-  courierAssignmentEvents CourierAssignmentEvent[]
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user            User            @relation("CustomerOrders", fields: [userId], references: [id], onDelete: Restrict)
+  courier         User?           @relation("CourierOrders", fields: [courierId], references: [id], onDelete: SetNull)
+  promoCode       PromoCode?      @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
+  deliveryAddress DeliveryAddress @relation("OrderAddress", fields: [deliveryAddressId], references: [id], onDelete: Restrict)
+  approvedBy      User?           @relation("OrderApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+
+  items                    OrderItem[]
+  payment                  Payment?
+  courierAssignments       CourierAssignment[]
+  courierAssignmentEvents  CourierAssignmentEvent[]
   courierPresenceSnapshots CourierPresence[]
-  notifications      Notification[]
-  chatMessages       OrderChatMessage[]
+  notifications            Notification[]
+  chatMessages             OrderChatMessage[]
 
   @@index([userId, status, createdAt(sort: Desc)])
   @@index([courierId, status, createdAt(sort: Desc)])
@@ -340,16 +341,16 @@ model Order {
 }
 
 model OrderItem {
-  id           String   @id @default(uuid())
-  orderId      String   @map("order_id")
-  menuItemId   String?  @map("menu_item_id")
-  itemName     String   @map("item_name_snapshot")
-  priceAtOrder Decimal  @db.Decimal(12, 2) @map("item_price_snapshot")
+  id           String    @id @default(uuid())
+  orderId      String    @map("order_id")
+  menuItemId   String?   @map("menu_item_id")
+  itemName     String    @map("item_name_snapshot")
+  priceAtOrder Decimal   @map("item_price_snapshot") @db.Decimal(12, 2)
   quantity     Int
-  totalPrice   Decimal  @db.Decimal(12, 2) @map("total_price")
-  imageUrl     String?  @map("image_url_snapshot")
-  createdAt    DateTime @default(now()) @map("created_at")
-  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  totalPrice   Decimal   @map("total_price") @db.Decimal(12, 2)
+  imageUrl     String?   @map("image_url_snapshot")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  order        Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   menuItem     MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
 
   @@index([orderId])
@@ -366,8 +367,8 @@ model OrderChatMessage {
   isRead     Boolean            @default(false) @map("is_read")
   createdAt  DateTime           @default(now()) @map("created_at")
 
-  order      Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  sender     User               @relation("ChatSender", fields: [senderId], references: [id], onDelete: Cascade)
+  order  Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  sender User  @relation("ChatSender", fields: [senderId], references: [id], onDelete: Cascade)
 
   @@index([orderId, createdAt(sort: Asc)])
   @@index([senderId])
@@ -399,18 +400,18 @@ model CourierAssignment {
 }
 
 model CourierAssignmentEvent {
-  id          String                         @id @default(uuid())
-  assignmentId String                        @map("assignment_id")
-  orderId     String                         @map("order_id")
-  courierId   String                         @map("courier_id")
-  eventType   CourierAssignmentEventTypeEnum @map("event_type")
-  eventAt     DateTime                       @default(now()) @map("event_at")
-  payload     Json?
-  actorUserId String?                        @map("actor_user_id")
-  createdAt   DateTime                       @default(now()) @map("created_at")
-  assignment  CourierAssignment              @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  order       Order                          @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  courier     User                           @relation("CourierAssignmentEventCourier", fields: [courierId], references: [id], onDelete: Restrict)
+  id           String                         @id @default(uuid())
+  assignmentId String                         @map("assignment_id")
+  orderId      String                         @map("order_id")
+  courierId    String                         @map("courier_id")
+  eventType    CourierAssignmentEventTypeEnum @map("event_type")
+  eventAt      DateTime                       @default(now()) @map("event_at")
+  payload      Json?
+  actorUserId  String?                        @map("actor_user_id")
+  createdAt    DateTime                       @default(now()) @map("created_at")
+  assignment   CourierAssignment              @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  order        Order                          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  courier      User                           @relation("CourierAssignmentEventCourier", fields: [courierId], references: [id], onDelete: Restrict)
 
   @@index([assignmentId, eventAt(sort: Desc)])
   @@index([orderId, eventAt(sort: Desc)])
@@ -420,31 +421,31 @@ model CourierAssignmentEvent {
 }
 
 model CourierOperationalStatus {
-  courierId          String   @id @map("courier_id")
-  isOnline           Boolean  @default(false) @map("is_online")
-  isAcceptingOrders  Boolean  @default(false) @map("is_accepting_orders")
-  lastOnlineAt       DateTime? @map("last_online_at")
-  lastOfflineAt      DateTime? @map("last_offline_at")
-  updatedAt          DateTime @updatedAt @map("updated_at")
-  courier            User     @relation(fields: [courierId], references: [id], onDelete: Cascade)
+  courierId         String    @id @map("courier_id")
+  isOnline          Boolean   @default(false) @map("is_online")
+  isAcceptingOrders Boolean   @default(false) @map("is_accepting_orders")
+  lastOnlineAt      DateTime? @map("last_online_at")
+  lastOfflineAt     DateTime? @map("last_offline_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  courier           User      @relation(fields: [courierId], references: [id], onDelete: Cascade)
 
   @@index([isOnline, isAcceptingOrders, updatedAt(sort: Desc)])
   @@map("courier_operational_status")
 }
 
 model CourierPresence {
-  courierId            String    @id @map("courier_id")
-  orderId              String?   @map("order_id")
-  latitude             Decimal   @db.Decimal(10, 7)
-  longitude            Decimal   @db.Decimal(10, 7)
-  heading              Float?
-  speedKmh             Float?    @map("speed_kmh")
-  remainingDistanceKm  Float?    @map("remaining_distance_km")
-  remainingEtaMinutes  Int?      @map("remaining_eta_minutes")
-  createdAt            DateTime  @default(now()) @map("created_at")
-  updatedAt            DateTime  @updatedAt @map("updated_at")
-  courier              User      @relation(fields: [courierId], references: [id], onDelete: Cascade)
-  order                Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  courierId           String   @id @map("courier_id")
+  orderId             String?  @map("order_id")
+  latitude            Decimal  @db.Decimal(10, 7)
+  longitude           Decimal  @db.Decimal(10, 7)
+  heading             Float?
+  speedKmh            Float?   @map("speed_kmh")
+  remainingDistanceKm Float?   @map("remaining_distance_km")
+  remainingEtaMinutes Int?     @map("remaining_eta_minutes")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  courier             User     @relation(fields: [courierId], references: [id], onDelete: Cascade)
+  order               Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
   @@index([orderId, updatedAt(sort: Desc)])
   @@index([updatedAt(sort: Desc)])
@@ -491,17 +492,17 @@ model Notification {
 }
 
 model AuditLog {
-  id        String       @id @default(uuid())
-  userId    String?      @map("actor_user_id")
+  id        String        @id @default(uuid())
+  userId    String?       @map("actor_user_id")
   actorRole UserRoleEnum? @map("actor_role")
-  action    String       @map("action_type")
-  entity    String       @map("entity_type")
-  entityId  String       @map("entity_id")
-  oldValue  Json?        @map("before_state")
-  newValue  Json?        @map("after_state")
+  action    String        @map("action_type")
+  entity    String        @map("entity_type")
+  entityId  String        @map("entity_id")
+  oldValue  Json?         @map("before_state")
+  newValue  Json?         @map("after_state")
   metadata  Json?
-  createdAt DateTime     @default(now()) @map("created_at")
-  user      User?        @relation("AuditActor", fields: [userId], references: [id], onDelete: SetNull)
+  createdAt DateTime      @default(now()) @map("created_at")
+  user      User?         @relation("AuditActor", fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([entity, entityId, createdAt(sort: Desc)])
@@ -510,24 +511,24 @@ model AuditLog {
 }
 
 model SpecialEvent {
-  id                  String               @id @default(uuid())
-  name                String               @map("event_name")
-  type                SpecialEventTypeEnum @map("event_type")
-  description         String?
-  isActive            Boolean              @default(true) @map("is_active")
-  
-  occursDate          DateTime?            @map("occurs_date") // One-time
-  occursDayOfWeek     Int?                 @map("occurs_day_of_week") // 1-7 for recurring
-  
-  freeItemIds         String[]             @map("free_item_ids")
-  discountPercent     Decimal?             @db.Decimal(5, 2) @map("discount_percent")
-  discountAmount      Decimal?             @db.Decimal(10, 2) @map("discount_amount")
-  minOrderAmount      Decimal?             @db.Decimal(10, 2) @map("min_order_amount")
-  
-  applicableCategoryIds String[]           @map("applicable_category_ids")
-  
-  createdAt           DateTime             @default(now()) @map("created_at")
-  updatedAt           DateTime             @updatedAt @map("updated_at")
+  id          String               @id @default(uuid())
+  name        String               @map("event_name")
+  type        SpecialEventTypeEnum @map("event_type")
+  description String?
+  isActive    Boolean              @default(true) @map("is_active")
+
+  occursDate      DateTime? @map("occurs_date") // One-time
+  occursDayOfWeek Int?      @map("occurs_day_of_week") // 1-7 for recurring
+
+  freeItemIds     String[] @map("free_item_ids")
+  discountPercent Decimal? @map("discount_percent") @db.Decimal(5, 2)
+  discountAmount  Decimal? @map("discount_amount") @db.Decimal(10, 2)
+  minOrderAmount  Decimal? @map("min_order_amount") @db.Decimal(10, 2)
+
+  applicableCategoryIds String[] @map("applicable_category_ids")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([isActive, occursDate])
   @@map("special_events")
@@ -540,52 +541,52 @@ model RestaurantSetting {
   dataType    String   @map("data_type") // 'string', 'number', 'json'
   updatedAt   DateTime @updatedAt @map("updated_at")
   updatedById String?  @map("updated_by")
-  
-  updatedBy   User?    @relation("SettingUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  updatedBy User? @relation("SettingUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@map("restaurant_settings")
 }
 
 model PaymentUserSetting {
-  id              String             @id @default(uuid())
-  userId          String             @map("user_id")
-  paymentMethod   PaymentMethodEnum? @map("payment_method")
-  allowFromDate   DateTime?          @map("allow_from_date")
-  allowUntilDate  DateTime?          @map("allow_until_date")
-  minAmount       Decimal?           @db.Decimal(10, 2) @map("min_amount")
-  maxAmount       Decimal?           @db.Decimal(10, 2) @map("max_amount")
-  createdAt       DateTime           @default(now()) @map("created_at")
-  
-  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String             @id @default(uuid())
+  userId         String             @map("user_id")
+  paymentMethod  PaymentMethodEnum? @map("payment_method")
+  allowFromDate  DateTime?          @map("allow_from_date")
+  allowUntilDate DateTime?          @map("allow_until_date")
+  minAmount      Decimal?           @map("min_amount") @db.Decimal(10, 2)
+  maxAmount      Decimal?           @map("max_amount") @db.Decimal(10, 2)
+  createdAt      DateTime           @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("payment_user_settings")
 }
 
 model DailyReport {
-  id                        String   @id @default(uuid())
-  reportDate                DateTime @unique @map("report_date")
-  
-  totalOrders               Int      @default(0) @map("total_orders")
-  completedOrders           Int      @default(0) @map("completed_orders")
-  cancelledOrders           Int      @default(0) @map("cancelled_orders")
-  testOrders                Int      @default(0) @map("test_orders")
-  
-  cashRevenue               Decimal  @db.Decimal(12, 2) @default(0) @map("cash_revenue")
-  cardRevenue               Decimal  @db.Decimal(12, 2) @default(0) @map("card_revenue")
-  totalRevenue              Decimal  @db.Decimal(12, 2) @default(0) @map("total_revenue")
-  totalDiscounts            Decimal  @db.Decimal(12, 2) @default(0) @map("total_discounts")
-  
-  newCustomers              Int      @default(0) @map("new_customers")
-  repeatCustomers           Int      @default(0) @map("repeat_customers")
-  
-  couriersActive            Int      @default(0) @map("couriers_active")
-  totalDistanceKm           Decimal  @db.Decimal(10, 2) @default(0) @map("total_distance_km")
-  avgDeliveryTimeMinutes    Decimal  @db.Decimal(5, 2) @default(0) @map("avg_delivery_time_minutes")
-  
-  avgCustomerRating         Decimal? @db.Decimal(3, 2) @map("avg_customer_rating")
-  
-  createdAt                 DateTime @default(now()) @map("created_at")
+  id         String   @id @default(uuid())
+  reportDate DateTime @unique @map("report_date")
+
+  totalOrders     Int @default(0) @map("total_orders")
+  completedOrders Int @default(0) @map("completed_orders")
+  cancelledOrders Int @default(0) @map("cancelled_orders")
+  testOrders      Int @default(0) @map("test_orders")
+
+  cashRevenue    Decimal @default(0) @map("cash_revenue") @db.Decimal(12, 2)
+  cardRevenue    Decimal @default(0) @map("card_revenue") @db.Decimal(12, 2)
+  totalRevenue   Decimal @default(0) @map("total_revenue") @db.Decimal(12, 2)
+  totalDiscounts Decimal @default(0) @map("total_discounts") @db.Decimal(12, 2)
+
+  newCustomers    Int @default(0) @map("new_customers")
+  repeatCustomers Int @default(0) @map("repeat_customers")
+
+  couriersActive         Int     @default(0) @map("couriers_active")
+  totalDistanceKm        Decimal @default(0) @map("total_distance_km") @db.Decimal(10, 2)
+  avgDeliveryTimeMinutes Decimal @default(0) @map("avg_delivery_time_minutes") @db.Decimal(5, 2)
+
+  avgCustomerRating Decimal? @map("avg_customer_rating") @db.Decimal(3, 2)
+
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@index([reportDate])
   @@map("daily_reports")
