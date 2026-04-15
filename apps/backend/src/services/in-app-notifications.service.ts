@@ -31,7 +31,7 @@ function serializeNotification(notification: any) {
 // Each SSE client calls /notifications/my every ~2 seconds — this eliminates
 // repeated identical DB queries within the same polling window.
 const notifCache = new Map<string, { data: unknown[]; expiresAt: number }>();
-const NOTIF_CACHE_TTL = 5_000; // ms
+const NOTIF_CACHE_TTL = 30_000; // ms — EC2 eu-north-1 ↔ Supabase ap-southeast-1 ~1s RTT
 
 function getCachedNotifs(userId: string, role: UserRoleEnum) {
   const entry = notifCache.get(`${userId}:${role}`);
