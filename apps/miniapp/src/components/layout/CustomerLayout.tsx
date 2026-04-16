@@ -2,16 +2,14 @@ import React, { useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { BottomNavbar } from '../customer/CustomerComponents';
 import { CustomerErrorBoundary } from '../ui/CustomerErrorBoundary';
-import { useCartStore } from '../../store/useCartStore';
-import { ChevronLeft } from 'lucide-react';
 
 const RED = '#C62020';
 const HOME_PATH = '/customer';
 
-// Profile manages its own header — skip universal header here
+// Pages that manage their own header
 const NO_HEADER_PATHS = [
   /^\/customer\/profile$/,
-  /^\/customer$/,   // Home has own hero section
+  /^\/customer$/,
 ];
 
 const HIDE_BOTTOM_NAV_PATHS = [
@@ -23,64 +21,36 @@ const HIDE_BOTTOM_NAV_PATHS = [
   /^\/customer\/orders\/[^/]+\/tracking$/,
 ];
 
-/* ── Universal red header with centered logo ─────────────────────────────── */
-const AppHeader: React.FC<{ showBack: boolean }> = ({ showBack }) => {
-  const navigate = useNavigate();
-  return (
-    <div
+/* ── Universal header — logo only, no back button ───────────────────────── */
+const AppHeader: React.FC = () => (
+  <div
+    style={{
+      position: 'sticky',
+      top: 0,
+      zIndex: 50,
+      background: `linear-gradient(135deg, #9B0000 0%, ${RED} 60%, #E53535 100%)`,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: 60,
+      paddingTop: 'env(safe-area-inset-top, 0px)',
+      boxShadow: '0 2px 16px rgba(150,0,0,0.3)',
+    }}
+  >
+    <img
+      src="/turon-logo.png"
+      alt="Turon Kafesi"
       style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-        background: `linear-gradient(135deg, #9B0000 0%, ${RED} 60%, #E53535 100%)`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: 56,
-        paddingTop: 'env(safe-area-inset-top, 0px)',
-        boxShadow: '0 2px 12px rgba(150,0,0,0.35)',
+        height: 46,          // bigger
+        maxWidth: '55vw',    // fluid — fits both phone & desktop
+        objectFit: 'contain',
+        filter: 'brightness(0) invert(1)',  // white logo on red
+        userSelect: 'none',
+        pointerEvents: 'none',
       }}
-    >
-      {showBack && (
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          style={{
-            position: 'absolute',
-            left: 12,
-            top: '50%',
-            transform: 'translateY(-50%)',
-            background: 'rgba(255,255,255,0.15)',
-            border: 'none',
-            borderRadius: '50%',
-            width: 36,
-            height: 36,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            color: 'white',
-          }}
-        >
-          <ChevronLeft size={20} />
-        </button>
-      )}
-
-      {/* Turon logo centered */}
-      <img
-        src="/turon-logo.png"
-        alt="Turon Kafesi"
-        style={{
-          height: 38,
-          maxWidth: 160,
-          objectFit: 'contain',
-          filter: 'brightness(0) invert(1)', // make logo white
-          userSelect: 'none',
-        }}
-      />
-    </div>
-  );
-};
+    />
+  </div>
+);
 
 /* ── Layout ──────────────────────────────────────────────────────────────── */
 const CustomerLayout: React.FC = () => {
@@ -100,16 +70,8 @@ const CustomerLayout: React.FC = () => {
   const showHeader = !NO_HEADER_PATHS.some((p) => p.test(location.pathname));
   const isHome = location.pathname === HOME_PATH;
 
-  // ── Telegram: set header color red & manage BackButton ───────────────────
-  useEffect(() => {
-    const tg = window.Telegram?.WebApp as any;
-    if (!tg) return;
-
-    // Make Telegram's native top bar red
-    try { tg.setHeaderColor?.(RED); } catch { /* noop */ }
-    try { tg.setBackgroundColor?.('#F9FAFB'); } catch { /* noop */ }
-  }, []);
-
+  // ── Telegram BackButton: show on sub-pages, hide on home ─────────────────
+  // NOTE: We do NOT call setHeaderColor so Telegram keeps its default color
   useEffect(() => {
     const tg = window.Telegram?.WebApp as any;
     if (!tg?.BackButton) return;
@@ -135,10 +97,7 @@ const CustomerLayout: React.FC = () => {
       }}
     >
       <div className="w-full">
-        {/* Universal red header with logo */}
-        {showHeader && (
-          <AppHeader showBack={!isHome && location.pathname !== HOME_PATH} />
-        )}
+        {showHeader && <AppHeader />}
 
         <main
           style={{
