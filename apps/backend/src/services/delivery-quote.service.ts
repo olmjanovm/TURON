@@ -126,7 +126,10 @@ export class DeliveryQuoteService {
     const merchandiseTotal = roundCurrency(subtotal - discountAmount);
     const { distanceMeters, etaMinutes, routeSource } = await resolveDistanceAndEta(input.destination);
 
-    const feeBaseAmount = merchandiseTotal >= DELIVERY_FREE_THRESHOLD ? 0 : DELIVERY_BASE_FEE;
+    // Check ORIGINAL subtotal (before discount) for free delivery threshold
+    // If original subtotal >= 80,000 → free delivery (0)
+    // If original subtotal < 80,000 → add 5,000 delivery fee
+    const feeBaseAmount = subtotal >= DELIVERY_FREE_THRESHOLD ? 0 : DELIVERY_BASE_FEE;
     const extraDistanceMeters = Math.max(distanceMeters - DELIVERY_BASE_DISTANCE_METERS, 0);
     const extraDistanceKm = extraDistanceMeters > 0 ? Math.ceil(extraDistanceMeters / 1000) : 0;
     const feeExtraAmount = extraDistanceKm * DELIVERY_EXTRA_FEE_PER_KM;
