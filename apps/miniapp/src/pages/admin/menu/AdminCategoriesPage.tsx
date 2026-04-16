@@ -81,7 +81,7 @@ const AdminCategoriesPage: React.FC = () => {
 
   return (
     <div className="space-y-5 animate-in fade-in duration-300 pb-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-black text-slate-900">Kategoriyalar</h1>
           <p className="text-xs text-slate-400 font-medium mt-0.5">{sortedCategories.length} ta kategoriya</p>
@@ -89,7 +89,7 @@ const AdminCategoriesPage: React.FC = () => {
         <button
           type="button"
           onClick={() => navigate('/admin/menu/categories/new')}
-          className="h-11 px-4 bg-blue-600 text-white rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg shadow-blue-200 active:scale-95 transition-transform"
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white shadow-lg shadow-blue-200 transition-transform active:scale-95 sm:w-auto"
         >
           <Plus size={18} />
           Qo'shish

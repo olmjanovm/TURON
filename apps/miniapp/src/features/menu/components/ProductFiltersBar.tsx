@@ -23,11 +23,11 @@ const ProductFiltersBar: React.FC<Props> = ({ categories, filters, onChange }) =
         />
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
         <select
           value={filters.categoryId}
           onChange={(event) => onChange({ ...filters, categoryId: event.target.value })}
-          className="h-10 px-3 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 bg-white focus:outline-none min-w-fit"
+          className="col-span-2 h-11 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-[13px] font-bold text-slate-600 focus:outline-none md:col-span-1"
         >
           <option value="all">Barcha kategoriyalar</option>
           {categories.map((category) => (
@@ -45,7 +45,7 @@ const ProductFiltersBar: React.FC<Props> = ({ categories, filters, onChange }) =
               activeFilter: event.target.value as 'all' | 'active' | 'inactive',
             })
           }
-          className="h-10 px-3 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 bg-white focus:outline-none min-w-fit"
+          className="h-11 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-[13px] font-bold text-slate-600 focus:outline-none"
         >
           <option value="all">Barchasi</option>
           <option value="active">Faol</option>
@@ -60,7 +60,7 @@ const ProductFiltersBar: React.FC<Props> = ({ categories, filters, onChange }) =
               availabilityFilter: event.target.value as 'all' | ProductAvailabilityEnum,
             })
           }
-          className="h-10 px-3 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 bg-white focus:outline-none min-w-fit"
+          className="h-11 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-[13px] font-bold text-slate-600 focus:outline-none"
         >
           <option value="all">Holati: Barcha</option>
           <option value={ProductAvailabilityEnum.AVAILABLE}>Mavjud</option>

@@ -349,7 +349,8 @@ const AdminCouriersPage: React.FC = () => {
           setFeedback(null);
           setActiveModal({ type: 'create' });
         }}
-        className="fixed bottom-[92px] right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-slate-950 text-white shadow-[0_18px_40px_rgba(15,23,42,0.22)] active:scale-95"
+        className="fixed right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-slate-950 text-white shadow-[0_18px_40px_rgba(15,23,42,0.22)] active:scale-95"
+        style={{ bottom: 'var(--admin-fab-offset, calc(env(safe-area-inset-bottom, 0px) + 110px))' }}
         aria-label="Add courier"
       >
         <Plus size={20} />

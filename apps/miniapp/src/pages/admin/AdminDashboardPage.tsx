@@ -154,7 +154,7 @@ const AdminDashboardPage: React.FC = () => {
 
       <section className="space-y-3">
         <h2 className="text-lg font-black tracking-tight text-slate-950">Tezkor amallar</h2>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <QuickAction
             label="Buyurtmalar"
             icon={<ClipboardList size={20} />}

@@ -25,11 +25,11 @@ export const PromoFiltersBar: React.FC<Props> = ({ filters, onChange }) => {
       </div>
 
       {/* Filter Chips */}
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <select
           value={filters.statusFilter}
           onChange={(e) => onChange({ ...filters, statusFilter: e.target.value as any })}
-          className="h-9 px-3 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-600 focus:outline-none appearance-none"
+          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-[13px] font-bold text-slate-600 appearance-none focus:outline-none"
         >
           <option value="all">Holat: Barchasi</option>
           <option value="active">Holat: Faol</option>
@@ -40,7 +40,7 @@ export const PromoFiltersBar: React.FC<Props> = ({ filters, onChange }) => {
         <select
           value={filters.discountTypeFilter}
           onChange={(e) => onChange({ ...filters, discountTypeFilter: e.target.value as any })}
-          className="h-9 px-3 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-600 focus:outline-none appearance-none"
+          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-[13px] font-bold text-slate-600 appearance-none focus:outline-none"
         >
           <option value="all">Tur: Barchasi</option>
           <option value={DiscountTypeEnum.PERCENTAGE}>Tur: Foizli (%)</option>

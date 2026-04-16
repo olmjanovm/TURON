@@ -48,14 +48,14 @@ const AdminPromosPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300 pb-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">Promokodlar</h1>
           <p className="text-sm text-slate-400 font-medium mt-1">Chegirmalarni boshqaring</p>
         </div>
         <button
           onClick={() => navigate('/admin/promos/new')}
-          className="h-11 px-4 bg-indigo-600 text-white rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg shadow-indigo-200 active:scale-95 transition-transform"
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white shadow-lg shadow-indigo-200 transition-transform active:scale-95 sm:w-auto"
         >
           <Plus size={18} />
           Qo&apos;shish
@@ -64,8 +64,8 @@ const AdminPromosPage: React.FC = () => {
 
       <PromoSummaryCards promos={promos} />
 
-      <div className="flex items-center gap-3">
-        <div className="flex-1">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+        <div className="w-full flex-1">
           <PromoFiltersBar filters={filters} onChange={setFilters} />
         </div>
         <button
@@ -73,7 +73,7 @@ const AdminPromosPage: React.FC = () => {
           onClick={() => {
             void refetch();
           }}
-          className="shrink-0 w-11 h-11 rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center text-slate-500 active:scale-95 transition-transform"
+          className="flex h-11 w-full shrink-0 items-center justify-center rounded-2xl border border-slate-100 bg-white text-slate-500 shadow-sm transition-transform active:scale-95 sm:w-11"
           aria-label="Promokodlarni yangilash"
         >
           {isFetching ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} />}

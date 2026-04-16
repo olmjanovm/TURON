@@ -1,24 +1,15 @@
 import React from 'react';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { AppErrorBoundary } from '../ui/AppErrorBoundary';
-import {
-  LayoutDashboard,
-  ShoppingBag,
-  Bell,
-  Search,
-  Truck,
-  Tag,
-  UtensilsCrossed,
-} from 'lucide-react';
-import { useOrdersStore } from '../../store/useOrdersStore';
-import { useAdminOrders, useOrdersRealtimeSync } from '../../hooks/queries/useOrders';
-import NotificationBadge from '../../features/notifications/components/NotificationBadge';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Bell, LayoutDashboard, ShoppingBag, Tag, Truck, UtensilsCrossed } from 'lucide-react';
 import { OrderStatusEnum, UserRoleEnum } from '@turon/shared';
+import { AppErrorBoundary } from '../ui/AppErrorBoundary';
+import NotificationBadge from '../../features/notifications/components/NotificationBadge';
+import { useAdminOrders, useOrdersRealtimeSync } from '../../hooks/queries/useOrders';
+import { useOrdersStore } from '../../store/useOrdersStore';
 
-/** Play a short beep using Web Audio API when a new order arrives */
 function playNewOrderBeep() {
   try {
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const ctx = new (window.AudioContext || (window as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);
@@ -30,13 +21,12 @@ function playNewOrderBeep() {
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.35);
-    osc.onended = () => ctx.close();
+    osc.onended = () => void ctx.close();
   } catch {
-    // Web Audio not available — silent fail
+    // Silent fail when Web Audio is unavailable.
   }
 }
 
-/** Detect new PENDING orders and fire audio + haptic alert */
 function useAdminNewOrderAlert(pendingCount: number) {
   const prevCountRef = React.useRef<number | null>(null);
   const [flashActive, setFlashActive] = React.useState(false);
@@ -46,12 +36,14 @@ function useAdminNewOrderAlert(pendingCount: number) {
       prevCountRef.current = pendingCount;
       return;
     }
+
     if (pendingCount > prevCountRef.current) {
       playNewOrderBeep();
       setFlashActive(true);
       window.setTimeout(() => setFlashActive(false), 2000);
       window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('warning');
     }
+
     prevCountRef.current = pendingCount;
   }, [pendingCount]);
 
@@ -67,6 +59,13 @@ const AdminLayout: React.FC = () => {
   const orders = adminOrders.length > 0 ? adminOrders : storeOrders;
   const newOrdersCount = orders.filter((order) => order.orderStatus === OrderStatusEnum.PENDING).length;
   const { flashActive } = useAdminNewOrderAlert(newOrdersCount);
+
+  const layoutVars: React.CSSProperties & Record<string, string> = {
+    '--admin-header-clearance': 'calc(env(safe-area-inset-top, 0px) + 122px)',
+    '--admin-nav-clearance': 'calc(env(safe-area-inset-bottom, 0px) + 108px)',
+    '--admin-fab-offset': 'calc(env(safe-area-inset-bottom, 0px) + 110px)',
+  };
+
   const syncLabel = isConnected
     ? 'Main Branch'
     : connectionState === 'reconnecting'
@@ -75,6 +74,18 @@ const AdminLayout: React.FC = () => {
         ? 'Ulanmoqda'
         : 'Offline';
 
+  const syncBadgeClass = isConnected
+    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    : connectionState === 'reconnecting' || connectionState === 'connecting'
+      ? 'border-amber-200 bg-amber-50 text-amber-700'
+      : 'border-slate-200 bg-slate-100 text-slate-500';
+
+  const syncDotClass = isConnected
+    ? 'bg-emerald-500'
+    : connectionState === 'reconnecting' || connectionState === 'connecting'
+      ? 'bg-amber-500'
+      : 'bg-slate-400';
+
   const NavItem: React.FC<{
     path: string;
     icon: React.ReactNode;
@@ -82,55 +93,63 @@ const AdminLayout: React.FC = () => {
     badge?: number;
   }> = ({ path, icon, label, badge }) => {
     const isActive = location.pathname.startsWith(path);
+
     return (
       <button
+        type="button"
         onClick={() => navigate(path)}
-        className={`relative flex h-14 min-w-[58px] flex-col items-center justify-center gap-1 transition-colors
-          ${isActive ? 'text-blue-600' : 'text-slate-500'}
-        `}
+        className={`relative flex h-[60px] min-w-0 flex-col items-center justify-center gap-1 rounded-[20px] transition-all ${
+          isActive
+            ? 'bg-blue-50 text-blue-600 shadow-[inset_0_0_0_1px_rgba(59,130,246,0.14)]'
+            : 'text-slate-500'
+        }`}
       >
-        <div className="relative">
-          {icon}
-        </div>
-        <span className={`text-[10px] font-bold ${isActive ? 'text-blue-600' : 'text-slate-500'}`}>
+        <div className="relative">{icon}</div>
+        <span className={`text-[10px] font-black ${isActive ? 'text-blue-600' : 'text-slate-500'}`}>
           {label}
         </span>
-        {badge !== undefined && badge > 0 && (
-          <span className="absolute right-1 top-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">
+        {badge !== undefined && badge > 0 ? (
+          <span className="absolute right-1.5 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">
             {badge}
           </span>
-        )}
+        ) : null}
       </button>
     );
   };
 
   return (
-    <div className="admin-shell min-h-screen bg-[#f4f6fa] flex flex-col font-sans text-slate-950 pb-24">
-      {/* Admin Header */}
-      <header className="fixed top-0 left-1/2 z-50 w-full max-w-[390px] -translate-x-1/2 bg-white px-4 py-4 shadow-[0_16px_40px_rgba(15,23,42,0.06)]">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-600 text-lg font-black text-white">
-              T
+    <div
+      className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.15),transparent_28%),linear-gradient(180deg,#eef4ff_0%,#f7f9fc_44%,#eef3fb_100%)] font-sans text-slate-950"
+      style={layoutVars}
+    >
+      <header
+        className="fixed inset-x-0 top-0 z-50 px-3"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
+      >
+        <div className="mx-auto w-full max-w-[430px] overflow-hidden rounded-[28px] border border-white/80 bg-white/92 shadow-[0_20px_50px_rgba(15,23,42,0.14)] backdrop-blur-xl">
+          <div className="h-1.5 w-full bg-gradient-to-r from-blue-600 via-sky-400 to-cyan-300" />
+          <div className="flex items-center justify-between gap-3 px-4 py-4">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-600 text-lg font-black text-white shadow-[0_12px_24px_rgba(37,99,235,0.28)]">
+                T
+              </div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="truncate text-[18px] font-black leading-none tracking-tight text-slate-950">TURON</h2>
+                  <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${syncBadgeClass}`}>
+                    <span className={`h-2 w-2 rounded-full ${syncDotClass}`} />
+                    <span>{syncLabel}</span>
+                  </span>
+                </div>
+                <p className="mt-1 truncate text-xs font-semibold text-slate-500">Admin Panel boshqaruvi</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-base font-black leading-none tracking-tight text-slate-950">TURON</h2>
-              <p className="mt-1 text-xs font-semibold text-slate-500">Admin Panel · {syncLabel}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              aria-label="Izlash"
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-50 text-slate-400 active:scale-95"
-            >
-              <Search size={21} />
-            </button>
+
             <button
               type="button"
               onClick={() => navigate('/admin/notifications')}
               aria-label="Bildirishnomalar"
-              className="relative flex h-11 w-11 items-center justify-center rounded-full bg-slate-50 text-slate-500 active:scale-95"
+              className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500 transition-transform active:scale-95"
             >
               <Bell size={20} />
               <NotificationBadge role={UserRoleEnum.ADMIN} />
@@ -139,41 +158,50 @@ const AdminLayout: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <main className="flex-1 mt-[76px] px-4 pt-4 overflow-x-hidden">
+      <main
+        className="mx-auto w-full max-w-[430px] overflow-x-hidden px-4"
+        style={{
+          paddingTop: 'var(--admin-header-clearance)',
+          paddingBottom: 'var(--admin-nav-clearance)',
+        }}
+      >
         <AppErrorBoundary theme="light" homeUrl="/admin">
           <Outlet />
         </AppErrorBoundary>
       </main>
 
-      {/* Admin Bottom Navigation */}
-      <nav className="fixed bottom-0 left-1/2 z-50 flex h-[68px] w-full max-w-[390px] -translate-x-1/2 items-center justify-around border-t border-slate-100 bg-white px-4 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] safe-area-inset-bottom">
-        <NavItem
-          path="/admin/dashboard"
-          icon={<LayoutDashboard size={22} />}
-          label="Home"
-        />
-        <NavItem
-          path="/admin/orders"
-          icon={<ShoppingBag size={22} className={flashActive ? 'text-rose-500' : ''} />}
-          label="Buyurtma"
-          badge={newOrdersCount}
-        />
-        <NavItem
-          path="/admin/menu"
-          icon={<UtensilsCrossed size={22} />}
-          label="Menu"
-        />
-        <NavItem
-          path="/admin/couriers"
-          icon={<Truck size={22} />}
-          label="Kuryer"
-        />
-        <NavItem
-          path="/admin/promos"
-          icon={<Tag size={22} />}
-          label="Promo"
-        />
+      <nav
+        className="fixed inset-x-0 bottom-0 z-50 px-3"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 10px)' }}
+      >
+        <div className="mx-auto grid h-[78px] w-full max-w-[430px] grid-cols-5 items-center gap-1 rounded-[30px] border border-white/80 bg-white/96 px-2 shadow-[0_20px_50px_rgba(15,23,42,0.18)] backdrop-blur-xl">
+          <NavItem
+            path="/admin/dashboard"
+            icon={<LayoutDashboard size={21} />}
+            label="Home"
+          />
+          <NavItem
+            path="/admin/orders"
+            icon={<ShoppingBag size={21} className={flashActive ? 'text-rose-500' : ''} />}
+            label="Buyurtma"
+            badge={newOrdersCount}
+          />
+          <NavItem
+            path="/admin/menu"
+            icon={<UtensilsCrossed size={21} />}
+            label="Menu"
+          />
+          <NavItem
+            path="/admin/couriers"
+            icon={<Truck size={21} />}
+            label="Kuryer"
+          />
+          <NavItem
+            path="/admin/promos"
+            icon={<Tag size={21} />}
+            label="Promo"
+          />
+        </div>
       </nav>
     </div>
   );
