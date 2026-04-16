@@ -341,6 +341,13 @@ async function sendOrUpdateStartMessage(
   const { text, buttonLabel } = getStartMessageContent(role);
   const keyboard = Markup.inlineKeyboard([[Markup.button.webApp(buttonLabel, launchUrl)]]);
 
+  // Set per-user menu button so "Ilovani ochish" always opens the correct role page.
+  // Fire-and-forget — never block the message send on this.
+  void (bot.telegram.callApi as any)('setChatMenuButton', {
+    chat_id: chatId,
+    menu_button: { type: 'web_app', text: buttonLabel, web_app: { url: launchUrl } },
+  }).catch(() => { /* non-critical */ });
+
   // Fetch stored message ID while we already have role — no serial wait
   const prevMessageId = await getStoredMessageId(chatId);
 
