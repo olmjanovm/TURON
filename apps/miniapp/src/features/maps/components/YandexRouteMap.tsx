@@ -9,6 +9,10 @@ const FALLBACK_MESSAGE = 'Demo xarita ishlatilmoqda. Yandex uchun `VITE_MAP_API_
 const NAV_ZOOM = 17;
 const DEFAULT_NAV_TILT = 50; // degrees: 0 = flat overhead, 50 = 3D like Yandex Maps app
 
+function normalizeDegrees(value: number) {
+  return ((value % 360) + 360) % 360;
+}
+
 // ── DOM marker factories ──────────────────────────────────────────────────────
 // ymaps3 places the element's top-left at the coordinate — translate(-50%,-50%)
 // centers it. Rotation is layered on top for the courier arrow.
@@ -71,6 +75,7 @@ export default function YandexRouteMap({
   const pickupMarkerRef  = useRef<any>(null);
   const destMarkerRef    = useRef<any>(null);
   const courierMarkerRef = useRef<any>(null);
+  const mapListenerRef   = useRef<any>(null);
   const courierElRef     = useRef<HTMLDivElement | null>(null);
   const routeReqRef      = useRef(0);
   const lastRouteKeyRef  = useRef<string | null>(null);
@@ -78,6 +83,8 @@ export default function YandexRouteMap({
   const courierPosRef    = useRef(courierPos);
   const headingRef       = useRef(heading ?? 0);
   const tiltRef          = useRef(tilt ?? DEFAULT_NAV_TILT);
+  const cameraAzimuthRef = useRef(0);
+  const cameraTiltRef    = useRef(tilt ?? DEFAULT_NAV_TILT);
   const hasNavZoomedRef  = useRef(false);
   const isManualRef      = useRef(false);
   const snapTimerRef     = useRef<number | null>(null);
@@ -96,6 +103,19 @@ export default function YandexRouteMap({
   useEffect(() => { headingRef.current    = heading ?? 0; }, [heading]);
   useEffect(() => { tiltRef.current       = tilt ?? DEFAULT_NAV_TILT; }, [tilt]);
 
+  function syncCourierRotation(
+    courierHeading = headingRef.current,
+    cameraAzimuth = cameraAzimuthRef.current,
+  ) {
+    if (!courierElRef.current) {
+      return;
+    }
+
+    const relativeRotation = normalizeDegrees(courierHeading - cameraAzimuth);
+    courierElRef.current.style.transform =
+      `translate(-50%,-50%) rotate(${relativeRotation}deg)`;
+  }
+
   // ── Emit route info ──────────────────────────────────────────────────────
   const emitRouteInfo = (info: RouteInfo) => {
     const key = [
@@ -113,6 +133,11 @@ export default function YandexRouteMap({
   function updateCamera(pos: { lat: number; lng: number }, zoom?: number) {
     const map = mapRef.current;
     if (!map) return;
+
+    cameraAzimuthRef.current = headingRef.current;
+    cameraTiltRef.current = tiltRef.current;
+    syncCourierRotation(headingRef.current, cameraAzimuthRef.current);
+
     try {
       map.update({
         location: {
@@ -121,8 +146,8 @@ export default function YandexRouteMap({
           duration: 600,
         },
         camera: {
-          azimuth: headingRef.current,
-          tilt: tiltRef.current,
+          azimuth: cameraAzimuthRef.current,
+          tilt: cameraTiltRef.current,
         },
       });
     } catch {
@@ -210,6 +235,16 @@ export default function YandexRouteMap({
         // ── Create map (no camera in constructor — set via update after init) ──
         const map = new ymaps3.YMap(mapContainerRef.current, {
           location: { center: toLngLat(pickup), zoom: 14 },
+          behaviors: [
+            'drag',
+            'pinchZoom',
+            'pinchRotate',
+            'oneFingerZoom',
+            'dblClick',
+            'scrollZoom',
+            'mouseRotate',
+            'mouseTilt',
+          ],
         });
 
         // ── Required layers ──────────────────────────────────────────────────
@@ -224,6 +259,8 @@ export default function YandexRouteMap({
         // ── Set 3D camera AFTER init ─────────────────────────────────────────
         try {
           map.update({ camera: { azimuth: 0, tilt: DEFAULT_NAV_TILT } });
+          cameraAzimuthRef.current = 0;
+          cameraTiltRef.current = DEFAULT_NAV_TILT;
         } catch { /* camera might not be supported — non-fatal */ }
 
         // ── Zoom control ─────────────────────────────────────────────────────
@@ -234,6 +271,20 @@ export default function YandexRouteMap({
             map.addChild(controls);
           }
         } catch { /* controls optional */ }
+
+        try {
+          const mapListener = new ymaps3.YMapListener({
+            onUpdate: ({ camera }: { camera?: { azimuth?: number; tilt?: number } }) => {
+              cameraAzimuthRef.current = camera?.azimuth ?? map.azimuth ?? cameraAzimuthRef.current;
+              cameraTiltRef.current = camera?.tilt ?? cameraTiltRef.current;
+              syncCourierRotation();
+            },
+          });
+          map.addChild(mapListener);
+          mapListenerRef.current = mapListener;
+        } catch {
+          mapListenerRef.current = null;
+        }
 
         // ── Snap-back: pointer events on container ───────────────────────────
         const el = mapContainerRef.current;
@@ -278,11 +329,12 @@ export default function YandexRouteMap({
         // ── Courier arrow marker ─────────────────────────────────────────────
         if (courierPos) {
           try {
-            const cEl = createCourierElement(heading ?? 0);
+            const cEl = createCourierElement(0);
             courierElRef.current = cEl;
             const cMarker = new ymaps3.YMapMarker({ coordinates: toLngLat(courierPos), zIndex: 200 }, cEl);
             map.addChild(cMarker);
             courierMarkerRef.current = cMarker;
+            syncCourierRotation(heading ?? 0, cameraAzimuthRef.current);
           } catch { /* skip */ }
         }
 
@@ -311,6 +363,7 @@ export default function YandexRouteMap({
       try { mapRef.current?.destroy(); } catch { /* skip */ }
       mapRef.current       = null;
       ymaps3Ref.current    = null;
+      mapListenerRef.current = null;
       routeFeatureRef.current  = null;
       pickupMarkerRef.current  = null;
       destMarkerRef.current    = null;
@@ -358,11 +411,12 @@ export default function YandexRouteMap({
     // Create courier marker on first GPS fix
     if (!courierMarkerRef.current) {
       try {
-        const cEl = createCourierElement(heading ?? 0);
+        const cEl = createCourierElement(0);
         courierElRef.current = cEl;
         const cMarker = new ymaps3.YMapMarker({ coordinates: toLngLat(courierPos), zIndex: 200 }, cEl);
         map.addChild(cMarker);
         courierMarkerRef.current = cMarker;
+        syncCourierRotation(headingRef.current, cameraAzimuthRef.current);
       } catch { /* skip */ }
     } else {
       try { courierMarkerRef.current.update({ coordinates: toLngLat(courierPos) }); } catch { /* skip */ }
@@ -382,11 +436,8 @@ export default function YandexRouteMap({
 
   // ── Heading + Tilt update: rotate arrow icon + camera azimuth ────────────
   useEffect(() => {
-    // Rotate the courier arrow element via CSS (instant, smooth)
-    if (courierElRef.current && heading !== undefined) {
-      courierElRef.current.style.transform =
-        `translate(-50%,-50%) rotate(${heading}deg)`;
-    }
+    syncCourierRotation(heading ?? headingRef.current, cameraAzimuthRef.current);
+
     // Also update the map camera azimuth and tilt for heading-up navigation
     if (
       mapRef.current &&
@@ -395,11 +446,14 @@ export default function YandexRouteMap({
       heading !== undefined
     ) {
       try {
-        mapRef.current.update({ 
-          camera: { 
-            azimuth: heading, 
-            tilt: tiltRef.current 
-          } 
+        cameraAzimuthRef.current = heading;
+        cameraTiltRef.current = tiltRef.current;
+        syncCourierRotation(heading, cameraAzimuthRef.current);
+        mapRef.current.update({
+          camera: {
+            azimuth: cameraAzimuthRef.current,
+            tilt: cameraTiltRef.current,
+          },
         });
       } catch { /* skip if camera not supported */ }
     }
