@@ -5,14 +5,14 @@ import { useNavigate } from 'react-router-dom';
 // ─── 3-D food carousel data ───────────────────────────────────────────────────
 
 const FOOD_ITEMS = [
-  { emoji: '🍔', label: 'Burger',            glow: '#f59e0b', glow2: '#ef4444' },
-  { emoji: '🍗', label: 'Qovurilgan tovuq',  glow: '#ef4444', glow2: '#f97316' },
-  { emoji: '🥩', label: 'Steyk',             glow: '#e11d48', glow2: '#dc2626' },
-  { emoji: '🍕', label: 'Pizza',             glow: '#f97316', glow2: '#fbbf24' },
-  { emoji: '🌯', label: 'Sharwarma',         glow: '#fbbf24', glow2: '#f59e0b' },
-  { emoji: '🥗', label: 'Yangi salat',       glow: '#22c55e', glow2: '#84cc16' },
-  { emoji: '🍜', label: "Lag'mon",           glow: '#a78bfa', glow2: '#818cf8' },
-  { emoji: '🍱', label: "Kombo to'plam",     glow: '#38bdf8', glow2: '#60a5fa' },
+  { emoji: '🍔', label: 'Burger', glow: '#f59e0b', glow2: '#ef4444' },
+  { emoji: '🍗', label: 'Qovurilgan tovuq', glow: '#ef4444', glow2: '#f97316' },
+  { emoji: '🥩', label: 'Steyk', glow: '#e11d48', glow2: '#dc2626' },
+  { emoji: '🍕', label: 'Pizza', glow: '#f97316', glow2: '#fbbf24' },
+  { emoji: '🌯', label: 'Sharwarma', glow: '#fbbf24', glow2: '#f59e0b' },
+  { emoji: '🥗', label: 'Yangi salat', glow: '#22c55e', glow2: '#84cc16' },
+  { emoji: '🍜', label: "Lag'mon", glow: '#a78bfa', glow2: '#818cf8' },
+  { emoji: '🍱', label: "Kombo to'plam", glow: '#38bdf8', glow2: '#60a5fa' },
 ];
 
 /** How long each food item stays on screen (ms). All animations are sync'd to this. */
@@ -23,74 +23,41 @@ const ITEM_MS = 2_200;
  * r = orbit radius (px), dur = full revolution (s), delay = pre-offset (s, negative = start mid-orbit)
  */
 const ORBITS = [
-  { r: 84,  dur: 3.4, delay:  0,   size: 5 },
+  { r: 84, dur: 3.4, delay: 0, size: 5 },
   { r: 100, dur: 4.7, delay: -1.9, size: 4 },
   { r: 112, dur: 5.3, delay: -3.2, size: 3 },
-  { r: 70,  dur: 2.9, delay: -0.8, size: 4 },
+  { r: 70, dur: 2.9, delay: -0.8, size: 4 },
 ];
 
-// ─── LoadingScreen ────────────────────────────────────────────────────────────
+// ─── TuronSplashScreen - RED TURON BRANDING ───────────────────────────────────
 
 export const LoadingScreen: React.FC<{ message?: string }> = () => {
-  const [idx, setIdx] = React.useState(0);
-
-  React.useEffect(() => {
-    const t = window.setInterval(() => setIdx(i => (i + 1) % FOOD_ITEMS.length), ITEM_MS);
-    return () => window.clearInterval(t);
-  }, []);
-
-  const food = FOOD_ITEMS[idx];
-
   return (
     <>
       <style>{`
-        /* ── 3-D flip: arrives from one side, holds centre, exits to other ── */
-        @keyframes food3d {
-          0%   { opacity:0; transform:perspective(700px) rotateY(-90deg) scale(0.5) translateZ(-60px); filter:blur(20px); }
-          20%  { opacity:1; transform:perspective(700px) rotateY(12deg)  scale(1.22) translateZ(35px); filter:blur(0); }
-          36%  { transform:perspective(700px) rotateY(-4deg) scale(1.07) translateZ(12px); }
-          54%  { transform:perspective(700px) rotateY(0deg)  scale(1.02) translateZ(4px); }
-          77%  { opacity:1; transform:perspective(700px) rotateY(0deg)  scale(1)    translateZ(0); filter:blur(0); }
-          100% { opacity:0; transform:perspective(700px) rotateY(90deg)  scale(0.5) translateZ(-60px); filter:blur(20px); }
+        /* ── Burger rotation - smooth 360° spin ────────────────────────────── */
+        @keyframes burgerSpin {
+          0%   { transform: perspective(1000px) rotateY(0deg) scale(1); opacity: 1; }
+          100% { transform: perspective(1000px) rotateY(360deg) scale(1); opacity: 1; }
         }
 
-        /* ── Ambient glow expands in, fades out with the food item ────────── */
-        @keyframes ambientGlow {
-          0%   { opacity:0;    transform:translate(-50%,-50%) scale(0.6); }
-          22%  { opacity:0.85; transform:translate(-50%,-50%) scale(1.1); }
-          65%  { opacity:0.5;  transform:translate(-50%,-50%) scale(1); }
-          100% { opacity:0;    transform:translate(-50%,-50%) scale(0.75); }
+        /* ── Burger entry animation ──────────────────────────────────────────── */
+        @keyframes burgerEntry {
+          0%   { opacity: 0; transform: translateY(20px) scale(0.8); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
         }
 
-        /* ── Food name slides up in, holds, slides up out ─────────────────── */
-        @keyframes labelIn {
-          0%       { opacity:0; transform:translateY(14px) scale(0.94); }
-          20%,75%  { opacity:1; transform:translateY(0)    scale(1); }
-          100%     { opacity:0; transform:translateY(-10px) scale(0.94); }
+        /* ── Text fade in ────────────────────────────────────────────────────── */
+        @keyframes textFadeIn {
+          0%   { opacity: 0; }
+          30%  { opacity: 1; }
+          100% { opacity: 1; }
         }
 
-        /* ── Orbit paths (one per radius to avoid CSS-var-in-keyframe issues) */
-        @keyframes orbit84  { from{transform:rotate(0deg)   translateX(84px)  rotate(0deg)}   to{transform:rotate(360deg)  translateX(84px)  rotate(-360deg)} }
-        @keyframes orbit100 { from{transform:rotate(0deg)   translateX(100px) rotate(0deg)}   to{transform:rotate(360deg)  translateX(100px) rotate(-360deg)} }
-        @keyframes orbit112 { from{transform:rotate(0deg)   translateX(112px) rotate(0deg)}   to{transform:rotate(360deg)  translateX(112px) rotate(-360deg)} }
-        @keyframes orbit70  { from{transform:rotate(0deg)   translateX(70px)  rotate(0deg)}   to{transform:rotate(360deg)  translateX(70px)  rotate(-360deg)} }
-
-        /* ── Sparkle twinkle ─────────────────────────────────────────────── */
-        @keyframes twinkle {
-          0%,100% { opacity:0.1;  transform:scale(0.5); }
-          50%     { opacity:1;    transform:scale(1.5); }
-        }
-
-        /* ── Brand-name shimmer (gradient colours follow current food) ──── */
-        @keyframes shimmer {
-          0%   { background-position:-300% center; }
-          100% { background-position:300% center; }
-        }
-
-        /* ── Bottom loading dots ─────────────────────────────────────────── */
-        @keyframes dotPop {
-          0%,80%,100% { transform:scale(0.65); opacity:0.3; }
-          40%         { transform:scale(1.45); opacity:1; }
+        /* ── Loading dots animation ──────────────────────────────────────────── */
+        @keyframes dotPulse {
+          0%,100% { opacity: 0.3; transform: scale(1); }
+          50%     { opacity: 1; transform: scale(1.2); }
         }
       `}</style>
 
@@ -102,129 +69,78 @@ export const LoadingScreen: React.FC<{ message?: string }> = () => {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'linear-gradient(160deg,#050810 0%,#0d1320 55%,#050810 100%)',
+          background: '#D32F2F',
           overflow: 'hidden',
           position: 'relative',
           userSelect: 'none',
         }}
       >
-        {/* ── Ambient colour glow — re-keyed so colours reset on food change ── */}
+        {/* ── Burger icon with rotation animation ────────────────────────────────── */}
         <div
-          key={`glow-${idx}`}
           style={{
-            position: 'absolute',
-            width: 380,
-            height: 380,
-            borderRadius: '50%',
-            background: `radial-gradient(circle, ${food.glow}2e 0%, ${food.glow2}12 44%, transparent 70%)`,
-            animation: `ambientGlow ${ITEM_MS}ms ease-in-out both`,
-            pointerEvents: 'none',
-            top: '40%',
-            left: '50%',
-          }}
-        />
-
-        {/* ── Orbiting sparkle dots (colour updates live via inline style) ── */}
-        {ORBITS.map((o, i) => (
-          <div
-            key={i}
-            style={{
-              position: 'absolute',
-              top: '40%',
-              left: '50%',
-              width: o.size,
-              height: o.size,
-              marginTop: -(o.size / 2),
-              marginLeft: -(o.size / 2),
-              borderRadius: '50%',
-              background: food.glow,
-              boxShadow: `0 0 8px ${food.glow}cc, 0 0 18px ${food.glow}66`,
-              animation: `orbit${o.r} ${o.dur}s linear infinite, twinkle ${1.5 + i * 0.3}s ease-in-out infinite`,
-              animationDelay: `${o.delay}s, ${i * 0.45}s`,
-              pointerEvents: 'none',
-              willChange: 'transform',
-            }}
-          />
-        ))}
-
-        {/* ── 3-D food emoji — re-keyed triggers fresh flip animation ─────── */}
-        <div
-          key={idx}
-          style={{
-            fontSize: 108,
+            fontSize: 80,
             lineHeight: 1,
-            animation: `food3d ${ITEM_MS}ms cubic-bezier(0.34,1.2,0.64,1) both`,
-            filter: `drop-shadow(0 4px 28px ${food.glow}cc) drop-shadow(0 0 80px ${food.glow}44)`,
-            position: 'relative',
-            zIndex: 1,
-            willChange: 'transform, opacity, filter',
+            animation: 'burgerSpin 3s linear infinite, burgerEntry 0.8s ease-out forwards',
+            filter: 'drop-shadow(0 8px 24px rgba(0,0,0,0.2))',
+            marginBottom: 32,
           }}
         >
-          {food.emoji}
+          🍔
         </div>
 
-        {/* ── Food name — re-keyed so it slides in with each new item ─────── */}
+        {/* ── Brand name "Turon" ──────────────────────────────────────────────────── */}
         <div
-          key={`name-${idx}`}
           style={{
-            marginTop: 16,
-            fontSize: 11,
-            fontWeight: 800,
-            color: food.glow,
-            letterSpacing: '0.28em',
-            textTransform: 'uppercase',
-            animation: `labelIn ${ITEM_MS}ms ease-in-out both`,
-            textShadow: `0 0 22px ${food.glow}88`,
+            animation: 'textFadeIn 1.2s ease-out forwards',
           }}
         >
-          {food.label}
-        </div>
-
-        {/* ── Brand name — shimmer gradient colours follow current food ────── */}
-        <div style={{ marginTop: 30, textAlign: 'center' }}>
           <p
             style={{
               margin: 0,
-              fontSize: 26,
+              fontSize: 42,
               fontWeight: 900,
+              color: '#fff',
               letterSpacing: '-0.04em',
-              backgroundImage: `linear-gradient(90deg,#fff 10%,${food.glow} 36%,#fff 52%,${food.glow2} 70%,#fff 90%)`,
-              backgroundSize: '300% auto',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              animation: 'shimmer 2.8s linear infinite',
+              textAlign: 'center',
+              textShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
             }}
           >
-            Turon Kafesi
+            Turon
           </p>
           <p
             style={{
-              margin: '4px 0 0',
-              fontSize: 9,
+              margin: '6px 0 0',
+              fontSize: 13,
               fontWeight: 600,
-              color: 'rgba(255,255,255,0.22)',
-              letterSpacing: '0.3em',
+              color: 'rgba(255, 255, 255, 0.85)',
+              letterSpacing: '0.14em',
               textTransform: 'uppercase',
+              textAlign: 'center',
             }}
           >
-            Mazali taomlar
+            Kafesi
           </p>
         </div>
 
-        {/* ── Bouncing dots — colour follows current food ───────────────────── */}
-        <div style={{ display: 'flex', gap: 8, marginTop: 28 }}>
-          {[0, 1, 2].map(i => (
+        {/* ── Loading dots ────────────────────────────────────────────────────────── */}
+        <div
+          style={{
+            display: 'flex',
+            gap: 10,
+            marginTop: 48,
+            animation: 'textFadeIn 1.4s ease-out forwards',
+          }}
+        >
+          {[0, 1, 2].map((i) => (
             <div
               key={i}
               style={{
-                width: 7,
-                height: 7,
+                width: 8,
+                height: 8,
                 borderRadius: '50%',
-                background: food.glow,
-                animation: 'dotPop 1.3s ease-in-out infinite',
-                animationDelay: `${i * 0.22}s`,
-                boxShadow: `0 0 10px ${food.glow}99`,
+                background: 'rgba(255, 255, 255, 0.7)',
+                animation: 'dotPulse 1.4s ease-in-out infinite',
+                animationDelay: `${i * 0.2}s`,
               }}
             />
           ))}
