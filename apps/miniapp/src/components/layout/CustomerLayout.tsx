@@ -6,10 +6,9 @@ import { CustomerErrorBoundary } from '../ui/CustomerErrorBoundary';
 const RED = '#C62020';
 const HOME_PATH = '/customer';
 
-// Pages that manage their own header
+// Only Profile manages its own header
 const NO_HEADER_PATHS = [
   /^\/customer\/profile$/,
-  /^\/customer$/,
 ];
 
 const HIDE_BOTTOM_NAV_PATHS = [
