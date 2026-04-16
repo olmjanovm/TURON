@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit3, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react';
+import { Edit3, Loader2, ToggleLeft, ToggleRight, Trash2, X } from 'lucide-react';
 import type { MenuProduct } from '../types';
 import AvailabilityBadge from './AvailabilityBadge';
 
@@ -8,7 +8,11 @@ interface Props {
   product: MenuProduct;
   categoryName?: string;
   onToggleActive: (product: MenuProduct) => void;
-  onDelete: (product: MenuProduct) => void;
+  onDeleteRequest: (product: MenuProduct) => void;
+  onConfirmDelete: (product: MenuProduct) => void;
+  onCancelDelete: () => void;
+  isDeleteConfirmOpen?: boolean;
+  isDeleting?: boolean;
   isBusy?: boolean;
 }
 
@@ -16,15 +20,23 @@ const ProductCardAdmin: React.FC<Props> = ({
   product,
   categoryName,
   onToggleActive,
-  onDelete,
+  onDeleteRequest,
+  onConfirmDelete,
+  onCancelDelete,
+  isDeleteConfirmOpen = false,
+  isDeleting = false,
   isBusy = false,
 }) => {
   const navigate = useNavigate();
 
   return (
     <div
-      className={`bg-white rounded-2xl border overflow-hidden shadow-sm ${
-        product.isActive ? 'border-slate-100' : 'border-red-100 opacity-70'
+      className={`overflow-hidden rounded-2xl border bg-white shadow-sm ${
+        isDeleteConfirmOpen
+          ? 'border-rose-200 ring-2 ring-rose-100'
+          : product.isActive
+            ? 'border-slate-100'
+            : 'border-red-100 opacity-70'
       }`}
     >
       <div className="flex gap-3 p-3">
@@ -61,7 +73,7 @@ const ProductCardAdmin: React.FC<Props> = ({
           <button
             type="button"
             onClick={() => onToggleActive(product)}
-            disabled={isBusy}
+            disabled={isBusy || isDeleteConfirmOpen}
             className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
               product.isActive ? 'text-emerald-500 bg-emerald-50' : 'text-red-400 bg-red-50'
             } disabled:opacity-60`}
@@ -71,21 +83,56 @@ const ProductCardAdmin: React.FC<Props> = ({
           <button
             type="button"
             onClick={() => navigate(`/admin/menu/products/${product.id}/edit`)}
-            disabled={isBusy}
+            disabled={isBusy || isDeleteConfirmOpen}
             className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 bg-slate-50 active:scale-95 transition-transform disabled:opacity-60"
           >
             <Edit3 size={16} />
           </button>
           <button
             type="button"
-            onClick={() => onDelete(product)}
+            onClick={() => onDeleteRequest(product)}
             disabled={isBusy}
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-rose-500 bg-rose-50 active:scale-95 transition-transform disabled:opacity-60"
+            className={`w-9 h-9 rounded-xl flex items-center justify-center active:scale-95 transition-transform disabled:opacity-60 ${
+              isDeleteConfirmOpen ? 'bg-rose-500 text-white' : 'bg-rose-50 text-rose-500'
+            }`}
           >
             <Trash2 size={16} />
           </button>
         </div>
       </div>
+
+      {isDeleteConfirmOpen ? (
+        <div className="border-t border-rose-100 bg-gradient-to-br from-rose-50 via-white to-orange-50 px-3 pb-3 pt-3">
+          <div className="rounded-[18px] border border-rose-100 bg-white/90 p-3 shadow-[0_10px_24px_rgba(244,63,94,0.08)]">
+            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-rose-500">Tasdiqlash</p>
+            <p className="mt-1 text-[15px] font-black text-slate-950">{product.name} o'chirilsinmi?</p>
+            <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
+              Faqat shu taom katalog va mijozlar menyusidan olib tashlanadi.
+            </p>
+
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={onCancelDelete}
+                disabled={isDeleting}
+                className="flex h-11 items-center justify-center gap-2 rounded-[14px] border border-slate-200 bg-white text-[13px] font-bold text-slate-900 transition active:scale-[0.98] disabled:opacity-60"
+              >
+                <X size={15} />
+                Bekor qilish
+              </button>
+              <button
+                type="button"
+                onClick={() => onConfirmDelete(product)}
+                disabled={isDeleting}
+                className="flex h-11 items-center justify-center gap-2 rounded-[14px] bg-rose-500 text-[13px] font-bold text-white shadow-lg shadow-rose-200 transition active:scale-[0.98] disabled:opacity-60"
+              >
+                {isDeleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                Ha, o'chirish
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

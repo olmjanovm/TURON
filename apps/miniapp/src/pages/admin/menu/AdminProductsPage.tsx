@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import ProductCardAdmin from '../../../features/menu/components/ProductCardAdmin';
 import ProductFiltersBar from '../../../features/menu/components/ProductFiltersBar';
-import DeleteConfirmationModal from '../../../components/admin/DeleteConfirmationModal';
 import type { MenuProduct, ProductFilterState } from '../../../features/menu/types';
 import {
   useAdminCategories,
@@ -15,7 +14,6 @@ import {
 const AdminProductsPage: React.FC = () => {
   const navigate = useNavigate();
   const [pageError, setPageError] = useState<string | null>(null);
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<MenuProduct | null>(null);
   const [filters, setFilters] = useState<ProductFilterState>({
     categoryId: 'all',
@@ -77,24 +75,22 @@ const AdminProductsPage: React.FC = () => {
     }
   };
 
-  const handleDelete = async (product: MenuProduct) => {
-    setProductToDelete(product);
-    setIsConfirmOpen(true);
+  const handleDeleteRequest = (product: MenuProduct) => {
+    setProductToDelete((currentProduct) => (currentProduct?.id === product.id ? null : product));
   };
 
-  const handleConfirmDelete = async () => {
-    if (!productToDelete) return;
+  const handleConfirmDelete = async (product: MenuProduct) => {
+    setProductToDelete(product);
 
     setPageError(null);
 
     try {
-      await deleteProductMutation.mutateAsync(productToDelete.id);
+      await deleteProductMutation.mutateAsync(product.id);
 
       if (window.Telegram?.WebApp?.HapticFeedback) {
         window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       }
 
-      setIsConfirmOpen(false);
       setProductToDelete(null);
     } catch (error) {
       setPageError(error instanceof Error ? error.message : 'Taomni o\'chirib bo\'lmadi');
@@ -151,7 +147,11 @@ const AdminProductsPage: React.FC = () => {
               product={product}
               categoryName={categories.find((category) => category.id === product.categoryId)?.name}
               onToggleActive={handleToggleActive}
-              onDelete={handleDelete}
+              onDeleteRequest={handleDeleteRequest}
+              onConfirmDelete={(selectedProduct) => void handleConfirmDelete(selectedProduct)}
+              onCancelDelete={() => setProductToDelete(null)}
+              isDeleteConfirmOpen={productToDelete?.id === product.id}
+              isDeleting={deleteProductMutation.isPending && productToDelete?.id === product.id}
               isBusy={isBusy}
             />
           ))}
@@ -163,22 +163,6 @@ const AdminProductsPage: React.FC = () => {
           <p className="text-sm text-slate-400 mt-1">Filtrlarni o'zgartiring yoki yangi taom qo'shing</p>
         </div>
       )}
-
-      <DeleteConfirmationModal
-        isOpen={isConfirmOpen}
-        title="Taomni o'chirilsinmi?"
-        description="Taom katalog va mijozlar menyusidan butunlay olib tashlanadi."
-        itemName={productToDelete?.name}
-        isDeleting={deleteProductMutation.isPending}
-        confirmLabel="Ha, o'chirish"
-        warningText="Bu amalni qaytarib bo'lmaydi. Taomga oid ko'rinishlar ham o'chadi."
-        onConfirm={() => void handleConfirmDelete()}
-        onCancel={() => {
-          setIsConfirmOpen(false);
-          setProductToDelete(null);
-        }}
-        isDangerous
-      />
     </div>
   );
 };
