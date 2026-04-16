@@ -15,6 +15,7 @@ import {
   Trash2,
   User,
   Utensils,
+  UtensilsCrossed,
 } from 'lucide-react';
 import { ProductAvailabilityEnum, ProductBadgeEnum, UserRoleEnum } from '@turon/shared';
 import type { CartItem, ProductSnapshot } from '../../data/types';
@@ -119,11 +120,10 @@ export const CategoryTabs: React.FC<{
           key={tab.id}
           type="button"
           onClick={() => onSelect(tab.id)}
-          className={`shrink-0 rounded-full px-3.5 py-2.5 text-[10px] font-black uppercase tracking-[0.16em] transition-all ${
-            isActive
-              ? 'bg-white text-slate-950 shadow-[0_10px_24px_rgba(255,255,255,0.08)]'
-              : 'border border-white/8 bg-white/[0.05] text-white/62'
-          }`}
+          className={`shrink-0 rounded-full px-3.5 py-2.5 text-[10px] font-black uppercase tracking-[0.16em] transition-all ${isActive
+            ? 'bg-white text-slate-950 shadow-[0_10px_24px_rgba(255,255,255,0.08)]'
+            : 'border border-white/8 bg-white/[0.05] text-white/62'
+            }`}
         >
           {tab.label}
         </button>
@@ -266,9 +266,8 @@ export const HomeProductRailCard: React.FC<{ product: DisplayProduct }> = ({ pro
           navigate(`/customer/product/${product.id}`);
         }
       }}
-      className={`flex h-[220px] w-[160px] shrink-0 cursor-pointer flex-col overflow-hidden rounded-[12px] border border-white/8 bg-[#111827] p-[10px] text-left shadow-[0_12px_24px_rgba(2,6,23,0.18)] transition-transform active:scale-[0.985] ${
-        !isAvailable ? 'opacity-70' : ''
-      }`}
+      className={`flex h-[220px] w-[160px] shrink-0 cursor-pointer flex-col overflow-hidden rounded-[12px] border border-white/8 bg-[#111827] p-[10px] text-left shadow-[0_12px_24px_rgba(2,6,23,0.18)] transition-transform active:scale-[0.985] ${!isAvailable ? 'opacity-70' : ''
+        }`}
     >
       <div className="relative h-[100px] overflow-hidden rounded-[10px]">
         <img
@@ -290,9 +289,8 @@ export const HomeProductRailCard: React.FC<{ product: DisplayProduct }> = ({ pro
           type="button"
           onClick={handleAdd}
           disabled={!isAvailable}
-          className={`absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-full shadow-[0_10px_18px_rgba(2,6,23,0.22)] ${
-            isAvailable ? 'bg-white text-slate-950' : 'bg-slate-500/60 text-white/60'
-          }`}
+          className={`absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-full shadow-[0_10px_18px_rgba(2,6,23,0.22)] ${isAvailable ? 'bg-white text-slate-950' : 'bg-slate-500/60 text-white/60'
+            }`}
         >
           <Plus size={16} strokeWidth={2.8} />
         </button>
@@ -404,9 +402,8 @@ export const ProductCard: React.FC<{ product: DisplayProduct }> = ({ product }) 
           navigate(`/customer/product/${product.id}`);
         }
       }}
-      className={`group flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-[12px] border border-white/8 bg-[#111827] text-left shadow-[0_14px_28px_rgba(2,6,23,0.24)] transition-transform active:scale-[0.985] ${
-        !isAvailable ? 'opacity-70' : ''
-      }`}
+      className={`group flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-[12px] border border-white/8 bg-[#111827] text-left shadow-[0_14px_28px_rgba(2,6,23,0.24)] transition-transform active:scale-[0.985] ${!isAvailable ? 'opacity-70' : ''
+        }`}
     >
       <div className="relative overflow-hidden">
         <img
@@ -441,11 +438,10 @@ export const ProductCard: React.FC<{ product: DisplayProduct }> = ({ product }) 
           type="button"
           onClick={handleAdd}
           disabled={!isAvailable}
-          className={`absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-full shadow-[0_10px_18px_rgba(2,6,23,0.32)] transition-transform active:scale-95 ${
-            !isAvailable
-              ? 'bg-slate-500/60 text-white/65'
-              : 'bg-white text-slate-950'
-          }`}
+          className={`absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-full shadow-[0_10px_18px_rgba(2,6,23,0.32)] transition-transform active:scale-95 ${!isAvailable
+            ? 'bg-slate-500/60 text-white/65'
+            : 'bg-white text-slate-950'
+            }`}
         >
           <Plus size={20} strokeWidth={2.7} />
         </button>
@@ -563,7 +559,7 @@ export const UpsellProductCard: React.FC<{
           }}
         />
       </div>
-      
+
       <div className="flex flex-1 flex-col items-center justify-center pt-2">
         <p className="line-clamp-2 text-[11px] font-medium leading-[13px] text-[#FFFFFF]">{formatText(product.name)}</p>
         <p className="mt-1 text-[13px] font-bold text-[#FFFFFF]">{product.price.toLocaleString()} so'm</p>
@@ -758,11 +754,10 @@ export const TrackingBottomSheet: React.FC<{
           <button
             type="button"
             onClick={() => onTogglePanel('address')}
-            className={`flex flex-col items-center justify-center gap-1 rounded-[12px] border px-2 py-2.5 text-center transition-transform active:scale-[0.98] ${
-              activePanel === 'address'
-                ? 'border-amber-300/24 bg-amber-400/14 text-amber-100'
-                : 'border-white/8 bg-white/[0.06] text-white'
-            }`}
+            className={`flex flex-col items-center justify-center gap-1 rounded-[12px] border px-2 py-2.5 text-center transition-transform active:scale-[0.98] ${activePanel === 'address'
+              ? 'border-amber-300/24 bg-amber-400/14 text-amber-100'
+              : 'border-white/8 bg-white/[0.06] text-white'
+              }`}
           >
             <Home size={16} className={activePanel === 'address' ? 'text-amber-100' : 'text-white/85'} />
             <span className="text-[10px] font-black">Manzil</span>
@@ -770,11 +765,10 @@ export const TrackingBottomSheet: React.FC<{
           <button
             type="button"
             onClick={() => onTogglePanel('order')}
-            className={`flex flex-col items-center justify-center gap-1 rounded-[12px] border px-2 py-2.5 text-center transition-transform active:scale-[0.98] ${
-              activePanel === 'order'
-                ? 'border-sky-300/24 bg-sky-400/14 text-sky-100'
-                : 'border-white/8 bg-white/[0.06] text-white'
-            }`}
+            className={`flex flex-col items-center justify-center gap-1 rounded-[12px] border px-2 py-2.5 text-center transition-transform active:scale-[0.98] ${activePanel === 'order'
+              ? 'border-sky-300/24 bg-sky-400/14 text-sky-100'
+              : 'border-white/8 bg-white/[0.06] text-white'
+              }`}
           >
             <ClipboardList size={16} className={activePanel === 'order' ? 'text-sky-100' : 'text-white/85'} />
             <span className="text-[10px] font-black">Buyurtma</span>
@@ -830,59 +824,98 @@ export const BottomNavbar: React.FC = () => {
   const { getTotalItems } = useCartStore();
   const { tr } = useCustomerLanguage();
   const cartCount = getTotalItems();
+  const navigate = useNavigate();
 
+  // Items WITHOUT cart (cart is center)
   const navItems = [
-    { icon: Home, label: tr('nav.home'), path: '/customer' },
-    { icon: Search, label: tr('nav.search'), path: '/customer/search' },
-    { icon: ShoppingCart, label: tr('nav.cart'), path: '/customer/cart', badge: cartCount },
-    { icon: ClipboardList, label: tr('nav.orders'), path: '/customer/orders' },
-    { icon: User, label: tr('nav.profile'), path: '/customer/profile', isNotification: true },
+    { icon: Home, label: tr('nav.home') || 'Shift', path: '/customer' },
+    { icon: Search, label: tr('nav.search') || 'Qidiruv', path: '/customer/search' },
+    { icon: UtensilsCrossed, label: 'Menyu', path: '/customer/menu' },
+    { icon: User, label: tr('nav.profile') || 'Profil', path: '/customer/profile', isNotification: true },
   ];
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-[80] bg-white text-[#202124] shadow-[0_-16px_34px_rgba(15,23,42,0.14)]">
       <div
-        className="mx-auto flex w-full max-w-[430px] items-center justify-around border-t border-slate-200 px-1.5"
+        className="mx-auto flex w-full max-w-[430px] items-center justify-between border-t border-slate-200 px-1.5"
         style={{
-          height: 'calc(74px + env(safe-area-inset-bottom, 0px))',
+          height: 'calc(88px + env(safe-area-inset-bottom, 0px))',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         }}
       >
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive =
-            location.pathname === item.path ||
-            (item.path === '/customer' &&
-              (location.pathname.startsWith('/customer/category') || location.pathname.startsWith('/customer/product'))) ||
-            (item.path === '/customer/orders' && location.pathname.startsWith('/customer/orders/'));
+        {/* LEFT 2 ITEMS (Home, Search) */}
+        <div className="flex flex-1 items-center justify-around">
+          {navItems.slice(0, 2).map((item) => {
+            const Icon = item.icon;
+            const isActive =
+              location.pathname === item.path ||
+              (item.path === '/customer' &&
+                (location.pathname.startsWith('/customer/category') || location.pathname.startsWith('/customer/product')));
 
-          return (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={`group relative flex min-w-[58px] flex-col items-center gap-1 px-1 py-1 transition-all active:scale-95 ${
-                isActive ? 'text-blue-600' : 'text-slate-400'
-              }`}
-            >
-              <div
-                className={`relative flex h-9 w-9 items-center justify-center rounded-[14px] transition-all duration-200 group-active:-translate-y-0.5 ${
-                  isActive ? 'bg-blue-50 text-blue-600 shadow-[0_4px_12px_rgba(37,99,235,0.15)]' : 'bg-transparent'
-                }`}
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                className={`group relative flex min-w-[58px] flex-col items-center gap-1 px-2 py-2 transition-all active:scale-95 ${isActive ? 'text-blue-600' : 'text-slate-400'
+                  }`}
               >
-                <Icon size={19} strokeWidth={isActive ? 2.6 : 2.2} />
-                {(item.badge || 0) > 0 ? (
-                  <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-amber-400 text-[10px] font-black text-slate-950 shadow-md">
-                    {item.badge}
-                  </span>
-                ) : null}
-                {item.isNotification ? <NotificationBadge role={UserRoleEnum.CUSTOMER} /> : null}
-              </div>
-              <span className={`text-[10px] leading-none ${isActive ? 'font-black opacity-100' : 'font-bold opacity-100'}`}>
-                {item.label}
+                <div
+                  className={`relative flex h-9 w-9 items-center justify-center rounded-[14px] transition-all duration-200 group-active:-translate-y-0.5 ${isActive ? 'bg-blue-50 text-blue-600 shadow-[0_4px_12px_rgba(37,99,235,0.15)]' : 'bg-transparent'
+                    }`}
+                >
+                  <Icon size={19} strokeWidth={isActive ? 2.6 : 2.2} />
+                </div>
+                <span className={`text-[10px] leading-none ${isActive ? 'font-black' : 'font-bold'}`}>
+                  {item.label}
+                </span>
+              </NavLink>
+            );
+          })}
+        </div>
+
+        {/* CENTER: RED CART BUTTON (elevated) */}
+        <div className="relative flex flex-col items-center -translate-y-3">
+          <button
+            onClick={() => navigate('/customer/cart')}
+            type="button"
+            className="group relative mb-2 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-red-600 text-white shadow-[0_12px_32px_rgba(220,38,38,0.35)] transition-transform active:scale-95 hover:shadow-[0_16px_40px_rgba(220,38,38,0.45)]"
+          >
+            <ShoppingCart size={24} strokeWidth={2} />
+            {cartCount > 0 ? (
+              <span className="absolute -right-2 -top-2 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white bg-white text-[11px] font-black text-red-600 shadow-lg">
+                {cartCount}
               </span>
-            </NavLink>
-          );
-        })}
+            ) : null}
+          </button>
+        </div>
+
+        {/* RIGHT 2 ITEMS (Menu, Profile) */}
+        <div className="flex flex-1 items-center justify-around">
+          {navItems.slice(2, 4).map((item) => {
+            const Icon = item.icon;
+            const isActive = location.pathname === item.path;
+
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                className={`group relative flex min-w-[58px] flex-col items-center gap-1 px-2 py-2 transition-all active:scale-95 ${isActive ? 'text-blue-600' : 'text-slate-400'
+                  }`}
+              >
+                <div
+                  className={`relative flex h-9 w-9 items-center justify-center rounded-[14px] transition-all duration-200 group-active:-translate-y-0.5 ${isActive ? 'bg-blue-50 text-blue-600 shadow-[0_4px_12px_rgba(37,99,235,0.15)]' : 'bg-transparent'
+                    }`}
+                >
+                  <Icon size={19} strokeWidth={isActive ? 2.6 : 2.2} />
+                  {item.isNotification ? <NotificationBadge role={UserRoleEnum.CUSTOMER} /> : null}
+                </div>
+                <span className={`text-[10px] leading-none ${isActive ? 'font-black' : 'font-bold'}`}>
+                  {item.label}
+                </span>
+              </NavLink>
+            );
+          })}
+        </div>
       </div>
     </nav>
   );

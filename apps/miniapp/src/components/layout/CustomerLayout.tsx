@@ -45,15 +45,15 @@ const CustomerLayout: React.FC = () => {
   const { connectionState, isConnected } = useOrdersRealtimeSync();
   const { tr } = useCustomerLanguage();
   const layoutVars: React.CSSProperties & Record<string, string> = {
-    '--customer-nav-height': '74px',
+    '--customer-nav-height': '88px',
     '--customer-nav-bottom-gap': 'calc(env(safe-area-inset-bottom, 0px) + 10px)',
-    '--customer-nav-top-edge': 'calc(env(safe-area-inset-bottom, 0px) + 84px)',
+    '--customer-nav-top-edge': 'calc(env(safe-area-inset-bottom, 0px) + 98px)',
     '--customer-floating-cart-offset':
-      'calc(env(safe-area-inset-bottom, 0px) + 88px)',
+      'calc(env(safe-area-inset-bottom, 0px) + 102px)',
     '--customer-sticky-panel-clearance':
-      'calc(env(safe-area-inset-bottom, 0px) + 168px)',
+      'calc(env(safe-area-inset-bottom, 0px) + 182px)',
     '--customer-floating-content-clearance':
-      'calc(env(safe-area-inset-bottom, 0px) + 146px)',
+      'calc(env(safe-area-inset-bottom, 0px) + 160px)',
   };
 
   const isImmersiveRoute = IMMERSIVE_CUSTOMER_PATHS.some((pattern) => pattern.test(location.pathname));

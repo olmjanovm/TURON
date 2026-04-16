@@ -373,7 +373,7 @@ const CheckoutPage: React.FC = () => {
           {orderQuoteQuery.isError ? (
             <p className="mt-3 text-[11px] font-semibold text-red-600">{orderQuoteQuery.error.message}</p>
           ) : null}
-        </CheckoutSectionCard>
+        </section>
 
         {appliedPromo ? (
           <CheckoutSectionCard title="Chegirma kodi">
