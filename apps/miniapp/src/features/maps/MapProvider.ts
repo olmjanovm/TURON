@@ -90,12 +90,22 @@ export interface RouteMapProps {
   followMode?: boolean;
   /** Courier heading in degrees (0 = north, clockwise). Used to rotate the courier arrow marker. */
   heading?: number;
+  /** Camera tilt angle in degrees (0 = overhead, ~50 = isometric 3D view) */
+  tilt?: number;
   /** Called when the user starts manually panning/zooming the map */
   onMapInteraction?: () => void;
+  /** Called when map is ready */
   onMapReady?: (map: unknown) => void;
+  /** Called when route info changes (distance, ETA) */
   onRouteInfoChange?: (info: RouteInfo) => void;
   /** Called whenever the next turn instruction changes */
   onNextStepChange?: (step: RouteStep | null) => void;
+  /** Called when user wants to change heading (camera rotation) */
+  onHeadingChange?: (heading: number) => void;
+  /** Called when user wants to change tilt (viewing angle) */
+  onTiltChange?: (tilt: number) => void;
+  /** Called when user toggles follow mode */
+  onFollowModeChange?: (enabled: boolean) => void;
 }
 
 export interface MapProvider {

@@ -92,35 +92,49 @@ type AdminReplyMessage = {
 // RestaurantSetting is a key-value table that already exists — no migration needed.
 
 const BOT_MSG_PREFIX = '_bot_msg_';
+const BOT_MSG_MAX_TRACKED = 30; // keep last N message IDs per chat
 
-async function getStoredMessageId(chatId: number): Promise<number | null> {
+// Value format: JSON array e.g. "[100,200,300]"
+// Legacy format: plain number string "100" — parsed on read
+
+async function getStoredMessageIds(chatId: number): Promise<number[]> {
   try {
     const row = await prisma.restaurantSetting.findUnique({
       where: { key: `${BOT_MSG_PREFIX}${chatId}` },
       select: { value: true },
     });
-    if (!row) return null;
-    const id = parseInt(row.value, 10);
-    return isNaN(id) ? null : id;
+    if (!row) return [];
+    // Support both legacy "123" and new "[123,456]"
+    const raw = row.value.trim();
+    if (raw.startsWith('[')) {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter((v): v is number => typeof v === 'number') : [];
+    }
+    const id = parseInt(raw, 10);
+    return isNaN(id) ? [] : [id];
   } catch {
-    return null;
+    return [];
   }
+}
+
+// Kept for backward-compat call sites that only need the last ID
+async function getStoredMessageId(chatId: number): Promise<number | null> {
+  const ids = await getStoredMessageIds(chatId);
+  return ids.length > 0 ? ids[ids.length - 1] : null;
 }
 
 async function storeMessageId(chatId: number, messageId: number): Promise<void> {
   try {
     const key = `${BOT_MSG_PREFIX}${chatId}`;
+    const existing = await getStoredMessageIds(chatId);
+    const updated = [...existing, messageId].slice(-BOT_MSG_MAX_TRACKED);
     await prisma.restaurantSetting.upsert({
       where: { key },
-      update: { value: String(messageId) },
-      create: {
-        key,
-        value: String(messageId),
-        dataType: 'number',
-      },
+      update: { value: JSON.stringify(updated) },
+      create: { key, value: JSON.stringify(updated), dataType: 'string' },
     });
   } catch {
-    // Non-critical — message tracking failure doesn't break bot functionality
+    // Non-critical
   }
 }
 
@@ -132,6 +146,13 @@ async function clearStoredMessageId(chatId: number): Promise<void> {
   } catch {
     // Ignore if not found
   }
+}
+
+async function deleteAllStoredMessages(bot: Telegraf, chatId: number): Promise<void> {
+  const ids = await getStoredMessageIds(chatId);
+  if (ids.length === 0) return;
+  await Promise.allSettled(ids.map((id) => bot.telegram.deleteMessage(chatId, id)));
+  void clearStoredMessageId(chatId);
 }
 
 // ─── Bot singleton ────────────────────────────────────────────────────────────
@@ -823,6 +844,26 @@ function bindHandlers(bot: Telegraf) {
     await ctx.reply(`Chat ID: ${ctx.chat.id}`);
   });
 
+  // Admin-only: trigger broadcast immediately (for testing)
+  bot.command('broadcastnow', async (ctx) => {
+    const adminIds = parseConfiguredChatIds(env.ADMIN_IDS);
+    if (!adminIds.includes(String(ctx.from.id))) {
+      return ctx.reply('Ruxsat yo\'q.');
+    }
+    await ctx.reply('⏳ Broadcast boshlanmoqda...');
+    try {
+      await sendBroadcastToAllCustomers(bot);
+      await prisma.restaurantSetting.upsert({
+        where: { key: BROADCAST_SETTING_KEY },
+        update: { value: String(Date.now()) },
+        create: { key: BROADCAST_SETTING_KEY, value: String(Date.now()), dataType: 'number' },
+      });
+      await ctx.reply('✅ Broadcast tugadi! Keyingi 3 kunda avtomatik.');
+    } catch (err) {
+      await ctx.reply(`❌ Xatolik: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  });
+
   // Handle admin support replies
   bot.on('message', async (ctx, next) => {
     const message = ctx.message;
@@ -1016,12 +1057,8 @@ async function sendBroadcastToAllCustomers(bot: Telegraf): Promise<void> {
     const chatId = Number(customer.telegramId);
 
     try {
-      // Delete old start message so chat stays clean
-      const prevId = await getStoredMessageId(chatId);
-      if (prevId) {
-        try { await bot.telegram.deleteMessage(chatId, prevId); } catch { /* gone */ }
-        void clearStoredMessageId(chatId);
-      }
+      // Delete ALL previously stored bot messages so the chat stays clean
+      await deleteAllStoredMessages(bot, chatId);
 
       const sentMsg = await bot.telegram.sendMessage(chatId, text, {
         parse_mode: 'HTML',
@@ -1029,8 +1066,13 @@ async function sendBroadcastToAllCustomers(bot: Telegraf): Promise<void> {
       });
       void storeMessageId(chatId, sentMsg.message_id);
       sent++;
-    } catch {
-      failed++; // user blocked bot or never started — expected
+    } catch (err: any) {
+      // 403 = user blocked the bot — skip silently
+      // 400 = chat not found (user deleted account) — skip silently
+      if (err?.response?.error_code !== 403 && err?.response?.error_code !== 400) {
+        console.warn('[Bot] Broadcast send failed:', err?.message ?? err);
+      }
+      failed++;
     }
 
     // Telegram rate limit: ~30 msg/s across all chats

@@ -5,7 +5,7 @@ import MockMapComponent from './MockMapComponent';
 
 const FALLBACK_MESSAGE = 'Demo xarita ishlatilmoqda. Yandex uchun `VITE_MAP_API_KEY` ni sozlang.';
 const NAV_ZOOM = 17;
-const NAV_TILT = 50; // degrees: 0 = flat overhead, 50 = 3D like Yandex Maps app
+const DEFAULT_NAV_TILT = 50; // degrees: 0 = flat overhead, 50 = 3D like Yandex Maps app
 
 // ── DOM marker factories ──────────────────────────────────────────────────────
 // ymaps3 places the element's top-left at the coordinate — translate(-50%,-50%)
@@ -53,10 +53,14 @@ export default function YandexRouteMap({
   className = '',
   followMode = false,
   heading,
+  tilt,
   onMapInteraction,
   onMapReady,
   onRouteInfoChange,
   onNextStepChange,
+  onHeadingChange,
+  onTiltChange,
+  onFollowModeChange,
 }: RouteMapProps) {
   const mapContainerRef  = useRef<HTMLDivElement | null>(null);
   const mapRef           = useRef<any>(null);
@@ -71,6 +75,7 @@ export default function YandexRouteMap({
   const followModeRef    = useRef(followMode);
   const courierPosRef    = useRef(courierPos);
   const headingRef       = useRef(heading ?? 0);
+  const tiltRef          = useRef(tilt ?? DEFAULT_NAV_TILT);
   const hasNavZoomedRef  = useRef(false);
   const isManualRef      = useRef(false);
   const snapTimerRef     = useRef<number | null>(null);
@@ -87,6 +92,7 @@ export default function YandexRouteMap({
   useEffect(() => { followModeRef.current = followMode; }, [followMode]);
   useEffect(() => { courierPosRef.current = courierPos; }, [courierPos]);
   useEffect(() => { headingRef.current    = heading ?? 0; }, [heading]);
+  useEffect(() => { tiltRef.current       = tilt ?? DEFAULT_NAV_TILT; }, [tilt]);
 
   // ── Emit route info ──────────────────────────────────────────────────────
   const emitRouteInfo = (dist: string, eta: string) => {
@@ -109,7 +115,7 @@ export default function YandexRouteMap({
         },
         camera: {
           azimuth: headingRef.current,
-          tilt: NAV_TILT,
+          tilt: tiltRef.current,
         },
       });
     } catch {
@@ -259,7 +265,7 @@ export default function YandexRouteMap({
 
         // ── Set 3D camera AFTER init ─────────────────────────────────────────
         try {
-          map.update({ camera: { azimuth: 0, tilt: NAV_TILT } });
+          map.update({ camera: { azimuth: 0, tilt: DEFAULT_NAV_TILT } });
         } catch { /* camera might not be supported — non-fatal */ }
 
         // ── Zoom control ─────────────────────────────────────────────────────
@@ -416,14 +422,14 @@ export default function YandexRouteMap({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courierPos?.lat, courierPos?.lng]);
 
-  // ── Heading update: rotate arrow icon + camera azimuth ───────────────────
+  // ── Heading + Tilt update: rotate arrow icon + camera azimuth ────────────
   useEffect(() => {
     // Rotate the courier arrow element via CSS (instant, smooth)
     if (courierElRef.current && heading !== undefined) {
       courierElRef.current.style.transform =
         `translate(-50%,-50%) rotate(${heading}deg)`;
     }
-    // Also update the map camera azimuth for heading-up navigation
+    // Also update the map camera azimuth and tilt for heading-up navigation
     if (
       mapRef.current &&
       followModeRef.current &&
@@ -431,10 +437,15 @@ export default function YandexRouteMap({
       heading !== undefined
     ) {
       try {
-        mapRef.current.update({ camera: { azimuth: heading, tilt: NAV_TILT } });
+        mapRef.current.update({ 
+          camera: { 
+            azimuth: heading, 
+            tilt: tiltRef.current 
+          } 
+        });
       } catch { /* skip if camera not supported */ }
     }
-  }, [heading]);
+  }, [heading, tilt]);
 
   // ── Fallback: no API key or permanent failure ────────────────────────────
   if (hasFallback) {

@@ -4,6 +4,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useToast } from '../../components/ui/Toast';
 import { DeliveryStage } from '../../data/types';
 import { CourierMapView } from '../../components/courier/CourierMapView';
+import CourierNavigationPanel from '../../components/courier/CourierNavigationPanel';
 import {
   CourierProblemReporter,
   DeliveryBottomPanel,
@@ -120,6 +121,8 @@ const CourierMapPage: React.FC = () => {
   // ── UI state — ALL hooks before any conditional return ─────────────────────
   const [liveCourierPos, setLiveCourierPos]     = useState<{ lat: number; lng: number } | null>(null);
   const [heading, setHeading]                   = useState<number | undefined>(undefined);
+  const [tilt, setTilt]                         = useState<number>(50); // 0-60 degrees
+  const [followMode, setFollowMode]             = useState(true);
   const [routeInfo, setRouteInfo]               = useState<{ distance: string; eta: string } | null>(null);
   const [geolocationError, setGeolocationError] = useState<string | null>(null);
   const [problemDraft, setProblemDraft]         = useState('');
@@ -436,12 +439,37 @@ const CourierMapPage: React.FC = () => {
           routeTo={currentTarget}
           height="100%"
           className="rounded-none border-0 shadow-none"
-          followMode={true}
+          followMode={followMode}
           heading={heading}
+          tilt={tilt}
           onRouteInfoChange={setRouteInfo}
+          onHeadingChange={setHeading}
+          onTiltChange={setTilt}
+          onFollowModeChange={setFollowMode}
         />
         {/* Subtle bottom gradient for panel legibility */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-slate-950/70 to-transparent" />
+      </div>
+
+      {/* ── Floating navigation panel (top, after back button) ────────────── */}
+      <div
+        className="absolute left-0 right-0 top-0 z-30 px-4 overflow-y-auto"
+        style={{
+          paddingTop: 'calc(env(safe-area-inset-top, 0px) + 60px)',
+          maxHeight: 'calc(100vh - env(safe-area-inset-top, 0px) - 60px - 120px)',
+        }}
+      >
+        <CourierNavigationPanel
+          heading={heading ?? 0}
+          onHeadingChange={setHeading}
+          tilt={tilt}
+          onTiltChange={setTilt}
+          followMode={followMode}
+          onFollowModeToggle={setFollowMode}
+          distance={displayRouteInfo.distance || formatRouteDistance(remainingMetrics.distanceKm)}
+          eta={displayRouteInfo.eta || formatEtaMinutes(remainingMetrics.etaMinutes)}
+          isEtaLive={isEtaLive}
+        />
       </div>
 
       {/* ── Floating back button (top-left only) ────────────────────────── */}
