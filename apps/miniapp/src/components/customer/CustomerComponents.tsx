@@ -835,16 +835,16 @@ export const BottomNavbar: React.FC = () => {
   ];
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-[80] bg-white text-[#202124] shadow-[0_-16px_34px_rgba(15,23,42,0.14)]">
+    <nav className="fixed inset-x-0 bottom-0 z-[80] bg-white shadow-[0_-16px_34px_rgba(15,23,42,0.14)]">
       <div
-        className="mx-auto flex w-full max-w-[430px] items-center justify-between border-t border-slate-200 px-1.5"
+        className="mx-auto flex w-full max-w-[430px] items-center justify-between border-t-2 border-red-300 px-1.5"
         style={{
           height: 'calc(88px + env(safe-area-inset-bottom, 0px))',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         }}
       >
         {/* LEFT 2 ITEMS (Home, Search) */}
-        <div className="flex flex-1 items-center justify-around">
+        <div className="flex flex-1 items-center justify-around gap-1">
           {navItems.slice(0, 2).map((item) => {
             const Icon = item.icon;
             const isActive =
@@ -856,16 +856,11 @@ export const BottomNavbar: React.FC = () => {
               <NavLink
                 key={item.path}
                 to={item.path}
-                className={`group relative flex min-w-[58px] flex-col items-center gap-1 px-2 py-2 transition-all active:scale-95 ${isActive ? 'text-blue-600' : 'text-slate-400'
+                className={`group relative flex min-w-[52px] flex-col items-center gap-1 rounded-[14px] border-2 px-2 py-2 transition-all active:scale-95 ${isActive ? 'border-red-500 bg-red-50 text-red-600' : 'border-red-200 bg-white text-slate-600 hover:border-red-300'
                   }`}
               >
-                <div
-                  className={`relative flex h-9 w-9 items-center justify-center rounded-[14px] transition-all duration-200 group-active:-translate-y-0.5 ${isActive ? 'bg-blue-50 text-blue-600 shadow-[0_4px_12px_rgba(37,99,235,0.15)]' : 'bg-transparent'
-                    }`}
-                >
-                  <Icon size={19} strokeWidth={isActive ? 2.6 : 2.2} />
-                </div>
-                <span className={`text-[10px] leading-none ${isActive ? 'font-black' : 'font-bold'}`}>
+                <Icon size={20} strokeWidth={2.2} />
+                <span className={`text-[9px] leading-tight font-bold`}>
                   {item.label}
                 </span>
               </NavLink>
@@ -874,15 +869,15 @@ export const BottomNavbar: React.FC = () => {
         </div>
 
         {/* CENTER: RED CART BUTTON (elevated) */}
-        <div className="relative flex flex-col items-center -translate-y-3">
+        <div className="relative flex flex-col items-center -translate-y-4">
           <button
             onClick={() => navigate('/customer/cart')}
             type="button"
-            className="group relative mb-2 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-red-600 text-white shadow-[0_12px_32px_rgba(220,38,38,0.35)] transition-transform active:scale-95 hover:shadow-[0_16px_40px_rgba(220,38,38,0.45)]"
+            className="group relative flex h-[68px] w-[68px] items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-red-600 text-white shadow-[0_12px_32px_rgba(220,38,38,0.4)] transition-transform active:scale-95 hover:shadow-[0_16px_40px_rgba(220,38,38,0.5)] border-4 border-white"
           >
-            <ShoppingCart size={24} strokeWidth={2} />
+            <ShoppingCart size={28} strokeWidth={2} />
             {cartCount > 0 ? (
-              <span className="absolute -right-2 -top-2 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white bg-white text-[11px] font-black text-red-600 shadow-lg">
+              <span className="absolute -right-1 -top-1 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-red-600 bg-white text-[10px] font-black text-red-600 shadow-lg">
                 {cartCount}
               </span>
             ) : null}
@@ -890,7 +885,7 @@ export const BottomNavbar: React.FC = () => {
         </div>
 
         {/* RIGHT 2 ITEMS (Menu, Profile) */}
-        <div className="flex flex-1 items-center justify-around">
+        <div className="flex flex-1 items-center justify-around gap-1">
           {navItems.slice(2, 4).map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
@@ -899,17 +894,14 @@ export const BottomNavbar: React.FC = () => {
               <NavLink
                 key={item.path}
                 to={item.path}
-                className={`group relative flex min-w-[58px] flex-col items-center gap-1 px-2 py-2 transition-all active:scale-95 ${isActive ? 'text-blue-600' : 'text-slate-400'
+                className={`group relative flex min-w-[52px] flex-col items-center gap-1 rounded-[14px] border-2 px-2 py-2 transition-all active:scale-95 ${isActive ? 'border-red-500 bg-red-50 text-red-600' : 'border-red-200 bg-white text-slate-600 hover:border-red-300'
                   }`}
               >
-                <div
-                  className={`relative flex h-9 w-9 items-center justify-center rounded-[14px] transition-all duration-200 group-active:-translate-y-0.5 ${isActive ? 'bg-blue-50 text-blue-600 shadow-[0_4px_12px_rgba(37,99,235,0.15)]' : 'bg-transparent'
-                    }`}
-                >
-                  <Icon size={19} strokeWidth={isActive ? 2.6 : 2.2} />
+                <div className="relative">
+                  <Icon size={20} strokeWidth={2.2} />
                   {item.isNotification ? <NotificationBadge role={UserRoleEnum.CUSTOMER} /> : null}
                 </div>
-                <span className={`text-[10px] leading-none ${isActive ? 'font-black' : 'font-bold'}`}>
+                <span className={`text-[9px] leading-tight font-bold`}>
                   {item.label}
                 </span>
               </NavLink>
