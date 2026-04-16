@@ -993,151 +993,59 @@ const BROADCAST_HOUR_UTC = 15; // 20:00 Uzbekistan (UTC+5)
 
 const FREE_DELIVERY_THRESHOLD = 80_000;
 
-// Drinks are never mentioned in broadcast — we only promote food
-const DRINK_PATTERN = /pepsi|cola|sprite|fanta|sharbat|limonad|mors|kompot|choy|kofe|qahva|mineral|ayron|kefir|yogurt|juice|sut|lassi/i;
-
-interface PopularItem { nameUz: string; price: number; }
-
-async function getPopularMenuItems(): Promise<PopularItem[]> {
-  try {
-    const items = await prisma.menuItem.findMany({
-      where: {
-        isActive: true,
-        availabilityStatus: 'AVAILABLE' as any,
-        isPopular: true,
-        // Exclude drinks by name heuristic at DB level isn't possible,
-        // so we filter in-memory below
-      },
-      select: { nameUz: true, price: true },
-      orderBy: { sortOrder: 'asc' },
-      take: 8, // fetch more so we have enough after filtering drinks
-    });
-    return items
-      .filter((i) => !DRINK_PATTERN.test(i.nameUz))
-      .slice(0, 4)
-      .map((i) => ({ nameUz: i.nameUz, price: Number(i.price) }));
-  } catch {
-    return [];
-  }
+interface PromoInfo {
+  code: string;
+  discountType: string;
+  discountValue: number;
+  minOrderValue: number;
 }
 
-// One DB call for ALL customers — no per-user queries in the loop
-async function buildFavoriteItemMap(userIds: string[]): Promise<Map<string, string>> {
-  if (userIds.length === 0) return new Map();
-  try {
-    const threeMonthsAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
-    const rows = await prisma.orderItem.findMany({
-      where: {
-        order: {
-          userId: { in: userIds },
-          status: 'DELIVERED' as any,
-          createdAt: { gte: threeMonthsAgo },
-        },
-      },
-      select: {
-        itemName: true,
-        quantity: true,
-        order: { select: { userId: true } },
-      },
-    });
-
-    // Aggregate: userId → itemName → total quantity ordered
-    const agg = new Map<string, Map<string, number>>();
-    for (const row of rows) {
-      const uid = row.order.userId;
-      if (!agg.has(uid)) agg.set(uid, new Map());
-      const m = agg.get(uid)!;
-      m.set(row.itemName, (m.get(row.itemName) ?? 0) + row.quantity);
-    }
-
-    // Pick the top FOOD item per user (skip drinks)
-    const result = new Map<string, string>();
-    for (const [userId, itemMap] of agg) {
-      let bestItem = '';
-      let bestQty = 0;
-      for (const [name, qty] of itemMap) {
-        if (DRINK_PATTERN.test(name)) continue; // never promote drinks
-        if (qty > bestQty) { bestQty = qty; bestItem = name; }
-      }
-      if (bestItem) result.set(userId, bestItem);
-    }
-    return result;
-  } catch {
-    return new Map();
-  }
-}
-
-async function getActivePromoLine(): Promise<string | null> {
+// Returns ALL active public promos in stable order (for rotation)
+async function getActivePromos(): Promise<PromoInfo[]> {
   try {
     const now = new Date();
-    const promo = await prisma.promoCode.findFirst({
+    const rows = await prisma.promoCode.findMany({
       where: {
         isActive: true,
         startDate: { lte: now },
         OR: [{ endDate: null }, { endDate: { gte: now } }],
         targetUserId: null,
       },
-      select: { code: true, discountType: true, discountValue: true },
-      orderBy: { createdAt: 'desc' },
+      select: { code: true, discountType: true, discountValue: true, minOrderValue: true },
+      orderBy: { createdAt: 'asc' }, // consistent order so rotation is predictable
     });
-    if (!promo) return null;
-
-    const discountStr =
-      promo.discountType === 'PERCENTAGE'
-        ? `${Number(promo.discountValue)}%`
-        : `${Number(promo.discountValue).toLocaleString()} so'm`;
-
-    return `🎁 <b>${escapeHtml(promo.code)}</b> promokodi bilan ${discountStr} chegirma!`;
+    return rows.map((p) => ({
+      code: p.code,
+      discountType: p.discountType as string,
+      discountValue: Number(p.discountValue),
+      minOrderValue: Number(p.minOrderValue),
+    }));
   } catch {
-    return null;
+    return [];
   }
 }
 
-function fmtPrice(price: number): string {
-  return `${Math.round(price).toLocaleString('uz-UZ')} so'm`;
-}
-
-function buildBroadcastText(
-  favItem: string | null,
-  popularItems: PopularItem[],
-  promoLine: string | null,
-): string {
-  const variant = Math.floor(Date.now() / BROADCAST_INTERVAL_MS) % 3;
-  const freeDeliveryLine = `${FREE_DELIVERY_THRESHOLD.toLocaleString('uz-UZ')} so'mdan ortiq buyurtmada yetkazish <b>bepul</b>!`;
-  let main: string;
-
-  if (favItem) {
-    // Personalized — user has a known favorite food item
-    const item = escapeHtml(favItem);
-    const opts = [
-      `${item} — bugun yangi pishirildi 🍽️\n\nIssiq holda yetkazib beramiz.\n${freeDeliveryLine}`,
-      `Sizning sevimli taomingiz — ${item} 😋\n\nBugun ham tayyor, issiq.\n${freeDeliveryLine}`,
-      `${item} pishdi! 🔥\n\nBuyurtma qiling, issiq holda eshigingizga.\n${freeDeliveryLine}`,
-    ];
-    main = opts[variant];
-  } else if (popularItems.length > 0) {
-    // Show popular food items with prices
-    const priceLines = popularItems
-      .slice(0, 3)
-      .map((i) => `${escapeHtml(i.nameUz)} — ${fmtPrice(i.price)}`)
-      .join('\n');
-    const opts = [
-      `Bugun menyumizda:\n\n${priceLines}\n\n${freeDeliveryLine}`,
-      `Issiq taomlar tayyor 🍽️\n\n${priceLines}\n\n${freeDeliveryLine}`,
-      `Yangi pishirilgan taomlar:\n\n${priceLines}\n\n${freeDeliveryLine}`,
-    ];
-    main = opts[variant];
-  } else {
-    // Generic fallback
-    const opts = [
-      `Bugun issiq taomlar tayyor 🍽️\n\n${freeDeliveryLine}`,
-      `Ovqat vaqti! 😋\n\nBuyurtma qiling, tez yetkazamiz.\n${freeDeliveryLine}`,
-      `Turon kafesidan buyurtma qilasizmi? 🍽️\n\n${freeDeliveryLine}`,
-    ];
-    main = opts[variant];
+// promo = null → no active promos, show free delivery reminder instead
+function buildBroadcastText(promo: PromoInfo | null): string {
+  if (!promo) {
+    return `🚚 ${FREE_DELIVERY_THRESHOLD.toLocaleString('uz-UZ')} so'mdan ortiq buyurtmada yetkazish <b>bepul</b>!`;
   }
 
-  return promoLine ? `${main}\n\n${promoLine}` : main;
+  const discountStr =
+    promo.discountType === 'PERCENTAGE'
+      ? `${promo.discountValue}%`
+      : `${Math.round(promo.discountValue).toLocaleString('uz-UZ')} so'm`;
+
+  const minLine =
+    promo.minOrderValue > 0
+      ? `\nMinimal buyurtma: ${Math.round(promo.minOrderValue).toLocaleString('uz-UZ')} so'm.`
+      : '';
+
+  // <code> tag → user taps it → Telegram shows "Copy" popup
+  return (
+    `🎁 <b>${escapeHtml(promo.code)}</b> promokodi bilan ${discountStr} chegirma!` +
+    `\n\nNusxalash uchun:\n<code>${escapeHtml(promo.code)}</code>${minLine}`
+  );
 }
 
 function calcNextBroadcastMs(lastTimestamp: number): number {
@@ -1158,16 +1066,14 @@ function calcNextBroadcastMs(lastTimestamp: number): number {
 async function sendBroadcastToAllCustomers(bot: Telegraf): Promise<void> {
   const customers = await prisma.user.findMany({
     where: { role: UserRoleEnum.CUSTOMER as any, isActive: true },
-    select: { id: true, telegramId: true },
+    select: { telegramId: true },
   });
 
-  // Prefetch all personalisation data before the loop — no per-user DB calls
-  const userIds = customers.map((c) => c.id);
-  const [favoriteItems, popularItems, promoLine] = await Promise.all([
-    buildFavoriteItemMap(userIds),
-    getPopularMenuItems(),
-    getActivePromoLine(),
-  ]);
+  // Rotate through all active promos — one per broadcast cycle
+  const promos = await getActivePromos();
+  const cycleIndex = Math.floor(Date.now() / BROADCAST_INTERVAL_MS);
+  const promo = promos.length > 0 ? promos[cycleIndex % promos.length] : null;
+  const text = buildBroadcastText(promo);
 
   const launchUrl = resolveMiniAppLaunchUrl('customer');
   const keyboard = Markup.inlineKeyboard([[Markup.button.webApp('🛒 Buyurtma qilish', launchUrl)]]);
@@ -1180,12 +1086,7 @@ async function sendBroadcastToAllCustomers(bot: Telegraf): Promise<void> {
     const chatId = Number(customer.telegramId);
 
     try {
-      // Delete ALL previously stored bot messages so the chat stays clean
       await deleteAllStoredMessages(bot, chatId);
-
-      const favItem = favoriteItems.get(customer.id) ?? null;
-      const text = buildBroadcastText(favItem, popularItems, promoLine);
-
       const sentMsg = await bot.telegram.sendMessage(chatId, text, {
         parse_mode: 'HTML',
         ...keyboard,
@@ -1193,8 +1094,6 @@ async function sendBroadcastToAllCustomers(bot: Telegraf): Promise<void> {
       void storeMessageId(chatId, sentMsg.message_id);
       sent++;
     } catch (err: any) {
-      // 403 = user blocked the bot — skip silently
-      // 400 = chat not found (user deleted account) — skip silently
       if (err?.response?.error_code !== 403 && err?.response?.error_code !== 400) {
         console.warn('[Bot] Broadcast send failed:', err?.message ?? err);
       }
