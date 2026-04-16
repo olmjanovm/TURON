@@ -7,8 +7,8 @@ import {
   Save,
   Pencil,
   Power,
-  Star,
   UserPlus,
+  X,
 } from 'lucide-react';
 import {
   useAdminCourierDirectory,
@@ -36,22 +36,22 @@ function formatRelativeTime(value?: string | null) {
   const diffMs = Date.now() - date.getTime();
   const diffMin = Math.max(0, Math.round(diffMs / 60000));
 
-  if (diffMin <= 0) return 'Now';
-  if (diffMin < 60) return `${diffMin} min ago`;
+  if (diffMin <= 0) return 'Hozir';
+  if (diffMin < 60) return `${diffMin} daqiqa oldin`;
   const diffHr = Math.round(diffMin / 60);
-  if (diffHr < 24) return `${diffHr} hr ago`;
+  if (diffHr < 24) return `${diffHr} soat oldin`;
   const diffDay = Math.round(diffHr / 24);
-  return `${diffDay} d ago`;
+  return `${diffDay} kun oldin`;
 }
 
 function courierStatusMeta(courier: AdminCourierDirectoryItem) {
   if (!courier.isOnline) {
-    return { label: 'Offline', tone: 'slate' as const, dot: 'bg-slate-400' };
+    return { label: 'Nofaol', tone: 'slate' as const, dot: 'bg-slate-400' };
   }
   if (courier.activeAssignments > 0) {
-    return { label: 'Busy', tone: 'amber' as const, dot: 'bg-amber-500' };
+    return { label: 'Band', tone: 'amber' as const, dot: 'bg-amber-500' };
   }
-  return { label: 'Online', tone: 'emerald' as const, dot: 'bg-emerald-500' };
+  return { label: 'Faol', tone: 'emerald' as const, dot: 'bg-emerald-500' };
 }
 
 const AdminCouriersPage: React.FC = () => {
@@ -152,8 +152,8 @@ const AdminCouriersPage: React.FC = () => {
       <div className="space-y-4 pb-24">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h1 className="text-lg font-black tracking-tight text-slate-950">Couriers</h1>
-            <p className="mt-1 text-xs font-semibold text-slate-500">Directory yuklanmoqda…</p>
+            <h1 className="text-lg font-black tracking-tight text-slate-950">Kuryerlar</h1>
+            <p className="mt-1 text-xs font-semibold text-slate-500">Ro'yxat yuklanmoqda...</p>
           </div>
           <button
             type="button"
@@ -161,7 +161,7 @@ const AdminCouriersPage: React.FC = () => {
               void refetch();
             }}
             className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-sm text-slate-500"
-            aria-label="Refresh"
+            aria-label="Yangilash"
           >
             <RefreshCw size={18} className={isFetching ? 'animate-spin' : ''} />
           </button>
@@ -222,7 +222,7 @@ const AdminCouriersPage: React.FC = () => {
     <div className="space-y-4 pb-24">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-black tracking-tight text-slate-950">Couriers</h1>
+          <h1 className="text-lg font-black tracking-tight text-slate-950">Kuryerlar</h1>
           <p className="mt-1 text-xs font-semibold text-slate-500">
             {couriers.length} ta kuryer
           </p>
@@ -233,7 +233,7 @@ const AdminCouriersPage: React.FC = () => {
             void refetch();
           }}
           className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-sm text-slate-500 active:scale-95"
-          aria-label="Refresh"
+          aria-label="Yangilash"
         >
           <RefreshCw size={18} className={isFetching ? 'animate-spin' : ''} />
         </button>
@@ -248,7 +248,7 @@ const AdminCouriersPage: React.FC = () => {
       {couriers.length === 0 ? (
         <div className="rounded-[28px] border border-dashed border-slate-200 bg-white p-6 text-center">
           <p className="text-sm font-black text-slate-900">Kuryer topilmadi</p>
-          <p className="mt-2 text-xs font-semibold text-slate-500">Yangi kuryer qo‘shish uchun “+” tugmasini bosing.</p>
+          <p className="mt-2 text-xs font-semibold text-slate-500">Yangi kuryer qo'shish uchun pastdagi + tugmasini bosing.</p>
         </div>
       ) : null}
 
@@ -256,9 +256,13 @@ const AdminCouriersPage: React.FC = () => {
         {couriers.map((courier) => {
           const status = courierStatusMeta(courier);
           const initials = (courier.fullName || 'K').trim().slice(0, 1).toUpperCase();
-          const idTag = `#${courier.telegramId?.slice(-4) || '—'}`;
-          const lastLabel = courier.isOnline ? 'Now' : formatRelativeTime(courier.lastSeenAt || courier.lastOfflineAt);
+          const idTag = `#${courier.telegramId?.slice(-4) || '----'}`;
+          const lastLabel = courier.isOnline ? 'Hozir' : formatRelativeTime(courier.lastSeenAt || courier.lastOfflineAt);
           const isTogglePending = pendingToggleId === courier.id;
+          const toggleLabel = courier.isActive ? "Faolsizlantirish" : "Faollashtirish";
+          const toggleClass = courier.isActive
+            ? 'border border-rose-200 bg-rose-50 text-rose-700'
+            : 'border border-emerald-200 bg-emerald-50 text-emerald-700';
 
           return (
             <article key={courier.id} className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
@@ -270,7 +274,7 @@ const AdminCouriersPage: React.FC = () => {
                   <div className="min-w-0">
                     <p className="truncate text-base font-black text-slate-950">{courier.fullName}</p>
                     <p className="mt-1 text-xs font-semibold text-slate-500">
-                      {courier.phoneNumber || "Telefon yo'q"}
+                      {courier.phoneNumber || "Telefon kiritilmagan"}
                     </p>
                   </div>
                 </div>
@@ -284,28 +288,20 @@ const AdminCouriersPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-bold text-slate-500">
-                <span className="inline-flex items-center gap-1.5">
-                  <Star size={14} className="text-amber-500" />
-                  <span className="text-slate-700">—</span>
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="text-slate-900 font-black">{courier.totalDelivered}</span>
-                  <span>deliveries</span>
-                </span>
-                <span className="inline-flex items-center rounded-full bg-slate-50 px-3 py-1.5 text-[11px] font-black text-slate-500">
-                  {idTag}
-                </span>
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                <StatChip label="Faol" value={`${courier.activeAssignments} ta`} />
+                <StatChip label="Yetkazgan" value={`${courier.totalDelivered} ta`} />
+                <StatChip label="ID" value={idTag} />
               </div>
 
               <div className="mt-5 grid grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={() => startEditing(courier)}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white text-[11px] font-black uppercase tracking-[0.16em] text-slate-700 active:scale-95"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700 active:scale-95"
                 >
                   <Pencil size={15} />
-                  <span>Edit</span>
+                  <span>Tahrirlash</span>
                 </button>
 
                 <button
@@ -317,7 +313,7 @@ const AdminCouriersPage: React.FC = () => {
                       { id: courier.id, payload: { isActive: !courier.isActive } },
                       {
                         onSuccess: () => {
-                          setFeedback(courier.isActive ? 'Kuryer deaktivatsiya qilindi.' : 'Kuryer aktiv qilindi.');
+                          setFeedback(courier.isActive ? 'Kuryer faolsizlantirildi.' : 'Kuryer faollashtirildi.');
                           setPendingToggleId(null);
                         },
                         onError: (mutationError) => {
@@ -330,12 +326,10 @@ const AdminCouriersPage: React.FC = () => {
                     );
                   }}
                   disabled={isTogglePending}
-                  className={`inline-flex h-11 items-center justify-center gap-2 rounded-full text-[11px] font-black uppercase tracking-[0.16em] text-white active:scale-95 disabled:opacity-60 ${
-                    courier.isActive ? 'bg-rose-500' : 'bg-emerald-500'
-                  }`}
+                  className={`inline-flex h-10 items-center justify-center gap-2 rounded-2xl px-3 text-sm font-semibold active:scale-95 disabled:opacity-60 ${toggleClass}`}
                 >
                   {isTogglePending ? <Loader2 size={15} className="animate-spin" /> : <Power size={15} />}
-                  <span>{courier.isActive ? 'Deactivate' : 'Activate'}</span>
+                  <span>{toggleLabel}</span>
                 </button>
               </div>
             </article>
@@ -351,7 +345,7 @@ const AdminCouriersPage: React.FC = () => {
         }}
         className="fixed right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-slate-950 text-white shadow-[0_18px_40px_rgba(15,23,42,0.22)] active:scale-95"
         style={{ bottom: 'var(--admin-fab-offset, calc(env(safe-area-inset-bottom, 0px) + 110px))' }}
-        aria-label="Add courier"
+        aria-label="Kuryer qo'shish"
       >
         <Plus size={20} />
       </button>
@@ -369,7 +363,7 @@ const AdminCouriersPage: React.FC = () => {
               placeholder="123456789"
             />
             <InputField
-              label="Telegram username"
+              label="Telegram nomi"
               value={createForm.telegramUsername}
               onChange={(value) => setCreateForm((current) => ({ ...current, telegramUsername: value }))}
               placeholder="@ali_mirza"
@@ -392,13 +386,13 @@ const AdminCouriersPage: React.FC = () => {
                 checked={createForm.isActive}
                 onChange={(event) => setCreateForm((current) => ({ ...current, isActive: event.target.checked }))}
               />
-              <span>Faol kuryer sifatida qo‘shilsin</span>
+              <span>Faol kuryer sifatida qo'shilsin</span>
             </label>
             <button
               type="button"
               onClick={handleCreate}
               disabled={createCourier.isPending}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-[18px] bg-slate-950 px-4 text-[11px] font-black uppercase tracking-[0.16em] text-white disabled:opacity-60"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-[18px] bg-slate-950 px-4 text-sm font-semibold text-white disabled:opacity-60"
             >
               {createCourier.isPending ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
               <span>Saqlash</span>
@@ -409,7 +403,7 @@ const AdminCouriersPage: React.FC = () => {
 
       {activeModal?.type === 'edit' ? (
         <BottomSheet
-          title="Edit courier"
+          title="Kuryerni tahrirlash"
           subtitle={formatClock(couriers.find((c) => c.id === activeModal.courierId)?.updatedAt)}
           onClose={() => setActiveModal(null)}
         >
@@ -421,7 +415,7 @@ const AdminCouriersPage: React.FC = () => {
             if (!courier || !draft) {
               return (
                 <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-600">
-                  Draft tayyorlanmadi. Qayta urinib ko‘ring.
+                  Ma'lumot tayyorlanmadi. Qayta urinib ko'ring.
                 </div>
               );
             }
@@ -439,7 +433,7 @@ const AdminCouriersPage: React.FC = () => {
                   }
                 />
                 <InputField
-                  label="Telegram username"
+                  label="Telegram nomi"
                   value={draft.telegramUsername}
                   onChange={(value) =>
                     setEditForms((current) => ({
@@ -477,10 +471,10 @@ const AdminCouriersPage: React.FC = () => {
                   type="button"
                   onClick={() => handleEditSave(courier.id)}
                   disabled={isSaving}
-                  className="inline-flex h-12 items-center justify-center gap-2 rounded-[18px] bg-slate-950 px-4 text-[11px] font-black uppercase tracking-[0.16em] text-white disabled:opacity-60"
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-[18px] bg-slate-950 px-4 text-sm font-semibold text-white disabled:opacity-60"
                 >
                   {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                  <span>Save</span>
+                  <span>Saqlash</span>
                 </button>
               </div>
             );
@@ -502,8 +496,15 @@ const StatusChip: React.FC<{ tone: 'emerald' | 'amber' | 'slate'; label: string 
         ? 'bg-amber-50 text-amber-700'
         : 'bg-slate-100 text-slate-500';
 
-  return <span className={`rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] ${toneClass}`}>{label}</span>;
+  return <span className={`rounded-full px-2.5 py-1.5 text-[11px] font-bold ${toneClass}`}>{label}</span>;
 };
+
+const StatChip: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+  <div className="rounded-2xl bg-slate-50 px-3 py-2 text-center">
+    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">{label}</p>
+    <p className="mt-1 text-xs font-black text-slate-800">{value}</p>
+  </div>
+);
 
 const InputField: React.FC<{
   label: string;
@@ -542,7 +543,7 @@ const BottomSheet: React.FC<{
         type="button"
         className="absolute inset-0 bg-slate-950/30 backdrop-blur-[2px]"
         onClick={onClose}
-        aria-label="Close"
+        aria-label="Yopish"
       />
       <div className="relative w-full max-w-[390px] rounded-t-[34px] bg-white p-5 pb-7 shadow-[0_-18px_40px_rgba(15,23,42,0.18)]">
         <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-100" />
@@ -555,9 +556,9 @@ const BottomSheet: React.FC<{
             type="button"
             onClick={onClose}
             className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 text-slate-500 active:scale-95"
-            aria-label="Close"
+            aria-label="Yopish"
           >
-            ✕
+            <X size={18} />
           </button>
         </div>
         <div className="mt-4">{children}</div>
