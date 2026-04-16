@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import CategoryCard from '../../../features/menu/components/CategoryCard';
+import DeleteConfirmationModal from '../../../components/admin/DeleteConfirmationModal';
 import {
   useAdminCategories,
   useAdminProducts,
@@ -13,6 +14,8 @@ import type { MenuCategory } from '../../../features/menu/types';
 const AdminCategoriesPage: React.FC = () => {
   const navigate = useNavigate();
   const [pageError, setPageError] = useState<string | null>(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<MenuCategory | null>(null);
 
   const { data: categories = [], isLoading: categoriesLoading, isError: categoriesError } = useAdminCategories();
   const { data: products = [], isLoading: productsLoading } = useAdminProducts();
@@ -49,23 +52,24 @@ const AdminCategoriesPage: React.FC = () => {
   };
 
   const handleDelete = async (category: MenuCategory) => {
-    const hasProducts = products.some((product) => product.categoryId === category.id);
-    const message = hasProducts
-      ? 'Bu kategoriya bilan bog\'liq taomlar ham menyudan olib tashlanadi. Davom etasizmi?'
-      : 'Kategoriyani o\'chirishni tasdiqlaysizmi?';
+    setCategoryToDelete(category);
+    setIsConfirmOpen(true);
+  };
 
-    if (!window.confirm(message)) {
-      return;
-    }
+  const handleConfirmDelete = async () => {
+    if (!categoryToDelete) return;
 
     setPageError(null);
 
     try {
-      await deleteCategoryMutation.mutateAsync(category.id);
+      await deleteCategoryMutation.mutateAsync(categoryToDelete.id);
 
       if (window.Telegram?.WebApp?.HapticFeedback) {
         window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       }
+
+      setIsConfirmOpen(false);
+      setCategoryToDelete(null);
     } catch (error) {
       setPageError(error instanceof Error ? error.message : 'Kategoriyani o\'chirib bo\'lmadi');
 
@@ -131,6 +135,24 @@ const AdminCategoriesPage: React.FC = () => {
           <p className="text-sm text-slate-400 mt-1">Yangi kategoriya qo'shish uchun tugmani bosing</p>
         </div>
       )}
+
+      <DeleteConfirmationModal
+        isOpen={isConfirmOpen}
+        title="Kategoriyani o'chirasizmi?"
+        description={
+          categoryToDelete && products.some((product) => product.categoryId === categoryToDelete.id)
+            ? 'Bu kategoriya bilan bog\'liq hamma taomlar ham menyudan olib tashlanadi.'
+            : 'Bu amalni qaytara olmaysiz.'
+        }
+        itemName={categoryToDelete?.name}
+        isDeleting={deleteCategoryMutation.isPending}
+        onConfirm={() => void handleConfirmDelete()}
+        onCancel={() => {
+          setIsConfirmOpen(false);
+          setCategoryToDelete(null);
+        }}
+        isDangerous
+      />
     </div>
   );
 };

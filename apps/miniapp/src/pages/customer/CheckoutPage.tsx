@@ -373,7 +373,6 @@ const CheckoutPage: React.FC = () => {
           {orderQuoteQuery.isError ? (
             <p className="mt-3 text-[11px] font-semibold text-red-600">{orderQuoteQuery.error.message}</p>
           ) : null}
-<<<<<<< HEAD
         </CheckoutSectionCard>
 
         {appliedPromo ? (
@@ -381,17 +380,6 @@ const CheckoutPage: React.FC = () => {
             <CustomerPromoInputCard subtotal={subtotal} compact />
           </CheckoutSectionCard>
         ) : null}
-=======
-        </section>
-        {/* Promo Code Section */}
-        <section className="rounded-[24px] bg-white px-4 py-4 shadow-[0_10px_26px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.035]">
-          <div className="mb-3">
-            <p className="text-[13px] font-extrabold uppercase tracking-[0.16em] text-[#a0a0a8]">Chegirma</p>
-            <h3 className="mt-1.5 text-[18px] font-black text-slate-950">Promokod</h3>
-          </div>
-          <CustomerPromoInputCard subtotal={subtotal} compact />
-        </section>
->>>>>>> 6b08816adc82a463cde1531b3566a184641e56bc
 
         {/* Order Summary Section */}
         <section className="rounded-[24px] bg-white px-4 py-4 shadow-[0_10px_26px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.035]">

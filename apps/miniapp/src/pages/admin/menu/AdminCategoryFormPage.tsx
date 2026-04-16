@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import CategoryForm from '../../../features/menu/components/CategoryForm';
+import DeleteConfirmationModal from '../../../components/admin/DeleteConfirmationModal';
 import type { CategoryFormData } from '../../../features/menu/types';
 import {
   useAdminCategories,
@@ -13,6 +14,7 @@ const AdminCategoryFormPage: React.FC = () => {
   const navigate = useNavigate();
   const { categoryId } = useParams<{ categoryId: string }>();
   const [formError, setFormError] = useState<string | null>(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   const { data: categories = [], isLoading } = useAdminCategories();
   const createCategoryMutation = useCreateCategory();
@@ -50,9 +52,11 @@ const AdminCategoryFormPage: React.FC = () => {
   };
 
   const handleDelete = async () => {
-    if (!categoryId || !window.confirm('Kategoriyani o\'chirishni tasdiqlaysizmi?')) {
-      return;
-    }
+    setIsConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!categoryId) return;
 
     setFormError(null);
 
@@ -63,6 +67,7 @@ const AdminCategoryFormPage: React.FC = () => {
         window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       }
 
+      setIsConfirmOpen(false);
       navigate('/admin/menu/categories');
     } catch (error) {
       setFormError(error instanceof Error ? error.message : 'Kategoriyani o\'chirib bo\'lmadi');
@@ -70,6 +75,8 @@ const AdminCategoryFormPage: React.FC = () => {
       if (window.Telegram?.WebApp?.HapticFeedback) {
         window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
       }
+
+      setIsConfirmOpen(false);
     }
   };
 
@@ -102,6 +109,17 @@ const AdminCategoryFormPage: React.FC = () => {
         isSubmitting={createCategoryMutation.isPending || updateCategoryMutation.isPending}
         onDelete={isEdit ? handleDelete : undefined}
         isDeleting={deleteCategoryMutation.isPending}
+      />
+
+      <DeleteConfirmationModal
+        isOpen={isConfirmOpen}
+        title="Kategoriyani o'chirasizmi?"
+        description="Bu kategoriya va uning hamma taomlariy menyudan olib tashlanadi."
+        itemName={existingCategory?.name}
+        isDeleting={deleteCategoryMutation.isPending}
+        onConfirm={() => void handleConfirmDelete()}
+        onCancel={() => setIsConfirmOpen(false)}
+        isDangerous
       />
     </div>
   );

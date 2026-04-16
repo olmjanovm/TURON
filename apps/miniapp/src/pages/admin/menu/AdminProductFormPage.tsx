@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ProductForm from '../../../features/menu/components/ProductForm';
+import DeleteConfirmationModal from '../../../components/admin/DeleteConfirmationModal';
 import type { ProductFormData } from '../../../features/menu/types';
 import {
   useAdminCategories,
@@ -14,6 +15,7 @@ const AdminProductFormPage: React.FC = () => {
   const navigate = useNavigate();
   const { productId } = useParams<{ productId: string }>();
   const [formError, setFormError] = useState<string | null>(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   const { data: categories = [], isLoading: categoriesLoading } = useAdminCategories();
   const { data: products = [], isLoading: productsLoading } = useAdminProducts();
@@ -52,9 +54,11 @@ const AdminProductFormPage: React.FC = () => {
   };
 
   const handleDelete = async () => {
-    if (!productId || !window.confirm('Taomni o\'chirishni tasdiqlaysizmi?')) {
-      return;
-    }
+    setIsConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!productId) return;
 
     setFormError(null);
 
@@ -65,6 +69,7 @@ const AdminProductFormPage: React.FC = () => {
         window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       }
 
+      setIsConfirmOpen(false);
       navigate('/admin/menu/products');
     } catch (error) {
       setFormError(error instanceof Error ? error.message : 'Taomni o\'chirib bo\'lmadi');
@@ -72,6 +77,8 @@ const AdminProductFormPage: React.FC = () => {
       if (window.Telegram?.WebApp?.HapticFeedback) {
         window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
       }
+
+      setIsConfirmOpen(false);
     }
   };
 
@@ -106,6 +113,17 @@ const AdminProductFormPage: React.FC = () => {
         isSubmitting={createProductMutation.isPending || updateProductMutation.isPending}
         onDelete={isEdit ? handleDelete : undefined}
         isDeleting={deleteProductMutation.isPending}
+      />
+
+      <DeleteConfirmationModal
+        isOpen={isConfirmOpen}
+        title="Taomni o'chirasizmi?"
+        description="Bu taom katalogdan to'liq olib tashlanadi va qayta tiklanib bo'lmaydi."
+        itemName={existingProduct?.name}
+        isDeleting={deleteProductMutation.isPending}
+        onConfirm={() => void handleConfirmDelete()}
+        onCancel={() => setIsConfirmOpen(false)}
+        isDangerous
       />
     </div>
   );
