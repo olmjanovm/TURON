@@ -652,7 +652,7 @@ export async function getMyOrders(request: FastifyRequest, reply: FastifyReply) 
 
 export async function getAllOrders(request: FastifyRequest, reply: FastifyReply) {
   const orders = await prisma.order.findMany({
-    include: ORDER_INCLUDE,
+    include: ORDER_LIST_INCLUDE,
     orderBy: { createdAt: 'desc' },
   });
   return reply.send(await addTrackingBatch(orders));

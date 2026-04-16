@@ -24,7 +24,7 @@ echo ""
 
 # Step 1: Remote SSH to AWS and run migrations
 echo -e "${YELLOW}[STEP 1]${NC} Running migrations on AWS..."
-echo "Command: npx prisma migrate deploy"
+echo "Command: corepack pnpm --filter @turon/backend prisma:deploy && npx prisma migrate deploy"
 echo ""
 
 ssh -i "$BACKEND_KEY" "$BACKEND_SSH" << 'EOFREMOTE'
@@ -32,9 +32,12 @@ ssh -i "$BACKEND_KEY" "$BACKEND_SSH" << 'EOFREMOTE'
   cd /app/turon
   
   echo "Generating Prisma Client..."
-  npx prisma generate
+  corepack pnpm --filter @turon/backend prisma:generate
   
-  echo "Running migrations..."
+  echo "Running backend SQL migrations..."
+  corepack pnpm --filter @turon/backend prisma:deploy
+
+  echo "Running Prisma migrations..."
   npx prisma migrate deploy
   
   echo "Verifying tables..."

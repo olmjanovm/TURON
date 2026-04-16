@@ -47,9 +47,12 @@ Write-Info ""
 $migrateScript = @'
 cd /app/turon
 echo "Generating Prisma Client..."
-npx prisma generate
+corepack pnpm --filter @turon/backend prisma:generate
 
-echo "Running migrations..."
+echo "Running backend SQL migrations..."
+corepack pnpm --filter @turon/backend prisma:deploy
+
+echo "Running Prisma migrations..."
 npx prisma migrate deploy
 
 echo "Verifying tables..."
