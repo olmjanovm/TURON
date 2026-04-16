@@ -95,11 +95,10 @@ function PhoneModal({ onSaved, onClose }: PhoneModalProps) {
               value={value}
               onChange={(e) => { setValue(e.target.value); setError(''); }}
               placeholder="+998 90 123 45 67"
-              className={`h-14 w-full rounded-[14px] border px-4 text-[15px] font-bold outline-none transition-colors ${
-                error
-                  ? 'border-red-300 bg-red-50 text-red-700 placeholder:text-red-300'
-                  : 'border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400 focus:border-amber-400 focus:bg-white'
-              }`}
+              className={`h-14 w-full rounded-[14px] border px-4 text-[15px] font-bold outline-none transition-colors ${error
+                ? 'border-red-300 bg-red-50 text-red-700 placeholder:text-red-300'
+                : 'border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400 focus:border-amber-400 focus:bg-white'
+                }`}
             />
             {error && (
               <p className="mt-2 text-[12px] font-semibold text-red-600">{error}</p>
@@ -152,8 +151,8 @@ const CheckoutPage: React.FC = () => {
   const orderQuote = orderQuoteQuery.data ?? null;
   const routeInfo =
     orderQuote &&
-    typeof orderQuote.deliveryDistanceMeters === 'number' &&
-    typeof orderQuote.deliveryEtaMinutes === 'number'
+      typeof orderQuote.deliveryDistanceMeters === 'number' &&
+      typeof orderQuote.deliveryEtaMinutes === 'number'
       ? createRouteInfoFromMeters(orderQuote.deliveryDistanceMeters, orderQuote.deliveryEtaMinutes * 60)
       : null;
 
@@ -286,33 +285,37 @@ const CheckoutPage: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen animate-in slide-in-from-right duration-300"
+      className="min-h-screen bg-[#f6f6f7] text-[#202020] animate-in slide-in-from-right duration-300"
       style={{ paddingBottom: '140px' }}
     >
-      <section className="px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+10px)]">
-        <div className="flex items-center gap-3">
+      <header className="sticky top-0 z-30 border-b border-black/[0.06] bg-white/95 px-4 backdrop-blur-xl">
+        <div className="mx-auto flex h-[56px] w-full max-w-[430px] items-center justify-between">
           <button
             type="button"
             onClick={() => navigate('/customer/cart')}
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-600 active:scale-95 transition-transform"
           >
-            <ArrowLeft size={18} />
+            <ArrowLeft size={20} />
           </button>
-          <div className="flex-1">
-            <h1 className="text-[1.5rem] font-black tracking-[-0.05em] text-white">Buyurtma yakuni</h1>
-            <p className="mt-0.5 text-[11px] leading-tight text-white/45">
-              Kod, to'lov va manzilni tekshiring.
-            </p>
+          <div className="flex-1 px-3 text-center">
+            <h1 className="text-[17px] font-black tracking-tight text-slate-950">Buyurtma yakuni</h1>
           </div>
+          <div className="w-10" />
         </div>
-      </section>
+      </header>
 
-      <section className="space-y-2.5 px-4">
-        <CheckoutSectionCard title="Yetkazish manzili">
+      <main className="mx-auto max-w-[430px] px-4 pb-6 pt-4 space-y-3">
+        {/* Delivery Address Section */}
+        <section className="rounded-[24px] bg-white px-4 py-4 shadow-[0_10px_26px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.035]">
+          <div className="mb-3">
+            <p className="text-[13px] font-extrabold uppercase tracking-[0.16em] text-[#a0a0a8]">Yetkazish</p>
+            <h3 className="mt-1.5 text-[18px] font-black text-slate-950">Manzilni tanlang</h3>
+          </div>
+
           {selectedAddress ? (
             <SelectedAddressCard
               address={selectedAddress}
-              actionLabel="Saqlangan manzillar"
+              actionLabel="O'zgartirish"
               onAction={handleSelectAddress}
               routeInfo={routeInfo}
             />
@@ -320,56 +323,57 @@ const CheckoutPage: React.FC = () => {
             <button
               type="button"
               onClick={handleSelectAddress}
-              className="flex h-14 w-full items-center justify-center gap-2 rounded-[12px] border border-white/10 bg-white/[0.04] text-sm font-bold text-white"
+              className="flex h-14 w-full items-center justify-center gap-2 rounded-[16px] border border-slate-200 bg-white text-sm font-bold text-slate-950 transition-all active:scale-[0.97]"
             >
               <MapPin size={18} />
               <span>Manzil tanlash</span>
             </button>
           )}
 
-          <div className="mt-2.5 grid grid-cols-2 gap-2">
+          <div className="mt-3 grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={handleAutoDetectAddress}
               disabled={autoDetectAddressMutation.isPending}
-              className="flex h-10 items-center justify-center gap-2 rounded-[12px] border border-white/10 bg-white/[0.04] px-3 text-[11px] font-black text-white transition-transform active:scale-[0.985] disabled:opacity-60"
+              className="flex h-10 items-center justify-center gap-2 rounded-[14px] border border-slate-200 bg-white px-3 text-[11px] font-black text-slate-950 transition-transform active:scale-[0.97] disabled:opacity-60"
             >
               {autoDetectAddressMutation.isPending ? (
                 <Loader2 size={14} className="animate-spin" />
               ) : (
                 <LocateFixed size={14} />
               )}
-              <span>Topish</span> 
+              <span>Topish</span>
             </button>
 
             <button
               type="button"
               onClick={handleMapSelection}
-              className="flex h-10 items-center justify-center gap-2 rounded-[12px] border border-white/10 bg-white/[0.04] px-3 text-[11px] font-black text-white transition-transform active:scale-[0.985]"
+              className="flex h-10 items-center justify-center gap-2 rounded-[14px] border border-slate-200 bg-white px-3 text-[11px] font-black text-slate-950 transition-transform active:scale-[0.97]"
             >
               <MapPin size={14} />
-              <span>Xaritadan qidirish</span>
+              <span>Xaritada</span>
             </button>
           </div>
 
           {isAddressesLoading ? (
-            <div className="mt-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45">
+            <div className="mt-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
               <Loader2 size={14} className="animate-spin" />
-              <span>Manzillar yuklanmoqda</span>
+              <span>Yuklanmoqda</span>
             </div>
           ) : null}
 
           {addressHint && !addressError ? (
-            <p className="mt-3 text-[11px] font-semibold text-emerald-300">{addressHint}</p>
+            <p className="mt-3 text-[11px] font-semibold text-emerald-600">{addressHint}</p>
           ) : null}
 
           {addressError ? (
-            <p className="mt-3 text-[11px] font-semibold text-rose-300">{addressError}</p>
+            <p className="mt-3 text-[11px] font-semibold text-red-600">{addressError}</p>
           ) : null}
 
           {orderQuoteQuery.isError ? (
-            <p className="mt-3 text-[11px] font-semibold text-rose-300">{orderQuoteQuery.error.message}</p>
+            <p className="mt-3 text-[11px] font-semibold text-red-600">{orderQuoteQuery.error.message}</p>
           ) : null}
+<<<<<<< HEAD
         </CheckoutSectionCard>
 
         {appliedPromo ? (
@@ -377,21 +381,41 @@ const CheckoutPage: React.FC = () => {
             <CustomerPromoInputCard subtotal={subtotal} compact />
           </CheckoutSectionCard>
         ) : null}
+=======
+        </section>
+        {/* Promo Code Section */}
+        <section className="rounded-[24px] bg-white px-4 py-4 shadow-[0_10px_26px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.035]">
+          <div className="mb-3">
+            <p className="text-[13px] font-extrabold uppercase tracking-[0.16em] text-[#a0a0a8]">Chegirma</p>
+            <h3 className="mt-1.5 text-[18px] font-black text-slate-950">Promokod</h3>
+          </div>
+          <CustomerPromoInputCard subtotal={subtotal} compact />
+        </section>
+>>>>>>> 6b08816adc82a463cde1531b3566a184641e56bc
 
-        <CheckoutSectionCard title="Buyurtma xulosasi">
+        {/* Order Summary Section */}
+        <section className="rounded-[24px] bg-white px-4 py-4 shadow-[0_10px_26px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.035]">
+          <div className="mb-3">
+            <p className="text-[13px] font-extrabold uppercase tracking-[0.16em] text-[#a0a0a8]">Hisob-kitob</p>
+            <h3 className="mt-1.5 text-[18px] font-black text-slate-950">Buyurtma xulosasi</h3>
+          </div>
           <OrderSummaryCard
             routeInfo={routeInfo}
             quote={orderQuote}
             isQuoteLoading={orderQuoteQuery.isLoading}
             compact
           />
-        </CheckoutSectionCard>
+        </section>
 
-        <CheckoutSectionCard title="To'lov usuli">
+        {/* Payment Method Section */}
+        <section className="rounded-[24px] bg-white px-4 py-4 shadow-[0_10px_26px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.035]">
+          <div className="mb-3">
+            <p className="text-[13px] font-extrabold uppercase tracking-[0.16em] text-[#a0a0a8]">To'lov</p>
+            <h3 className="mt-1.5 text-[18px] font-black text-slate-950">To'lov usuli</h3>
+          </div>
           <PaymentMethodSelector />
-        </CheckoutSectionCard>
-      </section>
-
+        </section>
+      </main>
       {/* ── Phone entry modal — shown when backend rejects with PHONE_REQUIRED ── */}
       {showPhoneModal && (
         <PhoneModal
@@ -422,9 +446,9 @@ const CheckoutPage: React.FC = () => {
 
       <div
         className="fixed inset-x-0 z-40 px-4"
-        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 64px)' }}
+        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}
       >
-        <div className="mx-auto flex h-[72px] w-full max-w-[430px] items-center rounded-[6px] border border-white/10 bg-[#111827]/94 px-3 shadow-[0_16px_32px_rgba(2,6,23,0.34)] backdrop-blur-xl">
+        <div className="mx-auto flex h-[56px] w-full max-w-[430px] items-center rounded-[20px] bg-white shadow-lg shadow-black/10">
           <button
             type="button"
             onClick={handleConfirmOrder}
@@ -437,16 +461,16 @@ const CheckoutPage: React.FC = () => {
               !orderQuote ||
               (paymentMethod === 'MANUAL_TRANSFER' && !receiptImage)
             }
-            className="flex h-12 w-full items-center justify-center gap-3 rounded-[6px] bg-white text-sm font-black text-slate-950 shadow-xl transition-transform active:scale-[0.985] disabled:opacity-60"
+            className="flex h-14 w-full items-center justify-center gap-2 rounded-[18px] bg-gradient-to-r from-amber-400 to-amber-500 text-sm font-black text-white shadow-sm transition-transform active:scale-[0.97] disabled:opacity-50"
           >
             {createOrderMutation.isPending ? (
               <>
-                <Loader2 className="animate-spin" size={20} />
+                <Loader2 className="animate-spin" size={18} />
                 <span>Yuborilmoqda...</span>
               </>
             ) : (
               <>
-                <CheckCircle2 size={20} />
+                <CheckCircle2 size={18} />
                 <span>{paymentMethod === 'MANUAL_TRANSFER' ? "To'lov qildim" : 'Tasdiqlash'}</span>
               </>
             )}

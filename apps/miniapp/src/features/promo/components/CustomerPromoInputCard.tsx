@@ -69,21 +69,21 @@ export const CustomerPromoInputCard: React.FC<Props> = ({ subtotal, compact = fa
 
   if (appliedPromo) {
     return (
-      <div className="rounded-[12px] border border-emerald-300/18 bg-emerald-400/10 p-3">
+      <div className="rounded-[16px] border border-emerald-300/40 bg-emerald-50 p-3">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-emerald-400/18 text-emerald-100">
+            <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-emerald-100 text-emerald-600">
               <Tag size={20} />
             </div>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-200/72">Promokod faol</p>
-              <p className="mt-1 text-sm font-black text-white">{appliedPromo.code}</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700/72">Promokod faol</p>
+              <p className="mt-1 text-sm font-black text-slate-950">{appliedPromo.code}</p>
             </div>
           </div>
           <button
             type="button"
             onClick={handleRemove}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/8 bg-white/[0.08] text-white/74"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 active:scale-95 transition-transform"
           >
             <X size={18} />
           </button>
@@ -93,16 +93,16 @@ export const CustomerPromoInputCard: React.FC<Props> = ({ subtotal, compact = fa
   }
 
   return (
-    <div className="rounded-[12px] border border-white/8 bg-white/[0.04] p-3">
+    <div className="rounded-[16px] border border-slate-200 bg-white p-3">
       {!compact ? (
         <div className="mb-3">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/36">Chegirma kodi</p>
-          <h3 className="mt-1.5 text-base font-black tracking-tight text-white">Kod kiriting</h3>
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Chegirma kodi</p>
+          <h3 className="mt-1.5 text-base font-black tracking-tight text-slate-950">Kod kiriting</h3>
         </div>
       ) : null}
 
       <form onSubmit={handleApply} className="relative flex items-center">
-        <div className="pointer-events-none absolute left-4 text-white/36">
+        <div className="pointer-events-none absolute left-4 text-slate-400">
           <Tag size={18} />
         </div>
         <input
@@ -110,21 +110,20 @@ export const CustomerPromoInputCard: React.FC<Props> = ({ subtotal, compact = fa
           value={code}
           onChange={(event) => setCode(event.target.value.toUpperCase())}
           placeholder="Kod kiriting"
-          className={`h-12 w-full rounded-[12px] border bg-white/[0.04] pl-12 pr-12 text-sm font-bold text-white outline-none placeholder:font-semibold placeholder:text-white/28 ${
-            feedback && !feedback.success ? 'border-red-300/20' : 'border-white/8'
-          }`}
+          className={`h-12 w-full rounded-[12px] border bg-white pl-12 pr-12 text-sm font-bold text-slate-950 outline-none placeholder:font-semibold placeholder:text-slate-400 focus:border-amber-300 transition-colors ${feedback && !feedback.success ? 'border-red-300' : 'border-slate-200'
+            }`}
         />
         <button
           type="submit"
           disabled={!code.trim() || validatePromoMutation.isPending}
-          className="absolute right-2 flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-950 disabled:bg-white/10 disabled:text-white/32"
+          className="absolute right-2 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-r from-amber-400 to-amber-500 text-white disabled:bg-slate-100 disabled:text-slate-400 active:scale-95 transition-transform"
         >
           {validatePromoMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <ArrowRight size={18} />}
         </button>
       </form>
 
       {feedback ? (
-        <div className={`mt-3 rounded-[12px] px-3 py-2 text-xs font-semibold ${feedback.success ? 'bg-emerald-400/12 text-emerald-200' : 'bg-red-400/10 text-red-200'}`}>
+        <div className={`mt-3 rounded-[12px] px-3 py-2 text-xs font-semibold ${feedback.success ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
           {feedback.message}
         </div>
       ) : null}

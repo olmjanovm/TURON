@@ -9,14 +9,14 @@ export const CheckoutSectionCard: React.FC<{
   actionLabel?: string;
   onAction?: () => void;
 }> = ({ title, children, actionLabel, onAction }) => (
-  <section className="rounded-[12px] border border-white/8 bg-[#111827] p-3 shadow-[0_12px_24px_rgba(2,6,23,0.2)]">
+  <section className="rounded-[24px] bg-white px-4 py-4 shadow-[0_10px_26px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.035]">
     <div className="flex items-center justify-between gap-4">
-      <h3 className="text-base font-black tracking-tight text-white">{title}</h3>
+      <h3 className="text-[15px] font-black tracking-tight text-slate-950">{title}</h3>
       {actionLabel ? (
         <button
           type="button"
           onClick={onAction}
-          className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-white/78"
+          className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-600 active:scale-95 transition-transform"
         >
           {actionLabel}
         </button>
@@ -30,8 +30,8 @@ export const CheckoutNoteField: React.FC = () => {
   const { note, setNote } = useCheckoutStore();
 
   return (
-    <div className="rounded-[12px] border border-white/8 bg-white/[0.04] p-3">
-      <div className="mb-3 flex items-center gap-2 text-white/52">
+    <div className="rounded-[16px] border border-slate-200 bg-slate-50 p-3">
+      <div className="mb-3 flex items-center gap-2 text-slate-600">
         <MessageSquareMore size={16} />
         <span className="text-[10px] font-black uppercase tracking-[0.16em]">Kuryer uchun izoh</span>
       </div>
@@ -39,7 +39,7 @@ export const CheckoutNoteField: React.FC = () => {
         value={note}
         onChange={(event) => setNote(event.target.value)}
         placeholder="Eshik kodi, qavat, mo'ljal yoki qo'ng'iroq bo'yicha eslatma yozing"
-        className="h-24 w-full rounded-[10px] border border-white/8 bg-slate-950/55 p-3 text-sm font-semibold text-white outline-none placeholder:text-white/28"
+        className="h-24 w-full rounded-[12px] border border-slate-200 bg-white p-3 text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-amber-300"
       />
     </div>
   );
@@ -49,18 +49,18 @@ export const EmptyCartState: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="flex min-h-[70vh] flex-col items-center justify-center px-5 text-center">
-      <div className="flex h-24 w-24 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.05] text-white/74 shadow-[0_12px_24px_rgba(2,6,23,0.18)]">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-[#f6f6f7] px-5 text-center">
+      <div className="flex h-24 w-24 items-center justify-center rounded-[20px] bg-white shadow-[0_10px_26px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.035] text-amber-500">
         <ShoppingBag size={52} />
       </div>
-      <h2 className="mt-8 text-[2rem] font-black tracking-tight text-white">Savat bo'sh</h2>
-      <p className="mt-3 max-w-[280px] text-sm leading-7 text-white/56">
+      <h2 className="mt-8 text-[28px] font-black tracking-tight text-slate-950">Savat bo'sh</h2>
+      <p className="mt-3 max-w-[280px] text-sm leading-7 text-slate-600">
         Zamonaviy checkout shu yerda ishlaydi. Boshlash uchun avval bir nechta mazali taomni savatga qo'shing.
       </p>
       <button
         type="button"
         onClick={() => navigate('/customer')}
-        className="mt-8 inline-flex h-14 items-center justify-center gap-3 rounded-[24px] bg-white px-6 text-sm font-black uppercase tracking-[0.18em] text-slate-950 shadow-[0_18px_36px_rgba(255,255,255,0.08)]"
+        className="mt-8 inline-flex h-14 items-center justify-center gap-3 rounded-[24px] bg-gradient-to-r from-amber-400 to-amber-500 px-6 text-sm font-black text-white shadow-lg shadow-amber-200/50 transition-transform active:scale-[0.97]"
       >
         <ArrowLeft size={18} />
         <span>Asosiy sahifaga qaytish</span>
