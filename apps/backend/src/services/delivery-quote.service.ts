@@ -126,14 +126,10 @@ export class DeliveryQuoteService {
     const merchandiseTotal = roundCurrency(subtotal - discountAmount);
     const { distanceMeters, etaMinutes, routeSource } = await resolveDistanceAndEta(input.destination);
 
-    // Check ORIGINAL subtotal (before discount) for free delivery threshold
-    // If original subtotal >= 80,000 → free delivery (0)
-    // If original subtotal < 80,000 → add 5,000 delivery fee
-    const feeBaseAmount = subtotal >= DELIVERY_FREE_THRESHOLD ? 0 : DELIVERY_BASE_FEE;
-    const extraDistanceMeters = Math.max(distanceMeters - DELIVERY_BASE_DISTANCE_METERS, 0);
-    const extraDistanceKm = extraDistanceMeters > 0 ? Math.ceil(extraDistanceMeters / 1000) : 0;
-    const feeExtraAmount = extraDistanceKm * DELIVERY_EXTRA_FEE_PER_KM;
-    const deliveryFee = roundCurrency(feeBaseAmount + feeExtraAmount);
+    // Simple delivery pricing - NO distance-based surcharges
+    // >= 80,000 sum → FREE delivery
+    // < 80,000 sum → 5,000 sum (flat rate)
+    const deliveryFee = subtotal >= DELIVERY_FREE_THRESHOLD ? 0 : DELIVERY_BASE_FEE;
     const totalAmount = roundCurrency(merchandiseTotal + deliveryFee);
 
     return {
@@ -145,8 +141,8 @@ export class DeliveryQuoteService {
       distanceMeters,
       etaMinutes,
       feeRuleCode: DELIVERY_PRICING_RULE_CODE,
-      feeBaseAmount,
-      feeExtraAmount,
+      feeBaseAmount: deliveryFee,  // Full fee is the base (no extras)
+      feeExtraAmount: 0,            // No distance-based extra charges
       routeSource,
     };
   }
