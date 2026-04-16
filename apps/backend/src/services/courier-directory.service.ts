@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client';
 import { UserRoleEnum } from '@turon/shared';
 import { prisma } from '../lib/prisma.js';
 import { CourierStatsService } from './courier-stats.service.js';
+import { notifyUserRoleUpdate } from './telegram-bot.service.js';
 
 type DbClient = Prisma.TransactionClient | typeof prisma;
 
@@ -210,6 +211,10 @@ export class CourierDirectoryService {
     if (!freshCourier) {
       throw new Error("Kuryerni saqlab bo'lmadi");
     }
+
+    // Notify the user via Telegram so their bot panel updates to Courier mode
+    // fire-and-forget — fails silently if user hasn't started the bot yet
+    void notifyUserRoleUpdate(freshCourier.telegramId, UserRoleEnum.COURIER).catch(() => {});
 
     return serializeAdminCourier(freshCourier);
   }

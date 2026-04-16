@@ -944,6 +944,135 @@ function bindHandlers(bot: Telegraf) {
   });
 }
 
+// ─── Broadcast ────────────────────────────────────────────────────────────────
+
+const BROADCAST_SETTING_KEY = '_bot_last_broadcast';
+const BROADCAST_INTERVAL_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
+const BROADCAST_HOUR_UTC = 15; // 20:00 Uzbekistan (UTC+5)
+
+// 8 varied, engaging messages — rotate to avoid boredom
+const BROADCAST_MESSAGES = [
+  // 1 – evening craving
+  `🔥 <b>Kechqurun ovqat masalasi hal!</b>\n\nTuron kafening issiq taomlaridan buyurtma bering — 30 daqiqada eshigingizda.\n\n😋 Lagman, kabob, palov... qaysi birini tanlaysiz?`,
+
+  // 2 – speed angle
+  `⚡ <b>2 daqiqada buyurtma — 30 minutda uyda!</b>\n\nOshxona bilan ovora bo'lmasangiz ham bo'ladi 😄\n\nTuron kafe har kuni siz uchun tayyor!`,
+
+  // 3 – quality hook
+  `👨‍🍳 <b>Oshpaz yangi pishirgan — kuryer yo'lda!</b>\n\nFaqat yangi mahsulotlar, har kuni yangi ta'm.\n\nBugun Turon kafening menyusidan tanlang 🍽️`,
+
+  // 4 – emoji-rich food list
+  `🥩 Kabob &nbsp;|&nbsp; 🍜 Lagman &nbsp;|&nbsp; 🍛 Palov\n\n<b>Qaysi birini buyurtma qilasiz?</b>\n\nTuron kafe — Toshkent lazzati uyingizda! 🏠`,
+
+  // 5 – social warmth
+  `🌆 <b>Kechki ovqat vaqti keldi!</b>\n\nOila bilan, do'stlar bilan — Turon kafe barcha uchun.\n\nBuyurtma bering, biz yetkazamiz 🚗`,
+
+  // 6 – fun & punchy
+  `😋 <b>Qorin och bo'lishi kerak...</b>\n\nBitta buyurtma — va muammo hal! Tez, oson, mazali.\n\nTuron kafe siz bilan 🤝`,
+
+  // 7 – FOMO/popularity
+  `🏆 <b>Bugun yuzlab oila Turon kafe tanladi!</b>\n\nSiz ham qo'shiling — buyurtma berishga atigi 2 daqiqa ketadi 😊\n\nHar kuni yangi taomlar!`,
+
+  // 8 – weekend vibe
+  `🎉 <b>Dam olish kuni + mazali taom = mukammal kech!</b>\n\nTuron kafening to'liq menyusini ko'ring va sevimlingizni buyurtma qiling 🍽️`,
+];
+
+function pickBroadcastMessage(): string {
+  // Rotate deterministically so consecutive runs give different messages
+  const dayIndex = Math.floor(Date.now() / BROADCAST_INTERVAL_MS);
+  return BROADCAST_MESSAGES[dayIndex % BROADCAST_MESSAGES.length];
+}
+
+function calcNextBroadcastMs(lastTimestamp: number): number {
+  const now = Date.now();
+  // Earliest allowed time = 3 days after last broadcast
+  const earliest = lastTimestamp > 0 ? lastTimestamp + BROADCAST_INTERVAL_MS : now;
+
+  // Find the next BROADCAST_HOUR_UTC o'clock that is >= earliest
+  const candidate = new Date(earliest);
+  candidate.setUTCHours(BROADCAST_HOUR_UTC, 0, 0, 0);
+  if (candidate.getTime() <= earliest) {
+    candidate.setUTCDate(candidate.getUTCDate() + 1);
+  }
+
+  return candidate.getTime();
+}
+
+async function sendBroadcastToAllCustomers(bot: Telegraf): Promise<void> {
+  const customers = await prisma.user.findMany({
+    where: { role: UserRoleEnum.CUSTOMER as any, isActive: true },
+    select: { telegramId: true },
+  });
+
+  const text = pickBroadcastMessage();
+  const launchUrl = resolveMiniAppLaunchUrl('customer');
+  const keyboard = Markup.inlineKeyboard([[Markup.button.webApp('🛒 Buyurtma qilish', launchUrl)]]);
+
+  let sent = 0;
+  let failed = 0;
+
+  for (const customer of customers) {
+    if (!customer.telegramId) continue;
+    const chatId = Number(customer.telegramId);
+
+    try {
+      // Delete old start message so chat stays clean
+      const prevId = await getStoredMessageId(chatId);
+      if (prevId) {
+        try { await bot.telegram.deleteMessage(chatId, prevId); } catch { /* gone */ }
+        void clearStoredMessageId(chatId);
+      }
+
+      const sentMsg = await bot.telegram.sendMessage(chatId, text, {
+        parse_mode: 'HTML',
+        ...keyboard,
+      });
+      void storeMessageId(chatId, sentMsg.message_id);
+      sent++;
+    } catch {
+      failed++; // user blocked bot or never started — expected
+    }
+
+    // Telegram rate limit: ~30 msg/s across all chats
+    if ((sent + failed) % 25 === 0) {
+      await new Promise<void>((r) => setTimeout(r, 1000));
+    }
+  }
+
+  console.log(`[Bot] Broadcast done — sent: ${sent}, skipped: ${failed}`);
+}
+
+async function scheduleBroadcast(bot: Telegraf): Promise<void> {
+  let lastTimestamp = 0;
+  try {
+    const row = await prisma.restaurantSetting.findUnique({
+      where: { key: BROADCAST_SETTING_KEY },
+      select: { value: true },
+    });
+    lastTimestamp = row?.value ? parseInt(row.value, 10) : 0;
+  } catch { /* non-fatal */ }
+
+  const nextMs = calcNextBroadcastMs(lastTimestamp);
+  const delayMs = Math.max(0, nextMs - Date.now());
+
+  console.log(`[Bot] Next broadcast in ${Math.round(delayMs / 60_000)} min (${new Date(nextMs).toISOString()})`);
+
+  setTimeout(async () => {
+    try {
+      await sendBroadcastToAllCustomers(bot);
+      await prisma.restaurantSetting.upsert({
+        where: { key: BROADCAST_SETTING_KEY },
+        update: { value: String(Date.now()) },
+        create: { key: BROADCAST_SETTING_KEY, value: String(Date.now()), dataType: 'number' },
+      });
+    } catch (err) {
+      console.error('[Bot] Broadcast error:', err);
+    }
+    // Schedule the next one
+    void scheduleBroadcast(bot);
+  }, delayMs);
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export async function launchTelegramBot(context: BotLaunchContext): Promise<Telegraf> {
@@ -969,6 +1098,9 @@ export async function launchTelegramBot(context: BotLaunchContext): Promise<Tele
 
       // Set the persistent menu button so users never need to type /start
       void setupMenuButton(state.bot);
+
+      // Start 3-day broadcast scheduler
+      void scheduleBroadcast(state.bot);
     })
     .catch((error) => {
       state.launched = false;
@@ -1089,6 +1221,28 @@ export async function sendOrderNotificationToAdmin(payload: {
     }
   } catch (err) {
     console.error('[Bot] sendOrderNotificationToAdmin error:', err);
+  }
+}
+
+/**
+ * Called when a user's role changes (e.g. customer promoted to courier).
+ * Clears the role cache and pushes a new start message so the user sees
+ * the correct panel immediately without re-sending /start.
+ */
+export async function notifyUserRoleUpdate(telegramId: bigint, newRole: UserRoleEnum): Promise<void> {
+  // Bust role cache so the next /start reads fresh from DB
+  roleCache.delete(String(telegramId));
+
+  const state = getBotState();
+  if (!state.handlersBound) {
+    bindHandlers(state.bot);
+    state.handlersBound = true;
+  }
+
+  try {
+    await sendOrUpdateStartMessage(state.bot, Number(telegramId), newRole);
+  } catch {
+    // User may not have started the bot yet — silently ignore (403 from Telegram)
   }
 }
 
