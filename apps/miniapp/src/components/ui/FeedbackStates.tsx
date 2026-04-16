@@ -2,7 +2,7 @@ import React from 'react';
 import { AlertCircle, AlertTriangle, Home, RefreshCw, ShieldAlert } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-// ─── TuronSplashScreen - Full logo image ──────────────────────────────────────
+// ─── TuronSplashScreen - Centered logo on red background ──────────────────────
 
 export const LoadingScreen: React.FC<{ message?: string }> = () => {
   return (
@@ -13,7 +13,7 @@ export const LoadingScreen: React.FC<{ message?: string }> = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: '#D32F2F',
+        background: '#C62828',
         overflow: 'hidden',
         position: 'relative',
       }}
@@ -22,12 +22,9 @@ export const LoadingScreen: React.FC<{ message?: string }> = () => {
         src="/turon-splash.png"
         alt="Turon Kafesi"
         style={{
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-          position: 'absolute',
-          top: 0,
-          left: 0,
+          width: '85%',
+          maxWidth: 360,
+          objectFit: 'contain',
         }}
       />
     </div>
