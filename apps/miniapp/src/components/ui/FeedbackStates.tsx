@@ -2,223 +2,35 @@ import React from 'react';
 import { AlertCircle, AlertTriangle, Home, RefreshCw, ShieldAlert } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-// ─── 3-D food carousel data ───────────────────────────────────────────────────
-
-const FOOD_ITEMS = [
-  { emoji: '🍔', label: 'Burger', glow: '#f59e0b', glow2: '#ef4444' },
-  { emoji: '🍗', label: 'Qovurilgan tovuq', glow: '#ef4444', glow2: '#f97316' },
-  { emoji: '🥩', label: 'Steyk', glow: '#e11d48', glow2: '#dc2626' },
-  { emoji: '🍕', label: 'Pizza', glow: '#f97316', glow2: '#fbbf24' },
-  { emoji: '🌯', label: 'Sharwarma', glow: '#fbbf24', glow2: '#f59e0b' },
-  { emoji: '🥗', label: 'Yangi salat', glow: '#22c55e', glow2: '#84cc16' },
-  { emoji: '🍜', label: "Lag'mon", glow: '#a78bfa', glow2: '#818cf8' },
-  { emoji: '🍱', label: "Kombo to'plam", glow: '#38bdf8', glow2: '#60a5fa' },
-];
-
-/** How long each food item stays on screen (ms). All animations are sync'd to this. */
-const ITEM_MS = 2_200;
-
-/**
- * Orbiting sparkle dots that circle the emoji.
- * r = orbit radius (px), dur = full revolution (s), delay = pre-offset (s, negative = start mid-orbit)
- */
-const ORBITS = [
-  { r: 84, dur: 3.4, delay: 0, size: 5 },
-  { r: 100, dur: 4.7, delay: -1.9, size: 4 },
-  { r: 112, dur: 5.3, delay: -3.2, size: 3 },
-  { r: 70, dur: 2.9, delay: -0.8, size: 4 },
-];
-
-// ─── TuronSplashScreen - RED TURON BRANDING ───────────────────────────────────
+// ─── TuronSplashScreen - Full logo image ──────────────────────────────────────
 
 export const LoadingScreen: React.FC<{ message?: string }> = () => {
   return (
-    <>
-      <style>{`
-        /* ── Rotating dish animation ────────────────────────────────────────── */
-        @keyframes dishRotate {
-          0%   { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-
-        /* ── Burger entry animation ──────────────────────────────────────────── */
-        @keyframes burgerEntry {
-          0%   { opacity: 0; transform: translateY(20px) scale(0.8); }
-          100% { opacity: 1; transform: translateY(0) scale(1); }
-        }
-
-        /* ── Text fade in ────────────────────────────────────────────────────── */
-        @keyframes textFadeIn {
-          0%   { opacity: 0; }
-          30%  { opacity: 1; }
-          100% { opacity: 1; }
-        }
-
-        /* ── Loading dots animation ──────────────────────────────────────────── */
-        @keyframes dotPulse {
-          0%,100% { opacity: 0.3; transform: scale(1); }
-          50%     { opacity: 1; transform: scale(1.2); }
-        }
-      `}</style>
-
-      <div
+    <div
+      style={{
+        minHeight: '100dvh',
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#D32F2F',
+        overflow: 'hidden',
+        position: 'relative',
+      }}
+    >
+      <img
+        src="/turon-splash.png"
+        alt="Turon Kafesi"
         style={{
-          minHeight: '100dvh',
           width: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: '#D32F2F',
-          overflow: 'hidden',
-          position: 'relative',
-          userSelect: 'none',
+          height: '100%',
+          objectFit: 'cover',
+          position: 'absolute',
+          top: 0,
+          left: 0,
         }}
-      >
-        {/* ── Turon Logo with Rotating Dish in O ────────────────────────────── */}
-        <div
-          style={{
-            animation: 'textFadeIn 1s ease-out forwards',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            marginBottom: 32,
-          }}
-        >
-          {/* TUR text */}
-          <span
-            style={{
-              fontSize: 72,
-              fontWeight: 900,
-              color: '#fff',
-              letterSpacing: '0.02em',
-              textShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-              lineHeight: 1,
-            }}
-          >
-            TUR
-          </span>
-
-          {/* Rotating Dish Circle (O) */}
-          <div
-            style={{
-              position: 'relative',
-              width: 80,
-              height: 80,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {/* Outer decorative ring - rotating */}
-            <div
-              style={{
-                position: 'absolute',
-                width: 80,
-                height: 80,
-                borderRadius: '50%',
-                border: '3px solid #fff',
-                animation: 'dishRotate 4s linear infinite',
-              }}
-            />
-
-            {/* Inner decorative circle */}
-            <div
-              style={{
-                position: 'absolute',
-                width: 70,
-                height: 70,
-                borderRadius: '50%',
-                border: '2px dashed rgba(255,255,255,0.6)',
-              }}
-            />
-
-            {/* Center dish emoji - rotating */}
-            <div
-              style={{
-                fontSize: 48,
-                lineHeight: 1,
-                animation: 'dishRotate 6s linear infinite',
-                textShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
-              }}
-            >
-              🍛
-            </div>
-          </div>
-
-          {/* N text */}
-          <span
-            style={{
-              fontSize: 72,
-              fontWeight: 900,
-              color: '#fff',
-              letterSpacing: '0.02em',
-              textShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-              lineHeight: 1,
-            }}
-          >
-            N
-          </span>
-        </div>
-
-        {/* ── Brand tagline ────────────────────────────────────────────────────── */}
-        <div
-          style={{
-            animation: 'textFadeIn 1.2s ease-out forwards',
-            textAlign: 'center',
-            marginBottom: 48,
-          }}
-        >
-          <p
-            style={{
-              margin: '0 0 4px',
-              fontSize: 13,
-              fontWeight: 600,
-              color: 'rgba(255, 255, 255, 0.85)',
-              letterSpacing: '0.14em',
-              textTransform: 'uppercase',
-            }}
-          >
-            Kafesi
-          </p>
-          <p
-            style={{
-              margin: 0,
-              fontSize: 10,
-              fontWeight: 500,
-              color: 'rgba(255, 255, 255, 0.6)',
-              letterSpacing: '0.12em',
-            }}
-          >
-            Mazali Taomlar
-          </p>
-        </div>
-
-        {/* ── Loading dots ────────────────────────────────────────────────────────── */}
-        <div
-          style={{
-            display: 'flex',
-            gap: 10,
-            animation: 'textFadeIn 1.4s ease-out forwards',
-          }}
-        >
-          {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                background: 'rgba(255, 255, 255, 0.7)',
-                animation: 'dotPulse 1.4s ease-in-out infinite',
-                animationDelay: `${i * 0.2}s`,
-              }}
-            />
-          ))}
-        </div>
-      </div>
-    </>
+      />
+    </div>
   );
 };
 
