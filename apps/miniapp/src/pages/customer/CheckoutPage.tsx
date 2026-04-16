@@ -372,9 +372,11 @@ const CheckoutPage: React.FC = () => {
           ) : null}
         </CheckoutSectionCard>
 
-        <CheckoutSectionCard title="Chegirma kodi">
-          <CustomerPromoInputCard subtotal={subtotal} compact />
-        </CheckoutSectionCard>
+        {appliedPromo ? (
+          <CheckoutSectionCard title="Chegirma kodi">
+            <CustomerPromoInputCard subtotal={subtotal} compact />
+          </CheckoutSectionCard>
+        ) : null}
 
         <CheckoutSectionCard title="Buyurtma xulosasi">
           <OrderSummaryCard
