@@ -113,28 +113,26 @@ const PaymentMethodSelector: React.FC = () => {
       <button
         type="button"
         onClick={() => setPaymentMethod(PaymentMethod.CASH)}
-        className={`relative flex w-full items-center gap-3 rounded-[12px] border p-3 text-left transition-all active:scale-[0.985] ${
-          paymentMethod === PaymentMethod.CASH
-            ? 'border-amber-300/25 bg-amber-400/10 shadow-[0_12px_24px_rgba(245,158,11,0.14)]'
-            : 'border-white/8 bg-white/[0.04]'
-        }`}
+        className={`relative flex w-full items-center gap-3 rounded-[16px] border p-3 text-left transition-all active:scale-[0.97] ${paymentMethod === PaymentMethod.CASH
+            ? 'border-emerald-300/40 bg-emerald-50 shadow-sm shadow-emerald-100'
+            : 'border-slate-200 bg-white'
+          }`}
       >
         <div
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-gradient-to-br ${
-            paymentMethod === PaymentMethod.CASH
-              ? 'from-amber-300 to-orange-500 text-slate-950'
-              : 'from-emerald-400 to-emerald-500 text-white'
-          }`}
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-gradient-to-br ${paymentMethod === PaymentMethod.CASH
+              ? 'from-emerald-400 to-emerald-500 text-white'
+              : 'from-emerald-300 to-emerald-400 text-white'
+            }`}
         >
           <Banknote size={20} />
         </div>
         <div className="min-w-0 flex-1">
-          <h4 className="text-sm font-black tracking-tight text-white">Naqd pul</h4>
-          <p className="mt-1 text-xs font-semibold text-white/62">Buyurtma topshirilganda to'laysiz</p>
-          <p className="mt-1.5 text-[11px] font-semibold text-white/38">Eng sodda va ishonchli usul</p>
+          <h4 className="text-sm font-black tracking-tight text-slate-950">Naqd pul</h4>
+          <p className="mt-1 text-xs font-semibold text-slate-600">Buyurtma topshirilganda to'laysiz</p>
+          <p className="mt-1.5 text-[11px] font-semibold text-slate-500">Eng sodda va ishonchli usul</p>
         </div>
         {paymentMethod === PaymentMethod.CASH && (
-          <div className="absolute right-4 top-4 text-amber-300">
+          <div className="absolute right-4 top-4 text-emerald-500">
             <CheckCircle2 size={22} />
           </div>
         )}
@@ -142,38 +140,36 @@ const PaymentMethodSelector: React.FC = () => {
 
       {/* ── Karta orqali to'lov ── */}
       <div
-        className={`rounded-[12px] border transition-all ${
-          paymentMethod === PaymentMethod.MANUAL_TRANSFER
-            ? 'border-sky-300/25 bg-sky-400/10 shadow-[0_12px_24px_rgba(56,189,248,0.12)]'
-            : 'border-white/8 bg-white/[0.04]'
-        }`}
+        className={`rounded-[16px] border transition-all ${paymentMethod === PaymentMethod.MANUAL_TRANSFER
+            ? 'border-sky-300/40 bg-sky-50 shadow-sm shadow-sky-100'
+            : 'border-slate-200 bg-white'
+          }`}
       >
         {/* Method row */}
         <button
           type="button"
           onClick={() => setPaymentMethod(PaymentMethod.MANUAL_TRANSFER)}
-          className="relative flex w-full items-center gap-3 p-3 text-left transition-all active:scale-[0.985]"
+          className="relative flex w-full items-center gap-3 p-3 text-left transition-all active:scale-[0.97]"
         >
           <div
-            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-gradient-to-br ${
-              paymentMethod === PaymentMethod.MANUAL_TRANSFER
-                ? 'from-amber-300 to-orange-500 text-slate-950'
-                : 'from-sky-400 to-blue-500 text-white'
-            }`}
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-gradient-to-br ${paymentMethod === PaymentMethod.MANUAL_TRANSFER
+                ? 'from-sky-400 to-blue-500 text-white'
+                : 'from-sky-300 to-blue-400 text-white'
+              }`}
           >
             <CreditCard size={20} />
           </div>
           <div className="min-w-0 flex-1">
-            <h4 className="text-sm font-black tracking-tight text-white">Karta orqali to'lov</h4>
-            <p className="mt-1 text-xs font-semibold text-white/62">
+            <h4 className="text-sm font-black tracking-tight text-slate-950">Karta orqali to'lov</h4>
+            <p className="mt-1 text-xs font-semibold text-slate-600">
               Kartaga o'tkazmani amalga oshiring
             </p>
-            <p className="mt-1.5 text-[11px] font-semibold text-white/38">
+            <p className="mt-1.5 text-[11px] font-semibold text-slate-500">
               Chekni yuklang — admin tasdiqlaydi
             </p>
           </div>
           {paymentMethod === PaymentMethod.MANUAL_TRANSFER && (
-            <div className="absolute right-4 top-4 text-amber-300">
+            <div className="absolute right-4 top-4 text-sky-500">
               <CheckCircle2 size={22} />
             </div>
           )}
@@ -181,36 +177,34 @@ const PaymentMethodSelector: React.FC = () => {
 
         {/* Expanded card info — visible when selected */}
         {paymentMethod === PaymentMethod.MANUAL_TRANSFER && (
-          <div className="border-t border-white/8 px-3 pb-3 pt-2 space-y-3">
+          <div className="border-t border-slate-200 px-3 pb-3 pt-2 space-y-3">
             {/* Card number — tap to copy */}
             <div>
-              <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-white/40">
+              <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
                 Karta raqami
               </p>
               <button
                 type="button"
                 onClick={() => void handleCopyCard()}
-                className={`flex w-full items-center justify-between gap-3 rounded-[10px] border px-4 py-3 text-left transition-all active:scale-[0.98] ${
-                  copiedCard
-                    ? 'border-emerald-400/30 bg-emerald-400/12'
-                    : 'border-sky-400/20 bg-sky-400/8 hover:bg-sky-400/14'
-                }`}
+                className={`flex w-full items-center justify-between gap-3 rounded-[12px] border px-4 py-3 text-left transition-all active:scale-[0.97] ${copiedCard
+                    ? 'border-emerald-300/40 bg-emerald-50'
+                    : 'border-slate-200 bg-white hover:bg-slate-50'
+                  }`}
               >
-                <span className="font-mono text-[18px] font-black tracking-[0.15em] text-white">
+                <span className="font-mono text-[16px] font-black tracking-[0.15em] text-slate-950">
                   {CARD_NUMBER}
                 </span>
                 <span
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors ${
-                    copiedCard
-                      ? 'bg-emerald-400/20 text-emerald-300'
-                      : 'bg-white/10 text-white/60'
-                  }`}
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors ${copiedCard
+                      ? 'bg-emerald-100 text-emerald-600'
+                      : 'bg-slate-100 text-slate-600'
+                    }`}
                 >
                   {copiedCard ? <CheckCircle2 size={16} /> : <Copy size={16} />}
                 </span>
               </button>
               {copiedCard && (
-                <p className="mt-1.5 text-[11px] font-semibold text-emerald-300">
+                <p className="mt-1.5 text-[11px] font-semibold text-emerald-600">
                   Karta raqami nusxalandi ✓
                 </p>
               )}
@@ -218,7 +212,7 @@ const PaymentMethodSelector: React.FC = () => {
 
             {/* Check upload */}
             <div>
-              <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-white/40">
+              <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
                 To'lov cheki (screenshot yoki rasm)
               </p>
               {receiptPreview ? (
@@ -226,17 +220,17 @@ const PaymentMethodSelector: React.FC = () => {
                   <img
                     src={receiptPreview}
                     alt="Chek"
-                    className="w-full rounded-[10px] object-cover"
+                    className="w-full rounded-[12px] object-cover border border-slate-200"
                     style={{ maxHeight: '200px' }}
                   />
                   <button
                     type="button"
                     onClick={handleRemoveReceipt}
-                    className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-slate-950/80 text-white"
+                    className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-md text-slate-950"
                   >
                     <X size={14} />
                   </button>
-                  <div className="absolute bottom-2 left-2 rounded-full bg-emerald-500/90 px-3 py-1 text-[10px] font-black text-white">
+                  <div className="absolute bottom-2 left-2 rounded-full bg-emerald-500 px-3 py-1 text-[10px] font-black text-white">
                     ✓ Chek yuklandi
                   </div>
                 </div>
@@ -244,18 +238,18 @@ const PaymentMethodSelector: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex w-full flex-col items-center justify-center gap-2 rounded-[10px] border-2 border-dashed border-white/15 bg-white/[0.03] py-5 transition-colors active:bg-white/[0.06]"
+                  className="flex w-full flex-col items-center justify-center gap-2 rounded-[12px] border-2 border-dashed border-slate-300 bg-slate-50 py-5 transition-colors active:bg-slate-100"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-400/15 text-sky-300">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-100 text-sky-600">
                     <Camera size={20} />
                   </div>
                   <div className="text-center">
-                    <p className="text-[13px] font-black text-white/80">Chekni yuklang</p>
-                    <p className="mt-1 text-[11px] text-white/40">
+                    <p className="text-[13px] font-black text-slate-900">Chekni yuklang</p>
+                    <p className="mt-1 text-[11px] text-slate-600">
                       Galereyadan screenshot yoki rasm tanlang
                     </p>
                   </div>
-                  <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-[11px] font-black text-white/70">
+                  <div className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-black text-slate-700">
                     <ImageIcon size={12} />
                     <span>Rasm tanlash</span>
                   </div>
@@ -274,19 +268,19 @@ const PaymentMethodSelector: React.FC = () => {
       </div>
 
       {/* ── Click / Payme — tez kunda ── */}
-      <div className="relative flex w-full items-center gap-3 cursor-not-allowed rounded-[12px] border border-white/8 bg-white/[0.03] p-3 opacity-50">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-gradient-to-br from-slate-500 to-slate-600 text-white">
+      <div className="relative flex w-full items-center gap-3 cursor-not-allowed rounded-[16px] border border-slate-200 bg-slate-50 p-3 opacity-60">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-gradient-to-br from-slate-400 to-slate-500 text-white">
           <Smartphone size={20} />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h4 className="text-sm font-black tracking-tight text-white">Click / Payme</h4>
-            <span className="rounded-full border border-amber-400/30 bg-amber-400/15 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-amber-300">
+            <h4 className="text-sm font-black tracking-tight text-slate-950">Click / Payme</h4>
+            <span className="rounded-full border border-amber-300/60 bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-amber-700">
               Tez kunda
             </span>
           </div>
-          <p className="mt-1 text-xs font-semibold text-white/62">Tashqi ilova orqali to'lash</p>
-          <p className="mt-1.5 text-[11px] font-semibold text-white/38">
+          <p className="mt-1 text-xs font-semibold text-slate-600">Tashqi ilova orqali to'lash</p>
+          <p className="mt-1.5 text-[11px] font-semibold text-slate-500">
             Hozircha mavjud emas — yaqin orada
           </p>
         </div>

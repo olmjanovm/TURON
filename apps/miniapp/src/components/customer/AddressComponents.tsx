@@ -27,9 +27,8 @@ export const AddressCard: React.FC<{
 
   return (
     <div
-      className={`rounded-[12px] border p-3 transition-all ${
-        isSelected ? 'border-amber-300/20 bg-amber-400/10' : 'border-white/8 bg-[#111827]'
-      }`}
+      className={`rounded-[12px] border p-3 transition-all ${isSelected ? 'border-amber-300/20 bg-amber-400/10' : 'border-white/8 bg-[#111827]'
+        }`}
       onClick={() => onSelect(address.id)}
     >
       <div className="flex items-start gap-4">
@@ -97,17 +96,17 @@ export const SelectedAddressCard: React.FC<{
   const { formatText } = useCustomerLanguage();
 
   return (
-    <div className="rounded-[12px] border border-white/8 bg-[#111827] p-3 shadow-[0_12px_24px_rgba(2,6,23,0.2)]">
+    <div className="rounded-[16px] border border-slate-200 bg-white p-3 shadow-sm">
       <div className="flex items-start gap-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-white/[0.06] text-white">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-amber-100 text-amber-600">
           <MapPin size={20} />
         </div>
         <div className="min-w-0 flex-1">
-          <h4 className="text-sm font-black tracking-tight text-white">{formatText(address.label)}</h4>
-          <p className="mt-0.5 text-[12px] leading-relaxed text-white/62 line-clamp-2">{formatText(address.addressText)}</p>
+          <h4 className="text-sm font-black tracking-tight text-slate-950">{formatText(address.label)}</h4>
+          <p className="mt-0.5 text-[12px] leading-relaxed text-slate-600 line-clamp-2">{formatText(address.addressText)}</p>
 
           {address.note ? (
-            <div className="mt-2 inline-flex max-w-full items-center gap-2 rounded-full border border-white/8 bg-white/[0.06] px-2.5 py-1.5 text-[10px] font-semibold text-white/60">
+            <div className="mt-2 inline-flex max-w-full items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[10px] font-semibold text-slate-600">
               <MessageCircle size={11} />
               <span className="truncate">{formatText(address.note)}</span>
             </div>
@@ -115,13 +114,13 @@ export const SelectedAddressCard: React.FC<{
 
           {routeInfo ? (
             <div className="mt-3 flex flex-wrap gap-2">
-              <div className="rounded-full border border-white/8 bg-white/[0.06] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-white/66">
+              <div className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700">
                 <span className="flex items-center gap-1.5">
                   <Route size={11} />
                   {routeInfo.distance}
                 </span>
               </div>
-              <div className="rounded-full border border-emerald-300/16 bg-emerald-400/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-200">
+              <div className="rounded-full border border-emerald-300/40 bg-emerald-50 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700">
                 <span className="flex items-center gap-1.5">
                   <Clock3 size={11} />
                   {routeInfo.eta}
@@ -136,7 +135,7 @@ export const SelectedAddressCard: React.FC<{
           onClick={onAction}
           aria-label={actionLabel}
           title={actionLabel}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-950 shadow-[0_10px_20px_rgba(255,255,255,0.08)]"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-400 text-white shadow-sm active:scale-95 transition-transform"
         >
           <Edit2 size={18} />
         </button>
@@ -177,11 +176,10 @@ export const GeoLocationButton: React.FC<{
       type="button"
       onClick={onClick}
       disabled={loading || disabled}
-      className={`flex h-12 w-full items-center justify-center gap-3 rounded-[12px] border text-sm font-black uppercase tracking-[0.14em] transition-all ${
-        loading || disabled
+      className={`flex h-12 w-full items-center justify-center gap-3 rounded-[12px] border text-sm font-black uppercase tracking-[0.14em] transition-all ${loading || disabled
           ? 'border-white/8 bg-white/[0.04] text-white/36'
           : 'border-white/10 bg-white text-slate-950 shadow-[0_18px_36px_rgba(255,255,255,0.08)]'
-      }`}
+        }`}
     >
       {loading ? (
         <>
