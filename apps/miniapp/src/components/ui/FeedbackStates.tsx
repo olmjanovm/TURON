@@ -2,32 +2,53 @@ import React from 'react';
 import { AlertCircle, AlertTriangle, Home, RefreshCw, ShieldAlert } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-// ─── TuronSplashScreen - Centered logo on red background ──────────────────────
+// ─── TuronSplashScreen - Animated centered logo ───────────────────────────────
 
 export const LoadingScreen: React.FC<{ message?: string }> = () => {
   return (
-    <div
-      style={{
-        minHeight: '100dvh',
-        width: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#C62828',
-        overflow: 'hidden',
-        position: 'relative',
-      }}
-    >
-      <img
-        src="/turon-splash.png"
-        alt="Turon Kafesi"
+    <>
+      <style>{`
+        @keyframes turon-splash-in {
+          0%   { opacity: 0; transform: scale(0.72); }
+          60%  { opacity: 1; transform: scale(1.04); }
+          80%  { transform: scale(0.98); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes turon-bg-in {
+          0%   { opacity: 0; }
+          100% { opacity: 1; }
+        }
+        @keyframes turon-pulse {
+          0%, 100% { transform: scale(1); }
+          50%      { transform: scale(1.015); }
+        }
+      `}</style>
+
+      <div
         style={{
-          width: '85%',
-          maxWidth: 360,
-          objectFit: 'contain',
+          minHeight: '100dvh',
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#C62828',
+          overflow: 'hidden',
+          animation: 'turon-bg-in 0.3s ease-out forwards',
         }}
-      />
-    </div>
+      >
+        <img
+          src="/turon-splash.png"
+          alt="Turon Kafesi"
+          style={{
+            width: '90%',
+            maxWidth: 400,
+            objectFit: 'contain',
+            animation:
+              'turon-splash-in 0.75s cubic-bezier(0.34,1.56,0.64,1) 0.1s both, turon-pulse 3s ease-in-out 1s infinite',
+          }}
+        />
+      </div>
+    </>
   );
 };
 
