@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronRight, Globe2, MapPinned, HelpCircle, Info, LogOut, Heart, Clock, CreditCard, Bell, Shield } from 'lucide-react';
+import { ChevronRight, Globe2, MapPinned, HelpCircle, Info, Heart, Clock, CreditCard, Bell, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '../../hooks/useTelegram';
 import { useAddresses } from '../../hooks/queries/useAddresses';
@@ -8,15 +8,10 @@ import { customerLanguageOptions, useCustomerLanguage } from '../../features/i18
 
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
   const { tg } = useTelegram();
   const { data: addresses = [] } = useAddresses();
   const { language, setLanguage, tr } = useCustomerLanguage();
-
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
 
   // Get initials from user name
   const initials = user?.fullName
@@ -197,16 +192,6 @@ const ProfilePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Logout - Bottom Secondary Button */}
-      <div className="mx-4 mt-10 mb-4">
-        <button
-          onClick={handleLogout}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-100 py-3 font-semibold text-slate-700 transition-colors hover:bg-slate-200 active:bg-slate-300"
-        >
-          <LogOut size={16} />
-          <span>Tizimdan chiqish</span>
-        </button>
-      </div>
     </div>
   );
 };
