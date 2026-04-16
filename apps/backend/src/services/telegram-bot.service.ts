@@ -991,15 +991,31 @@ const BROADCAST_SETTING_KEY = '_bot_last_broadcast';
 const BROADCAST_INTERVAL_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
 const BROADCAST_HOUR_UTC = 15; // 20:00 Uzbekistan (UTC+5)
 
-async function getPopularMenuItemNames(): Promise<string[]> {
+const FREE_DELIVERY_THRESHOLD = 80_000;
+
+// Drinks are never mentioned in broadcast — we only promote food
+const DRINK_PATTERN = /pepsi|cola|sprite|fanta|sharbat|limonad|mors|kompot|choy|kofe|qahva|mineral|ayron|kefir|yogurt|juice|sut|lassi/i;
+
+interface PopularItem { nameUz: string; price: number; }
+
+async function getPopularMenuItems(): Promise<PopularItem[]> {
   try {
     const items = await prisma.menuItem.findMany({
-      where: { isActive: true, availabilityStatus: 'AVAILABLE' as any, isPopular: true },
-      select: { nameUz: true },
+      where: {
+        isActive: true,
+        availabilityStatus: 'AVAILABLE' as any,
+        isPopular: true,
+        // Exclude drinks by name heuristic at DB level isn't possible,
+        // so we filter in-memory below
+      },
+      select: { nameUz: true, price: true },
       orderBy: { sortOrder: 'asc' },
-      take: 4,
+      take: 8, // fetch more so we have enough after filtering drinks
     });
-    return items.map((i) => i.nameUz).filter(Boolean);
+    return items
+      .filter((i) => !DRINK_PATTERN.test(i.nameUz))
+      .slice(0, 4)
+      .map((i) => ({ nameUz: i.nameUz, price: Number(i.price) }));
   } catch {
     return [];
   }
@@ -1034,12 +1050,13 @@ async function buildFavoriteItemMap(userIds: string[]): Promise<Map<string, stri
       m.set(row.itemName, (m.get(row.itemName) ?? 0) + row.quantity);
     }
 
-    // Pick the top item per user
+    // Pick the top FOOD item per user (skip drinks)
     const result = new Map<string, string>();
     for (const [userId, itemMap] of agg) {
       let bestItem = '';
       let bestQty = 0;
       for (const [name, qty] of itemMap) {
+        if (DRINK_PATTERN.test(name)) continue; // never promote drinks
         if (qty > bestQty) { bestQty = qty; bestItem = name; }
       }
       if (bestItem) result.set(userId, bestItem);
@@ -1049,9 +1066,6 @@ async function buildFavoriteItemMap(userIds: string[]): Promise<Map<string, stri
     return new Map();
   }
 }
-
-// Drinks should never be described as "issiq pishirilgan"
-const DRINK_PATTERN = /pepsi|cola|sprite|fanta|sharbat|limonad|mors|kompot|choy|kofe|qahva|mineral|ayron|kefir|yogurt|juice|sut|lassi/i;
 
 async function getActivePromoLine(): Promise<string | null> {
   try {
@@ -1079,46 +1093,46 @@ async function getActivePromoLine(): Promise<string | null> {
   }
 }
 
+function fmtPrice(price: number): string {
+  return `${Math.round(price).toLocaleString('uz-UZ')} so'm`;
+}
+
 function buildBroadcastText(
   favItem: string | null,
-  popularItems: string[],
+  popularItems: PopularItem[],
   promoLine: string | null,
 ): string {
   const variant = Math.floor(Date.now() / BROADCAST_INTERVAL_MS) % 3;
+  const freeDeliveryLine = `${FREE_DELIVERY_THRESHOLD.toLocaleString('uz-UZ')} so'mdan ortiq buyurtmada yetkazish <b>bepul</b>!`;
   let main: string;
 
   if (favItem) {
+    // Personalized — user has a known favorite food item
     const item = escapeHtml(favItem);
-    if (DRINK_PATTERN.test(favItem)) {
-      // Drink — no cooking/temperature references
-      const opts = [
-        `Sizning sevimlingiz — ${item} bor! 😊\n\nBuyurtma bering, yetkazib beramiz.`,
-        `${item} — bugun ham menyuda 🥤\n\nBuyurtma qiling!`,
-        `${item} xohlaysizmi?\n\nBuyurtma bering 🛒`,
-      ];
-      main = opts[variant];
-    } else {
-      // Food — can say hot/freshly cooked
-      const opts = [
-        `${item} — bugun yangi pishirildi 🍽️\n\nIssiq holda yetkazib beramiz.`,
-        `Sizning sevimli taomingiz — ${item} 😋\n\nBugun ham tayyor, issiq.`,
-        `${item} pishdi! 🔥\n\nBuyurtma qiling, issiq holda eshigingizga.`,
-      ];
-      main = opts[variant];
-    }
-  } else if (popularItems.length > 0) {
-    const list = popularItems.slice(0, 3).map(escapeHtml).join(', ');
     const opts = [
-      `Bugun menyumizda: ${list} 🍽️\n\nYangi pishirilgan, issiq.`,
-      `${list} — barchasi tayyor 🔥\n\nBugun buyurtma qilasizmi?`,
-      `Issiq taomlar tayyor: ${list} 😋\n\nBuyurtma qiling!`,
+      `${item} — bugun yangi pishirildi 🍽️\n\nIssiq holda yetkazib beramiz.\n${freeDeliveryLine}`,
+      `Sizning sevimli taomingiz — ${item} 😋\n\nBugun ham tayyor, issiq.\n${freeDeliveryLine}`,
+      `${item} pishdi! 🔥\n\nBuyurtma qiling, issiq holda eshigingizga.\n${freeDeliveryLine}`,
+    ];
+    main = opts[variant];
+  } else if (popularItems.length > 0) {
+    // Show popular food items with prices
+    const priceLines = popularItems
+      .slice(0, 3)
+      .map((i) => `${escapeHtml(i.nameUz)} — ${fmtPrice(i.price)}`)
+      .join('\n');
+    const opts = [
+      `Bugun menyumizda:\n\n${priceLines}\n\n${freeDeliveryLine}`,
+      `Issiq taomlar tayyor 🍽️\n\n${priceLines}\n\n${freeDeliveryLine}`,
+      `Yangi pishirilgan taomlar:\n\n${priceLines}\n\n${freeDeliveryLine}`,
     ];
     main = opts[variant];
   } else {
+    // Generic fallback
     const opts = [
-      `Bugun Turon kafesidan buyurtma qilasizmi? 🍽️\n\n30 daqiqada eshigingizda.`,
-      `Issiq taomlar tayyor 😋\n\nBuyurtma qiling, tez yetkazamiz.`,
-      `Bugun menyumiz boy 🍽️\n\nBir nazar tashlaysizmi?`,
+      `Bugun issiq taomlar tayyor 🍽️\n\n${freeDeliveryLine}`,
+      `Ovqat vaqti! 😋\n\nBuyurtma qiling, tez yetkazamiz.\n${freeDeliveryLine}`,
+      `Turon kafesidan buyurtma qilasizmi? 🍽️\n\n${freeDeliveryLine}`,
     ];
     main = opts[variant];
   }
@@ -1151,7 +1165,7 @@ async function sendBroadcastToAllCustomers(bot: Telegraf): Promise<void> {
   const userIds = customers.map((c) => c.id);
   const [favoriteItems, popularItems, promoLine] = await Promise.all([
     buildFavoriteItemMap(userIds),
-    getPopularMenuItemNames(),
+    getPopularMenuItems(),
     getActivePromoLine(),
   ]);
 
