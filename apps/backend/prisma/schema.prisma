@@ -325,6 +325,7 @@ model Order {
 
   items                    OrderItem[]
   payment                  Payment?
+  deliveryProofs           DeliveryProof[]
   courierAssignments       CourierAssignment[]
   courierAssignmentEvents  CourierAssignmentEvent[]
   courierPresenceSnapshots CourierPresence[]
@@ -464,6 +465,8 @@ model Payment {
   verifiedByAdminId String?           @map("admin_verified_by")
   verifiedAt        DateTime?         @map("verified_at")
   rejectionReason   String?           @map("rejection_reason")
+  receiptImageBase64 String?          @map("receipt_image_base64") @db.Text
+  receiptUploadedAt DateTime?         @map("receipt_uploaded_at")
   createdAt         DateTime          @default(now()) @map("created_at")
   updatedAt         DateTime          @updatedAt @map("updated_at")
   order             Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
@@ -471,6 +474,37 @@ model Payment {
 
   @@index([status, createdAt(sort: Desc)])
   @@map("payments")
+}
+
+model IdempotencyKey {
+  key               String    @id
+  orderId           String    @map("order_id")
+  responseJson      String    @db.Text
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("idempotency_keys")
+}
+
+model DeliveryProof {
+  id                String    @id @default(uuid())
+  orderId           String    @map("order_id")
+  courierAssignmentId String? @map("courier_assignment_id")
+  photoBase64       String?   @map("photo_base64") @db.Text
+  photoUrl          String?   @map("photo_url")
+  gpsLatitude       Decimal?  @map("gps_latitude") @db.Decimal(11, 8)
+  gpsLongitude      Decimal?  @map("gps_longitude") @db.Decimal(11, 8)
+  distanceMeters    Int?      @map("distance_meters")
+  customerOtp       String?   @map("customer_otp")
+  otpVerifiedAt     DateTime? @map("otp_verified_at")
+  signatureBase64   String?   @map("signature_base64") @db.Text
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  order             Order     @relation("DeliveryProofs", fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@map("delivery_proofs")
 }
 
 model Notification {

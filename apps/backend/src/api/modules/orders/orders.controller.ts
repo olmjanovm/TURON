@@ -444,7 +444,18 @@ export async function handleCreateOrder(
   reply: FastifyReply,
 ) {
   const user = request.user as any;
-  const { items, deliveryAddressId, paymentMethod, promoCode, note, receiptImageBase64 } = request.body as any;
+  const { items, deliveryAddressId, paymentMethod, promoCode, note, receiptImageBase64, idempotencyKey } = request.body as any;
+
+  // ── Idempotency check: if duplicate request, return cached order ──────────
+  if (idempotencyKey) {
+    const cached = await prisma.idempotencyKey.findUnique({
+      where: { key: idempotencyKey },
+    });
+    if (cached) {
+      const serializedOrder = await getSerializedOrder(cached.orderId);
+      return reply.status(200).send(serializedOrder);
+    }
+  }
 
   // ── Phone number is required to place an order ─────────────────────────────
   // Check JWT first; if absent there (old token), fall back to a quick DB read.
@@ -562,12 +573,28 @@ export async function handleCreateOrder(
                 : paymentMethod === 'EXTERNAL_PAYMENT'
                   ? 'External payment'
                   : null,
+            receiptImageBase64: paymentMethod === 'MANUAL_TRANSFER' ? receiptImageBase64 : null,
+            receiptUploadedAt: paymentMethod === 'MANUAL_TRANSFER' ? new Date() : null,
           },
         },
       },
       select: { id: true },
     });
   });
+
+  // ── Save idempotency key for duplicate detection ──────────────────────────
+  if (idempotencyKey) {
+    const serializedOrder = await getSerializedOrder(createdOrder.id);
+    await prisma.idempotencyKey.create({
+      data: {
+        key: idempotencyKey,
+        orderId: createdOrder.id,
+        responseJson: JSON.stringify(serializedOrder),
+      },
+    }).catch(() => {
+      // Ignore if duplicate key already exists (race condition)
+    });
+  }
 
   const serializedOrder = await getSerializedOrder(createdOrder.id);
 

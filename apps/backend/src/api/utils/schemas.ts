@@ -99,6 +99,7 @@ export const MapDistanceMatrixSchema = z.object({
 
 // Orders
 export const CreateOrderSchema = z.object({
+  idempotencyKey: z.string().uuid('Invalid idempotency key format'),
   items: z.array(z.object({
     menuItemId: UuidSchema,
     quantity: z.number().int().positive(),

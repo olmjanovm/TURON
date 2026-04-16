@@ -222,6 +222,7 @@ const CheckoutPage: React.FC = () => {
     }
 
     const payload = {
+      idempotencyKey: crypto.randomUUID(),
       items: quoteItems,
       deliveryAddressId: selectedAddress.id,
       paymentMethod,
