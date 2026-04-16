@@ -20,7 +20,7 @@ const HIDE_BOTTOM_NAV_PATHS = [
   /^\/customer\/orders\/[^/]+\/tracking$/,
 ];
 
-/* ── Universal header — logo only, no back button ───────────────────────── */
+/* ── Universal header — logo only, centered ─────────────────────────────── */
 const AppHeader: React.FC = () => (
   <div
     style={{
@@ -29,10 +29,12 @@ const AppHeader: React.FC = () => (
       zIndex: 50,
       background: `linear-gradient(135deg, #9B0000 0%, ${RED} 60%, #E53535 100%)`,
       display: 'flex',
-      alignItems: 'center',
+      alignItems: 'flex-end',  // logo sits at bottom of the bar
       justifyContent: 'center',
-      height: 60,
-      paddingTop: 'env(safe-area-inset-top, 0px)',
+      /* Content area height: 68px; adds Telegram safe-area on top */
+      paddingTop: 'calc(var(--tg-safe-area-inset-top, env(safe-area-inset-top, 8px)) + 8px)',
+      paddingBottom: 12,
+      minHeight: 'calc(76px + var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)))',
       boxShadow: '0 2px 16px rgba(150,0,0,0.3)',
     }}
   >
@@ -40,10 +42,10 @@ const AppHeader: React.FC = () => (
       src="/turon-logo.png"
       alt="Turon Kafesi"
       style={{
-        height: 46,          // bigger
-        maxWidth: '55vw',    // fluid — fits both phone & desktop
+        height: 54,          // bigger & clearly visible
+        maxWidth: '62vw',
         objectFit: 'contain',
-        filter: 'brightness(0) invert(1)',  // white logo on red
+        filter: 'brightness(0) invert(1)',
         userSelect: 'none',
         pointerEvents: 'none',
       }}
