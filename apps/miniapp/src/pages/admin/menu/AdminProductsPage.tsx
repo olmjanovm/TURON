@@ -166,10 +166,12 @@ const AdminProductsPage: React.FC = () => {
 
       <DeleteConfirmationModal
         isOpen={isConfirmOpen}
-        title="Taomni o'chirasizmi?"
-        description="Bu amalni qaytara olmaysiz. Taom katalogdan to'liq olib tashlanadi."
+        title="Taomni o'chirilsinmi?"
+        description="Taom katalog va mijozlar menyusidan butunlay olib tashlanadi."
         itemName={productToDelete?.name}
         isDeleting={deleteProductMutation.isPending}
+        confirmLabel="Ha, o'chirish"
+        warningText="Bu amalni qaytarib bo'lmaydi. Taomga oid ko'rinishlar ham o'chadi."
         onConfirm={() => void handleConfirmDelete()}
         onCancel={() => {
           setIsConfirmOpen(false);

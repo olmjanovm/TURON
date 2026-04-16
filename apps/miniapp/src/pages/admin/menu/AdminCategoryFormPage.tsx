@@ -113,10 +113,12 @@ const AdminCategoryFormPage: React.FC = () => {
 
       <DeleteConfirmationModal
         isOpen={isConfirmOpen}
-        title="Kategoriyani o'chirasizmi?"
-        description="Bu kategoriya va uning hamma taomlariy menyudan olib tashlanadi."
+        title="Kategoriyani o'chirilsinmi?"
+        description="Bu kategoriya va unga biriktirilgan barcha taomlar menyudan olib tashlanadi."
         itemName={existingCategory?.name}
         isDeleting={deleteCategoryMutation.isPending}
+        confirmLabel="Ha, o'chirish"
+        warningText="Bu amalni qaytarib bo'lmaydi. Kategoriya bilan bog'liq taomlar ham o'chiriladi."
         onConfirm={() => void handleConfirmDelete()}
         onCancel={() => setIsConfirmOpen(false)}
         isDangerous

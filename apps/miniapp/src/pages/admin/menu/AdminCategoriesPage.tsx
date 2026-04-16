@@ -138,14 +138,16 @@ const AdminCategoriesPage: React.FC = () => {
 
       <DeleteConfirmationModal
         isOpen={isConfirmOpen}
-        title="Kategoriyani o'chirasizmi?"
+        title="Kategoriyani o'chirilsinmi?"
         description={
           categoryToDelete && products.some((product) => product.categoryId === categoryToDelete.id)
-            ? 'Bu kategoriya bilan bog\'liq hamma taomlar ham menyudan olib tashlanadi.'
-            : 'Bu amalni qaytara olmaysiz.'
+            ? 'Bu kategoriyadagi barcha taomlar ham menyudan olib tashlanadi.'
+            : 'Kategoriya menyudan butunlay olib tashlanadi.'
         }
         itemName={categoryToDelete?.name}
         isDeleting={deleteCategoryMutation.isPending}
+        confirmLabel="Ha, o'chirish"
+        warningText="Bu amalni qaytarib bo'lmaydi. Kategoriya bilan bog'liq ma'lumotlar o'chadi."
         onConfirm={() => void handleConfirmDelete()}
         onCancel={() => {
           setIsConfirmOpen(false);
