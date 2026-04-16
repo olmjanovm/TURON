@@ -42,13 +42,13 @@ export const LoadingScreen: React.FC<{ message?: string }> = () => {
           gap: 0,
         }}
       >
-        {/* Logo */}
+        {/* Logo - transparent bg on red */}
         <img
-          src="/turon-splash.png"
+          src="/turon-logo.png"
           alt="Turon Kafesi"
           style={{
-            width: '90%',
-            maxWidth: 400,
+            width: '85%',
+            maxWidth: 380,
             objectFit: 'contain',
             animation:
               'turon-splash-in 0.75s cubic-bezier(0.34,1.56,0.64,1) 0.1s both, turon-pulse 3s ease-in-out 1s infinite',
