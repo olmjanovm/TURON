@@ -2,7 +2,7 @@ import React from 'react';
 import { AlertCircle, AlertTriangle, Home, RefreshCw, ShieldAlert } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-// ─── TuronSplashScreen - Animated centered logo ───────────────────────────────
+// ─── TuronSplashScreen - Animated centered logo + loading dots ────────────────
 
 export const LoadingScreen: React.FC<{ message?: string }> = () => {
   return (
@@ -22,6 +22,10 @@ export const LoadingScreen: React.FC<{ message?: string }> = () => {
           0%, 100% { transform: scale(1); }
           50%      { transform: scale(1.015); }
         }
+        @keyframes turon-dot-bounce {
+          0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+          40%            { transform: translateY(-10px); opacity: 1; }
+        }
       `}</style>
 
       <div
@@ -29,13 +33,16 @@ export const LoadingScreen: React.FC<{ message?: string }> = () => {
           minHeight: '100dvh',
           width: '100%',
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
           background: '#C62828',
           overflow: 'hidden',
           animation: 'turon-bg-in 0.3s ease-out forwards',
+          gap: 0,
         }}
       >
+        {/* Logo */}
         <img
           src="/turon-splash.png"
           alt="Turon Kafesi"
@@ -47,6 +54,29 @@ export const LoadingScreen: React.FC<{ message?: string }> = () => {
               'turon-splash-in 0.75s cubic-bezier(0.34,1.56,0.64,1) 0.1s both, turon-pulse 3s ease-in-out 1s infinite',
           }}
         />
+
+        {/* 3 loading dots */}
+        <div
+          style={{
+            display: 'flex',
+            gap: 10,
+            marginTop: 48,
+            alignItems: 'center',
+          }}
+        >
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.9)',
+                animation: `turon-dot-bounce 1.2s ease-in-out ${i * 0.2}s infinite`,
+              }}
+            />
+          ))}
+        </div>
       </div>
     </>
   );
