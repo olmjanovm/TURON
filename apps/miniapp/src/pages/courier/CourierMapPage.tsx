@@ -4,7 +4,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useToast } from '../../components/ui/Toast';
 import { DeliveryStage } from '../../data/types';
 import { CourierMapView } from '../../components/courier/CourierMapView';
-import CourierNavigationPanel from '../../components/courier/CourierNavigationPanel';
+import CourierNavigationPanel, { type RouteAlternative } from '../../components/courier/CourierNavigationPanel';
 import {
   CourierProblemReporter,
   DeliveryBottomPanel,
@@ -131,6 +131,8 @@ const CourierMapPage: React.FC = () => {
     tone: 'success' | 'error' | 'neutral';
   } | null>(null);
   const [copied, setCopied]                     = useState(false);
+  const [routes, setRoutes]                     = useState<RouteAlternative[]>([]);
+  const [selectedRouteId, setSelectedRouteId]   = useState<string | undefined>(undefined);
 
   // ── Refs ───────────────────────────────────────────────────────────────────
   const lastHeartbeatRef        = useRef('');
@@ -265,6 +267,25 @@ const CourierMapPage: React.FC = () => {
     );
     return () => stopWatchingBrowserGeolocation(watchId);
   }, [order?.id]);
+
+  // ── Auto-fetch and select routes ────────────────────────────────────────────
+  useEffect(() => {
+    if (!liveCourierPos || !order?.id) return;
+    const from = liveCourierPos;
+    const to = currentState === 'ACCEPTED' || currentState === 'ARRIVED' ? restaurantPos : customerPos;
+    
+    // Create mock routes - in production, fetch from Yandex API
+    const mockRoutes = [
+      { id: '1', distance: displayRouteInfo.distance || '5 km', eta: displayRouteInfo.eta || '12 min', instruction: 'Tez marshrutи', routeIndex: 0, isRecommended: true },
+      { id: '2', distance: '5.5 km', eta: '14 min', instruction: 'Yo\'llar kamroq', routeIndex: 1 },
+      { id: '3', distance: '4.8 km', eta: '13 min', instruction: 'Minimal masofa', routeIndex: 2 },
+    ].filter(r => r.id === (selectedRouteId || '1')); // Auto-filter to selected or default first
+    
+    setRoutes(mockRoutes);
+    if (!selectedRouteId && mockRoutes.length > 0) {
+      setSelectedRouteId(mockRoutes[0].id);
+    }
+  }, [order?.id, currentState, liveCourierPos]);
 
   // ── Location heartbeat to server ───────────────────────────────────────────
   useEffect(() => {
@@ -460,6 +481,9 @@ const CourierMapPage: React.FC = () => {
         }}
       >
         <CourierNavigationPanel
+          routes={routes}
+          selectedRouteId={selectedRouteId}
+          onSelectRoute={setSelectedRouteId}
           heading={heading ?? 0}
           onHeadingChange={setHeading}
           tilt={tilt}

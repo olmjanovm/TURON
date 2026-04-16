@@ -303,6 +303,7 @@ export function SlideToConfirmAction({
 }) {
   const trackRef   = React.useRef<HTMLDivElement | null>(null);
   const offsetRef  = React.useRef(0);
+  const rafRef     = React.useRef<number | null>(null);
   const [offset, setOffset]       = React.useState(0);
   const [isDragging, setIsDragging] = React.useState(false);
   const [confirmed, setConfirmed]  = React.useState(false);
@@ -317,54 +318,29 @@ export function SlideToConfirmAction({
     setSliderOffset(0);
   }, [label]);
 
-  // Wiggle hint on first render — left-right nudge to teach the gesture
-  React.useEffect(() => {
-    if (disabled || isLoading) return;
-    if (!trackRef.current) return;
-    let cancelled = false;
-    const NUDGE = 28;
-    const steps: Array<[number, number]> = [
-      [80, NUDGE], [160, NUDGE * 1.5], [80, NUDGE], [60, 0],
-    ];
-    let t = window.setTimeout(function run(index = 0) {
-      if (cancelled || confirmed) return;
-      const [delay, pos] = steps[index];
-      setSliderOffset(pos);
-      if (index + 1 < steps.length) {
-        t = window.setTimeout(() => run(index + 1), delay);
-      }
-    }, 900);
-    return () => { cancelled = true; window.clearTimeout(t); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [label]);
-
   // Snap back when not dragging and not confirmed/loading
   React.useEffect(() => {
     if (!isDragging && !isLoading && !confirmed) setSliderOffset(0);
   }, [isDragging, isLoading, confirmed]);
 
-  // One-time hint: auto-slide right ~42px then snap back to show the gesture
-  React.useEffect(() => {
-    if (disabled || isLoading || confirmed) return;
-    let t1: number, t2: number;
-    t1 = window.setTimeout(() => {
-      setSliderOffset(42);
-      t2 = window.setTimeout(() => setSliderOffset(0), 450);
-    }, 900);
-    return () => { window.clearTimeout(t1); window.clearTimeout(t2); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
     if (disabled || isLoading || confirmed || !trackRef.current) return;
     event.preventDefault();
+    
     const trackRect = trackRef.current.getBoundingClientRect();
     const maxOffset = Math.max(trackRect.width - knobSize - 8, 0);
     const startX = event.clientX;
     const startOffset = offsetRef.current;
     setIsDragging(true);
 
+    let lastUpdate = 0;
+    const THROTTLE = 16; // ~60fps
+
     const handleMove = (e: PointerEvent) => {
+      const now = Date.now();
+      if (now - lastUpdate < THROTTLE) return;
+      lastUpdate = now;
+
       const next = Math.min(maxOffset, Math.max(0, startOffset + e.clientX - startX));
       setSliderOffset(next);
     };
@@ -376,12 +352,13 @@ export function SlideToConfirmAction({
       window.removeEventListener('pointermove', handleMove);
       window.removeEventListener('pointerup', handleUp);
       window.removeEventListener('pointercancel', handleUp);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
 
       if (shouldConfirm) {
         setSliderOffset(maxOffset);
         setConfirmed(true);
         window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
-        window.setTimeout(() => { onConfirm(); }, 380);
+        window.setTimeout(() => { onConfirm(); }, 250);
         return;
       }
       setSliderOffset(0);

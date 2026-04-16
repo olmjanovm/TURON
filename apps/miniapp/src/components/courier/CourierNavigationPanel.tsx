@@ -66,14 +66,26 @@ const CourierNavigationPanel: React.FC<CourierNavigationPanelProps> = ({
   const [showRoutes, setShowRoutes] = useState(false);
   const [showSteps, setShowSteps] = useState(false);
   const [showCameraControls, setShowCameraControls] = useState(false);
+  const [hintShown, setHintShown] = useState(false);
   const headingInputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-close route selector when a route is selected
+  // Auto-close route selector when a route is selected (hide after 300ms)
   useEffect(() => {
-    if (selectedRouteId) {
-      setShowRoutes(false);
+    if (selectedRouteId && routes.length > 0) {
+      const timer = setTimeout(() => setShowRoutes(false), 300);
+      return () => clearTimeout(timer);
     }
-  }, [selectedRouteId]);
+  }, [selectedRouteId, routes.length]);
+
+  // Auto-show routes on first load only if more than one route available
+  useEffect(() => {
+    if (routes.length > 1 && !hintShown) {
+      setHintShown(true);
+      setShowRoutes(true);
+      const timer = setTimeout(() => setShowRoutes(false), 4000); // Auto-close after 4 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [routes.length, hintShown]);
 
   const handleHeadingChange = (value: string) => {
     const heading = parseFloat(value);
@@ -94,6 +106,8 @@ const CourierNavigationPanel: React.FC<CourierNavigationPanelProps> = ({
   return (
     <div className="space-y-2">
       {/* ── ROUTE SELECTION ───────────────────────────────────────────────────── */}
+      {/* Only show if multiple routes available */}
+      {routes.length > 1 && (
       <div className="relative">
         {/* Collapsed view */}
         {!showRoutes && (
@@ -143,7 +157,7 @@ const CourierNavigationPanel: React.FC<CourierNavigationPanelProps> = ({
               {routes.length === 0 ? (
                 <div className="p-4 text-center text-slate-500">
                   <AlertCircle size={20} className="mx-auto mb-2 text-slate-400" />
-                  <p className="text-sm">Marshrutlar yo'q</p>
+                  <p className="text-sm">Marshrutlar yuklangan...</p>
                 </div>
               ) : (
                 routes.map((route) => (
@@ -186,6 +200,7 @@ const CourierNavigationPanel: React.FC<CourierNavigationPanelProps> = ({
           </div>
         )}
       </div>
+      )}
 
       {/* ── NAVIGATION INSTRUCTIONS ──────────────────────────────────────────── */}
       {currentStep && (
