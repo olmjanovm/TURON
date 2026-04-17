@@ -56,13 +56,58 @@ function isToday(dateStr: string): boolean {
   );
 }
 
-/* ── Banner card (horizontal scroll item) ────────────────────────────────── */
-const BannerCard: React.FC<{ product: MenuProduct; badge?: React.ReactNode }> = ({ product, badge }) => {
+/* ── Snap-scroll promo banner carousel ───────────────────────── */
+const PromoBannerCarousel: React.FC<{ items: MenuProduct[] }> = ({ items }) => {
   const navigate = useNavigate();
   const { formatText } = useCustomerLanguage();
+
+  if (items.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: 16, marginBottom: 4 }}>
+      <p style={{
+        fontSize: 17, fontWeight: 900, color: 'var(--app-text)',
+        margin: '0 0 10px 16px', letterSpacing: '-0.02em',
+      }}>
+        Chegirmali taomlar
+      </p>
+
+      <div
+        className="scrollbar-hide"
+        style={{
+          display: 'flex',
+          gap: 12,
+          overflowX: 'auto',
+          paddingInline: 16,
+          paddingBottom: 4,
+          scrollSnapType: 'x mandatory',
+          WebkitOverflowScrolling: 'touch',
+        }}
+      >
+        {items.map((product) => (
+          <PromoBannerCard
+            key={product.id}
+            product={product}
+            onClick={() => navigate(`/customer/product/${product.id}`)}
+            formatText={formatText}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const PromoBannerCard: React.FC<{
+  product: MenuProduct;
+  onClick: () => void;
+  formatText: (v: string) => string;
+}> = ({ product, onClick, formatText }) => {
   const posterSrc = React.useMemo(() => getProductPosterUrl(product), [product]);
   const [imgSrc, setImgSrc] = React.useState(() =>
-    getProductImageUrl({ id: product.id, name: product.name, imageUrl: product.imageUrl, categoryId: product.categoryId }, product.categoryId)
+    getProductImageUrl(
+      { id: product.id, name: product.name, imageUrl: product.imageUrl, categoryId: product.categoryId },
+      product.categoryId,
+    )
   );
   const promotion = React.useMemo(() => getProductPromotion(product), [product]);
 
@@ -70,98 +115,72 @@ const BannerCard: React.FC<{ product: MenuProduct; badge?: React.ReactNode }> = 
     <div
       role="button"
       tabIndex={0}
-      onClick={() => navigate(`/customer/product/${product.id}`)}
-      onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/customer/product/${product.id}`); }}
+      onClick={onClick}
+      onKeyDown={(e) => { if (e.key === 'Enter') onClick(); }}
       style={{
-        width: 220,
-        height: 150,
-        borderRadius: 18,
+        width: 'calc(85vw)',
+        maxWidth: 360,
+        minWidth: 240,
+        height: 175,
+        borderRadius: 20,
         overflow: 'hidden',
         flexShrink: 0,
         position: 'relative',
         cursor: 'pointer',
-        boxShadow: '0 6px 20px rgba(0,0,0,0.18)',
+        scrollSnapAlign: 'start',
+        boxShadow: '0 8px 28px rgba(0,0,0,0.22)',
         userSelect: 'none',
       }}
     >
-      {/* Background image */}
+      {/* Background */}
       <img
         src={imgSrc}
         alt={formatText(product.name)}
         onError={() => { if (imgSrc !== posterSrc) setImgSrc(posterSrc); }}
         style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }}
       />
-      {/* Dark gradient overlay */}
+      {/* Gradient overlay */}
       <div style={{
         position: 'absolute', inset: 0,
-        background: 'linear-gradient(to top, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.25) 55%, transparent 100%)',
+        background: 'linear-gradient(135deg, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.45) 100%)',
       }} />
 
-      {/* Top badge */}
-      {badge && (
-        <div style={{ position: 'absolute', top: 10, left: 10 }}>
-          {badge}
+      {/* Discount badge - big & prominent */}
+      {(promotion.discountPercent || promotion.kind === 'discount') && (
+        <div style={{
+          position: 'absolute', top: 16, left: 16,
+          background: '#C62020',
+          borderRadius: 14, padding: '6px 14px',
+          boxShadow: '0 3px 12px rgba(198,32,32,0.45)',
+        }}>
+          <span style={{ color: 'white', fontSize: 22, fontWeight: 900, letterSpacing: '-0.03em' }}>
+            {promotion.discountPercent ? `-${promotion.discountPercent}%` : 'Chegirma'}
+          </span>
         </div>
       )}
 
-      {/* Bottom text */}
-      <div style={{ position: 'absolute', bottom: 10, left: 12, right: 12 }}>
-        <p style={{ color: 'white', fontSize: 13, fontWeight: 900, margin: 0, letterSpacing: '-0.02em',
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      {/* Bottom info */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '12px 16px 14px' }}>
+        <p style={{
+          color: 'white', fontSize: 15, fontWeight: 900, margin: 0,
+          letterSpacing: '-0.02em', textShadow: '0 1px 4px rgba(0,0,0,0.5)',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
           {formatText(product.name)}
         </p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
-          <span style={{ color: 'white', fontSize: 14, fontWeight: 900 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+          <span style={{ color: 'white', fontSize: 17, fontWeight: 900, textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>
             {product.price.toLocaleString()} so'm
           </span>
           {promotion.oldPrice ? (
-            <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, textDecoration: 'line-through' }}>
+            <span style={{
+              color: 'rgba(255,255,255,0.65)', fontSize: 12,
+              textDecoration: 'line-through', fontWeight: 600,
+            }}>
               {promotion.oldPrice.toLocaleString()}
             </span>
           ) : null}
         </div>
-      </div>
-    </div>
-  );
-};
-
-/* ── Horizontal banner section ───────────────────────────────────────────── */
-const BannerSection: React.FC<{
-  title: string;
-  emoji: string;
-  badgeColor: string;
-  badgeText: (p: MenuProduct) => string;
-  items: MenuProduct[];
-}> = ({ title, emoji, badgeColor, badgeText, items }) => {
-  if (items.length === 0) return null;
-  return (
-    <div style={{ marginTop: 20 }}>
-      <p style={{ fontSize: 18, fontWeight: 900, color: 'var(--app-text)',
-        margin: '0 0 12px 16px', letterSpacing: '-0.02em' }}>
-        {emoji} {title}
-      </p>
-      <div
-        className="scrollbar-hide"
-        style={{
-          display: 'flex', gap: 12, overflowX: 'auto',
-          paddingInline: 16, paddingBottom: 4,
-        }}
-      >
-        {items.map((product) => (
-          <BannerCard
-            key={product.id}
-            product={product}
-            badge={
-              <span style={{
-                background: badgeColor, color: 'white', borderRadius: 999,
-                padding: '4px 10px', fontSize: 11, fontWeight: 900,
-                letterSpacing: '0.04em', boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
-              }}>
-                {badgeText(product)}
-              </span>
-            }
-          />
-        ))}
       </div>
     </div>
   );
@@ -265,21 +284,7 @@ const HomePage: React.FC = () => {
   // --- Banner data ---
   const discountedProducts = React.useMemo(() => {
     const list = activeProducts.filter((p) => p.isDiscounted || (p.oldPrice && p.oldPrice > p.price));
-    // Fallback: if none discounted, return top-6 sorted by price desc (most popular)
     return list.length > 0 ? list.slice(0, 10) : activeProducts.slice(0, 6);
-  }, [activeProducts]);
-
-  const newProducts = React.useMemo(() => {
-    // Priority 1: created today
-    const todayList = activeProducts.filter((p) => isToday(p.createdAt));
-    if (todayList.length >= 2) return todayList.slice(0, 10);
-    // Priority 2: isNew flag
-    const newList = activeProducts.filter((p) => p.isNew);
-    if (newList.length >= 2) return newList.slice(0, 10);
-    // Fallback: newest by createdAt
-    return [...activeProducts]
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, 6);
   }, [activeProducts]);
 
   // --- Grid products ---
@@ -335,23 +340,8 @@ const HomePage: React.FC = () => {
         })}
       </div>
 
-      {/* ── Chegirmali taomlar banner ───────────────────────── */}
-      <BannerSection
-        title="Chegirmali taomlar"
-        emoji="🔥"
-        badgeColor="#C62020"
-        badgeText={(p) => p.discountPercent ? `-${p.discountPercent}%` : 'Chegirma'}
-        items={discountedProducts}
-      />
-
-      {/* ── Yangi taomlar banner ────────────────────────────── */}
-      <BannerSection
-        title="Yangi taomlar"
-        emoji="✨"
-        badgeColor="#0ea5e9"
-        badgeText={() => 'Yangi'}
-        items={newProducts}
-      />
+      {/* ── Chegirmali taomlar snap-scroll carousel ──────────────── */}
+      <PromoBannerCarousel items={discountedProducts} />
 
       {/* ── Product grid ────────────────────────────────────── */}
       <main style={{ padding: '12px 16px 24px' }}>
