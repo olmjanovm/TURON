@@ -23,7 +23,6 @@ interface CourierNavigationPanelProps {
   eta?: string;
 }
 
-// ── Direction arrow SVGs (Yandex Maps style thick strokes) ────────────────────
 function DirectionArrow({ action }: { action?: NavigationStep['action'] }) {
   const s = {
     stroke: 'white',
@@ -35,7 +34,7 @@ function DirectionArrow({ action }: { action?: NavigationStep['action'] }) {
 
   if (action === 'right') {
     return (
-      <svg viewBox="0 0 48 48" width="50" height="50" aria-hidden="true">
+      <svg viewBox="0 0 48 48" width="36" height="36" aria-hidden="true">
         <path d="M13 40 L13 22 Q13 10 25 10 L37 10" {...s} />
         <path d="M29 4 L37 10 L29 16" {...s} />
       </svg>
@@ -44,7 +43,7 @@ function DirectionArrow({ action }: { action?: NavigationStep['action'] }) {
 
   if (action === 'left') {
     return (
-      <svg viewBox="0 0 48 48" width="50" height="50" aria-hidden="true">
+      <svg viewBox="0 0 48 48" width="36" height="36" aria-hidden="true">
         <path d="M35 40 L35 22 Q35 10 23 10 L11 10" {...s} />
         <path d="M19 4 L11 10 L19 16" {...s} />
       </svg>
@@ -52,36 +51,24 @@ function DirectionArrow({ action }: { action?: NavigationStep['action'] }) {
   }
 
   return (
-    <svg viewBox="0 0 48 48" width="50" height="50" aria-hidden="true">
+    <svg viewBox="0 0 48 48" width="36" height="36" aria-hidden="true">
       <path d="M24 40 L24 10" {...s} />
       <path d="M13 21 L24 10 L35 21" {...s} />
     </svg>
   );
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
 const CourierNavigationPanel: React.FC<CourierNavigationPanelProps> = ({
   currentStep,
 }) => {
   if (!currentStep) return null;
 
-  const label = currentStep.street || currentStep.instruction || null;
-
   return (
-    <div className="flex items-center gap-3 rounded-[22px] bg-[#1B2341] px-4 py-3 shadow-2xl">
-      <div className="flex-shrink-0">
-        <DirectionArrow action={currentStep.action} />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-[26px] font-black leading-none tracking-tight text-white">
-          {currentStep.distanceText}
-        </p>
-        {label ? (
-          <p className="mt-1 truncate text-[13px] font-medium leading-snug text-slate-300">
-            {label}
-          </p>
-        ) : null}
-      </div>
+    <div className="inline-flex items-center gap-2.5 rounded-[16px] bg-[#1B2341] px-3 py-2.5 shadow-2xl">
+      <DirectionArrow action={currentStep.action} />
+      <span className="whitespace-nowrap text-[24px] font-black leading-none tracking-tight text-white">
+        {currentStep.distanceText}
+      </span>
     </div>
   );
 };

@@ -525,7 +525,7 @@ const CourierMapPage: React.FC = () => {
           className="pointer-events-none absolute left-4 top-0 z-30 px-0"
           style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 68px)' }}
         >
-          <div className="pointer-events-auto w-[50%] max-w-[200px]">
+          <div className="pointer-events-auto w-fit">
             <CourierNavigationPanel
               routes={routes}
               selectedRouteId={selectedRouteId}
