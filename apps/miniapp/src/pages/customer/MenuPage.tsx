@@ -35,7 +35,7 @@ const MenuPage: React.FC = () => {
   }
 
   const activeProducts = products.filter(
-    (product) => product.isActive && product.availability !== ProductAvailabilityEnum.UNAVAILABLE
+    (product) => product.isActive && product.availability !== ProductAvailabilityEnum.OUT_OF_STOCK
   );
 
   const tabs = sortedCategories.map((category) => ({
@@ -92,7 +92,7 @@ const MenuPage: React.FC = () => {
         {!searchQuery.trim() && sortedCategories.find(c => c.id === activeCategoryId) ? (
           <div className="mb-4">
             <h2 className="text-[1.3rem] font-black tracking-tight text-[#202020]">
-              {formatText(getCustomerCategoryLabel(sortedCategories.find(c => c.id === activeCategoryId)?.name || { uz: '', ru: '' }))}
+              {formatText(getCustomerCategoryLabel(sortedCategories.find(c => c.id === activeCategoryId)?.name || ''))}
             </h2>
             <p className="mt-1 text-[13px] font-semibold text-[#8c8c96]">
               {filteredProducts.length} ta taom topildi
