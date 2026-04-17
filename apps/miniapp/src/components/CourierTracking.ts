@@ -382,11 +382,20 @@ class CourierTrackingMap {
    */
   private isLocationInBounds(
     coordinates: [number, number],
-    bounds: [[number, number], [number, number]]
+    bounds: ymaps.IBounds | [[number, number], [number, number]]
   ): boolean {
     const [lat, lon] = coordinates;
-    const [[minLat, minLon], [maxLat, maxLon]] = bounds;
-
+    
+    // Handle IBounds object
+    if ('getSouthWest' in bounds && 'getNorthEast' in bounds) {
+      const sw = bounds.getSouthWest();
+      const ne = bounds.getNorthEast();
+      const [[minLat, minLon], [maxLat, maxLon]] = [sw, ne];
+      return lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon;
+    }
+    
+    // Handle array format
+    const [[minLat, minLon], [maxLat, maxLon]] = bounds as [[number, number], [number, number]];
     return lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon;
   }
 
@@ -411,7 +420,7 @@ class CourierTrackingMap {
 
     this.trackingInterval = setInterval(() => {
       if (step >= steps || !this.isTracking) {
-        if (this.trackingInterval) clearInterval(this.trackingInterval);
+        if (this.trackingInterval) clearInterval(this.trackingInterval as any);
         this.isTracking = false;
         return;
       }
@@ -439,7 +448,7 @@ class CourierTrackingMap {
   public stopTracking(): void {
     this.isTracking = false;
     if (this.trackingInterval) {
-      clearInterval(this.trackingInterval);
+      clearInterval(this.trackingInterval as any);
       this.trackingInterval = null;
     }
   }
