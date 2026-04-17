@@ -17,11 +17,21 @@ const ProductPage: React.FC = () => {
   const { addToCart, items } = useCartStore();
   const { formatText } = useCustomerLanguage();
   const { favoriteProductIds, toggleProductFavorite } = useFavoritesStore();
+  const { data: allProducts = [] } = useProducts();
 
   const existingItem = items.find((item) => item.id === id);
   const [quantity, setQuantity] = useState(existingItem?.quantity || 1);
+  const [scrolled, setScrolled] = useState(false);
   const posterSrc = useMemo(() => (product ? getProductPosterUrl(product) : ''), [product]);
   const [imageSrc, setImageSrc] = useState('');
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 40);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     if (!product) {
@@ -80,131 +90,201 @@ const ProductPage: React.FC = () => {
     navigate('/customer/cart');
   };
 
+  const similarProducts = useMemo(() => {
+    if (!product || allProducts.length === 0) return [];
+    return allProducts
+      .filter((p) => p.categoryId === product.categoryId && p.id !== product.id && p.isActive)
+      .slice(0, 10);
+  }, [product, allProducts]);
+
   return (
-    <div
-      className="space-y-5 animate-in slide-in-from-bottom duration-500"
-      style={{ paddingBottom: 'calc(var(--customer-sticky-panel-clearance, 190px) + 16px)' }}
-    >
-      <section className="relative overflow-hidden rounded-[12px] shadow-[0_16px_32px_rgba(2,6,23,0.26)]">
+    <div className="relative min-h-screen bg-[#f6f6f7] text-[#202020] animate-in fade-in duration-300">
+      {/* ── Background Arc ─────────────────────────────── */}
+      <div
+        className="absolute inset-x-0 top-0 z-0 bg-[#C62020]"
+        style={{
+          height: 380,
+          borderBottomLeftRadius: '100% 40%',
+          borderBottomRightRadius: '100% 40%',
+          boxShadow: '0 8px 30px rgba(198, 32, 32, 0.4)',
+        }}
+      />
+
+      {/* ── Header Nav (Sticky) ────────────────────────── */}
+      <header
+        className={`fixed inset-x-0 top-0 z-50 transition-colors duration-300 ${
+          scrolled ? 'bg-[#C62020] shadow-md' : 'bg-transparent'
+        }`}
+      >
+        <div
+          className="mx-auto flex w-full max-w-[430px] items-center justify-between px-4 pb-2"
+          style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
+        >
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md transition active:scale-90"
+          >
+            <ArrowLeft size={22} strokeWidth={2.5} />
+          </button>
+          
+          <div className="flex-1 text-center font-black text-white opacity-0 transition-opacity duration-300" style={{ opacity: scrolled ? 1 : 0 }}>
+            {product.name}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => toggleProductFavorite(product.id)}
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md transition active:scale-90"
+          >
+            <Heart size={20} strokeWidth={2.5} className={isFavorite ? 'fill-current text-white' : ''} />
+          </button>
+        </div>
+      </header>
+
+      {/* ── Floating Image container ───────────────────── */}
+      <div className="relative z-10 mx-auto mt-[calc(env(safe-area-inset-top,0px)+60px)] flex w-full max-w-[340px] items-center justify-center px-6 animate-in slide-in-from-top-12 duration-700 ease-out fill-mode-both" style={{ height: 260 }}>
         <img
           src={imageSrc}
           alt={formatText(product.name)}
-          className="h-[280px] w-full object-cover"
+          className="max-h-full max-w-full object-contain drop-shadow-[0_20px_35px_rgba(0,0,0,0.45)]"
           onError={() => {
             if (imageSrc !== posterSrc) {
               setImageSrc(posterSrc);
             }
           }}
         />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,6,23,0.08)_0%,rgba(2,6,23,0.82)_100%)]" />
-
-        <div className="absolute left-3 right-3 top-3 flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-slate-950/62 text-white backdrop-blur-xl"
-          >
-            <ArrowLeft size={18} />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => toggleProductFavorite(product.id)}
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-slate-950/62 text-white backdrop-blur-xl"
-          >
-            <Heart size={18} className={isFavorite ? 'fill-current text-rose-400' : ''} />
-          </button>
-        </div>
-
-        <div className="absolute left-3 top-16 flex flex-wrap gap-2">
+        {/* Badges / Promotion floaters over image optionally */}
+        <div className="absolute right-4 top-0 flex flex-col gap-2">
           {promotion.kind === 'discount' && promotion.discountPercent ? (
-            <span className="rounded-full bg-emerald-400 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-950">
+            <span className="rounded-full bg-white px-3 py-1.5 text-[12px] font-black uppercase tracking-[0.05em] text-[#C62020] shadow-[0_4px_12px_rgba(0,0,0,0.15)]">
               -{promotion.discountPercent}%
             </span>
           ) : promotion.badgeLabel ? (
-            <span className="rounded-full border border-white/10 bg-white/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-white">
+            <span className="rounded-full bg-[#111827] px-3 py-1.5 text-[12px] font-black uppercase tracking-[0.05em] text-white shadow-[0_4px_12px_rgba(0,0,0,0.15)]">
               {promotion.badgeLabel}
             </span>
           ) : null}
         </div>
+      </div>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/58">Turon Kafesi</p>
-          <h1 className="mt-2 text-[1.9rem] font-black leading-[0.98] tracking-[-0.05em] text-white">
+      {/* ── Main content card ──────────────────────────── */}
+      <main className="relative z-10 mx-auto mt-8 max-w-[430px]">
+        {/* We use a white background for info, mimicking the attached modern references */}
+        <div className="rounded-t-[36px] bg-white px-6 pb-[calc(110px+env(safe-area-inset-bottom,0px))] pt-8 shadow-[0_-8px_30px_rgba(0,0,0,0.06)] min-h-[50vh]">
+          <h1 className="text-[26px] font-black leading-tight tracking-[-0.04em] text-[#202020]">
             {formatText(product.name)}
           </h1>
-          <div className="mt-3 flex items-end gap-3">
-            <p className="text-[1.6rem] font-black text-white">{product.price.toLocaleString()} so'm</p>
+          <div className="mt-2 flex items-end gap-3">
+            <p className="text-[22px] font-black tracking-[-0.03em] text-[#C62020]">
+              {product.price.toLocaleString()} so'm
+            </p>
             {promotion.oldPrice ? (
-              <p className="pb-1 text-sm font-semibold text-white/36 line-through">
-                {promotion.oldPrice.toLocaleString()} so'm
+              <p className="pb-[3px] text-[14px] font-semibold text-[#9a9aa3] line-through">
+                {promotion.oldPrice.toLocaleString()}
               </p>
             ) : null}
           </div>
-        </div>
-      </section>
 
-      <section className="rounded-[12px] border border-white/8 bg-[#111827] p-4 shadow-[0_12px_24px_rgba(2,6,23,0.2)]">
-        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/36">Qisqacha</p>
-        <p className="mt-2 text-sm font-semibold leading-6 text-white/74">
-          {formatText(product.description) || getProductSecondaryText(product)}
-        </p>
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          {product.weight ? (
-            <span className="rounded-full border border-white/8 bg-white/[0.05] px-3 py-2 text-[11px] font-semibold text-white/72">
-              {formatText(product.weight)}
-            </span>
-          ) : null}
-          <span
-            className={`rounded-full border px-3 py-2 text-[11px] font-semibold ${
-              isAvailable
-                ? 'border-emerald-300/18 bg-emerald-400/10 text-emerald-200'
-                : 'border-rose-300/18 bg-rose-400/10 text-rose-200'
-            }`}
-          >
-            {isAvailable ? 'Mavjud' : isTemporarilyUnavailable ? 'Vaqtincha yoq' : 'Tugagan'}
-          </span>
-        </div>
-      </section>
-
-      <section className="rounded-[12px] border border-white/8 bg-[#111827] p-4 shadow-[0_12px_24px_rgba(2,6,23,0.2)]">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/36">Miqdor</p>
-            <p className="mt-1.5 text-sm font-semibold text-white/64">Taomni savatga qoshishdan oldin sonini belgilang</p>
+          <div className="mt-6 border-b border-dashed border-slate-200 pb-6">
+            <p className="text-[14px] font-black uppercase tracking-[0.1em] text-[#8c8c96]">
+              Tarkibi / Ma'lumot
+            </p>
+            <p className="mt-2 text-[15px] font-medium leading-[1.65] text-[#202020]">
+              {formatText(product.description) || getProductSecondaryText(product)}
+            </p>
+            {product.weight ? (
+              <span className="mt-4 inline-flex items-center rounded-full bg-[#f4f4f5] px-3 py-1.5 text-[12px] font-black uppercase tracking-wider text-[#9a9aa3]">
+                Vazni: {formatText(product.weight)}
+              </span>
+            ) : null}
           </div>
-          <QuantitySelector
-            quantity={quantity}
-            onIncrease={() => setQuantity((current) => current + 1)}
-            onDecrease={() => setQuantity((current) => Math.max(1, current - 1))}
-          />
-        </div>
-      </section>
 
-      <div
-        className="fixed inset-x-0 z-40 px-4"
-        style={{ bottom: 'var(--customer-floating-cart-offset, calc(env(safe-area-inset-bottom, 0px) + 88px))' }}
-      >
-        <div className="mx-auto w-full max-w-[430px] rounded-[16px] border border-white/10 bg-[#111827]/94 p-3 shadow-[0_16px_32px_rgba(2,6,23,0.34)] backdrop-blur-xl">
+          <div className="mt-5 border-b border-dashed border-slate-200 pb-5">
+
+          {/* ── Similar Products Section ────────────────────── */}
+          {similarProducts.length > 0 && (
+            <div className="mt-10 overflow-hidden">
+              <p className="text-[18px] font-black tracking-[-0.03em] text-[#202020]">
+                Shunga o'xshash taomlar
+              </p>
+              <div
+                className="scrollbar-hide mt-4 flex gap-3 overflow-x-auto pb-4"
+                style={{ scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch' }}
+              >
+                {similarProducts.map((simProd) => {
+                  const simImg = getProductImageUrl({
+                    id: simProd.id, name: simProd.name, imageUrl: simProd.imageUrl, categoryId: simProd.categoryId
+                  }, simProd.categoryId);
+                  
+                  return (
+                    <div
+                      key={simProd.id}
+                      onClick={() => navigate(`/customer/product/${simProd.id}`)}
+                      role="button"
+                      tabIndex={0}
+                      className="w-[140px] shrink-0 scroll-snap-align-start rounded-[18px] bg-[#f8f8f9] p-3 shadow-[0_4px_16px_rgba(0,0,0,0.04)] ring-1 ring-black/5"
+                    >
+                      <div className="h-[90px] w-full overflow-hidden rounded-[12px] bg-white">
+                        <img src={simImg} alt={formatText(simProd.name)} className="h-full w-full object-cover" />
+                      </div>
+                      <p className="mt-3 line-clamp-1 text-[13px] font-black tracking-[-0.02em] text-[#202020]">
+                        {formatText(simProd.name)}
+                      </p>
+                      <p className="mt-1 text-[13px] font-black text-[#C62020] tracking-tight">
+                        {simProd.price.toLocaleString()} s.
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* ── Sticky Checkout Action ─────────────────────── */}
+      <div className="fixed inset-x-0 bottom-0 z-50 bg-white/96 pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-12px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl">
+        <div className="mx-auto flex h-[84px] w-full max-w-[430px] items-center justify-between gap-4 px-5">
+          {/* Quantity Controls */}
+          <div className="flex h-[52px] w-[130px] shrink-0 items-center justify-between rounded-full bg-[#f4f4f5] px-[6px] shadow-inner">
+            <button
+              type="button"
+              onClick={() => setQuantity((current) => Math.max(1, current - 1))}
+              disabled={!isAvailable}
+              className="flex h-[40px] w-[40px] items-center justify-center rounded-full bg-white text-[#202020] shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition active:scale-90"
+            >
+              <span className="text-[22px] font-black leading-none mb-1">-</span>
+            </button>
+            <span className="text-[18px] font-black text-[#202020]">{quantity}</span>
+            <button
+              type="button"
+              onClick={() => setQuantity((current) => current + 1)}
+              disabled={!isAvailable}
+              className="flex h-[40px] w-[40px] items-center justify-center rounded-full bg-[#C62020] text-white shadow-[0_2px_8px_rgba(198,32,32,0.3)] transition active:scale-90 cursor-pointer"
+            >
+              <span className="text-[22px] font-black leading-none mb-1">+</span>
+            </button>
+          </div>
+
+          {/* Add to Cart Button */}
           <button
             type="button"
             onClick={handleAddToCart}
             disabled={!isAvailable}
-            className={`flex h-[56px] w-full items-center justify-center gap-3 rounded-[12px] text-base font-black transition-all active:scale-[0.985] ${
+            className={`flex flex-1 h-[52px] items-center justify-center gap-2 rounded-full font-black text-[15px] transition-transform active:scale-[0.96] ${
               isAvailable
-                ? 'bg-white text-slate-950'
-                : 'cursor-not-allowed bg-white/10 text-white/46'
+                ? 'bg-[#C62020] text-white shadow-[0_8px_20px_rgba(198,32,32,0.25)]'
+                : 'bg-[#e5e7eb] text-[#8c8c96] shadow-none'
             }`}
           >
-            {isAvailable ? <ShoppingBag size={20} /> : <CheckCircle2 size={20} />}
-            <span>
-              {isAvailable
-                ? `${quantity} ta - ${(product.price * quantity).toLocaleString()} so'm`
-                : isTemporarilyUnavailable
-                  ? 'Hozircha mavjud emas'
-                  : 'Tugagan'}
-            </span>
+            {isAvailable ? (
+              <>
+                Savatga • {(product.price * quantity).toLocaleString()}
+              </>
+            ) : (
+              'Tugagan'
+            )}
           </button>
         </div>
       </div>

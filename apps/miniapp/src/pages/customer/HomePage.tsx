@@ -60,6 +60,56 @@ function isToday(dateStr: string): boolean {
 const PromoBannerCarousel: React.FC<{ items: MenuProduct[] }> = ({ items }) => {
   const navigate = useNavigate();
   const { formatText } = useCustomerLanguage();
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+
+  // Duplicate items many times so it never runs out during continuous scrolling
+  const displayItems = React.useMemo(() => [...items, ...items, ...items, ...items, ...items], [items]);
+
+  React.useEffect(() => {
+    if (items.length === 0) return;
+    const el = scrollRef.current;
+    if (!el) return;
+
+    let isPaused = false;
+    let animationId: number;
+    let lastTime = performance.now();
+
+    const handleTouchStart = () => { isPaused = true; };
+    const handleTouchEnd = () => { isPaused = false; };
+    
+    el.addEventListener('touchstart', handleTouchStart, { passive: true });
+    el.addEventListener('touchend', handleTouchEnd, { passive: true });
+    el.addEventListener('mousedown', handleTouchStart, { passive: true });
+    el.addEventListener('mouseup', handleTouchEnd, { passive: true });
+    el.addEventListener('mouseleave', handleTouchEnd, { passive: true });
+
+    const step = (currentTime: number) => {
+      const dt = currentTime - lastTime;
+      lastTime = currentTime;
+
+      if (!isPaused) {
+        el.scrollLeft += dt * 0.035; // smooth continuous scroll speed
+        
+        // Endless loop logic: 5 sets, so 1 set = scrollWidth / 5.
+        const originalSetWidth = el.scrollWidth / 5;
+        if (el.scrollLeft >= originalSetWidth * 2) {
+          el.scrollLeft -= originalSetWidth;
+        }
+      }
+      animationId = requestAnimationFrame(step);
+    };
+    
+    animationId = requestAnimationFrame(step);
+
+    return () => {
+      cancelAnimationFrame(animationId);
+      el.removeEventListener('touchstart', handleTouchStart);
+      el.removeEventListener('touchend', handleTouchEnd);
+      el.removeEventListener('mousedown', handleTouchStart);
+      el.removeEventListener('mouseup', handleTouchEnd);
+      el.removeEventListener('mouseleave', handleTouchEnd);
+    };
+  }, [items.length]);
 
   if (items.length === 0) return null;
 
@@ -73,6 +123,7 @@ const PromoBannerCarousel: React.FC<{ items: MenuProduct[] }> = ({ items }) => {
       </p>
 
       <div
+        ref={scrollRef}
         className="scrollbar-hide"
         style={{
           display: 'flex',
@@ -80,13 +131,12 @@ const PromoBannerCarousel: React.FC<{ items: MenuProduct[] }> = ({ items }) => {
           overflowX: 'auto',
           paddingInline: 16,
           paddingBottom: 4,
-          scrollSnapType: 'x mandatory',
           WebkitOverflowScrolling: 'touch',
         }}
       >
-        {items.map((product) => (
+        {displayItems.map((product, index) => (
           <PromoBannerCard
-            key={product.id}
+            key={`${product.id}-${index}`}
             product={product}
             onClick={() => navigate(`/customer/product/${product.id}`)}
             formatText={formatText}
@@ -118,18 +168,17 @@ const PromoBannerCard: React.FC<{
       onClick={onClick}
       onKeyDown={(e) => { if (e.key === 'Enter') onClick(); }}
       style={{
-        width: 'calc(85vw)',
-        maxWidth: 360,
-        minWidth: 240,
+        width: 290,
+        maxWidth: '85vw',
         height: 175,
         borderRadius: 20,
         overflow: 'hidden',
         flexShrink: 0,
         position: 'relative',
         cursor: 'pointer',
-        scrollSnapAlign: 'start',
         boxShadow: '0 8px 28px rgba(0,0,0,0.22)',
         userSelect: 'none',
+        transform: 'translateZ(0)', // hardware acceleration for smooth scroll
       }}
     >
       {/* Background */}

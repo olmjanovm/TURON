@@ -44,6 +44,7 @@ import HomePage from './pages/customer/HomePage';
 import SearchPage from './pages/customer/SearchPage';
 import FavoritesPage from './pages/customer/FavoritesPage';
 import CategoryPage from './pages/customer/CategoryPage';
+import MenuPage from './pages/customer/MenuPage';
 import ProductPage from './pages/customer/ProductPage';
 import CartPage from './pages/customer/CartPage';
 import CheckoutPage from './pages/customer/CheckoutPage';
@@ -97,6 +98,7 @@ export default function App() {
             <Route path="search" element={<SearchPage />} />
             <Route path="favorites" element={<FavoritesPage />} />
             <Route path="category/:id" element={<CategoryPage />} />
+            <Route path="menu" element={<MenuPage />} />
             <Route path="product/:id" element={<ProductPage />} />
             <Route path="cart" element={<CartPage />} />
             <Route path="checkout" element={<CheckoutPage />} />
