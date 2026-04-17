@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { Plus, Search } from 'lucide-react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import { Clock, Plus, Search, ArrowUpLeft, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ProductAvailabilityEnum } from '@turon/shared';
 import { useCustomerLanguage } from '../../features/i18n/customerLocale';
@@ -16,21 +16,44 @@ import type { MenuProduct } from '../../features/menu/types';
 import { useProducts } from '../../hooks/queries/useMenu';
 import { useCartStore } from '../../store/useCartStore';
 
-const normalize = (value: string) =>
-  value
-    .toLowerCase()
-    .trim()
-    .replace(/[\u00B4`']/g, '')
-    .replace(/\s+/g, ' ');
+/* ── Search history helpers ─────────────────────────────────────────────── */
+const HISTORY_KEY = 'turon-search-history';
+const MAX_HISTORY = 10;
 
-const productIsAvailable = (product: MenuProduct) =>
-  product.isActive && product.availability === ProductAvailabilityEnum.AVAILABLE;
+function loadHistory(): string[] {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; }
+}
+function saveHistory(items: string[]) {
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(items)); } catch { /* noop */ }
+}
+function addToHistory(query: string, current: string[]): string[] {
+  const term = query.trim();
+  if (!term) return current;
+  const filtered = current.filter((h) => h.toLowerCase() !== term.toLowerCase());
+  return [term, ...filtered].slice(0, MAX_HISTORY);
+}
 
-/* ── Product card ─────────────────────────────────────────────────────────── */
+/* ── Fuzzy matching ─────────────────────────────────────────────────────── */
+const normalize = (v: string) =>
+  v.toLowerCase().trim().replace(/[\u00B4`']/g, '').replace(/\s+/g, ' ');
+
+function fuzzyMatch(hay: string, needle: string): boolean {
+  if (hay.includes(needle)) return true;
+  let pi = 0;
+  for (let i = 0; i < hay.length && pi < needle.length; i++) {
+    if (hay[i] === needle[pi]) pi++;
+  }
+  return pi === needle.length;
+}
+
+const productIsAvailable = (p: MenuProduct) =>
+  p.isActive && p.availability === ProductAvailabilityEnum.AVAILABLE;
+
+/* ── Product card ─────────────────────────────────────────────────────── */
 const SearchProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
   const navigate = useNavigate();
   const { formatText } = useCustomerLanguage();
-  const addToCart = useCartStore((state) => state.addToCart);
+  const addToCart = useCartStore((s) => s.addToCart);
   const posterSrc = React.useMemo(() => getProductPosterUrl(product), [product]);
   const [imageSrc, setImageSrc] = React.useState(() =>
     getProductImageUrl(
@@ -50,17 +73,12 @@ const SearchProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
     );
   }, [product]);
 
-  const handleAdd = (event: React.MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
+  const handleAdd = (e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation();
     if (!available) return;
     addToCart({
-      id: product.id,
-      menuItemId: product.id,
-      categoryId: product.categoryId,
-      name: product.name,
-      description: product.description,
-      price: product.price,
+      id: product.id, menuItemId: product.id, categoryId: product.categoryId,
+      name: product.name, description: product.description, price: product.price,
       image: getCartItemImageUrl({ id: product.id, name: product.name, image: imageSrc }),
       isAvailable: true,
     });
@@ -68,74 +86,61 @@ const SearchProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
 
   return (
     <article
-      role="button"
-      tabIndex={0}
+      role="button" tabIndex={0}
       onClick={() => navigate(`/customer/product/${product.id}`)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/customer/product/${product.id}`); }
-      }}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/customer/product/${product.id}`); } }}
       style={{
-        borderRadius: 18,
-        background: 'var(--app-card)',
-        boxShadow: '0 4px 16px rgba(0,0,0,0.07)',
-        overflow: 'hidden',
-        cursor: 'pointer',
-        opacity: available ? 1 : 0.6,
+        borderRadius: 16, background: 'var(--app-card)',
+        boxShadow: '0 2px 12px rgba(0,0,0,0.07)', overflow: 'hidden',
+        cursor: 'pointer', opacity: available ? 1 : 0.6,
         filter: available ? 'none' : 'grayscale(1)',
-        transition: 'transform 0.15s',
       }}
     >
-      <div style={{ position: 'relative', height: 140, background: '#f1f1f1' }}>
+      <div style={{ position: 'relative', height: 130, background: '#f1f1f1' }}>
         <img
-          src={imageSrc}
-          alt={formatText(product.name)}
-          loading="lazy"
+          src={imageSrc} alt={formatText(product.name)} loading="lazy"
           style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           onError={() => { if (imageSrc !== posterSrc) setImageSrc(posterSrc); }}
         />
         {promotion.badgeLabel ? (
           <span style={{
-            position: 'absolute', top: 10, left: 10,
+            position: 'absolute', top: 8, left: 8,
             background: promotion.kind === 'discount' ? '#10b981' : '#0ea5e9',
-            color: 'white', borderRadius: 999, padding: '3px 10px',
+            color: 'white', borderRadius: 999, padding: '3px 9px',
             fontSize: 10, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase',
-          }}>
-            {promotion.badgeLabel}
-          </span>
+          }}>{promotion.badgeLabel}</span>
         ) : null}
       </div>
-
-      <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <h3 style={{ fontSize: 15, fontWeight: 900, color: 'var(--app-text)', margin: 0, letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <div style={{ padding: '10px 12px' }}>
+        <h3 style={{ fontSize: 14, fontWeight: 900, color: 'var(--app-text)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {formatText(product.name)}
         </h3>
-        <p style={{ fontSize: 12, color: 'var(--app-muted)', margin: 0, fontWeight: 500 }}>
-          {formatText(getProductSecondaryText(product) || product.description || 'Mazali taom')}
+        <p style={{ fontSize: 11, color: 'var(--app-muted)', margin: '3px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {formatText(getProductSecondaryText(product) || product.description || '')}
         </p>
-        <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
           <div>
-            <p style={{ fontSize: 16, fontWeight: 900, color: 'var(--app-text)', margin: 0 }}>
+            <p style={{ fontSize: 15, fontWeight: 900, color: 'var(--app-text)', margin: 0 }}>
               {product.price.toLocaleString()} so'm
             </p>
             {promotion.oldPrice ? (
-              <p style={{ fontSize: 11, color: 'var(--app-muted)', textDecoration: 'line-through', margin: 0 }}>
+              <p style={{ fontSize: 10, color: 'var(--app-muted)', textDecoration: 'line-through', margin: 0 }}>
                 {promotion.oldPrice.toLocaleString()} so'm
               </p>
             ) : null}
           </div>
-          <button
-            type="button"
-            onClick={handleAdd}
-            disabled={!available}
+          <button type="button" onClick={handleAdd} disabled={!available}
             style={{
-              width: 38, height: 38, borderRadius: '50%', border: 'none', cursor: available ? 'pointer' : 'not-allowed',
-              background: available ? '#202124' : '#e5e7eb', color: available ? 'white' : '#9ca3af',
+              width: 34, height: 34, borderRadius: '50%', border: 'none',
+              cursor: available ? 'pointer' : 'not-allowed',
+              background: available ? '#202124' : '#e5e7eb',
+              color: available ? 'white' : '#9ca3af',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.2)', flexShrink: 0,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.18)', flexShrink: 0,
             }}
             aria-label="Savatga qo'shish"
           >
-            <Plus size={20} strokeWidth={2.7} />
+            <Plus size={18} strokeWidth={2.7} />
           </button>
         </div>
       </div>
@@ -146,42 +151,67 @@ const SearchProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
 /* ── Page ─────────────────────────────────────────────────────────────────── */
 const SearchPage: React.FC = () => {
   const [query, setQuery] = useState('');
+  const [history, setHistory] = useState<string[]>(loadHistory);
   const { data: products = [], isLoading } = useProducts();
+  const inputRef = React.useRef<HTMLInputElement>(null);
 
-  const normalizedQuery = normalize(query);
+  const normalizedQuery = useMemo(() => normalize(query), [query]);
 
   const activeProducts = useMemo(() => products.filter((p) => p.isActive), [products]);
 
-  // Fuzzy subsequence matching — same algo as HomePage
   const filtered = useMemo(() => {
-    if (!normalizedQuery) return activeProducts.sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
-    const nq = normalizedQuery;
+    if (!normalizedQuery) return [];
     return activeProducts
-      .filter((product) => {
-        const hay = normalize(`${product.name} ${product.description ?? ''} ${product.weight ?? ''} ${product.weightText ?? ''}`);
-        // exact substring
-        if (hay.includes(nq)) return true;
-        // subsequence
-        let pi = 0;
-        for (let i = 0; i < hay.length && pi < nq.length; i++) {
-          if (hay[i] === nq[pi]) pi++;
-        }
-        return pi === nq.length;
+      .filter((p) => {
+        const hay = normalize(`${p.name} ${p.description ?? ''} ${p.weight ?? ''} ${p.weightText ?? ''}`);
+        return fuzzyMatch(hay, normalizedQuery);
       })
       .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
   }, [activeProducts, normalizedQuery]);
 
+  // Save to history when user stops typing (on blur or Enter)
+  const commitSearch = useCallback((term: string) => {
+    const trimmed = term.trim();
+    if (!trimmed) return;
+    const updated = addToHistory(trimmed, history);
+    setHistory(updated);
+    saveHistory(updated);
+  }, [history]);
+
+  const applyHistory = (term: string) => {
+    setQuery(term);
+    inputRef.current?.focus();
+  };
+
+  const removeHistory = (e: React.MouseEvent, term: string) => {
+    e.stopPropagation();
+    const updated = history.filter((h) => h !== term);
+    setHistory(updated);
+    saveHistory(updated);
+  };
+
+  const clearHistory = () => { setHistory([]); saveHistory([]); };
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') commitSearch(query);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [query, commitSearch]);
+
+  const showHistory = !normalizedQuery && history.length > 0;
+  const showResults = !!normalizedQuery;
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--app-bg)', color: 'var(--app-text)' }}>
 
-      {/* ── Sticky search bar ────── */}
+      {/* ── Sticky search bar ─────────────────────────────────── */}
       <div style={{
         position: 'sticky',
         top: 'calc(60px + var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)))',
-        zIndex: 30,
-        background: 'var(--app-card)',
-        borderBottom: '1px solid var(--app-line)',
-        padding: '10px 16px',
+        zIndex: 30, background: 'var(--app-card)',
+        borderBottom: '1px solid var(--app-line)', padding: '10px 16px',
       }}>
         <label style={{
           display: 'flex', alignItems: 'center', gap: 10,
@@ -190,8 +220,10 @@ const SearchPage: React.FC = () => {
         }}>
           <Search size={19} strokeWidth={2.2} style={{ color: 'var(--app-muted)', flexShrink: 0 }} />
           <input
+            ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onBlur={() => commitSearch(query)}
             placeholder="Mahsulot nomini yozing..."
             style={{
               flex: 1, minWidth: 0, height: '100%',
@@ -204,40 +236,96 @@ const SearchPage: React.FC = () => {
           {query ? (
             <button type="button" onClick={() => setQuery('')}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--app-muted)', padding: 0, display: 'flex' }}>
-              ✕
+              <X size={16} />
             </button>
           ) : null}
         </label>
       </div>
 
       <main style={{ padding: '16px 16px 100px' }}>
-        {/* Result count hint */}
-        {query ? (
-          <p style={{ fontSize: 13, color: 'var(--app-muted)', fontWeight: 600, marginBottom: 12 }}>
-            "{query}" uchun {filtered.length} ta natija
-          </p>
-        ) : null}
 
-        {isLoading ? (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} style={{ height: 240, borderRadius: 18, background: 'var(--app-card)', animation: 'pulse 1.5s infinite' }} />
-            ))}
+        {/* ── History (shown when search is empty) ─────────────── */}
+        {showHistory && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 900, color: 'var(--app-text)', margin: 0 }}>Tarix</h2>
+              <button type="button" onClick={clearHistory}
+                style={{ fontSize: 13, fontWeight: 700, color: '#C62020', background: 'none', border: 'none', cursor: 'pointer' }}>
+                Tozalash
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {history.map((term) => (
+                <button key={term} type="button" onClick={() => applyHistory(term)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '12px 14px', borderRadius: 14,
+                    background: 'var(--app-card)', border: 'none', cursor: 'pointer',
+                    textAlign: 'left', width: '100%',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+                    marginBottom: 6,
+                  }}
+                >
+                  <Clock size={18} style={{ color: 'var(--app-muted)', flexShrink: 0 }} />
+                  <span style={{ flex: 1, fontSize: 15, fontWeight: 600, color: 'var(--app-text)' }}>
+                    {term}
+                  </span>
+                  <ArrowUpLeft size={18} style={{ color: '#C62020', flexShrink: 0 }} />
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => removeHistory(e, term)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') removeHistory(e as any, term); }}
+                    style={{ color: 'var(--app-muted)', display: 'flex', padding: 4, cursor: 'pointer' }}
+                    aria-label="O'chirish"
+                  >
+                    <X size={14} />
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
-        ) : filtered.length > 0 ? (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            {filtered.map((product) => (
-              <SearchProductCard key={product.id} product={product} />
-            ))}
+        )}
+
+        {/* ── Empty state (no history, no query) ───────────────── */}
+        {!showHistory && !showResults && (
+          <div style={{ marginTop: 60, textAlign: 'center', color: 'var(--app-muted)' }}>
+            <Search size={48} style={{ margin: '0 auto 16px' }} />
+            <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--app-text)' }}>Taom qidiring</p>
+            <p style={{ fontSize: 13, marginTop: 6 }}>Mahsulot nomini yozib boshlang</p>
           </div>
-        ) : (
-          <div style={{ marginTop: 40, textAlign: 'center', padding: '40px 20px', borderRadius: 18, background: 'var(--app-card)' }}>
-            <Search size={40} style={{ margin: '0 auto 12px', color: 'var(--app-muted)' }} />
-            <p style={{ fontSize: 17, fontWeight: 900, color: 'var(--app-text)', margin: 0 }}>Hech narsa topilmadi</p>
-            <p style={{ fontSize: 13, color: 'var(--app-muted)', marginTop: 8, lineHeight: 1.5 }}>
-              Boshqacha yozib ko'ring yoki asosiy menyudan tanlang.
+        )}
+
+        {/* ── Results ───────────────────────────────────────────── */}
+        {showResults && (
+          <>
+            <p style={{ fontSize: 13, color: 'var(--app-muted)', fontWeight: 600, marginBottom: 12 }}>
+              &ldquo;{query}&rdquo; uchun {filtered.length} ta natija
             </p>
-          </div>
+
+            {isLoading ? (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} style={{ height: 220, borderRadius: 16, background: 'var(--app-card)' }} />
+                ))}
+              </div>
+            ) : filtered.length > 0 ? (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                {filtered.map((product) => (
+                  <SearchProductCard key={product.id} product={product} />
+                ))}
+              </div>
+            ) : (
+              <div style={{ marginTop: 40, textAlign: 'center', padding: '40px 20px', borderRadius: 18, background: 'var(--app-card)' }}>
+                <Search size={40} style={{ margin: '0 auto 12px', color: 'var(--app-muted)' }} />
+                <p style={{ fontSize: 17, fontWeight: 900, color: 'var(--app-text)', margin: 0 }}>Hech narsa topilmadi</p>
+                <p style={{ fontSize: 13, color: 'var(--app-muted)', marginTop: 8, lineHeight: 1.5 }}>
+                  Boshqacha yozib ko'ring yoki asosiy menyudan tanlang.
+                </p>
+              </div>
+            )}
+          </>
         )}
       </main>
     </div>
