@@ -256,8 +256,8 @@ export class LiveMultiRouteTracker {
             [to.lat, to.lng],
           ],
           params: {
-            // pedestrian mode lets a scooter use small streets and shortcuts
-            routingMode: 'pedestrian',
+            // 'auto' follows actual vehicle roads (no routing through buildings)
+            routingMode: 'auto',
             avoidTrafficJams: true,
           },
         },
