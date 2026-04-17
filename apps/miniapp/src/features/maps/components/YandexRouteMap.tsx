@@ -74,8 +74,11 @@ export default function YandexRouteMap({
   const mapListenerRef   = useRef<any>(null);
   const courierElRef     = useRef<HTMLDivElement | null>(null);
   // Live route tracker — ymaps2.1 multiRouter feeds polyline into ymaps3 renderer
-  const trackerRef       = useRef<LiveMultiRouteTracker | null>(null);
-  const lastRouteKeyRef  = useRef<string | null>(null);
+  const trackerRef            = useRef<LiveMultiRouteTracker | null>(null);
+  // Last polyline coords from multiRouter (road-snapped). Used to instantly move
+  // the polyline head on GPS tick before the full re-route response arrives.
+  const lastPolylineCoordsRef = useRef<[number, number][]>([]);
+  const lastRouteKeyRef       = useRef<string | null>(null);
   const followModeRef    = useRef(followMode);
   const courierPosRef    = useRef(courierPos);
   const headingRef       = useRef(heading ?? 0);
@@ -322,7 +325,15 @@ export default function YandexRouteMap({
         // on the existing model — no map reinit, no flicker.
         const tracker = new LiveMultiRouteTracker((info, polyline) => {
           if (disposed) return;
-          updateRoutePolyline(polyline.map((p) => toLngLat(p)));
+          const coords = polyline.map((p) => toLngLat(p));
+          // Store snapped polyline so GPS effect can move the head instantly
+          lastPolylineCoordsRef.current = coords;
+          updateRoutePolyline(coords);
+          // Snap courier marker to road — polyline[0] is the multiRouter start
+          // point snapped to the nearest road/path, not raw GPS
+          if (polyline[0]) {
+            try { courierMarkerRef.current?.update({ coordinates: coords[0] }); } catch { /* skip */ }
+          }
           emitRouteInfo(info);
           onNextStepRef.current?.(info.steps?.[0] ?? null);
         });
@@ -368,6 +379,8 @@ export default function YandexRouteMap({
     try { pickupMarkerRef.current?.update({ coordinates: toLngLat(pickup) }); }     catch { /* skip */ }
     try { destMarkerRef.current?.update({ coordinates: toLngLat(destination) }); } catch { /* skip */ }
 
+    // Clear cached polyline so GPS effect doesn't splice stale coords
+    lastPolylineCoordsRef.current = [];
     // Re-init the multiRoute model with new endpoints (old model is cleanly destroyed inside)
     void tracker.init(activeFrom, activeTo);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -417,8 +430,17 @@ export default function YandexRouteMap({
       }
     }
 
+    // ── Polyline head snap (instant, before multiRouter responds) ────────────
+    // Move only the first coord of the stored polyline to the new courier
+    // position. This keeps the line visually connected to the marker during
+    // the ~1 s gap while the re-route is being calculated in background.
+    const prevCoords = lastPolylineCoordsRef.current;
+    if (prevCoords.length >= 2) {
+      updateRoutePolyline([toLngLat(courierPos), ...prevCoords.slice(1)]);
+    }
+
     // Push new origin to multiRouter — recalculates only what changed,
-    // fires requestsuccess → updateRoutePolyline() → polyline refreshed
+    // fires requestsuccess → updates full polyline + snaps marker to road
     trackerRef.current?.updateOrigin(courierPos);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courierPos?.lat, courierPos?.lng]);
