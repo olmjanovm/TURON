@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, Heart, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, Heart, ShoppingBag } from 'lucide-react';
 import { ProductAvailabilityEnum } from '@turon/shared';
-import { EmptyState, QuantitySelector } from '../../components/customer/CustomerComponents';
-import { useProductById } from '../../hooks/queries/useMenu';
+import { EmptyState } from '../../components/customer/CustomerComponents';
+import { useProductById, useProducts } from '../../hooks/queries/useMenu';
 import { useCartStore } from '../../store/useCartStore';
 import { getProductImageUrl, getProductPosterUrl } from '../../features/menu/placeholders';
 import { getProductPromotion, getProductSecondaryText } from '../../features/menu/customerCatalog';
