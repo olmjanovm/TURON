@@ -135,34 +135,49 @@ const ProductPage: React.FC = () => {
       </div>
 
       {/* ── Main Content Card ── */}
-      <main className="relative z-10 mx-auto -mt-8 max-w-[430px] min-h-[60vh] rounded-t-[32px] bg-white px-6 pb-[120px] pt-8 shadow-[0_-8px_20px_rgba(0,0,0,0.04)]">
-        {/* Title and Rating */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1">
-            <h1 className="text-[24px] font-black leading-tight tracking-tight text-[#202020]">
-              {formatText(product.name)}
-            </h1>
-            {product.weight ? (
-              <p className="mt-1 text-[13px] font-medium text-gray-500">
-                {formatText(product.weight)}
-              </p>
-            ) : null}
+      <main className="relative z-10 mx-auto -mt-6 max-w-[430px] min-h-[60vh] rounded-t-[24px] bg-white px-6 pb-[120px] pt-7 shadow-[0_-8px_20px_rgba(0,0,0,0.04)]">
+        
+        {/* Brand and Stars */}
+        <div className="flex items-center gap-4">
+          <span className="text-[15px] font-bold text-gray-700">Turon Kafe</span>
+          <div className="flex items-center gap-[2px]">
+            {[1, 2, 3, 4].map((i) => (
+              <Star key={i} size={14} className="fill-[#C62020] text-[#C62020]" />
+            ))}
+            <Star size={14} className="fill-gray-200 text-gray-200" />
           </div>
-          <div className="flex items-center gap-1.5 rounded-full bg-rose-50 px-3 py-1.5 shrink-0 h-[32px]">
-            <Star size={14} className="fill-[#C62020] text-[#C62020]" />
-            <span className="text-[13px] font-bold text-[#202020]">4.9</span>
-            <span className="text-[11px] font-medium text-gray-500">(1.2k)</span>
+        </div>
+
+        {/* Title and Price */}
+        <div className="mt-2 flex items-start justify-between gap-4">
+          <h1 className="text-[26px] font-black leading-tight tracking-tight text-[#202020] flex-1">
+            {formatText(product.name)}
+          </h1>
+          <div className="mt-1 flex shrink-0 items-start">
+            <span className="text-[24px] font-black tracking-tight text-[#202020]">
+              {product.price.toLocaleString()} s.
+            </span>
           </div>
         </div>
 
         {/* Description */}
-        <div className="mt-8">
-          <h3 className="text-[16px] font-black tracking-tight text-[#202020]">
-            Tarkibi
-          </h3>
-          <p className="mt-3 text-[14px] leading-[1.65] text-gray-500">
+        <div className="mt-5">
+          <p className="text-[15px] leading-[1.6] text-gray-600 font-medium">
             {formatText(product.description) || getProductSecondaryText(product)}
+            {product.weight && <span className="block mt-1">Vazni: {formatText(product.weight)}</span>}
           </p>
+        </div>
+
+        {/* Delivery Time Info */}
+        <div className="mt-6 flex items-center gap-3">
+          <div className="flex h-6 w-6 items-center justify-center rounded-full border-[2px] border-[#202020]">
+            <div className="h-[2px] w-[2px] bg-[#202020] rounded-full relative">
+              <div className="absolute bottom-0 left-0 w-[1px] h-[6px] bg-[#202020]" />
+              <div className="absolute top-0 left-0 h-[1px] w-[6px] bg-[#202020]" />
+            </div>
+          </div>
+          <span className="text-[14px] font-bold text-[#202020]">Yetkazish vaqti:</span>
+          <span className="text-[14px] font-bold text-gray-400">30 Daq</span>
         </div>
 
         {/* Similar Products */}
@@ -204,55 +219,42 @@ const ProductPage: React.FC = () => {
 
       {/* ── Sticky Bottom Checkout ── */}
       <div className="fixed inset-x-0 bottom-0 z-50 bg-white/95 pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-8px_30px_rgba(0,0,0,0.06)] backdrop-blur-xl">
-        <div className="mx-auto flex h-[90px] w-full max-w-[430px] items-center justify-between px-6 gap-5">
+        <div className="mx-auto flex h-[90px] w-full max-w-[430px] items-center justify-between px-6 gap-6">
+          
           {/* Quantity Controls */}
-          <div className="flex flex-col gap-1.5 w-[105px] shrink-0">
-            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider pl-1">Miqdor</p>
-            <div className="flex h-11 w-full items-center justify-between rounded-full bg-[#f4f4f5] px-[4px] shadow-inner">
-              <button
-                type="button"
-                onClick={() => setQuantity((current) => Math.max(1, current - 1))}
-                disabled={!isAvailable}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#202020] shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition active:scale-90 disabled:opacity-50"
-              >
-                <span className="text-[20px] font-black leading-none mb-[2px]">-</span>
-              </button>
-              <span className="text-[16px] font-black text-[#202020]">{quantity}</span>
-              <button
-                type="button"
-                onClick={() => setQuantity((current) => current + 1)}
-                disabled={!isAvailable}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-[#C62020] text-white shadow-[0_2px_8px_rgba(198,32,32,0.3)] transition active:scale-90 disabled:opacity-50 cursor-pointer"
-              >
-                <span className="text-[20px] font-black leading-none mb-[2px]">+</span>
-              </button>
-            </div>
+          <div className="flex items-center gap-4 shrink-0">
+            <button
+              type="button"
+              onClick={() => setQuantity((current) => Math.max(1, current - 1))}
+              disabled={!isAvailable}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-400 text-white shadow-sm transition active:scale-90 disabled:opacity-50"
+            >
+              <span className="text-[20px] font-black leading-none mb-[2px]">-</span>
+            </button>
+            <span className="text-[18px] font-black w-4 text-center text-[#202020]">{quantity}</span>
+            <button
+              type="button"
+              onClick={() => setQuantity((current) => current + 1)}
+              disabled={!isAvailable}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-[#C62020] text-white shadow-sm transition active:scale-90 disabled:opacity-50 cursor-pointer"
+            >
+              <span className="text-[20px] font-black leading-none mb-[2px]">+</span>
+            </button>
           </div>
 
           {/* Add to Cart Button */}
-          <div className="flex flex-col flex-1">
-            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-auto pr-2">Umumiy narx</p>
+          <div className="flex-1">
             <button
               type="button"
               onClick={handleAddToCart}
               disabled={!isAvailable}
-              className={`mt-1 flex h-[44px] w-full items-center justify-center gap-2 rounded-full font-black text-[15px] transition-transform active:scale-[0.97] ${
+              className={`flex h-[52px] w-full items-center justify-center gap-2 rounded-xl font-bold text-[16px] transition-transform active:scale-[0.97] ${
                 isAvailable
                   ? 'bg-[#C62020] text-white shadow-[0_8px_20px_rgba(198,32,32,0.25)]'
                   : 'bg-[#e5e7eb] text-[#8c8c96] shadow-none'
               }`}
             >
-              {isAvailable ? (
-                <>
-                  <ShoppingBag size={18} strokeWidth={2.5} />
-                  Savatga 
-                  <span className="opacity-80 font-bold ml-1">
-                    {(product.price * quantity).toLocaleString()}
-                  </span>
-                </>
-              ) : (
-                'Tugagan'
-              )}
+              {isAvailable ? 'Savatga qo\'shish' : 'Tugagan'}
             </button>
           </div>
         </div>
