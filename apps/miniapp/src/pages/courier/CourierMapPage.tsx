@@ -522,10 +522,10 @@ const CourierMapPage: React.FC = () => {
       {/* ── Bottom action panel ──────────────────────────────────────────── */}
       {activeStep || routes.length > 1 ? (
         <div
-          className="pointer-events-none absolute left-0 top-0 z-30 w-full px-4"
+          className="pointer-events-none absolute left-4 top-0 z-30 px-0"
           style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 68px)' }}
         >
-          <div className="pointer-events-auto max-w-[22rem]">
+          <div className="pointer-events-auto w-[50%] max-w-[200px]">
             <CourierNavigationPanel
               routes={routes}
               selectedRouteId={selectedRouteId}
