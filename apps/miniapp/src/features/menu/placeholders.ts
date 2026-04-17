@@ -226,7 +226,6 @@ const createPosterDataUrl = (label: string, seed: string) => {
       <rect width="1200" height="900" rx="54" fill="url(#bg)" />
       <circle cx="980" cy="140" r="180" fill="rgba(255,255,255,0.16)" />
       <circle cx="230" cy="760" r="220" fill="rgba(255,255,255,0.12)" />
-      <text x="86" y="130" fill="${palette.accent}" font-size="40" font-family="Arial, sans-serif" letter-spacing="12">TURON KAFE</text>
       <text x="86" y="458" fill="#ffffff" font-size="110" font-weight="700" font-family="Arial, sans-serif">${safeLabel}</text>
       <text x="86" y="530" fill="${palette.accent}" font-size="34" font-family="Arial, sans-serif" letter-spacing="4">Turon Kafesi</text>
     </svg>
