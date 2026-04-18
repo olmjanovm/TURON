@@ -56,23 +56,24 @@ export const PullToRefreshIndicator: React.FC = () => {
 
   const setPhaseSync = (p: Phase) => { phaseRef.current = p; setPhase(p); };
 
+  const runStrongHaptic = useCallback(() => {
+    try {
+      const tg = (window as any).Telegram?.WebApp;
+      tg?.HapticFeedback?.impactOccurred?.('heavy');
+      tg?.HapticFeedback?.notificationOccurred?.('success');
+      if (navigator.vibrate) {
+        navigator.vibrate([60, 30, 90]);
+      }
+    } catch { /* noop */ }
+  }, []);
+
   const triggerRefresh = useCallback(async () => {
     if (refreshingRef.current) return;
     refreshingRef.current = true;
     setPhaseSync('refreshing');
     setProgress(1);
 
-    // Haptic — like native iOS
-    try {
-      const tg = (window as any).Telegram?.WebApp;
-      if (tg?.HapticFeedback?.notificationOccurred) {
-        tg.HapticFeedback.notificationOccurred('success');
-      } else if (tg?.HapticFeedback?.impactOccurred) {
-        tg.HapticFeedback.impactOccurred('medium');
-      } else if (navigator.vibrate) {
-        navigator.vibrate([30, 20, 60]);
-      }
-    } catch { /* noop */ }
+    runStrongHaptic();
 
     try {
       await queryClient.invalidateQueries();
@@ -85,7 +86,7 @@ export const PullToRefreshIndicator: React.FC = () => {
         refreshingRef.current = false;
       }, 500);
     }
-  }, [queryClient]);
+  }, [queryClient, runStrongHaptic]);
 
   useEffect(() => {
     const onProgress = (e: Event) => {
@@ -100,19 +101,22 @@ export const PullToRefreshIndicator: React.FC = () => {
       });
     };
     const onRefresh = () => triggerRefresh();
+    const onArmed = () => runStrongHaptic();
     const onCancel = () => {
       if (!refreshingRef.current) { setPhaseSync('idle'); setProgress(0); }
     };
     window.addEventListener('turon:pull-progress', onProgress);
+    window.addEventListener('turon:pull-armed', onArmed);
     window.addEventListener('turon:pull-refresh', onRefresh);
     window.addEventListener('turon:pull-cancel', onCancel);
     return () => {
       if (rafRef.current !== null) { window.cancelAnimationFrame(rafRef.current); rafRef.current = null; }
       window.removeEventListener('turon:pull-progress', onProgress);
+      window.removeEventListener('turon:pull-armed', onArmed);
       window.removeEventListener('turon:pull-refresh', onRefresh);
       window.removeEventListener('turon:pull-cancel', onCancel);
     };
-  }, [triggerRefresh]);
+  }, [runStrongHaptic, triggerRefresh]);
 
   if (phase === 'idle') return null;
 

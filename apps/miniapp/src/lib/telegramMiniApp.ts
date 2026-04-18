@@ -27,7 +27,7 @@ let cleanupZoomGuard: (() => void) | null = null;
 let lastFullscreenRequestAt = 0;
 const FULLSCREEN_COOLDOWN_MS = 3_000;
 
-const PULL_TO_REFRESH_THRESHOLD_PX = 75;
+const PULL_TO_REFRESH_THRESHOLD_PX = 120;
 
 function getTelegramWebApp(): TelegramWebApp | undefined {
   return window.Telegram?.WebApp;
@@ -102,6 +102,7 @@ function installIosOverscrollGuard() {
   let startX = 0;
   let pullStartedAtTop = false;
   let pullRefreshArmed = false;
+  let pullArmedNotified = false;
 
   const onTouchStart = (event: TouchEvent) => {
     startY = event.touches[0]?.clientY ?? 0;
@@ -109,6 +110,7 @@ function installIosOverscrollGuard() {
     const scrollTarget = getScrollableParent(event.target);
     pullStartedAtTop = scrollTarget.scrollTop <= 0;
     pullRefreshArmed = false;
+    pullArmedNotified = false;
   };
 
   const onTouchMove = (event: TouchEvent) => {
@@ -127,15 +129,19 @@ function installIosOverscrollGuard() {
     const atTop = scrollTarget.scrollTop <= 0;
 
     if (isSwipingDown && atTop && pullStartedAtTop) {
+      event.preventDefault();
+
       const progress = Math.min(deltaY / PULL_TO_REFRESH_THRESHOLD_PX, 1.15);
       window.dispatchEvent(new CustomEvent('turon:pull-progress', { detail: { progress } }));
 
       if (deltaY >= PULL_TO_REFRESH_THRESHOLD_PX) {
         pullRefreshArmed = true;
+        if (!pullArmedNotified) {
+          pullArmedNotified = true;
+          window.dispatchEvent(new CustomEvent('turon:pull-armed'));
+        }
       }
     }
-
-    // No event.preventDefault() — scroll is never blocked.
   };
 
   const resetTouchState = () => {
@@ -149,10 +155,11 @@ function installIosOverscrollGuard() {
     startX = 0;
     pullStartedAtTop = false;
     pullRefreshArmed = false;
+    pullArmedNotified = false;
   };
 
   document.addEventListener('touchstart', onTouchStart, { passive: true });
-  document.addEventListener('touchmove', onTouchMove, { passive: true });
+  document.addEventListener('touchmove', onTouchMove, { passive: false });
   document.addEventListener('touchend', resetTouchState, { passive: true });
   document.addEventListener('touchcancel', resetTouchState, { passive: true });
 
