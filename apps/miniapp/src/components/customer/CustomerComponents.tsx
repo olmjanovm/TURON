@@ -504,12 +504,11 @@ export const QuantitySelector: React.FC<{
   };
 
   return (
-    <div className="flex items-center rounded-md border border-white/10 bg-white/[0.05] p-1">
+    <div className="flex items-center rounded-full border border-white/10 bg-white/[0.05] p-1.5">
       <button
         type="button"
         onClick={handleDecrease}
-        className={`flex h-10 w-10 items-center justify-center rounded-md ${activeButton === 'decrease' ? 'bg-[#C62020] text-white' : 'bg-white text-black'
-          }`}
+        className={`flex h-10 w-10 items-center justify-center rounded-full ${activeButton === 'decrease' ? 'bg-[#C62020] text-white' : 'bg-[#F4F4F5] text-[#202020]'} transition active:scale-95`}
       >
         <Minus size={18} />
       </button>
@@ -517,8 +516,7 @@ export const QuantitySelector: React.FC<{
       <button
         type="button"
         onClick={handleIncrease}
-        className={`flex h-10 w-10 items-center justify-center rounded-md ${activeButton === 'increase' ? 'bg-[#C62020] text-white' : 'bg-white text-black'
-          }`}
+        className={`flex h-10 w-10 items-center justify-center rounded-full ${activeButton === 'increase' ? 'bg-[#C62020] text-white' : 'bg-[#C62020] text-white'} transition active:scale-95`}
       >
         <Plus size={18} />
       </button>

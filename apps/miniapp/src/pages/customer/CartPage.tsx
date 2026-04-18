@@ -68,12 +68,11 @@ const CartProductCard: React.FC<{
           {formatMoney(item.price)}
         </p>
 
-        <div className="mt-2 flex items-center gap-2">
+        <div className="mt-2 flex items-center gap-2 rounded-full bg-[#F4F4F5] px-1.5 py-1 shadow-sm">
           <button
             type="button"
             onClick={handleDecrease}
-            className={`flex h-10 w-10 items-center justify-center rounded-md ${activeButton === 'decrease' ? 'bg-[#C62020] text-white' : 'bg-white text-black'
-              }`}
+            className={`flex h-10 w-10 items-center justify-center rounded-full ${activeButton === 'decrease' ? 'bg-[#C62020] text-white' : 'bg-white text-[#202020]'} transition active:scale-95`}
           >
             <Minus size={16} />
           </button>
@@ -81,8 +80,7 @@ const CartProductCard: React.FC<{
           <button
             type="button"
             onClick={handleIncrease}
-            className={`flex h-10 w-10 items-center justify-center rounded-md ${activeButton === 'increase' ? 'bg-[#C62020] text-white' : 'bg-white text-black'
-              }`}
+            className={`flex h-10 w-10 items-center justify-center rounded-full ${activeButton === 'increase' ? 'bg-[#C62020] text-white' : 'bg-[#C62020] text-white'} transition active:scale-95`}
           >
             <Plus size={16} />
           </button>
