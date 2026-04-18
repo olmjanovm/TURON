@@ -3,6 +3,8 @@ import { persist } from 'zustand/middleware';
 import { ProductAvailabilityEnum, PromoDiscountTypeEnum } from '@turon/shared';
 import type { AppliedPromo, CartItem, ProductSnapshot } from '../data/types';
 import type { MenuProduct } from '../features/menu/types';
+import { playSound } from '../utils/soundEffects';
+import { useToastStore } from './useToastStore';
 
 function calculatePromoDiscount(appliedPromo: AppliedPromo | null, subtotal: number) {
   if (!appliedPromo || subtotal < appliedPromo.minOrderValue) {
@@ -27,7 +29,7 @@ interface CartState {
   setPromo: (promo: AppliedPromo | null) => void;
   setItems: (items: CartItem[]) => void;
   syncWithProducts: (products: MenuProduct[]) => void;
-  
+
   // Computed (helper style instead of actual derived state for simple skeletons)
   getSubtotal: () => number;
   getDiscount: () => number;
@@ -45,7 +47,7 @@ export const useCartStore = create<CartState>()(
         const { items } = get();
         const cartItemId = product.menuItemId || product.id;
         const existingItem = items.find((item) => item.id === cartItemId);
-        
+
         if (existingItem) {
           set({
             items: items.map((item) =>
@@ -68,9 +70,25 @@ export const useCartStore = create<CartState>()(
             ],
           });
         }
-        
+
+        // Play sound effect
+        playSound.addToCart();
+
+        // Haptic feedback
         if (window.Telegram?.WebApp?.HapticFeedback) {
-          window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
+          window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
+        }
+
+        // Show toast notification
+        try {
+          const productName = product.name || 'Mahsulot';
+          useToastStore.getState().addToast(
+            `"${productName}" savatga qo'shildi`,
+            'success',
+            2000
+          );
+        } catch (e) {
+          console.debug('Toast notification not available');
         }
       },
 
@@ -89,14 +107,18 @@ export const useCartStore = create<CartState>()(
         }).filter(item => item.quantity > 0);
 
         set({ items: newItems });
-        
+
+        // Haptic feedback
         if (window.Telegram?.WebApp?.HapticFeedback) {
           window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
         }
+
+        // Play subtle click sound
+        playSound.buttonClick();
       },
 
       clearCart: () => set({ items: [], appliedPromo: null }),
-      
+
       setPromo: (appliedPromo) => set({ appliedPromo }),
 
       setItems: (items) =>

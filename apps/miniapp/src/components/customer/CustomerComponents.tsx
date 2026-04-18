@@ -35,6 +35,7 @@ import {
 import { useCartStore } from '../../store/useCartStore';
 import NotificationBadge from '../../features/notifications/components/NotificationBadge';
 import { useCustomerLanguage } from '../../features/i18n/customerLocale';
+import { playSound } from '../../utils/soundEffects';
 
 type DisplayProduct = MenuProduct | ProductSnapshot;
 
@@ -877,6 +878,14 @@ export const BottomNavbar: React.FC = () => {
 
   const RED = '#C62020';
 
+  const handleNavClick = (path: string) => {
+    playSound.buttonClick();
+    if (window.Telegram?.WebApp?.HapticFeedback) {
+      window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
+    }
+    navigate(path);
+  };
+
   const leftItems = [
     { icon: Home, label: 'Bosh sahifa', path: '/customer' },
     { icon: Search, label: 'Qidiruv', path: '/customer/search' },
@@ -904,17 +913,18 @@ export const BottomNavbar: React.FC = () => {
           {leftItems.map((item) => {
             const Icon = item.icon;
             return (
-              <NavLink
+              <button
                 key={item.path}
-                to={item.path}
+                type="button"
+                onClick={() => handleNavClick(item.path)}
                 className="flex flex-col items-center gap-[3px] px-3 py-1 transition-all active:scale-90"
-                style={{ textDecoration: 'none' }}
+                style={{ textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer' }}
               >
                 <Icon size={22} strokeWidth={2} color="white" />
                 <span style={{ fontSize: 10, fontWeight: 700, color: 'white', lineHeight: 1 }}>
                   {item.label}
                 </span>
-              </NavLink>
+              </button>
             );
           })}
         </div>
@@ -922,7 +932,13 @@ export const BottomNavbar: React.FC = () => {
         {/* CENTER: elevated cart */}
         <div className="relative flex flex-col items-center" style={{ marginBottom: 10 }}>
           <button
-            onClick={() => navigate('/customer/cart')}
+            onClick={() => {
+              playSound.buttonClick();
+              if (window.Telegram?.WebApp?.HapticFeedback) {
+                window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
+              }
+              navigate('/customer/cart');
+            }}
             type="button"
             className="relative flex items-center justify-center rounded-full transition-transform active:scale-90"
             style={{
@@ -932,12 +948,13 @@ export const BottomNavbar: React.FC = () => {
               border: 'none',
               marginTop: -28,
               color: RED,
+              cursor: 'pointer',
             }}
           >
             <ShoppingCart size={26} strokeWidth={2.2} />
             {cartCount > 0 && (
               <span
-                className="absolute -right-1 -top-1 flex items-center justify-center rounded-full text-white"
+                className="absolute -right-1 -top-1 flex items-center justify-center rounded-full text-white animate-pulse"
                 style={{
                   height: 18, minWidth: 18, fontSize: 9, fontWeight: 900,
                   background: RED, border: '2px solid white', padding: '0 2px',
@@ -947,9 +964,6 @@ export const BottomNavbar: React.FC = () => {
               </span>
             )}
           </button>
-          <span style={{ marginTop: 3, fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.75)', lineHeight: 1 }}>
-            Savat
-          </span>
         </div>
 
         {/* RIGHT */}
@@ -957,11 +971,12 @@ export const BottomNavbar: React.FC = () => {
           {rightItems.map((item) => {
             const Icon = item.icon;
             return (
-              <NavLink
+              <button
                 key={item.path}
-                to={item.path}
+                type="button"
+                onClick={() => handleNavClick(item.path)}
                 className="flex flex-col items-center gap-[3px] px-3 py-1 transition-all active:scale-90"
-                style={{ textDecoration: 'none' }}
+                style={{ textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer' }}
               >
                 <div style={{ position: 'relative' }}>
                   <Icon size={22} strokeWidth={2} color="white" />
@@ -970,7 +985,7 @@ export const BottomNavbar: React.FC = () => {
                 <span style={{ fontSize: 10, fontWeight: 700, color: 'white', lineHeight: 1 }}>
                   {item.label}
                 </span>
-              </NavLink>
+              </button>
             );
           })}
         </div>
