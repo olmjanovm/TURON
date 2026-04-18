@@ -218,45 +218,45 @@ const ProductPage: React.FC = () => {
       </main>
 
       {/* ── Sticky Bottom Checkout ── */}
-      <div className="fixed inset-x-0 bottom-0 z-50 bg-white/95 pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-8px_30px_rgba(0,0,0,0.06)] backdrop-blur-xl">
-        <div className="mx-auto flex h-[90px] w-full max-w-[430px] items-center justify-between px-6 gap-6">
+      <div className="fixed inset-x-0 bottom-0 z-50 bg-white pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-8px_30px_rgba(0,0,0,0.06)] rounded-t-[24px]">
+        <div className="mx-auto flex h-[88px] w-full max-w-[430px] items-center justify-between px-5 gap-3">
           
           {/* Quantity Controls */}
-          <div className="flex items-center gap-4 shrink-0">
+          <div className="flex h-[52px] items-center justify-between rounded-full bg-red-50/80 px-2 min-w-[124px]">
             <button
               type="button"
-              onClick={() => setQuantity((current) => Math.max(1, current - 1))}
-              disabled={!isAvailable}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-400 text-white shadow-sm transition active:scale-90 disabled:opacity-50"
+              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+              disabled={!isAvailable || quantity <= 1}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#C62020] text-white shadow-sm transition active:scale-95 disabled:opacity-30 disabled:active:scale-100"
             >
-              <span className="text-[20px] font-black leading-none mb-[2px]">-</span>
+              <span className="text-[20px] font-medium leading-none pb-[2px]">-</span>
             </button>
-            <span className="text-[18px] font-black w-4 text-center text-[#202020]">{quantity}</span>
+            <span className="w-8 text-center text-[16px] font-black text-[#C62020]">
+              {quantity}
+            </span>
             <button
               type="button"
-              onClick={() => setQuantity((current) => current + 1)}
+              onClick={() => setQuantity((q) => q + 1)}
               disabled={!isAvailable}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-[#C62020] text-white shadow-sm transition active:scale-90 disabled:opacity-50 cursor-pointer"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#C62020] text-white shadow-sm transition active:scale-95 disabled:opacity-30 disabled:active:scale-100"
             >
-              <span className="text-[20px] font-black leading-none mb-[2px]">+</span>
+              <span className="text-[20px] font-medium leading-none pb-[2px]">+</span>
             </button>
           </div>
 
           {/* Add to Cart Button */}
-          <div className="flex-1">
-            <button
-              type="button"
-              onClick={handleAddToCart}
-              disabled={!isAvailable}
-              className={`flex h-[52px] w-full items-center justify-center gap-2 rounded-xl font-bold text-[16px] transition-transform active:scale-[0.97] ${
-                isAvailable
-                  ? 'bg-[#C62020] text-white shadow-[0_8px_20px_rgba(198,32,32,0.25)]'
-                  : 'bg-[#e5e7eb] text-[#8c8c96] shadow-none'
-              }`}
-            >
-              {isAvailable ? 'Savatga qo\'shish' : 'Tugagan'}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleAddToCart}
+            disabled={!isAvailable}
+            className={`flex h-[52px] flex-1 cursor-pointer items-center justify-center rounded-full font-black text-[16px] transition-transform active:scale-[0.97] ${
+              isAvailable
+                ? 'bg-[#C62020] text-white shadow-[0_8px_20px_rgba(198,32,32,0.25)]'
+                : 'bg-[#e5e7eb] text-[#8c8c96] shadow-none'
+            }`}
+          >
+            {isAvailable ? `Savatga - ${(product.price * quantity).toLocaleString()} s.` : 'Tugagan'}
+          </button>
         </div>
       </div>
     </div>
