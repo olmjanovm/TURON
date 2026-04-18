@@ -1,5 +1,5 @@
 import React from 'react';
-import { estimateRouteMetrics, formatRouteDistance } from '../../features/maps/route';
+import { OrderDistanceDisplay } from '../../components/OrderDistanceDisplay';
 import { ArrowLeft, Copy, RefreshCcw, Headphones, Loader2, MapPinned, MessageCircle, ShieldCheck, XCircle } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useToast } from '../../components/ui/Toast';
@@ -28,32 +28,7 @@ function getPaymentStatusLabel(status: PaymentStatus) {
   return 'Tekshiruvda';
 }
 
-// --- Distance display component ---
-const OrderDistanceDisplay: React.FC<{ order: any }> = ({ order }) => {
-  const courier = order?.tracking?.courierLocation;
-  const destLat = order?.destinationLat ?? order?.customerAddress?.latitude;
-  const destLng = order?.destinationLng ?? order?.customerAddress?.longitude;
 
-  if (!courier || typeof destLat !== 'number' || typeof destLng !== 'number') {
-    return (
-      <p className="mt-1 text-xs text-white/48">
-        Buyurtmagacha masofa: <span className="italic">Hisoblanmoqda...</span>
-      </p>
-    );
-  }
-
-  const { distanceKm } = estimateRouteMetrics(
-    { lat: courier.latitude, lng: courier.longitude },
-    { lat: destLat, lng: destLng },
-    { minimumDistanceKm: 0 }
-  );
-
-  return (
-    <p className="mt-1 text-xs text-white/48">
-      Buyurtmagacha masofa: <span className="font-bold">{formatRouteDistance(distanceKm)}</span>
-    </p>
-  );
-};
 
 const OrderDetailPage: React.FC = () => {
   const { orderId = '' } = useParams<{ orderId: string }>();
@@ -379,7 +354,15 @@ const OrderDetailPage: React.FC = () => {
                 {formatText(order.customerAddress?.addressText || "Manzil ko'rsatilmagan")}
               </p>
               {/* Buyurtmagacha masofa */}
-              <OrderDistanceDisplay order={order} />
+              <OrderDistanceDisplay
+                courier={order?.tracking?.courierLocation}
+                destination={{
+                  latitude: order?.destinationLat ?? order?.customerAddress?.latitude,
+                  longitude: order?.destinationLng ?? order?.customerAddress?.longitude,
+                }}
+                label="Buyurtmagacha masofa"
+                className="mt-1 text-xs text-white/48"
+              />
             </div>
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/38">Izoh</p>

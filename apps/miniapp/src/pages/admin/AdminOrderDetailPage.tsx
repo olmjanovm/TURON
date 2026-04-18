@@ -1,3 +1,4 @@
+import { OrderDistanceDisplay } from '../../components/OrderDistanceDisplay';
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -343,23 +344,7 @@ const AdminOrderDetailPage: React.FC = () => {
         lng: order.tracking.courierLocation.longitude,
       }
     : undefined;
-  let remainingDistance = null;
-  if (typeof order.tracking?.courierLocation?.remainingDistanceKm === 'number') {
-    remainingDistance = formatRouteDistance(order.tracking.courierLocation.remainingDistanceKm);
-  } else {
-    // Fallback: calculate from coordinates if available
-    const courier = order.tracking?.courierLocation;
-    const destLat = order.destinationLat ?? order.customerAddress?.latitude;
-    const destLng = order.destinationLng ?? order.customerAddress?.longitude;
-    if (courier && typeof destLat === 'number' && typeof destLng === 'number') {
-      const { distanceKm } = estimateRouteMetrics(
-        { lat: courier.latitude, lng: courier.longitude },
-        { lat: destLat, lng: destLng },
-        { minimumDistanceKm: 0 }
-      );
-      remainingDistance = formatRouteDistance(distanceKm);
-    }
-  }
+  // Use shared component for distance
   const remainingEta =
     typeof order.tracking?.courierLocation?.remainingEtaMinutes === 'number'
       ? formatEtaMinutes(order.tracking.courierLocation.remainingEtaMinutes)
@@ -543,7 +528,15 @@ const AdminOrderDetailPage: React.FC = () => {
                 <Route size={14} className="text-indigo-500" />
                 <span>Qolgan masofa</span>
               </div>
-              <p className="mt-2 text-lg font-black text-slate-900">{remainingDistance || 'Hisoblanmoqda'}</p>
+              <OrderDistanceDisplay
+                courier={order.tracking?.courierLocation}
+                destination={{
+                  latitude: order.destinationLat ?? order.customerAddress?.latitude,
+                  longitude: order.destinationLng ?? order.customerAddress?.longitude,
+                }}
+                label="Qolgan masofa"
+                className="mt-2 text-lg font-black text-slate-900"
+              />
             </div>
             <div className="rounded-2xl bg-slate-50 px-4 py-3">
               <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
