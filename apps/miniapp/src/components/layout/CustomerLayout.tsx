@@ -131,30 +131,6 @@ const CustomerLayout: React.FC = () => {
 
       {!hideBottomNav ? <BottomNavbar /> : null}
 
-      {cartCount > 0 && !location.pathname.includes('/customer/cart') ? (
-        <button
-          type="button"
-          onClick={() => {
-            playSound.buttonClick();
-            if (window.Telegram?.WebApp?.HapticFeedback) {
-              window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
-            }
-            navigate('/customer/cart');
-          }}
-          className="fixed right-4 top-[calc(env(safe-area-inset-top,16px)+86px)] z-50 flex h-12 w-12 items-center justify-center rounded-full bg-[#C62020] text-white shadow-[0_12px_20px_rgba(198,32,32,0.32)] transition-transform duration-200 hover:scale-[1.04] active:scale-95"
-          aria-label="Savatga o'tish"
-          title="Savatga o'tish"
-        >
-          <ShoppingCart size={20} strokeWidth={2.2} />
-          <span
-            className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-white text-[10px] font-black text-[#C62020] animate-pulse"
-            style={{ padding: '0 4px' }}
-          >
-            {cartCount}
-          </span>
-        </button>
-      ) : null}
-
       {/* Floating refresh button - always accessible */}
       <button
         type="button"

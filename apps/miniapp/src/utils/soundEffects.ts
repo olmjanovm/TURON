@@ -6,9 +6,9 @@ const audioCache: Map<string, HTMLAudioElement> = new Map();
 
 // Data URIs for sound effects (using web audio synth approach for reliable cross-platform sounds)
 const SOUNDS = {
-    addToCart: () => playBeep(800, 100), // High beep for add to cart
-    buttonClick: () => playBeep(600, 80), // Mid beep for button clicks
-    success: () => playSuccessSound(), // Success chime
+    addToCart: () => {}, // Disabled
+    buttonClick: () => {}, // Disabled
+    success: () => {}, // Disabled
 };
 
 function playBeep(frequency: number = 800, duration: number = 100) {
