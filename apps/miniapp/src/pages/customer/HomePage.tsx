@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Minus } from 'lucide-react';
+import { Plus, Minus, MapPin, Clock, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ProductAvailabilityEnum } from '@turon/shared';
 import { LoadingSkeleton } from '../../components/customer/CustomerComponents';
@@ -422,6 +422,49 @@ const MenuProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
   );
 };
 
+/* ── Bestsellers Carousel (Gorizontal Skroll) ───────────────────────────────────────── */
+const BestsellersCarousel: React.FC<{ items: MenuProduct[] }> = ({ items }) => {
+  if (items.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: 16, marginBottom: 8 }}>
+      <p style={{
+        fontSize: 17, fontWeight: 900, color: '#202020',
+        margin: '0 0 10px 16px', letterSpacing: '-0.02em',
+      }}>
+        Eng ko'p sotilganlar
+      </p>
+
+      <div
+        className="scrollbar-hide"
+        style={{
+          display: 'flex',
+          overflowX: 'auto',
+          scrollSnapType: 'x mandatory',
+          scrollBehavior: 'smooth',
+          WebkitOverflowScrolling: 'touch',
+          paddingBottom: 8,
+          gap: 12,
+          paddingInline: 16,
+        }}
+      >
+        {items.map((product) => (
+          <div
+            key={`bestseller-${product.id}`}
+            style={{
+              flex: '0 0 calc(60% - 12px)',
+              minWidth: 'calc(60% - 12px)',
+              scrollSnapAlign: 'start',
+            }}
+          >
+            <MenuProductCard product={product} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 /* ── HomePage ─────────────────────────────────────────────────────────────── */
 const HomePage: React.FC = () => {
   const { formatText } = useCustomerLanguage();
@@ -445,10 +488,44 @@ const HomePage: React.FC = () => {
       .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
   }, [activeCategoryId, activeProducts]);
 
+  // --- Bestsellers Data ---
+  const bestsellers = React.useMemo(() => {
+    // Top 6 products as bestsellers
+    return activeProducts.slice(0, 6);
+  }, [activeProducts]);
+
   if (isCategoriesLoading || isProductsLoading) return <LoadingSkeleton />;
 
+  const navigate = useNavigate();
+
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--app-bg)', color: 'var(--app-text)' }}>
+    <div style={{ minHeight: '100vh', background: '#ffffff', color: '#202020' }}>
+      {/* ── Custom Flat Header ────────────────────────────────────── */}
+      <div className="flex h-[70px] items-center justify-between px-4 pt-2 pb-1 bg-white">
+        <div className="flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f4f4f5] text-[#C62020]">
+            <MapPin size={18} strokeWidth={2.5} />
+          </div>
+          <div>
+            <p className="text-[14px] font-bold text-[#202020] leading-tight">Chilonzor tumani, 19-kv...</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 rounded-full bg-[#f4f4f5] px-3 py-1.5 text-[#202020]">
+          <Clock size={14} className="text-[#C62020]" />
+          <span className="text-[12px] font-black">30-45 daq</span>
+        </div>
+      </div>
+
+      {/* ── Search Bar ───────────────────────────────────────────── */}
+      <div className="px-4 pb-2">
+        <div 
+          onClick={() => navigate('/customer/search')}
+          className="flex h-[46px] items-center gap-2 rounded-xl bg-[#f4f4f5] px-4 shadow-sm active:scale-[0.98] transition-transform cursor-pointer"
+        >
+          <Search size={19} className="text-[#8c8c96]" strokeWidth={2.5} />
+          <span className="text-[15px] font-bold text-[#8c8c96]">Taomlarni izlash...</span>
+        </div>
+      </div>
 
       {/* ── Category filter pills (top) ─────────────────────── */}
       <div
@@ -493,6 +570,9 @@ const HomePage: React.FC = () => {
 
       {/* ── Chegirmali taomlar snap-scroll carousel ──────────────── */}
       <PromoBannerCarousel items={discountedProducts} />
+
+      {/* ── Eng ko'p sotilganlar (Bestsellers) ────────────────── */}
+      <BestsellersCarousel items={bestsellers} />
 
       {/* ── Product grid ────────────────────────────────────── */}
       <main style={{ padding: '12px 16px 24px' }}>
