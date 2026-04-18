@@ -15,7 +15,7 @@ import {
   Trash2,
   User,
   Utensils,
-  UtensilsCrossed,
+  Package,
 } from 'lucide-react';
 import { ProductAvailabilityEnum, ProductBadgeEnum, UserRoleEnum } from '@turon/shared';
 import type { CartItem, ProductSnapshot } from '../../data/types';
@@ -892,7 +892,7 @@ export const BottomNavbar: React.FC = () => {
   ];
 
   const rightItems = [
-    { icon: UtensilsCrossed, label: 'Menyu', path: '/customer/menu' },
+    { icon: Package, label: 'Buyurtmalar', path: '/customer/orders' },
     { icon: User, label: 'Profil', path: '/customer/profile', isNotification: true },
   ];
 
