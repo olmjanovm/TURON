@@ -488,25 +488,43 @@ export const QuantitySelector: React.FC<{
   quantity: number;
   onIncrease: () => void;
   onDecrease: () => void;
-}> = ({ quantity, onIncrease, onDecrease }) => (
-  <div className="flex items-center rounded-full border border-white/10 bg-white/[0.05] p-1.5">
-    <button
-      type="button"
-      onClick={onDecrease}
-      className={`flex h-10 w-10 items-center justify-center rounded-full ${buttonStyles}`}
-    >
-      <Minus size={18} />
-    </button>
-    <span className="min-w-[56px] px-4 text-center text-lg font-black text-white">{quantity}</span>
-    <button
-      type="button"
-      onClick={onIncrease}
-      className={`flex h-10 w-10 items-center justify-center rounded-full ${buttonStyles}`}
-    >
-      <Plus size={18} />
-    </button>
-  </div>
-);
+}> = ({ quantity, onIncrease, onDecrease }) => {
+  const [activeButton, setActiveButton] = React.useState<'increase' | 'decrease' | null>(null);
+
+  const handleIncrease = () => {
+    setActiveButton('increase');
+    onIncrease();
+    setTimeout(() => setActiveButton(null), 200);
+  };
+
+  const handleDecrease = () => {
+    setActiveButton('decrease');
+    onDecrease();
+    setTimeout(() => setActiveButton(null), 200);
+  };
+
+  return (
+    <div className="flex items-center rounded-md border border-white/10 bg-white/[0.05] p-1">
+      <button
+        type="button"
+        onClick={handleDecrease}
+        className={`flex h-10 w-10 items-center justify-center rounded-md ${activeButton === 'decrease' ? 'bg-[#C62020] text-white' : 'bg-white text-black'
+          }`}
+      >
+        <Minus size={18} />
+      </button>
+      <span className="min-w-[56px] px-4 text-center text-lg font-black text-white">{quantity}</span>
+      <button
+        type="button"
+        onClick={handleIncrease}
+        className={`flex h-10 w-10 items-center justify-center rounded-md ${activeButton === 'increase' ? 'bg-[#C62020] text-white' : 'bg-white text-black'
+          }`}
+      >
+        <Plus size={18} />
+      </button>
+    </div>
+  );
+};
 
 export const ProductGrid: React.FC<{ products: DisplayProduct[] }> = ({ products }) => (
   <div className="grid grid-cols-2 gap-3">
