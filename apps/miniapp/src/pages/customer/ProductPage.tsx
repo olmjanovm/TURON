@@ -221,19 +221,19 @@ const ProductPage: React.FC = () => {
         )}
       </main>
 
-      {/* ── Cart Controls (Bottom of Page, Flow Layout so it comes AFTER similar products as requested) ── */}
-      <div className="px-5 pb-[env(safe-area-inset-bottom,20px)] mt-4">
-        <div className="flex h-[60px] w-full rounded-[20px] bg-[#f8f8f9] border border-gray-100 shadow-sm overflow-hidden p-1.5">
+      {/* ── Sticky Cart Controls ── */}
+      <div className="fixed inset-x-0 bottom-0 z-50 bg-white/80 backdrop-blur-md pb-[env(safe-area-inset-bottom,20px)] pt-3 px-5 border-t border-gray-100">
+        <div className="flex h-[64px] w-full mx-auto max-w-[430px] rounded-[24px] bg-white border border-gray-200 shadow-[0_8px_30px_rgba(0,0,0,0.08)] p-2 gap-2">
           
           {/* Quantity Controls */}
-          <div className="flex h-full items-center justify-between rounded-[16px] bg-white shadow-sm px-2 min-w-[130px]">
+          <div className="flex h-full items-center justify-between rounded-[18px] bg-white px-1 min-w-[110px]">
             <button
               type="button"
               onClick={() => setQuantity((q) => Math.max(1, q - 1))}
               disabled={!isAvailable || quantity <= 1}
-              className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-gray-100 text-[#202020] transition active:scale-95 disabled:opacity-40"
+              className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[#f4f4f5] text-[#202020] transition active:scale-95 disabled:opacity-40"
             >
-              <span className="text-[20px] font-bold leading-none pb-[2px]">-</span>
+              <span className="text-[22px] font-medium leading-none pb-[2px]">-</span>
             </button>
             <span className="w-8 text-center text-[18px] font-black text-[#C62020]">
               {quantity}
@@ -242,9 +242,9 @@ const ProductPage: React.FC = () => {
               type="button"
               onClick={() => setQuantity((q) => q + 1)}
               disabled={!isAvailable}
-              className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-gray-100 text-[#202020] transition active:scale-95 disabled:opacity-40"
+              className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[#f4f4f5] text-[#202020] transition active:scale-95 disabled:opacity-40"
             >
-              <span className="text-[20px] font-bold leading-none pb-[2px]">+</span>
+              <span className="text-[22px] font-medium leading-none pb-[2px]">+</span>
             </button>
           </div>
 
@@ -253,9 +253,9 @@ const ProductPage: React.FC = () => {
             type="button"
             onClick={handleAddToCart}
             disabled={!isAvailable}
-            className={`flex h-full flex-1 cursor-pointer items-center justify-center rounded-[16px] font-black text-[15px] transition-transform active:scale-[0.98] ml-1.5 ${
+            className={`flex h-full flex-1 cursor-pointer items-center justify-center rounded-[18px] font-bold text-[16px] transition-transform active:scale-[0.98] ${
               isAvailable
-                ? 'bg-[#C62020] text-white'
+                ? 'bg-[#C62020] text-white shadow-sm'
                 : 'bg-gray-200 text-gray-400'
             }`}
           >
