@@ -376,8 +376,42 @@ export const useUpdateOrderStatus = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, status }: { id: string; status: OrderStatus }) =>
-      api.patch(`/orders/${id}/status`, { status }) as Promise<Order>,
+    mutationFn: async ({ id, status }: { id: string; status: OrderStatus }) => {
+      const request = () =>
+        api.patch(`/orders/${id}/status`, { status }, { timeout: 30000 }) as Promise<Order>;
+
+      try {
+        return await request();
+      } catch (error) {
+        const isConnectivityIssue =
+          error instanceof Error &&
+          error.message.includes('Server bilan aloqa uzildi');
+
+        if (!isConnectivityIssue) {
+          throw error;
+        }
+
+        // Retry once for transient Telegram WebView/mobile network hiccups.
+        await new Promise((resolve) => setTimeout(resolve, 900));
+
+        try {
+          return await request();
+        } catch (retryError) {
+          // Fallback: if backend actually processed the update but response was lost,
+          // confirm current order state and treat as success when statuses match.
+          try {
+            const latestOrder = (await api.get(`/orders/${id}`)) as Order;
+            if (latestOrder.orderStatus === status) {
+              return latestOrder;
+            }
+          } catch {
+            // Keep original network error semantics.
+          }
+
+          throw retryError;
+        }
+      }
+    },
     onSuccess: (updatedOrder) => {
       const previousOrder = useOrdersStore.getState().getOrderById(updatedOrder.id);
       const { upsertOrder } = useOrdersStore.getState();

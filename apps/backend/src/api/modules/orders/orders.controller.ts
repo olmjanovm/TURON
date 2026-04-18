@@ -81,13 +81,21 @@ async function publishOrderSnapshot(orderId: string) {
 }
 
 function syncTelegramOrderStatusInBackground(orderId: string, status?: string | null) {
-  void syncTelegramOrderStatus(orderId, status).catch((error) => {
-    console.warn('[Orders] Failed to sync Telegram order status.', {
+  try {
+    void syncTelegramOrderStatus(orderId, status).catch((error) => {
+      console.warn('[Orders] Failed to sync Telegram order status.', {
+        orderId,
+        status,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+  } catch (error) {
+    console.warn('[Orders] Telegram sync invocation crashed synchronously.', {
       orderId,
       status,
       error: error instanceof Error ? error.message : String(error),
     });
-  });
+  }
 }
 
 function recordOrderCreatedAudit(params: {
