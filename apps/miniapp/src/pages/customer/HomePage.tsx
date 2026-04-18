@@ -380,7 +380,7 @@ const MenuProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
           </div>
           <button
             type="button" onClick={handleAdd} disabled={!available}
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-[0_12px_20px_rgba(15,23,42,0.22)] transition active:scale-90 ${available ? 'bg-[#202124] text-white' : 'bg-slate-200 text-slate-400'}`}
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-[0_12px_20px_rgba(15,23,42,0.22)] transition active:scale-90 ${available ? 'bg-[#C62020] text-white' : 'bg-slate-200 text-slate-400'}`}
             aria-label="Savatga qo'shish"
           >
             <Plus size={22} strokeWidth={2.7} />
