@@ -31,7 +31,7 @@ import { getStatusColor, getStatusLabel } from '../../lib/orderStatusUtils';
 import { AdminCourierOption, Order, OrderStatus } from '../../data/types';
 import { CourierMapView } from '../../components/courier/CourierMapView';
 import { DEFAULT_RESTAURANT_LOCATION } from '../../features/maps/restaurant';
-import { formatEtaMinutes, formatRouteDistance } from '../../features/maps/route';
+import { formatEtaMinutes, formatRouteDistance, estimateRouteMetrics } from '../../features/maps/route';
 
 const STATUS_STYLES: Record<string, { surface: string; border: string; icon: string; iconShadow: string; label: string }> = {
   slate: {
@@ -343,10 +343,23 @@ const AdminOrderDetailPage: React.FC = () => {
         lng: order.tracking.courierLocation.longitude,
       }
     : undefined;
-  const remainingDistance =
-    typeof order.tracking?.courierLocation?.remainingDistanceKm === 'number'
-      ? formatRouteDistance(order.tracking.courierLocation.remainingDistanceKm)
-      : null;
+  let remainingDistance = null;
+  if (typeof order.tracking?.courierLocation?.remainingDistanceKm === 'number') {
+    remainingDistance = formatRouteDistance(order.tracking.courierLocation.remainingDistanceKm);
+  } else {
+    // Fallback: calculate from coordinates if available
+    const courier = order.tracking?.courierLocation;
+    const destLat = order.destinationLat ?? order.customerAddress?.latitude;
+    const destLng = order.destinationLng ?? order.customerAddress?.longitude;
+    if (courier && typeof destLat === 'number' && typeof destLng === 'number') {
+      const { distanceKm } = estimateRouteMetrics(
+        { lat: courier.latitude, lng: courier.longitude },
+        { lat: destLat, lng: destLng },
+        { minimumDistanceKm: 0 }
+      );
+      remainingDistance = formatRouteDistance(distanceKm);
+    }
+  }
   const remainingEta =
     typeof order.tracking?.courierLocation?.remainingEtaMinutes === 'number'
       ? formatEtaMinutes(order.tracking.courierLocation.remainingEtaMinutes)
