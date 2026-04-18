@@ -133,7 +133,7 @@ const SearchProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
             style={{
               width: 34, height: 34, borderRadius: '50%', border: 'none',
               cursor: available ? 'pointer' : 'not-allowed',
-              background: available ? '#202124' : '#e5e7eb',
+              background: available ? '#C62020' : '#e5e7eb',
               color: available ? 'white' : '#9ca3af',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: '0 2px 8px rgba(0,0,0,0.18)', flexShrink: 0,

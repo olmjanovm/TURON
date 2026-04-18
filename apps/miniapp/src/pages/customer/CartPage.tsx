@@ -27,14 +27,27 @@ const CartProductCard: React.FC<{
   const { formatText } = useCustomerLanguage();
   const posterSrc = React.useMemo(() => getProductPosterUrl(item), [item]);
   const [imageSrc, setImageSrc] = React.useState(() => getCartItemImageUrl(item));
+  const [activeButton, setActiveButton] = React.useState<'increase' | 'decrease' | null>(null);
 
   React.useEffect(() => {
     setImageSrc(getCartItemImageUrl(item));
   }, [item]);
 
+  const handleIncrease = () => {
+    setActiveButton('increase');
+    onUpdateQuantity(item.id, 1);
+    setTimeout(() => setActiveButton(null), 200);
+  };
+
+  const handleDecrease = () => {
+    setActiveButton('decrease');
+    onUpdateQuantity(item.id, -1);
+    setTimeout(() => setActiveButton(null), 200);
+  };
+
   return (
-    <article className="relative flex min-h-[112px] gap-3 rounded-[18px] bg-white p-3 shadow-[0_10px_24px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.035]">
-      <div className="h-[86px] w-[86px] shrink-0 overflow-hidden rounded-[16px] bg-slate-100">
+    <article className="relative flex min-h-[112px] gap-3 rounded-md bg-white p-3 shadow-md">
+      <div className="h-[86px] w-[86px] shrink-0 overflow-hidden rounded-md bg-slate-100">
         <img
           src={imageSrc}
           alt={formatText(item.name)}
@@ -55,19 +68,19 @@ const CartProductCard: React.FC<{
           {formatMoney(item.price)}
         </p>
 
-        <div className="mt-2 flex items-center gap-2">
+        <div className="mt-2 flex items-center gap-2 rounded-full bg-[#F4F4F5] px-1.5 py-1 shadow-sm">
           <button
             type="button"
-            onClick={() => onUpdateQuantity(item.id, -1)}
-            className={buttonStyles}
+            onClick={handleDecrease}
+            className={`flex h-10 w-10 items-center justify-center rounded-full ${activeButton === 'decrease' ? 'bg-[#C62020] text-white' : 'bg-white text-[#202020]'} transition active:scale-95`}
           >
             <Minus size={16} />
           </button>
           <span className="text-[14px] font-bold text-[#202020]">{item.quantity}</span>
           <button
             type="button"
-            onClick={() => onUpdateQuantity(item.id, 1)}
-            className={buttonStyles}
+            onClick={handleIncrease}
+            className={`flex h-10 w-10 items-center justify-center rounded-full ${activeButton === 'increase' ? 'bg-[#C62020] text-white' : 'bg-[#C62020] text-white'} transition active:scale-95`}
           >
             <Plus size={16} />
           </button>
@@ -77,7 +90,7 @@ const CartProductCard: React.FC<{
       <button
         type="button"
         onClick={() => onRemove(item.id)}
-        className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-[#C62020] text-white shadow-md transition-transform active:scale-90"
+        className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-md bg-[#C62020] text-white shadow-md transition-transform active:scale-90"
       >
         <Trash2 size={16} />
       </button>
@@ -264,8 +277,8 @@ const CartPage: React.FC = () => {
               type="submit"
               disabled={(!promoCode.trim() && !appliedPromo) || validatePromoMutation.isPending}
               className={`flex h-full min-w-[106px] items-center justify-center rounded-[16px] px-4 text-[15px] font-black transition active:scale-95 ${validatePromoMutation.isPending || (!promoCode.trim() && !appliedPromo)
-                  ? 'bg-[#e5e7eb] text-[#9a9aa3]'
-                  : 'bg-[#C62020] text-white shadow-sm'
+                ? 'bg-[#e5e7eb] text-[#9a9aa3]'
+                : 'bg-[#C62020] text-white shadow-sm'
                 }`}
             >
               {validatePromoMutation.isPending ? (
