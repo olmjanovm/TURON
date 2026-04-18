@@ -493,7 +493,7 @@ export const QuantitySelector: React.FC<{
     <button
       type="button"
       onClick={onDecrease}
-      className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.08] text-white transition-transform active:scale-90"
+      className={`flex h-10 w-10 items-center justify-center rounded-full ${buttonStyles}`}
     >
       <Minus size={18} />
     </button>
@@ -501,7 +501,7 @@ export const QuantitySelector: React.FC<{
     <button
       type="button"
       onClick={onIncrease}
-      className="flex h-10 w-10 items-center justify-center rounded-full bg-[#C62020] text-white transition-transform active:scale-90"
+      className={`flex h-10 w-10 items-center justify-center rounded-full ${buttonStyles}`}
     >
       <Plus size={18} />
     </button>
@@ -952,3 +952,9 @@ export const EmptyState: React.FC<{ message: string; subMessage?: string; action
     {action ? <div className="mt-6">{action}</div> : null}
   </div>
 );
+
+const buttonStyles = `
+  bg-[#C62020] text-white
+  hover:bg-[#A51A1A] active:bg-[#8B1515]
+  transition-transform active:scale-95
+`;

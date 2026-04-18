@@ -13,6 +13,12 @@ import { useCartStore } from '../../store/useCartStore';
 
 const formatMoney = (value: number) => `${Math.max(0, Math.round(value)).toLocaleString()} so'm`;
 
+const buttonStyles = `
+  bg-[#C62020] text-white
+  hover:bg-[#A51A1A] active:bg-[#8B1515]
+  transition-transform active:scale-95
+`;
+
 const CartProductCard: React.FC<{
   item: CartItem;
   onUpdateQuantity: (id: string, delta: number) => void;
@@ -48,40 +54,32 @@ const CartProductCard: React.FC<{
         <p className="mt-1 text-[14px] font-extrabold tracking-[-0.03em] text-[#c3a26d]">
           {formatMoney(item.price)}
         </p>
-        {item.oldPrice ? (
-          <p className="mt-0.5 text-[11px] font-semibold text-slate-300 line-through">
-            {formatMoney(item.oldPrice)}
-          </p>
-        ) : null}
 
-        <div className="mt-3 flex h-8 w-[104px] items-center justify-between rounded-full bg-[#f4f4f5] px-2">
+        <div className="mt-2 flex items-center gap-2">
           <button
             type="button"
             onClick={() => onUpdateQuantity(item.id, -1)}
-            className="flex h-7 w-7 items-center justify-center rounded-full text-[#202020] transition active:scale-90 active:bg-white"
-            aria-label="Miqdorni kamaytirish"
+            className={buttonStyles}
           >
-            <Minus size={16} strokeWidth={2.5} />
+            <Minus size={16} />
           </button>
-          <span className="min-w-5 text-center text-[17px] font-black text-[#202020]">{item.quantity}</span>
-           <button
-             type="button"
-             onClick={() => onUpdateQuantity(item.id, 1)}
-             className="flex h-7 w-7 items-center justify-center rounded-full bg-[#C62020] text-white transition active:scale-90 active:bg-[#b01c1c]"
-             aria-label="Miqdorni oshirish"
-           >
-             <Plus size={16} strokeWidth={2.5} />
-           </button>
+          <span className="text-[14px] font-bold text-[#202020]">{item.quantity}</span>
+          <button
+            type="button"
+            onClick={() => onUpdateQuantity(item.id, 1)}
+            className={buttonStyles}
+          >
+            <Plus size={16} />
+          </button>
         </div>
       </div>
 
       <button
         type="button"
         onClick={() => onRemove(item.id)}
-        className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full text-[#9a9aa3] transition active:scale-90 active:bg-slate-100 active:text-rose-500"
-        aria-label="Savatdan o'chirish"
+        className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-[#C62020] text-white shadow-md transition-transform active:scale-90"
       >
-        <Trash2 size={17} strokeWidth={2.2} />
+        <Trash2 size={16} />
       </button>
     </article>
   );
