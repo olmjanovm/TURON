@@ -40,6 +40,10 @@ import {
   getDeliveryStageMeta,
   getDeliveryStateKey,
 } from '../../features/courier/deliveryStage';
+import {
+  getOptimalCameraConfig,
+  type CameraConfig,
+} from '../../features/maps/mapCameraStrategy';
 
 // ─── Pure helpers (no hooks) ──────────────────────────────────────────────────
 
@@ -134,7 +138,7 @@ const CourierMapPage: React.FC = () => {
   // ── UI state — ALL hooks before any conditional return ─────────────────────
   const [liveCourierPos, setLiveCourierPos]     = useState<{ lat: number; lng: number } | null>(null);
   const [movementHeading, setMovementHeading]   = useState<number | undefined>(undefined);
-  const tilt                                    = 40; // 0-60 degrees, closer view
+  const [cameraConfig, setCameraConfig]         = useState<CameraConfig>({ tilt: 0, zoom: 15, updateFreqMs: 5000 });
   const [followMode, setFollowMode]             = useState(false); // Auto-enable after 4s
   const [routeInfo, setRouteInfo]               = useState<RouteInfo | null>(null);
   const [currentStep, setCurrentStep]           = useState<RouteStep | null>(null);
@@ -290,6 +294,21 @@ const CourierMapPage: React.FC = () => {
       currentStage === DeliveryStage.DELIVERING,
     [hasLivePos, distToCustomer, currentStage],
   );
+
+  // ── Smart camera configuration based on distance ────────────────────────────
+  useEffect(() => {
+    // Update camera every 500ms to smoothly follow distance changes
+    const cameraInterval = setInterval(() => {
+      const distanceMeters = remainingMetrics.distanceKm * 1000;
+      const optimalConfig = getOptimalCameraConfig({
+        distanceMeters,
+        speedKmh: heading ? 28 : 0, // Courier moving when heading exists
+      });
+      setCameraConfig(optimalConfig);
+    }, 500);
+
+    return () => clearInterval(cameraInterval);
+  }, [remainingMetrics.distanceKm, heading]);
 
   // ── Stable callbacks ────────────────────────────────────────────────────────
 
@@ -540,7 +559,7 @@ const CourierMapPage: React.FC = () => {
           className="rounded-none border-0 shadow-none"
           followMode={followMode}
           heading={heading}
-          tilt={tilt}
+          tilt={cameraConfig.tilt}
           onRouteInfoChange={setRouteInfo}
           onNextStepChange={setCurrentStep}
           onMapInteraction={() => {

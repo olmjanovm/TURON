@@ -24,7 +24,8 @@ interface CourierNavigationPanelProps {
 }
 
 /**
- * Smart direction arrow - shows direction via arrow shape, no text needed
+ * Smart direction arrow with color coding
+ * Blue=Straight, Orange=Left, Green=Right
  */
 function DirectionArrow({ 
   action, 
@@ -41,8 +42,17 @@ function DirectionArrow({
     return null;
   }
 
+  // Color coding: Blue (straight), Orange (left), Green (right)
+  const colors = {
+    straight: '#3B82F6', // Blue
+    left: '#F97316',     // Orange
+    right: '#10B981',    // Green
+  };
+
+  const color = action === 'right' ? colors.right : action === 'left' ? colors.left : colors.straight;
+
   const strokeStyle = {
-    stroke: 'white',
+    stroke: color,
     strokeWidth: 4,
     strokeLinecap: 'round' as const,
     strokeLinejoin: 'round' as const,
