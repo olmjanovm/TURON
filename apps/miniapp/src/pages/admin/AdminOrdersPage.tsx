@@ -169,8 +169,6 @@ const AdminOrdersPage: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<OrderFilter>('ALL');
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [mutatingOrderId, setMutatingOrderId] = useState<string | null>(null);
-  const [showSearch, setShowSearch] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
 
   const storeOrders = useOrdersStore((state) => state.orders);
   const {
@@ -182,29 +180,6 @@ const AdminOrdersPage: React.FC = () => {
     refetch,
   } = useAdminOrders();
   const updateOrderStatus = useUpdateOrderStatus();
-
-  // Handle scroll direction for sticky search
-  React.useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-    const handleScroll = () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      const currentScrollY = window.scrollY || document.documentElement.scrollTop;
-
-      // Show search when scrolling up or at the top
-      if (currentScrollY < lastScrollY || currentScrollY < 50) {
-        setShowSearch(true);
-      } else if (currentScrollY > lastScrollY + 10) {
-        // Hide search when scrolling down
-        setShowSearch(false);
-      }
-
-      setLastScrollY(currentScrollY);
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [lastScrollY]);
 
   const useFallbackOrders = (isLoading || isError) && storeOrders.length > 0;
   const orders = useFallbackOrders ? storeOrders : adminOrders;
@@ -273,7 +248,7 @@ const AdminOrdersPage: React.FC = () => {
 
   return (
     <div className="space-y-4 pb-6">
-      <section className={`sticky top-0 z-40 transition-all duration-300 ${showSearch ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full pointer-events-none'}`} style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)', paddingBottom: '12px', backgroundColor: 'rgb(248, 250, 252)', margin: '0 -16px 16px -16px', paddingLeft: '16px', paddingRight: '16px' }}>
+      <section className="sticky top-0 z-40" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)', paddingBottom: '12px', backgroundColor: 'rgb(248, 250, 252)', margin: '0 -16px 16px -16px', paddingLeft: '16px', paddingRight: '16px' }}>
         <div className="rounded-[20px] border border-slate-200 bg-white px-4 py-3">
           <label className="flex items-center gap-3">
             <Search size={19} className="text-slate-400" />
