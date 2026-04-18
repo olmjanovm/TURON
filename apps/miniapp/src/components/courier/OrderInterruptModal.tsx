@@ -104,6 +104,21 @@ function OrderInterruptContent({ order }: Props) {
       dismiss();
       navigate(`/courier/map/${order.id}`);
     } catch (err) {
+      // Network timeout or intermittent error — verify whether accept actually landed on server
+      try {
+        const orders = await (api.get('/courier/orders') as Promise<Array<{ id: string; courierAssignmentStatus: string }>>);
+        const accepted = orders.find((o) => o.id === order.id && o.courierAssignmentStatus === 'ACCEPTED');
+        if (accepted) {
+          // Accept succeeded on server despite client-side error — go to map
+          queryClient.invalidateQueries({ queryKey: ['courier-orders'] });
+          queryClient.invalidateQueries({ queryKey: ['courier-status'] });
+          dismiss();
+          navigate(`/courier/map/${order.id}`);
+          return;
+        }
+      } catch {
+        // Can't verify — show original error
+      }
       const msg = err instanceof Error ? err.message : 'Qabul qilishda xatolik';
       setError(msg);
       // Restart timer so courier can still decline

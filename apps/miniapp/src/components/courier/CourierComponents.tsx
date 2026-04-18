@@ -778,7 +778,8 @@ export const DeliveryBottomPanel: React.FC<{
   onCopyAddress,
   copySuccess = false,
 }) => {
-  const [isExpanded, setIsExpanded] = React.useState(false);
+  // Start expanded so the action slider is visible immediately on the map
+  const [isExpanded, setIsExpanded] = React.useState(true);
   const [isProblemOpen, setIsProblemOpen] = React.useState(false);
   const [isChatOpen, setIsChatOpen] = React.useState(false);
   const { data: unreadCount = 0 } = useOrderChatUnread(order.id, 'courier');
@@ -822,16 +823,17 @@ export const DeliveryBottomPanel: React.FC<{
     onExpandedChange?.(isExpanded);
   }, [isExpanded, onExpandedChange]);
 
-  // Show slider only when proximity triggered OR manually at station
+  // Show slider for all actionable stages so the courier never has to hunt for it
   const showSlider =
     !isDelivered &&
     Boolean(primaryAction.next) &&
-    (currentStage === DeliveryStage.ARRIVED_AT_RESTAURANT ||
+    (currentStage === DeliveryStage.GOING_TO_RESTAURANT ||
+      currentStage === DeliveryStage.ARRIVED_AT_RESTAURANT ||
       currentStage === DeliveryStage.PICKED_UP ||
       currentStage === DeliveryStage.ARRIVED_AT_DESTINATION ||
-      (nearRestaurant && currentStage === DeliveryStage.GOING_TO_RESTAURANT) ||
       (nearCustomer && currentStage === DeliveryStage.DELIVERING));
 
+  // Show proximity hint only when actually close to target
   const isProximitySlider =
     (nearRestaurant && currentStage === DeliveryStage.GOING_TO_RESTAURANT) ||
     (nearCustomer && currentStage === DeliveryStage.DELIVERING);

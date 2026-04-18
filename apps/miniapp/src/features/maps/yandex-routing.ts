@@ -321,8 +321,8 @@ export class LiveMultiRouteTracker {
             [to.lat, to.lng],
           ],
           params: {
-            // 'auto' follows actual vehicle roads (no routing through buildings)
-            routingMode: 'auto',
+            // 'pedestrian' uses inner streets and shortcuts — ideal for scooters
+            routingMode: 'pedestrian',
             avoidTrafficJams: true,
           },
         },
