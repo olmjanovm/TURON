@@ -368,8 +368,8 @@ const MenuProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
         <p className="mt-1.5 line-clamp-2 text-[12.5px] font-medium leading-[17px] text-[#8c8c96]" style={{ minHeight: 34 }}>
           {formatText(getProductSecondaryText(product) || product.description || 'Mazali taom')}
         </p>
-        <div className="mt-auto flex flex-wrap items-center justify-between gap-x-2 gap-y-3 pt-3">
-          <div className="min-w-0 flex-1">
+        <div className="mt-auto flex flex-col pt-3">
+          <div className="mb-3 min-w-0">
             <p className="truncate text-[18px] font-black tracking-[-0.04em] text-[#202020]">
               {product.price.toLocaleString()} so'm
             </p>
@@ -380,7 +380,7 @@ const MenuProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
             ) : null}
           </div>
           {quantityInCart > 0 && available ? (
-            <div className="flex items-center gap-1.5 rounded-full bg-white border border-slate-100 p-1 shadow-[0_4px_12px_rgba(15,23,42,0.08)] shrink-0">
+            <div className="flex w-full items-center justify-between mt-auto gap-1.5 rounded-full bg-white border border-slate-100 p-1 shadow-[0_4px_12px_rgba(15,23,42,0.08)]">
               <button
                 type="button"
                 onClick={(e) => {
@@ -388,11 +388,11 @@ const MenuProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
                   e.stopPropagation();
                   updateQuantity(product.id, -1);
                 }}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F4F4F5] text-[#202020] transition active:scale-95 active:bg-[#C62020] active:text-white"
+                className="flex h-9 w-10 shrink-0 items-center justify-center rounded-full bg-[#F4F4F5] text-[#202020] transition active:scale-95 active:bg-[#C62020] active:text-white"
               >
                 <Minus size={16} />
               </button>
-              <span className="min-w-[24px] text-center text-[13px] font-black text-[#202020]">
+              <span className="text-center text-[15px] font-black text-[#202020]">
                 {quantityInCart}
               </span>
               <button
@@ -402,7 +402,7 @@ const MenuProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
                   e.stopPropagation();
                   handleAdd(e);
                 }}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F4F4F5] text-[#202020] transition active:scale-95 active:bg-[#C62020] active:text-white"
+                className="flex h-9 w-10 shrink-0 items-center justify-center rounded-full bg-[#F4F4F5] text-[#202020] transition active:scale-95 active:bg-[#C62020] active:text-white"
               >
                 <Plus size={16} strokeWidth={2.7} />
               </button>
@@ -410,10 +410,10 @@ const MenuProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
           ) : (
             <button
               type="button" onClick={handleAdd} disabled={!available}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-[0_12px_20px_rgba(15,23,42,0.22)] transition active:scale-90 ${available ? 'bg-[#C62020] text-white' : 'bg-slate-200 text-slate-400'}`}
+              className={`flex h-10 w-full shrink-0 items-center justify-center rounded-[14px] shadow-sm transition active:scale-95 ${available ? 'bg-[#C62020] text-white' : 'bg-slate-200 text-slate-400'}`}
               aria-label="Savatga qo'shish"
             >
-              <Plus size={22} strokeWidth={2.7} />
+              <span className="font-bold text-[14px]">Qo'shish</span>
             </button>
           )}
         </div>
