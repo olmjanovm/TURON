@@ -9,12 +9,12 @@ import {
 } from '../../features/i18n/customerLocale';
 
 function getBadgeClass(status: OrderStatus) {
-  if (status === OrderStatus.PREPARING) return 'border-amber-300/18 bg-amber-400/12 text-amber-100';
-  if (status === OrderStatus.READY_FOR_PICKUP) return 'border-sky-300/18 bg-sky-400/12 text-sky-100';
-  if (status === OrderStatus.DELIVERING) return 'border-indigo-300/18 bg-indigo-400/12 text-indigo-100';
-  if (status === OrderStatus.DELIVERED) return 'border-emerald-300/18 bg-emerald-400/12 text-emerald-100';
-  if (status === OrderStatus.CANCELLED) return 'border-rose-300/18 bg-rose-400/12 text-rose-100';
-  return 'border-white/8 bg-white/[0.06] text-white/72';
+  if (status === OrderStatus.PREPARING) return 'bg-amber-100 text-amber-700';
+  if (status === OrderStatus.READY_FOR_PICKUP) return 'bg-sky-100 text-sky-700';
+  if (status === OrderStatus.DELIVERING) return 'bg-indigo-100 text-indigo-700';
+  if (status === OrderStatus.DELIVERED) return 'bg-emerald-100 text-emerald-700';
+  if (status === OrderStatus.CANCELLED) return 'bg-rose-100 text-rose-700';
+  return 'bg-[#f4f4f5] text-[#202020]';
 }
 
 function getPaymentPill(method: PaymentMethod, status: PaymentStatus) {
@@ -40,7 +40,7 @@ export const OrderStatusBadge: React.FC<{ status: OrderStatus }> = ({ status }) 
 
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] ${getBadgeClass(status)}`}
+      className={`inline-flex items-center rounded-[8px] px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.12em] ${getBadgeClass(status)}`}
     >
       {getLocalizedOrderStatusLabel(status, language)}
     </span>
@@ -56,48 +56,47 @@ export const OrderCard: React.FC<{ order: Order; onClick: () => void }> = ({ ord
     minute: '2-digit',
   });
 
+  const isCompleted = order.orderStatus === OrderStatus.DELIVERED;
+  const isCancelled = order.orderStatus === OrderStatus.CANCELLED;
+  
+  const statusText = isCompleted ? 'Muvaffaqiyatli yakunlandi' : isCancelled ? 'Rad etildi' : 'Jarayonda';
+  const statusColor = isCompleted ? 'text-emerald-600' : isCancelled ? 'text-rose-600' : 'text-amber-600';
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="w-full rounded-[12px] border border-white/8 bg-[#111827] p-4 text-left shadow-[0_12px_24px_rgba(2,6,23,0.22)] transition-transform active:scale-[0.985]"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/34">Buyurtma</p>
-          <h3 className="mt-1.5 text-lg font-black tracking-tight text-white">#{order.orderNumber}</h3>
-          <p className="mt-1.5 text-[11px] font-semibold text-white/44">{date}</p>
-        </div>
-        <OrderStatusBadge status={order.orderStatus} />
-      </div>
-
-      <div className="mt-4 space-y-2">
-        {order.items.slice(0, 2).map((item, index) => (
-          <div key={`${item.id}-${index}`} className="flex items-center gap-2 text-sm text-white/72">
-            <span className="h-1.5 w-1.5 rounded-full bg-white/24" />
-            <span className="text-[11px] font-black text-white/42">{item.quantity}x</span>
-            <span className="truncate font-semibold">{formatText(item.name)}</span>
+    <div className="w-full rounded-[20px] bg-[#f4f4f5] p-4 text-left shadow-sm">
+      {/* Header */}
+      <div className="mb-3 flex items-start justify-between">
+        <div>
+          <p className="text-[13px] font-semibold text-[#8c8c96]">{date}</p>
+          <div className="mt-1 flex items-center gap-2">
+            <h3 className="text-[16px] font-black text-[#202020]">#{order.orderNumber}</h3>
           </div>
-        ))}
-        {order.items.length > 2 ? (
-          <p className="pl-3.5 text-[11px] font-semibold text-white/42">
-            +{order.items.length - 2} ta mahsulot
-          </p>
-        ) : null}
+        </div>
+        <p className={`text-[13px] font-bold ${statusColor}`}>{statusText}</p>
       </div>
 
-      <div className="mt-4 flex items-center justify-between border-t border-white/8 pt-4">
-        <div className="flex items-center gap-2">
-          <span className="rounded-full border border-white/8 bg-white/[0.06] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-white/58">
-            {getPaymentPill(order.paymentMethod, order.paymentStatus)}
-          </span>
-          <span className="text-sm font-black text-white">{order.total.toLocaleString()} so'm</span>
-        </div>
-        <div className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-white/8 bg-white/[0.05] text-white/54">
-          <ChevronRight size={18} />
-        </div>
+      {/* Items List */}
+      <div className="mb-4">
+        <p className="text-[14px] font-semibold text-[#202020] leading-snug">
+          {order.items.map(item => formatText(item.name)).join(', ')}
+        </p>
       </div>
-    </button>
+
+      {/* Footer and Reorder */}
+      <div className="flex items-center justify-between border-t border-slate-200/60 pt-4">
+        <div>
+          <p className="text-[12px] font-semibold text-[#8c8c96]">Umumiy summa</p>
+          <p className="text-[16px] font-black text-[#202020]">{order.total.toLocaleString()} so'm</p>
+        </div>
+        
+        <button
+          onClick={onClick}
+          className="rounded-full bg-[#C2FF00] px-4 py-2.5 text-[14px] font-black text-[#111] shadow-sm transition-transform active:scale-95"
+        >
+          {isCompleted || isCancelled ? "Qayta buyurtma" : "Kuzatish"}
+        </button>
+      </div>
+    </div>
   );
 };
 
@@ -106,14 +105,19 @@ export const OrderTimeline: React.FC<{ status: OrderStatus }> = ({ status }) => 
   const currentStep = getStatusStep(status);
   const steps = getLocalizedTrackingSteps(language);
 
+export const OrderTimeline: React.FC<{ status: OrderStatus; onCallCourier?: () => void }> = ({ status, onCallCourier }) => {
+  const { language } = useCustomerLanguage();
+  const currentStep = getStatusStep(status);
+  const steps = getLocalizedTrackingSteps(language);
+
   if (status === OrderStatus.CANCELLED) {
     return (
-      <section className="rounded-[12px] border border-rose-300/18 bg-rose-400/10 p-4">
-        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-rose-100/74">Holat</p>
-        <p className="mt-2 text-base font-black text-rose-100">
+      <section className="rounded-[20px] bg-rose-50 p-5 shadow-sm">
+        <p className="text-[12px] font-black uppercase tracking-[0.1em] text-rose-500">Holat</p>
+        <p className="mt-2 text-lg font-black text-rose-700">
           {getLocalizedOrderStatusLabel(status, language)}
         </p>
-        <p className="mt-2 text-sm leading-6 text-rose-100/76">
+        <p className="mt-2 text-[14px] leading-relaxed text-rose-600/80">
           Buyurtma bekor qilingan. Zarurat bo'lsa support orqali operator bilan bog'laning.
         </p>
       </section>
@@ -121,37 +125,38 @@ export const OrderTimeline: React.FC<{ status: OrderStatus }> = ({ status }) => 
   }
 
   return (
-    <section className="rounded-[12px] border border-white/8 bg-[#111827] p-4 shadow-[0_12px_24px_rgba(2,6,23,0.18)]">
-      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/34">Bosqichlar</p>
-      <div className="relative mt-4 space-y-4">
-        <div className="absolute left-[13px] top-3 bottom-3 w-px bg-white/10" />
+    <section className="rounded-[20px] bg-white p-5 shadow-[0_10px_24px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.035]">
+      <p className="text-[12px] font-black uppercase tracking-[0.1em] text-[#8c8c96]">Jarayon</p>
+      <div className="relative mt-5 space-y-5">
+        <div className="absolute left-[13px] top-3 bottom-5 w-[2px] bg-[#f4f4f5]" />
         {steps.map((step) => {
           const stepIndex = getStatusStep(step.id);
           const isCompleted = currentStep > stepIndex;
           const isActive = currentStep === stepIndex;
 
+          let bulletStyle = "border-2 border-[#f4f4f5] bg-white text-[#8c8c96]";
+          if (isCompleted) {
+            bulletStyle = "bg-[#C62020] text-white border-0";
+          } else if (isActive) {
+            bulletStyle = "bg-[#C2FF00] text-[#111] border-0 shadow-md transform scale-110";
+          }
+
           return (
-            <div key={step.id} className="relative flex items-start gap-3">
+            <div key={step.id} className="relative flex items-start gap-4">
               <div
-                className={`relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border ${
-                  isCompleted
-                    ? 'border-emerald-300/18 bg-emerald-400/14 text-emerald-100'
-                    : isActive
-                      ? 'border-amber-300/18 bg-amber-400/14 text-amber-100'
-                      : 'border-white/10 bg-[#0b1120] text-white/34'
-                }`}
+                className={`relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${bulletStyle}`}
               >
-                {isCompleted ? <CheckCircle2 size={14} /> : <span className="text-[11px] font-black">{stepIndex + 1}</span>}
+                {isCompleted ? <CheckCircle2 size={16} /> : <span className="text-[12px] font-black">{stepIndex + 1}</span>}
               </div>
-              <div className="min-w-0 pt-0.5">
+              <div className="min-w-0 pt-0.5 pb-2">
                 <p
-                  className={`text-sm font-black ${
-                    isActive ? 'text-white' : isCompleted ? 'text-white/68' : 'text-white/42'
+                  className={`text-[15px] font-black ${
+                    isActive ? 'text-[#202020]' : isCompleted ? 'text-[#202020]' : 'text-[#8c8c96]'
                   }`}
                 >
                   {step.label}
                 </p>
-                <p className={`mt-1 text-[12px] leading-5 ${isActive ? 'text-white/66' : 'text-white/34'}`}>
+                <p className={`mt-1 text-[13px] leading-snug ${isActive ? 'text-[#202020]/80' : 'text-[#8c8c96]'}`}>
                   {step.description}
                 </p>
               </div>
@@ -159,6 +164,16 @@ export const OrderTimeline: React.FC<{ status: OrderStatus }> = ({ status }) => 
           );
         })}
       </div>
+
+      {currentStep >= 2 && currentStep < 4 ? (
+        <button 
+          onClick={onCallCourier}
+          type="button" 
+          className="mt-6 w-full rounded-[14px] bg-[#f4f4f5] p-3 text-center text-[15px] font-bold text-[#C62020] transition-colors active:bg-[#e4e4e5]"
+        >
+          Kuryerga qo'ng'iroq qilish
+        </button>
+      ) : null}
     </section>
   );
 };
@@ -193,17 +208,17 @@ export const TrackingMapPlaceholder: React.FC = () => (
 
 export const OrdersEmptyState: React.FC<{ onShop: () => void }> = ({ onShop }) => (
   <div className="flex flex-col items-center justify-center py-20 text-center">
-    <div className="flex h-20 w-20 items-center justify-center rounded-[12px] border border-white/8 bg-white/[0.05] text-white/58">
+    <div className="flex h-20 w-20 items-center justify-center rounded-[20px] bg-[#f4f4f5] text-[#8c8c96] shadow-sm">
       <ShoppingBag size={38} />
     </div>
-    <h3 className="mt-6 text-[1.8rem] font-black tracking-tight text-white">Buyurtmalar hali yo'q</h3>
-    <p className="mt-3 max-w-[260px] text-sm leading-6 text-white/54">
+    <h3 className="mt-6 text-[1.5rem] font-black tracking-tight text-[#202020]">Buyurtmalar hali yo'q</h3>
+    <p className="mt-3 max-w-[260px] text-sm leading-6 text-[#8c8c96]">
       Turon Kafesi menyusidan taom tanlang, keyingi buyurtmalaringiz shu yerda jamlanadi.
     </p>
     <button
       type="button"
       onClick={onShop}
-      className="mt-8 rounded-[12px] bg-white px-5 py-3 text-sm font-black text-slate-950 transition-transform active:scale-[0.985]"
+      className="mt-8 rounded-full bg-[#C62020] px-8 py-3.5 text-sm font-black text-white shadow-md transition-transform active:scale-[0.985]"
     >
       Menyuga qaytish
     </button>
