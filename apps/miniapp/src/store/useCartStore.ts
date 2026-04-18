@@ -79,7 +79,8 @@ export const useCartStore = create<CartState>()(
           window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
         }
 
-        // Show toast notification
+        // Show toast notification disabled as per user request
+        /*
         try {
           const productName = product.name || 'Mahsulot';
           useToastStore.getState().addToast(
@@ -90,6 +91,7 @@ export const useCartStore = create<CartState>()(
         } catch (e) {
           console.debug('Toast notification not available');
         }
+        */
       },
 
       removeFromCart: (productId) => {

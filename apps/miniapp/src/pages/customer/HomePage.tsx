@@ -368,8 +368,8 @@ const MenuProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
         <p className="mt-1.5 line-clamp-2 text-[12.5px] font-medium leading-[17px] text-[#8c8c96]" style={{ minHeight: 34 }}>
           {formatText(getProductSecondaryText(product) || product.description || 'Mazali taom')}
         </p>
-        <div className="mt-auto flex items-end justify-between gap-2 pt-3">
-          <div className="min-w-0">
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-x-2 gap-y-3 pt-3">
+          <div className="min-w-0 flex-1">
             <p className="truncate text-[18px] font-black tracking-[-0.04em] text-[#202020]">
               {product.price.toLocaleString()} so'm
             </p>
@@ -380,7 +380,7 @@ const MenuProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
             ) : null}
           </div>
           {quantityInCart > 0 && available ? (
-            <div className="flex items-center gap-2 rounded-full bg-white/90 p-1 shadow-[0_10px_18px_rgba(15,23,42,0.18)]">
+            <div className="flex items-center gap-1.5 rounded-full bg-white border border-slate-100 p-1 shadow-[0_4px_12px_rgba(15,23,42,0.08)] shrink-0">
               <button
                 type="button"
                 onClick={(e) => {
@@ -388,7 +388,7 @@ const MenuProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
                   e.stopPropagation();
                   updateQuantity(product.id, -1);
                 }}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F4F4F5] text-[#202020] transition active:scale-95 hover:bg-[#e5e5e5]"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F4F4F5] text-[#202020] transition active:scale-95 active:bg-[#C62020] active:text-white"
               >
                 <Minus size={16} />
               </button>
@@ -402,7 +402,7 @@ const MenuProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
                   e.stopPropagation();
                   handleAdd(e);
                 }}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-[#C62020] text-white transition active:scale-95 hover:bg-[#a01b1b]"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F4F4F5] text-[#202020] transition active:scale-95 active:bg-[#C62020] active:text-white"
               >
                 <Plus size={16} strokeWidth={2.7} />
               </button>

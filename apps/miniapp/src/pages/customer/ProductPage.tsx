@@ -233,13 +233,9 @@ const ProductPage: React.FC = () => {
           <div className="flex h-full items-center justify-between rounded-full bg-white px-1 min-w-[110px]">
             <button
               type="button"
-              onClick={() => {
-                setQuantity((q) => Math.max(1, q - 1));
-                setActiveButton('decrease');
-                setTimeout(() => setActiveButton(null), 200);
-              }}
+              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
               disabled={!isAvailable || quantity <= 1}
-              className={`flex h-10 w-10 items-center justify-center rounded-full ${activeButton === 'decrease' ? 'bg-[#C62020] text-white' : 'bg-[#f4f4f5] text-[#202020]'} transition active:scale-95 disabled:opacity-40`}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f4f4f5] text-[#202020] transition active:scale-95 active:bg-[#C62020] active:text-white disabled:opacity-40"
             >
               <span className="text-[22px] font-medium leading-none pb-[2px]">-</span>
             </button>
@@ -248,13 +244,9 @@ const ProductPage: React.FC = () => {
             </span>
             <button
               type="button"
-              onClick={() => {
-                setQuantity((q) => q + 1);
-                setActiveButton('increase');
-                setTimeout(() => setActiveButton(null), 200);
-              }}
+              onClick={() => setQuantity((q) => q + 1)}
               disabled={!isAvailable}
-              className={`flex h-10 w-10 items-center justify-center rounded-full ${activeButton === 'increase' ? 'bg-[#C62020] text-white' : 'bg-[#C62020] text-white'} transition active:scale-95 disabled:opacity-40`}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f4f4f5] text-[#202020] transition active:scale-95 active:bg-[#C62020] active:text-white disabled:opacity-40"
             >
               <span className="text-[22px] font-medium leading-none pb-[2px]">+</span>
             </button>
