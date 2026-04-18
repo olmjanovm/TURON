@@ -3,6 +3,7 @@ import { env } from '../config.js';
 import app from './app.js';
 import { launchTelegramBot, stopTelegramBot } from '../services/telegram-bot.service.js';
 import { startOrderExpiryScheduler } from '../services/order-expiry.service.js';
+import { locationWriteBuffer } from '../services/location-write-buffer.service.js';
 
 const server = fastify({
   logger: true,
@@ -21,6 +22,10 @@ async function main() {
 
     // Start auto-cancellation scheduler (unaccepted 5h + delivery timeout 3h)
     startOrderExpiryScheduler();
+
+    // Start location write buffer — batches courier GPS DB writes every 10s
+    // (prevents 10k upserts/sec killing Postgres at scale)
+    locationWriteBuffer.start();
 
     // Never block API health/startup on Telegram bot launch.
     if (env.NODE_ENV === 'production') {

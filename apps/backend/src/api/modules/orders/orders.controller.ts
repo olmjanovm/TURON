@@ -11,7 +11,7 @@ import { AuditService } from '../../../services/audit.service.js';
 import { CourierAssignmentService } from '../../../services/courier-assignment.service.js';
 import { DeliveryQuoteService } from '../../../services/delivery-quote.service.js';
 import { InAppNotificationsService } from '../../../services/in-app-notifications.service.js';
-import { orderTrackingService } from '../../../services/order-tracking.service.js';
+import { orderTrackingService, sseConnectionRegistry } from '../../../services/order-tracking.service.js';
 import { sendAdminAlert, sendOrderNotificationToAdmin } from '../../../services/telegram-bot.service.js';
 import { StatusService } from '../../../services/status.service.js';
 import { SpecialEventsService } from '../../../services/special-events.service.js';
@@ -755,10 +755,23 @@ export async function streamOrderTracking(
     sendEvent(event);
   });
 
-  request.raw.on('close', () => {
+  // Deduplication: bir foydalanuvchi bir vaqtda faqat bitta ulanish
+  // (masalan, tab qayta yuklanganda yoki background→foreground)
+  let closed = false;
+  const cleanup = () => {
+    if (closed) return;
+    closed = true;
     clearInterval(heartbeat);
     unsubscribe();
-    reply.raw.end();
+    try { reply.raw.end(); } catch { /* already ended */ }
+  };
+
+  const sseKey = `order:${order.id}:${requester.id}`;
+  sseConnectionRegistry.register(sseKey, cleanup);
+
+  request.raw.on('close', () => {
+    sseConnectionRegistry.deregister(sseKey);
+    cleanup();
   });
 }
 
@@ -829,10 +842,22 @@ export async function streamOrders(request: FastifyRequest, reply: FastifyReply)
     }
   });
 
-  request.raw.on('close', () => {
+  // Deduplication: bir foydalanuvchi bir vaqtda faqat bitta orders stream
+  let closedOrders = false;
+  const cleanupOrders = () => {
+    if (closedOrders) return;
+    closedOrders = true;
     clearInterval(heartbeat);
     unsubscribe();
-    reply.raw.end();
+    try { reply.raw.end(); } catch { /* already ended */ }
+  };
+
+  const sseKeyOrders = `orders:${requester.id}`;
+  sseConnectionRegistry.register(sseKeyOrders, cleanupOrders);
+
+  request.raw.on('close', () => {
+    sseConnectionRegistry.deregister(sseKeyOrders);
+    cleanupOrders();
   });
 }
 

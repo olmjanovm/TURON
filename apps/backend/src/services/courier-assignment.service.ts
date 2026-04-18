@@ -18,6 +18,42 @@ const RESTAURANT_POINT = {
 const FALLBACK_AVERAGE_SPEED_KMH = 24;
 const FALLBACK_MIN_ETA_MINUTES = 4;
 
+/**
+ * EligibleCourierCache — `rankEligibleCouriers` natijasini 30 soniya
+ * keshda saqlaydi.
+ *
+ * Muammo: har bir buyurtma kelganda `rankEligibleCouriers()` chaqiriladi —
+ * bu `findMany(users) + findMany(courierPresence) + external API call` ni
+ * amalga oshiradi. 100 ta buyurtma/soniya da bu 300+ parallel DB so'roviga
+ * olib keladi.
+ *
+ * Yechim: Bir marta chaqirib, 30 soniya keshda saqlaymiz.
+ * Trade-off: Yangi online bo'lgan kuryer maksimal 30 s kechikish bilan
+ * topiladi — bu delivery UX uchun qabul qilinadi.
+ *
+ * Keshni yangilash: kuryer online/offline o'tganda `invalidate()` chaqiriladi.
+ */
+class EligibleCourierCache {
+  private cached: { data: RankedCourierCandidate[]; expiresAt: number } | null = null;
+  private readonly ttlMs = 30_000;
+
+  async get(db: DbClient): Promise<RankedCourierCandidate[]> {
+    if (this.cached && Date.now() < this.cached.expiresAt) {
+      return this.cached.data;
+    }
+    const data = await CourierAssignmentService.rankEligibleCouriersRaw(db);
+    this.cached = { data, expiresAt: Date.now() + this.ttlMs };
+    return data;
+  }
+
+  /** Kuryer holati o'zganda (online/offline/accept toggle) keshni tozalash */
+  invalidate() {
+    this.cached = null;
+  }
+}
+
+export const eligibleCourierCache = new EligibleCourierCache();
+
 type DbClient = Prisma.TransactionClient | typeof prisma;
 
 interface CoordinatePoint {
@@ -238,7 +274,21 @@ async function runWriteTransaction<T>(db: DbClient, callback: (tx: Prisma.Transa
 }
 
 export class CourierAssignmentService {
+  /**
+   * Kesh orqali o'tadigan public versiya.
+   * `autoAssignOrder` va tashqi callerlar shu metoddan foydalanadi.
+   * Kesh miss bo'lganda `rankEligibleCouriersRaw` chaqiriladi.
+   */
   static async rankEligibleCouriers(db: DbClient = prisma): Promise<RankedCourierCandidate[]> {
+    return eligibleCourierCache.get(db);
+  }
+
+  /**
+   * DB ga to'g'ridan-to'g'ri so'rov yuboradi — kesh miss bo'lganda
+   * `EligibleCourierCache.get()` ichidan chaqiriladi.
+   * Tashqaridan bevosita chaqirilmasin.
+   */
+  static async rankEligibleCouriersRaw(db: DbClient = prisma): Promise<RankedCourierCandidate[]> {
     const couriers = await db.user.findMany({
       where: CourierOperationalStatusService.eligibleCourierWhere() as any,
       include: {

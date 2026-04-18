@@ -211,3 +211,41 @@ class OrderTrackingService {
 }
 
 export const orderTrackingService = new OrderTrackingService();
+
+/**
+ * SseConnectionRegistry — foydalanuvchi boshqa qurilmada yoki tabda yangi SSE
+ * ulanish ochganda avvalgisini yopadi.
+ *
+ * Muammo: Mijoz ilovani background/foreground qilsa EventSource qayta ulanadi.
+ * Agar eski ulanish hali yoqilmagan bo'lsa, bir foydalanuvchida bir vaqtda
+ * N ta listener ishlaydi → har bir event N marta yuboriladi.
+ *
+ * Yechim: Har bir (userId, streamType) juftligi uchun bitta aktiv cleanup fn
+ * saqlaymiz. Yangi ulanish kelganda avvalgisi darhol yopiladi.
+ *
+ * Key format:
+ *   `order:{orderId}:{userId}`  — streamOrderTracking uchun
+ *   `orders:{userId}`           — streamOrders uchun
+ */
+class SseConnectionRegistry {
+  private readonly active = new Map<string, () => void>();
+
+  /**
+   * Yangi SSE ulanishni ro'yxatga olish.
+   * Agar bu key bo'yicha aktiv ulanish bo'lsa — darhol yopiladi.
+   */
+  register(key: string, cleanup: () => void): void {
+    this.active.get(key)?.(); // avvalgi ulanishni yop
+    this.active.set(key, cleanup);
+  }
+
+  /**
+   * Ulanish tabiiy ravishda yopilganda ro'yxatdan chiqarish.
+   * Double-cleanup oldini olish uchun `register` bilan parallel chaqirilmaydi.
+   */
+  deregister(key: string): void {
+    this.active.delete(key);
+  }
+}
+
+export const sseConnectionRegistry = new SseConnectionRegistry();

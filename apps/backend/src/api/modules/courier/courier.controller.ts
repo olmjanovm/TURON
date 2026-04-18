@@ -9,6 +9,7 @@ import {
 import { InAppNotificationsService } from '../../../services/in-app-notifications.service.js';
 import { CourierOperationalStatusService } from '../../../services/courier-operational-status.service.js';
 import { CourierPresenceService } from '../../../services/courier-presence.service.js';
+import { locationWriteBuffer } from '../../../services/location-write-buffer.service.js';
 import { CourierStatsService } from '../../../services/courier-stats.service.js';
 import { orderTrackingService } from '../../../services/order-tracking.service.js';
 import {
@@ -17,6 +18,7 @@ import {
   getActiveCourierAssignment,
   serializeOrder,
 } from '../orders/order-helpers.js';
+import { eligibleCourierCache } from '../../../services/courier-assignment.service.js';
 
 const COURIER_LIST_ASSIGNMENT_STATUSES = [
   'ASSIGNED',
@@ -194,6 +196,12 @@ export async function updateCourierStatus(
       requester.id,
       request.body ?? {},
     );
+
+    // Kuryer holati o'zganda keshni tozalaymiz — keyingi autoAssign frash
+    // ro'yxatni oladi (max 30s kechikish emas, darhol).
+    if (before.isOnline !== after.isOnline || before.isAcceptingOrders !== after.isAcceptingOrders) {
+      eligibleCourierCache.invalidate();
+    }
 
     await AuditService.record({
       userId: requester.id,
@@ -515,44 +523,44 @@ export async function updateCourierLocation(
     });
   }
 
-  const persistedPresence = await CourierPresenceService.upsert({
+  // ── HOT PATH OPTIMISATION ──────────────────────────────────────────────────
+  // At 10 000 concurrent couriers, every sync DB upsert + audit write would
+  // produce ~20 000 Postgres writes/sec.  Instead:
+  //   1. Push to in-memory EventEmitter → SSE clients IMMEDIATELY (no DB wait)
+  //   2. Enqueue to LocationWriteBuffer → flushed to DB every 10 s (100× fewer writes)
+  //   3. AuditService REMOVED from this path — GPS coordinates have no audit value
+  //      at 1-Hz frequency; stage changes / accept / decline are still audited.
+
+  const { latitude, longitude, heading, speedKmh, remainingDistanceKm, remainingEtaMinutes } =
+    request.body;
+  const now = new Date().toISOString();
+
+  // Step 1 — immediate SSE push (no DB)
+  const tracking = orderTrackingService.publishCourierLocation(order.id, {
+    latitude,
+    longitude,
+    heading,
+    speedKmh,
+    remainingDistanceKm,
+    remainingEtaMinutes,
+    updatedAt: now,
+  });
+
+  // Step 2 — deferred DB write (buffered, flushed every 10 s)
+  locationWriteBuffer.enqueue({
     courierId: requester.id,
     orderId: order.id,
-    latitude: request.body.latitude,
-    longitude: request.body.longitude,
-    heading: request.body.heading,
-    speedKmh: request.body.speedKmh,
-    remainingDistanceKm: request.body.remainingDistanceKm,
-    remainingEtaMinutes: request.body.remainingEtaMinutes,
+    latitude,
+    longitude,
+    heading: heading ?? null,
+    speedKmh: speedKmh ?? null,
+    remainingDistanceKm: remainingDistanceKm ?? null,
+    remainingEtaMinutes: remainingEtaMinutes ?? null,
   });
 
-  if (persistedPresence.previousOrderId && persistedPresence.previousOrderId !== order.id) {
-    orderTrackingService.clearSnapshot(persistedPresence.previousOrderId);
-  }
+  // Step 3 — AuditService call REMOVED (was 1 extra write per heartbeat)
 
-  const tracking = orderTrackingService.publishCourierLocation(order.id, {
-    latitude: request.body.latitude,
-    longitude: request.body.longitude,
-    heading: request.body.heading,
-    speedKmh: request.body.speedKmh,
-    remainingDistanceKm: request.body.remainingDistanceKm,
-    remainingEtaMinutes: request.body.remainingEtaMinutes,
-    updatedAt: persistedPresence.tracking?.courierLocation?.updatedAt,
-  });
-
-  await AuditService.record({
-    userId: requester.id,
-    actorRole: requester.role,
-    action: 'UPDATE_COURIER_LOCATION',
-    entity: 'Order',
-    entityId: order.id,
-    metadata: {
-      assignmentId: relevantAssignment.id,
-      location: request.body,
-    },
-  });
-
-  return reply.send({ orderId: order.id, tracking: tracking ?? persistedPresence.tracking });
+  return reply.send({ orderId: order.id, tracking: tracking ?? { isLive: true, lastEventAt: now } });
 }
 
 export async function getNextAvailableOrder(
