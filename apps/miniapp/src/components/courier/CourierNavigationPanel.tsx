@@ -60,15 +60,41 @@ function DirectionArrow({ action }: { action?: NavigationStep['action'] }) {
 
 const CourierNavigationPanel: React.FC<CourierNavigationPanelProps> = ({
   currentStep,
+  allSteps = [],
 }) => {
   if (!currentStep) return null;
 
+  // Get next turn instruction
+  const nextStep = allSteps.find(s => s.action && s.action !== 'straight');
+  const nextTurnDistance = nextStep?.distanceText || 'Oxiriga qadar';
+  
+  // Direction descriptions in Uzbek
+  const getDirectionLabel = (action?: string): string => {
+    if (action === 'right') return "O'ngga";
+    if (action === 'left') return "Chapga";
+    return "To'g'ri";
+  };
+
   return (
-    <div className="inline-flex items-center gap-2.5 rounded-[16px] bg-amber-400 px-3 py-2.5 shadow-2xl">
-      <DirectionArrow action={currentStep.action} />
-      <span className="whitespace-nowrap text-[24px] font-black leading-none tracking-tight text-white">
-        {currentStep.distanceText}
-      </span>
+    <div className="flex flex-col gap-2">
+      {/* Main direction indicator */}
+      <div className="inline-flex items-center gap-2.5 rounded-[16px] bg-amber-400 px-3 py-2.5 shadow-2xl">
+        <DirectionArrow action={currentStep.action} />
+        <div className="flex flex-col">
+          <span className="text-[11px] font-semibold leading-none text-amber-900">Keyingi qadamigacha</span>
+          <span className="whitespace-nowrap text-[20px] font-black leading-none tracking-tight text-white">
+            {currentStep.distanceText}
+          </span>
+        </div>
+      </div>
+      
+      {/* Next turn instruction (if different from current) */}
+      {nextStep && nextStep !== currentStep && (
+        <div className="inline-flex items-center gap-2 rounded-[12px] bg-sky-500/20 border border-sky-400/30 px-3 py-2 text-[12px] font-semibold text-sky-200 backdrop-blur-sm">
+          <span>{getDirectionLabel(nextStep.action)} burilish:</span>
+          <span className="font-black text-sky-100">{nextTurnDistance}</span>
+        </div>
+      )}
     </div>
   );
 };

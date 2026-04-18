@@ -799,20 +799,29 @@ export const DeliveryBottomPanel: React.FC<{
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-slate-900 text-white p-4 rounded-t-3xl shadow-lg">
       <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-2">
-          <span className="text-emerald-400 font-bold text-lg">{stageMeta.label}</span>
+        <div className="flex items-center gap-3">
+          <div className="flex flex-col">
+            <span className="text-emerald-400 font-bold text-lg">{stageMeta.label}</span>
+            <span className="text-[11px] text-slate-400 font-semibold">{stageMeta.description}</span>
+          </div>
           <div className="flex items-center gap-1">
             {[...Array(3)].map((_, index) => (
               <span
                 key={index}
-                className={`h-2 w-2 rounded-full ${index < stageMeta.progress ? 'bg-emerald-400' : 'bg-slate-600'}`}
+                className={`h-2 w-2 rounded-full transition-colors ${index < (stageMeta.progress ?? 0) ? 'bg-emerald-400' : 'bg-slate-600'}`}
               ></span>
             ))}
           </div>
         </div>
-        <div className="text-right">
-          <p className="text-sm font-bold">{distance} km</p>
-          <p className="text-xs text-slate-400">{eta} daq</p>
+        <div className="text-right bg-slate-800/60 rounded-[14px] px-3 py-2 backdrop-blur-sm">
+          <div className="flex items-center gap-2 text-sm font-bold text-amber-300">
+            <Route size={16} />
+            <span>{distance}</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm font-bold text-sky-300 mt-1">
+            <Timer size={16} />
+            <span>{eta}</span>
+          </div>
         </div>
       </div>
 
