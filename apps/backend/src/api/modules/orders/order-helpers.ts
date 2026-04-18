@@ -191,6 +191,8 @@ export function serializeOrder(order: any) {
     courierAssignmentStatus: latestAssignment?.status,
     courierLastEventType: latestAssignmentEvent?.eventType ?? null,
     courierLastEventAt: latestAssignmentEvent?.eventAt?.toISOString?.() ?? null,
+    assignedAt: latestAssignment?.assignedAt?.toISOString?.() ?? null,
+    acceptedAt: latestAssignment?.acceptedAt?.toISOString?.() ?? null,
     // Exposed so customers can call the courier and couriers can call the customer
     courierPhone: courier?.phoneNumber ?? null,
   };

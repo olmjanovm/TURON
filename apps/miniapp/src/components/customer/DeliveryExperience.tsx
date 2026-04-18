@@ -197,8 +197,10 @@ export function DeliveryHeroCard({
   isConnected,
   etaValue,
   etaHint,
+  etaLabel,
   distanceValue,
   distanceHint,
+  distanceLabel,
   children,
 }: {
   tone?: DeliveryTone;
@@ -210,16 +212,20 @@ export function DeliveryHeroCard({
   isConnected: boolean;
   etaValue?: string | null;
   etaHint?: string | null;
+  etaLabel?: string | null;
   distanceValue?: string | null;
   distanceHint?: string | null;
+  distanceLabel?: string | null;
   children?: React.ReactNode;
 }) {
   const { language } = useCustomerLanguage();
   const styles = TONE_STYLES[tone];
-  const etaLabel =
-    language === 'ru' ? 'Осталось ETA' : language === 'uz-cyrl' ? 'Қолган ETA' : 'Qolgan ETA';
-  const distanceLabel =
-    language === 'ru' ? 'Осталось пути' : language === 'uz-cyrl' ? 'Қолган масофа' : 'Qolgan masofa';
+  const resolvedEtaLabel =
+    etaLabel ||
+    (language === 'ru' ? 'Осталось ETA' : language === 'uz-cyrl' ? 'Қолган ETA' : 'Qolgan ETA');
+  const resolvedDistanceLabel =
+    distanceLabel ||
+    (language === 'ru' ? 'Осталось пути' : language === 'uz-cyrl' ? 'Қолган масофа' : 'Qolgan masofa');
   const fallbackValue =
     language === 'ru' ? 'Рассчитывается' : language === 'uz-cyrl' ? 'Ҳисобланмоқда' : 'Hisoblanmoqda';
 
@@ -250,14 +256,14 @@ export function DeliveryHeroCard({
           <div className="grid grid-cols-2 gap-3">
             <DeliveryMetricCard
               icon={<TimerReset size={14} className="text-emerald-300" />}
-              label={etaLabel}
+              label={resolvedEtaLabel}
               value={etaValue || fallbackValue}
               hint={etaHint}
               tone={tone}
             />
             <DeliveryMetricCard
               icon={<Route size={14} className="text-blue-300" />}
-              label={distanceLabel}
+              label={resolvedDistanceLabel}
               value={distanceValue || fallbackValue}
               hint={distanceHint}
               tone={tone}

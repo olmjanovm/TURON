@@ -116,6 +116,8 @@ export interface Order {
   courierAssignmentStatus?: string;
   courierLastEventType?: string | null;
   courierLastEventAt?: string | null;
+  assignedAt?: string | null;
+  acceptedAt?: string | null;
   tracking?: OrderTrackingState;
 }
 

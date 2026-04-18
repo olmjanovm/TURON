@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(body.dark, body.dark *));
+
 @theme {
   --radius-xs: 6px;
   --radius-sm: 6px;

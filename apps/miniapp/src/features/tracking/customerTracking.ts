@@ -147,7 +147,7 @@ function getStageLabel(
       case 'PREPARING':
         return 'Готовится';
       case 'ASSIGNED':
-        return 'Принят';
+        return 'Ожидает курьера';
       case 'ACCEPTED':
         return 'Едет в ресторан';
       case 'ARRIVED':
@@ -171,7 +171,7 @@ function getStageLabel(
       case 'PREPARING':
         return 'Тайёрланмоқда';
       case 'ASSIGNED':
-        return 'Қабул қилинди';
+        return 'Курьер кутилмоқда';
       case 'ACCEPTED':
         return 'Ресторанга кетмоқда';
       case 'ARRIVED':
@@ -194,7 +194,7 @@ function getStageLabel(
     case 'PREPARING':
       return 'Tayyorlanmoqda';
     case 'ASSIGNED':
-      return 'Qabul qilindi';
+      return 'Kuryer kutilmoqda';
     case 'ACCEPTED':
       return 'Restoranga ketmoqda';
     case 'ARRIVED':
@@ -396,6 +396,12 @@ export function getCustomerTrackingMeta(
   const phase = resolveCustomerTrackingPhase(order);
   const courierLabel = order.courierName?.trim() || getCourierFallbackLabel(language);
   const isCourierAssigned = phase !== 'PENDING' && phase !== 'PREPARING' && phase !== 'CANCELLED';
+  const isCourierAccepted =
+    phase === 'ACCEPTED' ||
+    phase === 'ARRIVED' ||
+    phase === 'PICKED_UP' ||
+    phase === 'DELIVERING' ||
+    phase === 'DELIVERED';
   const isCourierEnRouteToCustomer =
     phase === 'PICKED_UP' || phase === 'DELIVERING' || phase === 'DELIVERED';
 
@@ -409,13 +415,13 @@ export function getCustomerTrackingMeta(
     stageLabel: getStageLabel(phase, language, proximityMeters),
     heroTitle: getHeroTitle(phase, language),
     statusLine: getStatusLine(phase, language, courierLabel, proximityMeters),
-    showCourierMarker: isCourierAssigned,
+    showCourierMarker: isCourierAccepted,
     shouldUseCourierRouteOrigin:
       Boolean(order.tracking?.courierLocation) &&
-      phase !== 'PENDING' &&
-      phase !== 'PREPARING' &&
-      phase !== 'CANCELLED',
+      isCourierAccepted,
     currentTarget: isCourierEnRouteToCustomer ? 'customer' : 'restaurant',
+    isAwaitingCourierAcceptance: phase === 'ASSIGNED',
+    isCourierAccepted,
     isDelivered: phase === 'DELIVERED',
     isCancelled: phase === 'CANCELLED',
     /** Remaining metres from courier to customer (DELIVERING phase only, null if unavailable) */

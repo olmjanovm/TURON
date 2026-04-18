@@ -1,13 +1,16 @@
 /**
  * Order Expiry Scheduler
  *
- * Runs every 5 minutes and handles two timeout rules:
+ * Runs every 5 minutes and handles three timeout rules:
  *
- * 1. UNACCEPTED timeout (5 h): If an order is created but no courier accepts it
- *    within 5 hours, the order is auto-cancelled and admin is notified.
+ * 1. UNACCEPTED warning (30 min): If a courier has not accepted within the
+ *    first 30 minutes, admin is notified while 1 h 30 min still remains.
  *
- * 2. DELIVERY timeout (3 h): If a courier accepted an order but has not delivered
- *    it within 3 hours, the assignment + order are auto-cancelled and admin gets
+ * 2. UNACCEPTED timeout (2 h): If no courier accepts within 2 hours, the
+ *    order is auto-cancelled and admin is notified.
+ *
+ * 3. DELIVERY timeout (2 h): If a courier accepted an order but has not delivered
+ *    it within 2 hours, the assignment + order are auto-cancelled and admin gets
  *    an urgent Telegram alert.
  */
 
@@ -16,10 +19,12 @@ import { prisma } from '../lib/prisma.js';
 import { InAppNotificationsService } from './in-app-notifications.service.js';
 import { sendAdminAlert } from './telegram-bot.service.js';
 
-const UNACCEPTED_TIMEOUT_MS  = 5 * 60 * 60 * 1000; // 5 hours
+const UNACCEPTED_TIMEOUT_MS  = 2 * 60 * 60 * 1000; // 2 hours
+const UNACCEPTED_WARNING_MS  = 30 * 60 * 1000;      // warn admin when 1 h 30 min remains
 const DELIVERY_TIMEOUT_MS    = 2 * 60 * 60 * 1000; // 2 hours
 const CHECK_INTERVAL_MS      = 5 * 60 * 1000;       // every 5 minutes
 const PROXIMITY_SAFE_METERS  = 500;                  // don't cancel if courier ≤ 500 m from customer
+const UNACCEPTED_WARNING_TITLE = 'Kuryer qabul qilmayapti';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -68,7 +73,67 @@ async function isCourierNearDestination(
   }
 }
 
-// ── Case 1: orders with no courier acceptance within 5 h ─────────────────────
+// ── Case 1: warn admins if no courier has accepted after 30 min ───────────────
+
+async function warnUnacceptedOrders(): Promise<void> {
+  const cutoff = new Date(Date.now() - UNACCEPTED_WARNING_MS);
+  const expiryCutoff = new Date(Date.now() - UNACCEPTED_TIMEOUT_MS);
+
+  const orders = await prisma.order.findMany({
+    where: {
+      status: { notIn: ['DELIVERED', 'CANCELLED'] as any },
+      createdAt: { lt: cutoff, gte: expiryCutoff },
+      courierAssignments: {
+        none: {
+          status: { in: ['ACCEPTED', 'PICKED_UP', 'DELIVERING', 'DELIVERED'] as any },
+        },
+      },
+    },
+    select: {
+      id: true,
+      orderNumber: true,
+      createdAt: true,
+    },
+  });
+
+  for (const order of orders) {
+    try {
+      const existingWarning = await prisma.notification.findFirst({
+        where: {
+          relatedOrderId: order.id,
+          roleTarget: 'ADMIN' as any,
+          title: UNACCEPTED_WARNING_TITLE,
+        },
+        select: { id: true },
+      });
+
+      if (existingWarning) {
+        continue;
+      }
+
+      await InAppNotificationsService.notifyAdmins({
+        type: NotificationTypeEnum.WARNING,
+        title: UNACCEPTED_WARNING_TITLE,
+        message: `#${String(order.orderNumber)} buyurtmani kuryer hali qabul qilgani yo'q. 1 soat 30 daqiqa vaqt qoldi, vaziyatni ko'rib chiqing.`,
+        relatedOrderId: order.id,
+      });
+
+      await sendAdminAlert(
+        `⚠️ <b>Kuryer qabul qilmayapti</b>\n\n` +
+        `📦 Buyurtma: <b>#${String(order.orderNumber)}</b>\n` +
+        `⏳ Qabul qilish uchun qolgan vaqt: <b>1 soat 30 daqiqa</b>\n` +
+        `📅 Yaratildi: ${formatDate(order.createdAt)}\n\n` +
+        `Iltimos, kuryer biriktirish holatini tekshiring.`,
+      ).catch(() => {});
+
+      console.log(`[OrderExpiry] Admin warned about unaccepted order #${String(order.orderNumber)}`);
+    } catch (err) {
+      console.error(`[OrderExpiry] Failed to warn about unaccepted order ${order.id}:`, err);
+    }
+  }
+}
+
+// ── Case 2: orders with no courier acceptance within 2 h ─────────────────────
 
 async function cancelUnacceptedOrders(): Promise<void> {
   const cutoff = new Date(Date.now() - UNACCEPTED_TIMEOUT_MS);
@@ -100,7 +165,7 @@ async function cancelUnacceptedOrders(): Promise<void> {
           where: { id: order.id },
           data: {
             status: 'CANCELLED' as any,
-            cancellationReason: "5 soat ichida hech bir kuryer buyurtmani qabul qilmadi — avtomatik bekor",
+            cancellationReason: "2 soat ichida hech bir kuryer buyurtmani qabul qilmadi — avtomatik bekor",
             cancelledByRole: 'system',
           },
         });
@@ -128,7 +193,7 @@ async function cancelUnacceptedOrders(): Promise<void> {
           {
             type: NotificationTypeEnum.WARNING,
             title: 'Buyurtma avtomatik bekor qilindi',
-            message: `#${String(order.orderNumber)} buyurtma 5 soat ichida qabul qilinmadi va avtomatik bekor qilindi.`,
+            message: `#${String(order.orderNumber)} buyurtma 2 soat ichida qabul qilinmadi va avtomatik bekor qilindi.`,
             relatedOrderId: order.id,
           },
           tx,
@@ -138,7 +203,7 @@ async function cancelUnacceptedOrders(): Promise<void> {
       await sendAdminAlert(
         `⚠️ <b>Buyurtma avtomatik bekor qilindi</b>\n\n` +
         `📦 Buyurtma: <b>#${String(order.orderNumber)}</b>\n` +
-        `🕐 Muammo: 5 soat ichida hech bir kuryer qabul qilmadi\n` +
+        `🕐 Muammo: 2 soat ichida hech bir kuryer qabul qilmadi\n` +
         `📅 Yaratildi: ${formatDate(order.createdAt)}\n\n` +
         `Iltimos, buyurtma holatini tekshiring.`,
       ).catch(() => {});
@@ -150,7 +215,7 @@ async function cancelUnacceptedOrders(): Promise<void> {
   }
 }
 
-// ── Case 2: active deliveries not completed within 3 h ───────────────────────
+// ── Case 3: active deliveries not completed within 2 h ───────────────────────
 
 async function cancelExpiredDeliveries(): Promise<void> {
   const cutoff = new Date(Date.now() - DELIVERY_TIMEOUT_MS);
@@ -254,6 +319,12 @@ async function cancelExpiredDeliveries(): Promise<void> {
 // ── Main loop ─────────────────────────────────────────────────────────────────
 
 async function runExpiryCheck(): Promise<void> {
+  try {
+    await warnUnacceptedOrders();
+  } catch (err) {
+    console.error('[OrderExpiry] Unaccepted orders warning check failed:', err);
+  }
+
   try {
     await cancelUnacceptedOrders();
   } catch (err) {
