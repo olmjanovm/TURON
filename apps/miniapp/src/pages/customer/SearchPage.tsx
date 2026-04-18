@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
-import { Clock, Plus, Search, ArrowUpLeft, X } from 'lucide-react';
+import { Clock, Plus, Search, ArrowUpLeft, X, Minus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ProductAvailabilityEnum } from '@turon/shared';
 import { useCustomerLanguage } from '../../features/i18n/customerLocale';

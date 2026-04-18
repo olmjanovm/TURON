@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Minus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ProductAvailabilityEnum } from '@turon/shared';
 import { LoadingSkeleton } from '../../components/customer/CustomerComponents';
@@ -310,7 +310,7 @@ const PromoBannerCard: React.FC<{
 const MenuProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
   const navigate = useNavigate();
   const { formatText } = useCustomerLanguage();
-  const addToCart = useCartStore((s) => s.addToCart);
+  const { addToCart, updateQuantity, items } = useCartStore();
   const posterSrc = React.useMemo(() => getProductPosterUrl(product), [product]);
   const [imageSrc, setImageSrc] = React.useState(() =>
     getProductImageUrl({ id: product.id, name: product.name, imageUrl: product.imageUrl, categoryId: product.categoryId }, product.categoryId)
