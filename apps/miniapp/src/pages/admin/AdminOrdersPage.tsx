@@ -185,10 +185,10 @@ const AdminOrdersPage: React.FC = () => {
 
   // Handle scroll direction for sticky search
   React.useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     const handleScroll = () => {
-      clearTimeout(timeoutId);
+      if (timeoutId) clearTimeout(timeoutId);
       const currentScrollY = window.scrollY || document.documentElement.scrollTop;
 
       // Show search when scrolling up or at the top
