@@ -248,7 +248,7 @@ const PromoBannerCard: React.FC<{
             boxShadow: '0 4px 12px rgba(194, 255, 0, 0.25)',
             transform: 'translateZ(0)'
           }}>
-            Buyurtma berish
+            Savatga qo'shish
           </button>
 
           <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -410,10 +410,10 @@ const MenuProductCard: React.FC<{ product: MenuProduct }> = ({ product }) => {
           ) : (
             <button
               type="button" onClick={handleAdd} disabled={!available}
-              className={`flex h-10 w-full shrink-0 items-center justify-center rounded-[14px] shadow-sm transition active:scale-95 ${available ? 'bg-[#C62020] text-white' : 'bg-slate-200 text-slate-400'}`}
+              className={`flex h-10 w-full shrink-0 items-center justify-center rounded-[14px] shadow-sm transition active:scale-95 ${available ? 'bg-[#C2FF00] text-[#111]' : 'bg-slate-200 text-slate-400'}`}
               aria-label="Savatga qo'shish"
             >
-              <span className="font-bold text-[14px]">Buyurtma berish</span>
+              <span className="font-bold text-[14px]">Savatga qo'shish</span>
             </button>
           )}
         </div>
