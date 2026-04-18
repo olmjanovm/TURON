@@ -23,38 +23,68 @@ interface CourierNavigationPanelProps {
   eta?: string;
 }
 
-function DirectionArrow({ action }: { action?: NavigationStep['action'] }) {
-  const s = {
+/**
+ * Compact turn arrow with integrated distance indicator
+ */
+function DirectionArrow({ 
+  action, 
+  distance,
+  isCompact = true 
+}: { 
+  action?: NavigationStep['action'];
+  distance?: string;
+  isCompact?: boolean;
+}) {
+  // Extract numeric distance
+  const distanceNum = distance?.match(/\d+/)?.[0] || '';
+  
+  // Don't show if distance is 0 or very small
+  if (distanceNum && parseInt(distanceNum) < 5) {
+    return null;
+  }
+
+  const strokeStyle = {
     stroke: 'white',
-    strokeWidth: 5.5,
+    strokeWidth: isCompact ? 4 : 5.5,
     strokeLinecap: 'round' as const,
     strokeLinejoin: 'round' as const,
     fill: 'none',
   };
 
+  const size = isCompact ? 28 : 36;
+
   if (action === 'right') {
     return (
-      <svg viewBox="0 0 48 48" width="36" height="36" aria-hidden="true">
-        <path d="M13 40 L13 22 Q13 10 25 10 L37 10" {...s} />
-        <path d="M29 4 L37 10 L29 16" {...s} />
-      </svg>
+      <div className="flex items-center gap-1">
+        <svg viewBox="0 0 48 48" width={size} height={size} aria-hidden="true">
+          <path d="M13 40 L13 22 Q13 10 25 10 L37 10" {...strokeStyle} />
+          <path d="M29 4 L37 10 L29 16" {...strokeStyle} />
+        </svg>
+        {!isCompact && <span className="text-xs font-bold text-white">O'NG</span>}
+      </div>
     );
   }
 
   if (action === 'left') {
     return (
-      <svg viewBox="0 0 48 48" width="36" height="36" aria-hidden="true">
-        <path d="M35 40 L35 22 Q35 10 23 10 L11 10" {...s} />
-        <path d="M19 4 L11 10 L19 16" {...s} />
-      </svg>
+      <div className="flex items-center gap-1">
+        <svg viewBox="0 0 48 48" width={size} height={size} aria-hidden="true">
+          <path d="M35 40 L35 22 Q35 10 23 10 L11 10" {...strokeStyle} />
+          <path d="M19 4 L11 10 L19 16" {...strokeStyle} />
+        </svg>
+        {!isCompact && <span className="text-xs font-bold text-white">CHAP</span>}
+      </div>
     );
   }
 
+  // Straight/Continue
   return (
-    <svg viewBox="0 0 48 48" width="36" height="36" aria-hidden="true">
-      <path d="M24 40 L24 10" {...s} />
-      <path d="M13 21 L24 10 L35 21" {...s} />
-    </svg>
+    <div className="flex items-center gap-1">
+      <svg viewBox="0 0 48 48" width={size} height={size} aria-hidden="true">
+        <path d="M24 40 L24 10" {...strokeStyle} />
+        <path d="M13 21 L24 10 L35 21" {...strokeStyle} />
+      </svg>
+    </div>
   );
 }
 
@@ -64,35 +94,46 @@ const CourierNavigationPanel: React.FC<CourierNavigationPanelProps> = ({
 }) => {
   if (!currentStep) return null;
 
+  // Extract numeric distance
+  const distanceNum = currentStep.distanceText?.match(/\d+/)?.[0] || '';
+  const shouldShowNavigation = !distanceNum || parseInt(distanceNum) >= 5;
+
   // Get next turn instruction
   const nextStep = allSteps.find(s => s.action && s.action !== 'straight');
-  const nextTurnDistance = nextStep?.distanceText || 'Oxiriga qadar';
+  const nextTurnDistance = nextStep?.distanceText || '';
   
   // Direction descriptions in Uzbek
   const getDirectionLabel = (action?: string): string => {
-    if (action === 'right') return "O'ngga";
-    if (action === 'left') return "Chapga";
-    return "To'g'ri";
+    if (action === 'right') return "O'NG";
+    if (action === 'left') return "CHAP";
+    return "TO'G'RI";
   };
 
+  // Parse next distance
+  const nextDistanceNum = nextTurnDistance?.match(/\d+/)?.[0] || '';
+  const shouldShowNextTurn = nextStep && parseInt(nextDistanceNum || '0') >= 5;
+
+  if (!shouldShowNavigation) {
+    return null; // Hide when destination reached
+  }
+
   return (
-    <div className="flex flex-col gap-2">
-      {/* Main direction indicator */}
-      <div className="inline-flex items-center gap-2.5 rounded-[16px] bg-amber-400 px-3 py-2.5 shadow-2xl">
-        <DirectionArrow action={currentStep.action} />
-        <div className="flex flex-col">
-          <span className="text-[11px] font-semibold leading-none text-amber-900">Keyingi qadamigacha</span>
-          <span className="whitespace-nowrap text-[20px] font-black leading-none tracking-tight text-white">
-            {currentStep.distanceText}
-          </span>
+    <div className="flex flex-col gap-1.5 w-fit">
+      {/* Main direction indicator - COMPACT */}
+      <div className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 px-2.5 py-1.5 shadow-lg">
+        <DirectionArrow action={currentStep.action} distance={currentStep.distanceText} isCompact={true} />
+        <div className="flex items-baseline gap-1">
+          <span className="text-xs font-bold text-amber-900 leading-none">{currentStep.distanceText}</span>
+          <span className="text-xs font-semibold text-amber-800 leading-none">{getDirectionLabel(currentStep.action)}</span>
         </div>
       </div>
       
-      {/* Next turn instruction (if different from current) */}
-      {nextStep && nextStep !== currentStep && (
-        <div className="inline-flex items-center gap-2 rounded-[12px] bg-sky-500/20 border border-sky-400/30 px-3 py-2 text-[12px] font-semibold text-sky-200 backdrop-blur-sm">
-          <span>{getDirectionLabel(nextStep.action)} burilish:</span>
-          <span className="font-black text-sky-100">{nextTurnDistance}</span>
+      {/* Next turn instruction - only if valid and far enough */}
+      {shouldShowNextTurn && (
+        <div className="inline-flex items-center gap-1.5 rounded-full bg-sky-500/90 px-2.5 py-1.5 text-xs font-semibold text-sky-50 shadow-lg">
+          <DirectionArrow action={nextStep!.action} distance={nextTurnDistance} isCompact={true} />
+          <span className="font-bold">{nextTurnDistance}</span>
+          <span className="opacity-80">{getDirectionLabel(nextStep!.action)}</span>
         </div>
       )}
     </div>
