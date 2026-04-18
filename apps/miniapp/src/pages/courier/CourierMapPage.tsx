@@ -44,6 +44,12 @@ import {
   getOptimalCameraConfig,
   type CameraConfig,
 } from '../../features/maps/mapCameraStrategy';
+import {
+  getAdvancedCameraConfig,
+  smoothHeadingTransition,
+  create3DCourierIcon,
+  HEADING_UPDATE_CONFIG,
+} from '../../features/courier/courierHeadingTracking';
 
 // ─── Pure helpers (no hooks) ──────────────────────────────────────────────────
 
@@ -138,6 +144,8 @@ const CourierMapPage: React.FC = () => {
   // ── UI state — ALL hooks before any conditional return ─────────────────────
   const [liveCourierPos, setLiveCourierPos]     = useState<{ lat: number; lng: number } | null>(null);
   const [movementHeading, setMovementHeading]   = useState<number | undefined>(undefined);
+  const [smoothedHeading, setSmoothedHeading]   = useState<number>(0); // Smoothly animated heading
+  const [courierIconSvg, setCourierIconSvg]    = useState<string>(''); // 3D pyramid SVG
   const [cameraConfig, setCameraConfig]         = useState<CameraConfig>({ tilt: 0, zoom: 15, updateFreqMs: 5000 });
   const [followMode, setFollowMode]             = useState(false); // Auto-enable after 4s
   const [routeInfo, setRouteInfo]               = useState<RouteInfo | null>(null);
@@ -157,6 +165,7 @@ const CourierMapPage: React.FC = () => {
   const approachingNotifiedRef  = useRef(false);
   const copiedTimerRef          = useRef<number | null>(null);
   const followModeTimerRef      = useRef<number | null>(null);
+  const headingAnimationRef     = useRef<number | null>(null);
   const sensorHeading = useDeviceHeading(Boolean(order?.id));
 
   // ── Auto-enable follow mode after 4 seconds ────────────────────────────────
@@ -310,6 +319,54 @@ const CourierMapPage: React.FC = () => {
     return () => clearInterval(cameraInterval);
   }, [remainingMetrics.distanceKm, heading]);
 
+  // ── 3D heading tracking: smooth heading transition every 100ms ────────────────
+  useEffect(() => {
+    if (!movementHeading && movementHeading !== 0) return;
+
+    headingAnimationRef.current = window.setInterval(() => {
+      setSmoothedHeading(prev => 
+        smoothHeadingTransition(prev, movementHeading, HEADING_UPDATE_CONFIG.maxHeadingChangePerUpdate)
+      );
+    }, HEADING_UPDATE_CONFIG.updateIntervalMs);
+
+    return () => {
+      if (headingAnimationRef.current) {
+        clearInterval(headingAnimationRef.current);
+        headingAnimationRef.current = null;
+      }
+    };
+  }, [movementHeading]);
+
+  // ── Update 3D courier icon: heading + distance-based scaling ──────────────────
+  useEffect(() => {
+    if (!smoothedHeading && smoothedHeading !== 0) return;
+
+    const distanceMeters = remainingMetrics.distanceKm * 1000;
+    const advancedConfig = getAdvancedCameraConfig(
+      {
+        heading: smoothedHeading,
+        lat: liveCourierPos?.lat ?? 0,
+        lng: liveCourierPos?.lng ?? 0,
+        speed: 20, // Estimated courier speed
+      },
+      distanceMeters,
+    );
+
+    // Generate 3D courier pyramid icon (rotation handled by container CSS, not SVG)
+    const svg = create3DCourierIcon(
+      0, // Pass 0 for heading - rotation will be applied via container CSS in map
+      advancedConfig.courierIconScale,
+      advancedConfig.courierIconColor,
+    );
+    setCourierIconSvg(svg);
+
+    // Update camera tilt based on heading (advanced 3D config)
+    setCameraConfig(prev => ({
+      ...prev,
+      tilt: advancedConfig.tilt,
+    }));
+  }, [smoothedHeading, remainingMetrics.distanceKm, liveCourierPos]);
+
   // ── Stable callbacks ────────────────────────────────────────────────────────
 
   // Copy destination address to clipboard
@@ -432,6 +489,7 @@ const CourierMapPage: React.FC = () => {
     return () => {
       if (copiedTimerRef.current) window.clearTimeout(copiedTimerRef.current);
       if (followModeTimerRef.current) window.clearTimeout(followModeTimerRef.current);
+      if (headingAnimationRef.current) window.clearInterval(headingAnimationRef.current);
     };
   }, []);
 
@@ -560,6 +618,7 @@ const CourierMapPage: React.FC = () => {
           followMode={followMode}
           heading={heading}
           tilt={cameraConfig.tilt}
+          courierIconSvg={courierIconSvg}
           onRouteInfoChange={setRouteInfo}
           onNextStepChange={setCurrentStep}
           onMapInteraction={() => {

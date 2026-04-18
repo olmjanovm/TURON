@@ -96,6 +96,8 @@ export interface RouteMapProps {
   heading?: number;
   /** Camera tilt angle in degrees (0 = overhead, ~50 = isometric 3D view) */
   tilt?: number;
+  /** 3D courier icon SVG string (replaces default arrow marker) */
+  courierIconSvg?: string;
   /** Called when the user starts manually panning/zooming the map */
   onMapInteraction?: () => void;
   /** Called when map is ready */

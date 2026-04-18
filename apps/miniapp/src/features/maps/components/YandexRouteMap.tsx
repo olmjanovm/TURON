@@ -59,6 +59,7 @@ export default function YandexRouteMap({
   followMode = false,
   heading,
   tilt,
+  courierIconSvg = '',
   onMapInteraction,
   onMapReady,
   onRouteInfoChange,
@@ -445,6 +446,24 @@ export default function YandexRouteMap({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courierPos?.lat, courierPos?.lng]);
 
+  // ── Update courier icon SVG + rotation when heading or custom SVG changes ────────
+  useEffect(() => {
+    if (!courierElRef.current) return;
+    
+    const currentHeading = headingRef.current;
+    
+    if (courierIconSvg) {
+      // Use custom 3D SVG (e.g., from heading tracking system)
+      // Keep the container's centering CSS but update the rotation
+      courierElRef.current.innerHTML = courierIconSvg;
+    }
+
+    // Update container's CSS transform with current heading rotation
+    // This rotates the entire element (SVG + centering transform)
+    const relativeRotation = normalizeDegrees(currentHeading - cameraAzimuthRef.current);
+    courierElRef.current.style.transform = `translate(-50%,-50%) rotate(${relativeRotation}deg)`;
+  }, [courierIconSvg, heading]);
+
   // ── Heading + Tilt: rotate arrow icon + camera azimuth ───────────────────
   useEffect(() => {
     syncCourierRotation(heading ?? headingRef.current, cameraAzimuthRef.current);
@@ -459,6 +478,13 @@ export default function YandexRouteMap({
         cameraAzimuthRef.current = heading;
         cameraTiltRef.current = tiltRef.current;
         syncCourierRotation(heading, cameraAzimuthRef.current);
+        
+        // Also sync courier element rotation
+        if (courierElRef.current) {
+          const relativeRotation = normalizeDegrees(heading - cameraAzimuthRef.current);
+          courierElRef.current.style.transform = `translate(-50%,-50%) rotate(${relativeRotation}deg)`;
+        }
+        
         mapRef.current.update({
           camera: {
             azimuth: cameraAzimuthRef.current,
