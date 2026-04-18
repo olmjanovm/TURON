@@ -1,4 +1,5 @@
 import React from 'react';
+import { estimateRouteMetrics, formatRouteDistance } from '../../features/maps/route';
 import { ArrowLeft, Copy, RefreshCcw, Headphones, Loader2, MapPinned, MessageCircle, ShieldCheck, XCircle } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useToast } from '../../components/ui/Toast';
@@ -27,6 +28,7 @@ function getPaymentStatusLabel(status: PaymentStatus) {
   return 'Tekshiruvda';
 }
 
+// --- Distance display component ---
 const OrderDistanceDisplay: React.FC<{ order: any }> = ({ order }) => {
   const courier = order?.tracking?.courierLocation;
   const destLat = order?.destinationLat ?? order?.customerAddress?.latitude;
@@ -43,7 +45,7 @@ const OrderDistanceDisplay: React.FC<{ order: any }> = ({ order }) => {
   const { distanceKm } = estimateRouteMetrics(
     { lat: courier.latitude, lng: courier.longitude },
     { lat: destLat, lng: destLng },
-    { minimumDistanceKm: 0 },
+    { minimumDistanceKm: 0 }
   );
 
   return (
