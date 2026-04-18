@@ -467,6 +467,7 @@ const BestsellersCarousel: React.FC<{ items: MenuProduct[] }> = ({ items }) => {
 
 /* ── HomePage ─────────────────────────────────────────────────────────────── */
 const HomePage: React.FC = () => {
+  const navigate = useNavigate();
   const { formatText } = useCustomerLanguage();
   const { data: categories = [], isLoading: isCategoriesLoading } = useCategories();
   const { data: products = [], isLoading: isProductsLoading } = useProducts();
@@ -496,12 +497,10 @@ const HomePage: React.FC = () => {
 
   if (isCategoriesLoading || isProductsLoading) return <LoadingSkeleton />;
 
-  const navigate = useNavigate();
-
   return (
     <div style={{ minHeight: '100vh', background: '#ffffff', color: '#202020' }}>
       {/* ── Custom Flat Header ────────────────────────────────────── */}
-      <div className="flex h-[70px] items-center justify-between px-4 pt-2 pb-1 bg-white">
+      <div className="flex min-h-[70px] items-center justify-between bg-white px-4 pb-3 pt-[max(env(safe-area-inset-top),48px)]">
         <div className="flex items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f4f4f5] text-[#C62020]">
             <MapPin size={18} strokeWidth={2.5} />
