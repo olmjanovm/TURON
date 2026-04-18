@@ -479,7 +479,7 @@ model Payment {
 model IdempotencyKey {
   key               String    @id
   orderId           String    @map("order_id")
-  responseJson      String    @db.Text
+  responseJson      String    @map("response_json") @db.Text
   createdAt         DateTime  @default(now()) @map("created_at")
 
   @@index([createdAt])
