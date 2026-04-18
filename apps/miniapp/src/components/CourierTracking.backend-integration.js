@@ -22,7 +22,7 @@ const activeConnections = new Set();
 router.get('/orders/:orderId/courier/location', async (req, res) => {
   try {
     const { orderId } = req.params;
-    
+
     // Get from database or cache
     const location = gpsCache.get(orderId) || {
       latitude: 41.3200,
@@ -68,7 +68,7 @@ router.post('/orders/:orderId/courier/location', async (req, res) => {
     gpsCache.set(orderId, locationData);
 
     // Save to database (async, doesn't block response)
-    saveToDatabase(orderId, locationData).catch(err => 
+    saveToDatabase(orderId, locationData).catch(err =>
       console.error('DB save error:', err)
     );
 
@@ -93,7 +93,7 @@ const handleWebSocketConnection = (ws, req) => {
   ws.on('message', (message) => {
     try {
       const data = JSON.parse(message);
-      
+
       if (data.type === 'location') {
         // Update location from client
         const locationData = {
@@ -106,7 +106,7 @@ const handleWebSocketConnection = (ws, req) => {
 
         gpsCache.set(orderId, locationData);
         saveToDatabase(orderId, locationData);
-        
+
         // Broadcast to all connected clients for this order
         broadcastToClients(orderId, locationData);
       }
@@ -138,8 +138,8 @@ function broadcastToClients(orderId, data) {
 
 function isValidCoordinate(lat, lon) {
   return typeof lat === 'number' && typeof lon === 'number' &&
-         lat >= -90 && lat <= 90 &&
-         lon >= -180 && lon <= 180;
+    lat >= -90 && lat <= 90 &&
+    lon >= -180 && lon <= 180;
 }
 
 async function saveToDatabase(orderId, locationData) {
@@ -159,36 +159,36 @@ module.exports = { router, handleWebSocketConnection };
 
 // prisma/schema.prisma
 model CourierTracking {
-  id              String    @id @default(cuid())
-  orderId         String    @index
+  id              String @id @default (cuid())
+  orderId         String @index
   courierId       String
   latitude        Float
   longitude       Float
-  speed           Float?    // km/h
-  accuracy        Float?    // meters
-  heading         Float?    // degrees 0-360
-  
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  speed           Float ?    // km/h
+    accuracy        Float ?    // meters
+      heading         Float ?    // degrees 0-360
+
+        createdAt       DateTime @default (now())
+  updatedAt       DateTime @updatedAt
 
   // Relations
-  order           Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  courier         Courier   @relation(fields: [courierId], references: [id])
+  order           Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  courier         Courier @relation(fields: [courierId], references: [id])
 
   @@index([orderId, createdAt])
   @@index([courierId, createdAt])
 }
 
 model CourierSession {
-  id              String    @id @default(cuid())
-  courierId       String    @unique
+  id              String @id @default (cuid())
+  courierId       String @unique
   connectionId    String
   status          String    // online, offline, busy
-  currentOrderId  String?
-  
-  connectedAt     DateTime  @default(now())
-  lastHeartbeat   DateTime  @default(now())
-  
+  currentOrderId  String ?
+
+    connectedAt     DateTime @default (now())
+  lastHeartbeat   DateTime @default (now())
+
   @@index([courierId])
   @@index([status])
 }
@@ -549,7 +549,7 @@ class CourierTrackingPage {
 document.addEventListener('DOMContentLoaded', async () => {
   const orderId = new URLSearchParams(window.location.search).get('orderId');
   const page = new CourierTrackingPage(orderId);
-  
+
   await page.init();
 
   // Cleanup on page leave
