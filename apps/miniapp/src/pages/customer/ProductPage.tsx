@@ -222,8 +222,11 @@ const ProductPage: React.FC = () => {
       </main>
 
       {/* ── Sticky Cart Controls ── */}
-      <div className="fixed inset-x-0 bottom-0 z-50 bg-white/80 backdrop-blur-md pb-[env(safe-area-inset-bottom,20px)] pt-3 px-5 border-t border-gray-100">
-        <div className="flex h-[64px] w-full mx-auto max-w-[430px] rounded-[24px] bg-white border border-gray-200 shadow-[0_8px_30px_rgba(0,0,0,0.08)] p-2 gap-2">
+      <div 
+        className="fixed inset-x-0 z-50 bg-white/96 backdrop-blur-md pt-2 pb-3 px-5 border-t border-gray-100"
+        style={{ bottom: 'calc(74px + env(safe-area-inset-bottom, 0px))' }}
+      >
+        <div className="flex h-[64px] w-full mx-auto max-w-[430px] rounded-[24px] bg-white border border-gray-200 shadow-[0_4px_24px_rgba(0,0,0,0.08)] p-2 gap-2">
           
           {/* Quantity Controls */}
           <div className="flex h-full items-center justify-between rounded-[18px] bg-white px-1 min-w-[110px]">
