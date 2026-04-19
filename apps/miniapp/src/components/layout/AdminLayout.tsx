@@ -60,6 +60,7 @@ const AdminLayout: React.FC = () => {
   const newOrdersCount = orders.filter((order) => order.orderStatus === OrderStatusEnum.PENDING).length;
   const { flashActive } = useAdminNewOrderAlert(newOrdersCount);
   const [keyboardOpen, setKeyboardOpen] = React.useState(false);
+  const [modalOpen, setModalOpen] = React.useState(false);
 
   React.useEffect(() => {
     const isTypingElement = (element: Element | null) => {
@@ -96,6 +97,22 @@ const AdminLayout: React.FC = () => {
     };
   }, []);
 
+  React.useEffect(() => {
+    const syncModalState = () => {
+      setModalOpen(document.body.getAttribute('data-admin-modal-open') === '1');
+    };
+
+    syncModalState();
+
+    const observer = new MutationObserver(syncModalState);
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['data-admin-modal-open'],
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
   const getPageHeaderTitle = (pathname: string) => {
     if (pathname.startsWith('/admin/orders')) return 'Buyurtmalar';
     if (pathname.startsWith('/admin/menu')) return 'Menyu';
@@ -108,6 +125,7 @@ const AdminLayout: React.FC = () => {
   };
 
   const pageHeaderTitle = getPageHeaderTitle(location.pathname);
+  const hideBottomNav = keyboardOpen || modalOpen;
 
   const layoutVars: React.CSSProperties & Record<string, string> = {
     '--admin-header-clearance': 'calc(env(safe-area-inset-top, 0px) + 82px)',
@@ -199,7 +217,7 @@ const AdminLayout: React.FC = () => {
         className="mx-auto w-full max-w-[430px] overflow-x-hidden px-4"
         style={{
           paddingTop: '0px',
-          paddingBottom: keyboardOpen ? 'calc(env(safe-area-inset-bottom, 0px) + 24px)' : 'var(--admin-nav-clearance)',
+          paddingBottom: hideBottomNav ? 'calc(env(safe-area-inset-bottom, 0px) + 24px)' : 'var(--admin-nav-clearance)',
         }}
       >
         <AppErrorBoundary theme="light" homeUrl="/admin">
@@ -208,7 +226,7 @@ const AdminLayout: React.FC = () => {
       </main>
 
       <nav
-        className={`fixed inset-x-0 bottom-0 z-50 px-3 transition-all duration-200 ${keyboardOpen ? 'pointer-events-none translate-y-[130%] opacity-0' : 'translate-y-0 opacity-100'}`}
+        className={`fixed inset-x-0 bottom-0 z-50 px-3 transition-all duration-200 ${hideBottomNav ? 'pointer-events-none translate-y-[130%] opacity-0' : 'translate-y-0 opacity-100'}`}
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 10px)' }}
       >
         <div className="mx-auto grid h-[78px] w-full max-w-[430px] grid-cols-5 items-center gap-1 rounded-[30px] border border-white/80 bg-white/96 px-2 shadow-[0_20px_50px_rgba(15,23,42,0.18)] backdrop-blur-xl">

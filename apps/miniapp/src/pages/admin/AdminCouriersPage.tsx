@@ -30,28 +30,14 @@ function formatClock(value?: string | null) {
   });
 }
 
-function formatRelativeTime(value?: string | null) {
-  if (!value) return "Hali yo'q";
-  const date = new Date(value);
-  const diffMs = Date.now() - date.getTime();
-  const diffMin = Math.max(0, Math.round(diffMs / 60000));
-
-  if (diffMin <= 0) return 'Hozir';
-  if (diffMin < 60) return `${diffMin} daqiqa oldin`;
-  const diffHr = Math.round(diffMin / 60);
-  if (diffHr < 24) return `${diffHr} soat oldin`;
-  const diffDay = Math.round(diffHr / 24);
-  return `${diffDay} kun oldin`;
-}
-
 function courierStatusMeta(courier: AdminCourierDirectoryItem) {
   if (!courier.isOnline) {
-    return { label: 'Nofaol', tone: 'slate' as const, dot: 'bg-slate-400' };
+    return { label: 'Nofaol', tone: 'slate' as const };
   }
   if (courier.activeAssignments > 0) {
-    return { label: 'Band', tone: 'amber' as const, dot: 'bg-amber-500' };
+    return { label: 'Band', tone: 'amber' as const };
   }
-  return { label: 'Faol', tone: 'emerald' as const, dot: 'bg-emerald-500' };
+  return { label: 'Faol', tone: 'emerald' as const };
 }
 
 const AdminCouriersPage: React.FC = () => {
@@ -79,6 +65,26 @@ const AdminCouriersPage: React.FC = () => {
     telegramUsername: string;
     isActive: boolean;
   }>>({});
+  const hasOpenModal = activeModal !== null;
+
+  React.useEffect(() => {
+    if (hasOpenModal) {
+      document.body.setAttribute('data-admin-modal-open', '1');
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.removeAttribute('data-admin-modal-open');
+        document.body.style.overflow = '';
+      };
+    }
+
+    document.body.removeAttribute('data-admin-modal-open');
+    document.body.style.overflow = '';
+
+    return () => {
+      document.body.removeAttribute('data-admin-modal-open');
+      document.body.style.overflow = '';
+    };
+  }, [hasOpenModal]);
 
   const handleCreate = () => {
     setFeedback(null);
@@ -151,25 +157,26 @@ const AdminCouriersPage: React.FC = () => {
     return (
       <div className="space-y-4 pb-24">
         {Array.from({ length: 5 }).map((_, idx) => (
-          <div key={idx} className="rounded-[28px] bg-white p-5 shadow-sm border border-slate-100 animate-pulse">
-            <div className="flex items-start justify-between gap-4">
+          <div key={idx} className="animate-pulse rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-4 min-w-0">
-                <div className="h-12 w-12 rounded-2xl bg-slate-100" />
+                <div className="h-11 w-11 rounded-xl bg-slate-100" />
                 <div className="min-w-0">
                   <div className="h-4 w-40 rounded bg-slate-100" />
-                  <div className="mt-3 h-3 w-32 rounded bg-slate-100" />
+                  <div className="mt-2 h-3 w-32 rounded bg-slate-100" />
                 </div>
               </div>
-              <div className="h-6 w-20 rounded-full bg-slate-100" />
+              <div className="h-7 w-20 rounded-lg bg-slate-100" />
             </div>
-            <div className="mt-4 flex items-center gap-4">
+            <div className="mt-3 h-3 w-44 rounded bg-slate-100" />
+            <div className="mt-4 grid grid-cols-3 gap-2">
               <div className="h-3 w-20 rounded bg-slate-100" />
               <div className="h-3 w-28 rounded bg-slate-100" />
               <div className="h-3 w-16 rounded bg-slate-100" />
             </div>
             <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="h-11 rounded-full bg-slate-100" />
-              <div className="h-11 rounded-full bg-slate-100" />
+              <div className="h-10 rounded-xl bg-slate-100" />
+              <div className="h-10 rounded-xl bg-slate-100" />
             </div>
           </div>
         ))}
@@ -209,10 +216,10 @@ const AdminCouriersPage: React.FC = () => {
           onClick={() => {
             void refetch();
           }}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-sm text-slate-500 active:scale-95"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm active:scale-95"
           aria-label="Yangilash"
         >
-          <RefreshCw size={18} className={isFetching ? 'animate-spin' : ''} />
+          <RefreshCw size={17} className={isFetching ? 'animate-spin' : ''} />
         </button>
       </div>
 
@@ -234,48 +241,47 @@ const AdminCouriersPage: React.FC = () => {
           const status = courierStatusMeta(courier);
           const initials = (courier.fullName || 'K').trim().slice(0, 1).toUpperCase();
           const idTag = `#${courier.telegramId?.slice(-4) || '----'}`;
-          const lastLabel = courier.isOnline ? 'Hozir' : formatRelativeTime(courier.lastSeenAt || courier.lastOfflineAt);
           const isTogglePending = pendingToggleId === courier.id;
           const toggleLabel = courier.isActive ? "Faolsizlantirish" : "Faollashtirish";
           const toggleClass = courier.isActive
-            ? 'border border-rose-200 bg-rose-50 text-rose-700'
-            : 'border border-emerald-200 bg-emerald-50 text-emerald-700';
+            ? 'border border-rose-200 bg-white text-rose-700'
+            : 'border border-emerald-200 bg-white text-emerald-700';
 
           return (
-            <article key={courier.id} className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
-              <div className="flex items-start justify-between gap-4">
+            <article key={courier.id} className="rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
+              {/* Top row */}
+              <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-sky-700 font-black">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-50 text-sky-700 font-black">
                     {initials}
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-base font-black text-slate-950">{courier.fullName}</p>
-                    <p className="mt-1 text-xs font-semibold text-slate-500">
-                      {courier.phoneNumber || "Telefon kiritilmagan"}
-                    </p>
+                    <p className="truncate text-[16px] font-black leading-tight text-slate-950">{courier.fullName}</p>
                   </div>
                 </div>
-
-                <div className="text-right">
-                  <div className="inline-flex items-center gap-2">
-                    <span className={`h-2 w-2 rounded-full ${status.dot}`} />
-                    <StatusChip tone={status.tone} label={status.label} />
-                  </div>
-                  <p className="mt-2 text-[11px] font-bold text-slate-400">{lastLabel}</p>
-                </div>
+                <StatusChip tone={status.tone} label={status.label} />
               </div>
 
-              <div className="mt-4 grid grid-cols-3 gap-2">
+              {/* Second row */}
+              <div className="mt-3">
+                <p className="text-[13px] font-medium text-slate-500">
+                  {courier.phoneNumber || "Telefon kiritilmagan"}
+                </p>
+              </div>
+
+              {/* Third row (stats) */}
+              <div className="mt-4 grid grid-cols-3 gap-2.5">
                 <StatChip label="Faol" value={`${courier.activeAssignments} ta`} />
                 <StatChip label="Yetkazgan" value={`${courier.totalDelivered} ta`} />
                 <StatChip label="ID" value={idTag} />
               </div>
 
-              <div className="mt-5 grid grid-cols-2 gap-3">
+              {/* Bottom row (actions) */}
+              <div className="mt-4 grid grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={() => startEditing(courier)}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700 active:scale-95"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-blue-600 px-3 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(37,99,235,0.25)] active:scale-95"
                 >
                   <Pencil size={15} />
                   <span>Tahrirlash</span>
@@ -303,7 +309,7 @@ const AdminCouriersPage: React.FC = () => {
                     );
                   }}
                   disabled={isTogglePending}
-                  className={`inline-flex h-10 items-center justify-center gap-2 rounded-2xl px-3 text-sm font-semibold active:scale-95 disabled:opacity-60 ${toggleClass}`}
+                  className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold active:scale-95 disabled:opacity-60 ${toggleClass}`}
                 >
                   {isTogglePending ? <Loader2 size={15} className="animate-spin" /> : <Power size={15} />}
                   <span>{toggleLabel}</span>
@@ -320,8 +326,8 @@ const AdminCouriersPage: React.FC = () => {
           setFeedback(null);
           setActiveModal({ type: 'create' });
         }}
-        className="fixed right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-slate-950 text-white shadow-[0_18px_40px_rgba(15,23,42,0.22)] active:scale-95"
-        style={{ bottom: 'var(--admin-fab-offset, calc(env(safe-area-inset-bottom, 0px) + 110px))' }}
+        className="fixed right-5 z-40 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-[0_18px_40px_rgba(15,23,42,0.22)] active:scale-95"
+        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 82px)' }}
         aria-label="Kuryer qo'shish"
       >
         <Plus size={20} />
@@ -383,11 +389,37 @@ const AdminCouriersPage: React.FC = () => {
           title="Kuryerni tahrirlash"
           subtitle={formatClock(couriers.find((c) => c.id === activeModal.courierId)?.updatedAt)}
           onClose={() => setActiveModal(null)}
+          footer={(() => {
+            const courier = couriers.find((c) => c.id === activeModal.courierId);
+            const isSaving = pendingCourierId === activeModal.courierId;
+
+            if (!courier) return null;
+
+            return (
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setActiveModal(null)}
+                  className="inline-flex h-12 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 active:scale-[0.99]"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleEditSave(courier.id)}
+                  disabled={isSaving}
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(37,99,235,0.24)] active:scale-[0.99] disabled:opacity-60"
+                >
+                  {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  <span>Saqlash</span>
+                </button>
+              </div>
+            );
+          })()}
         >
           {(() => {
             const courier = couriers.find((c) => c.id === activeModal.courierId);
             const draft = editForms[activeModal.courierId];
-            const isSaving = pendingCourierId === activeModal.courierId;
 
             if (!courier || !draft) {
               return (
@@ -398,7 +430,7 @@ const AdminCouriersPage: React.FC = () => {
             }
 
             return (
-              <div className="grid gap-3">
+              <div className="grid gap-4">
                 <InputField
                   label="Ism-familya"
                   value={draft.fullName}
@@ -430,29 +462,16 @@ const AdminCouriersPage: React.FC = () => {
                   }
                 />
 
-                <label className="flex items-center gap-3 rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={draft.isActive}
-                    onChange={(event) =>
-                      setEditForms((current) => ({
-                        ...current,
-                        [courier.id]: { ...current[courier.id], isActive: event.target.checked },
-                      }))
-                    }
-                  />
-                  <span>Faol kuryer</span>
-                </label>
-
-                <button
-                  type="button"
-                  onClick={() => handleEditSave(courier.id)}
-                  disabled={isSaving}
-                  className="inline-flex h-12 items-center justify-center gap-2 rounded-[18px] bg-slate-950 px-4 text-sm font-semibold text-white disabled:opacity-60"
-                >
-                  {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                  <span>Saqlash</span>
-                </button>
+                <ToggleField
+                  label="Kuryer holati"
+                  checked={draft.isActive}
+                  onChange={(checked) =>
+                    setEditForms((current) => ({
+                      ...current,
+                      [courier.id]: { ...current[courier.id], isActive: checked },
+                    }))
+                  }
+                />
               </div>
             );
           })()}
@@ -468,17 +487,17 @@ const StatusChip: React.FC<{ tone: 'emerald' | 'amber' | 'slate'; label: string 
 }) => {
   const toneClass =
     tone === 'emerald'
-      ? 'bg-emerald-50 text-emerald-700'
+      ? 'bg-emerald-500 text-white'
       : tone === 'amber'
-        ? 'bg-amber-50 text-amber-700'
-        : 'bg-slate-100 text-slate-500';
+        ? 'bg-amber-500 text-white'
+        : 'bg-slate-500 text-white';
 
-  return <span className={`rounded-full px-2.5 py-1.5 text-[11px] font-bold ${toneClass}`}>{label}</span>;
+  return <span className={`inline-flex rounded-lg px-2.5 py-1.5 text-[11px] font-black ${toneClass}`}>{label}</span>;
 };
 
 const StatChip: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <div className="rounded-2xl bg-slate-50 px-3 py-2 text-center">
-    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">{label}</p>
+  <div className="rounded-xl bg-slate-50 px-3 py-2 text-center">
+    <p className="text-[10px] font-bold text-slate-400">{label}</p>
     <p className="mt-1 text-xs font-black text-slate-800">{value}</p>
   </div>
 );
@@ -490,14 +509,40 @@ const InputField: React.FC<{
   placeholder?: string;
 }> = ({ label, value, onChange, placeholder }) => (
   <label className="block">
-    <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{label}</span>
+    <span className="text-xs font-bold text-slate-600">{label}</span>
     <input
       value={value}
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
-      className="mt-2 h-12 w-full rounded-[18px] border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 outline-none"
+      className="mt-2 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-[15px] font-medium text-slate-900 outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
     />
   </label>
+);
+
+const ToggleField: React.FC<{
+  label: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+}> = ({ label, checked, onChange }) => (
+  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+    <div className="flex items-center justify-between gap-3">
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-slate-800">{label}</p>
+        <p className="mt-0.5 text-xs text-slate-500">{checked ? 'Faol' : 'Nofaol'}</p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={`relative inline-flex h-7 w-12 items-center rounded-full p-1 transition ${checked ? 'bg-emerald-500' : 'bg-slate-300'}`}
+      >
+        <span
+          className={`h-5 w-5 rounded-full bg-white shadow-sm transition ${checked ? 'translate-x-5' : 'translate-x-0'}`}
+        />
+      </button>
+    </div>
+  </div>
 );
 
 const BottomSheet: React.FC<{
@@ -505,7 +550,10 @@ const BottomSheet: React.FC<{
   subtitle?: string;
   onClose: () => void;
   children: React.ReactNode;
-}> = ({ title, subtitle, onClose, children }) => {
+  footer?: React.ReactNode;
+}> = ({ title, subtitle, onClose, children, footer }) => {
+  const [sheetHeight, setSheetHeight] = React.useState('92dvh');
+
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
@@ -514,31 +562,65 @@ const BottomSheet: React.FC<{
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
 
+  React.useEffect(() => {
+    const computeHeight = () => {
+      const vv = window.visualViewport;
+      if (!vv) {
+        setSheetHeight('92dvh');
+        return;
+      }
+      const nextHeight = Math.max(420, Math.floor(vv.height - 8));
+      setSheetHeight(`${nextHeight}px`);
+    };
+
+    computeHeight();
+    window.visualViewport?.addEventListener('resize', computeHeight);
+    window.visualViewport?.addEventListener('scroll', computeHeight);
+
+    return () => {
+      window.visualViewport?.removeEventListener('resize', computeHeight);
+      window.visualViewport?.removeEventListener('scroll', computeHeight);
+    };
+  }, []);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[90] flex items-end justify-center animate-in fade-in duration-200">
       <button
         type="button"
-        className="absolute inset-0 bg-slate-950/30 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-slate-950/35 backdrop-blur-[3px]"
         onClick={onClose}
         aria-label="Yopish"
       />
-      <div className="relative w-full max-w-[390px] rounded-t-[34px] bg-white p-5 pb-7 shadow-[0_-18px_40px_rgba(15,23,42,0.18)]">
-        <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-100" />
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-base font-black text-slate-950">{title}</p>
-            {subtitle ? <p className="mt-1 text-xs font-semibold text-slate-500">{subtitle}</p> : null}
+      <div
+        className="relative flex w-full max-w-[430px] flex-col rounded-t-[30px] border border-slate-200/80 bg-slate-50 shadow-[0_-20px_48px_rgba(15,23,42,0.18)]"
+        style={{ height: sheetHeight, maxHeight: '92dvh' }}
+      >
+        <div className="px-5 pb-3 pt-3">
+          <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-slate-300" />
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-lg font-black text-slate-950">{title}</p>
+              {subtitle ? <p className="mt-1 text-xs font-medium text-slate-500">{subtitle}</p> : null}
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 active:scale-95"
+              aria-label="Yopish"
+            >
+              <X size={20} />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 text-slate-500 active:scale-95"
-            aria-label="Yopish"
-          >
-            <X size={18} />
-          </button>
         </div>
-        <div className="mt-4">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">{children}</div>
+        {footer ? (
+          <div
+            className="border-t border-slate-200 bg-white/95 px-5 py-3 backdrop-blur"
+            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}
+          >
+            {footer}
+          </div>
+        ) : null}
       </div>
     </div>
   );
