@@ -123,13 +123,13 @@ export function BottomPanel({ onChat, onProblem }: BottomPanelProps) {
   const primaryButtonConfig = {
     1: {
       bg: '#1d9e75',
-      text: 'Restoranda — buyurtmani oldim',
+      text: 'Restoranda - buyurtmani oldim',
       disabled: false,
       icon: <polyline points="20 6 9 17 4 12" />,
     },
     2: {
       bg: '#185fa5',
-      text: 'Yetib keldim — topshirdim',
+      text: 'Yetib keldim - topshirdim',
       disabled: false,
       icon: (
         <>
