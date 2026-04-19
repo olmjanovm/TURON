@@ -210,13 +210,13 @@ const AdminCouriersPage: React.FC = () => {
 
   return (
     <div className="space-y-4 pb-24">
-      <div className="flex justify-end pt-2">
+      <div className="flex justify-end pt-1">
         <button
           type="button"
           onClick={() => {
             void refetch();
           }}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm active:scale-95"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200/90 bg-white text-slate-500 shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition active:scale-95"
           aria-label="Yangilash"
         >
           <RefreshCw size={17} className={isFetching ? 'animate-spin' : ''} />
@@ -224,13 +224,13 @@ const AdminCouriersPage: React.FC = () => {
       </div>
 
       {feedback ? (
-        <div className="rounded-[22px] border border-slate-100 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-[0_8px_22px_rgba(15,23,42,0.06)]">
           {feedback}
         </div>
       ) : null}
 
       {couriers.length === 0 ? (
-        <div className="rounded-[28px] border border-dashed border-slate-200 bg-white p-6 text-center">
+        <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-6 text-center shadow-[0_10px_26px_rgba(15,23,42,0.05)]">
           <p className="text-sm font-black text-slate-900">Kuryer topilmadi</p>
           <p className="mt-2 text-xs font-semibold text-slate-500">Yangi kuryer qo'shish uchun pastdagi + tugmasini bosing.</p>
         </div>
@@ -248,23 +248,26 @@ const AdminCouriersPage: React.FC = () => {
             : 'border border-emerald-200 bg-white text-emerald-700';
 
           return (
-            <article key={courier.id} className="rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
+            <article
+              key={courier.id}
+              className="rounded-3xl border border-slate-200/90 bg-white p-5 shadow-[0_16px_36px_rgba(15,23,42,0.07)] transition hover:shadow-[0_18px_42px_rgba(37,99,235,0.14)]"
+            >
               {/* Top row */}
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-4">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-50 text-sky-700 font-black">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-slate-100 font-black text-blue-700">
                     {initials}
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-[16px] font-black leading-tight text-slate-950">{courier.fullName}</p>
+                    <p className="truncate text-[20px] font-black leading-tight tracking-tight text-slate-950">{courier.fullName}</p>
                   </div>
                 </div>
                 <StatusChip tone={status.tone} label={status.label} />
               </div>
 
               {/* Second row */}
-              <div className="mt-3">
-                <p className="text-[13px] font-medium text-slate-500">
+              <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2">
+                <p className="text-[14px] font-medium text-slate-600">
                   {courier.phoneNumber || "Telefon kiritilmagan"}
                 </p>
               </div>
@@ -281,7 +284,7 @@ const AdminCouriersPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => startEditing(courier)}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-blue-600 px-3 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(37,99,235,0.25)] active:scale-95"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-500 px-3 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(37,99,235,0.3)] transition active:scale-95"
                 >
                   <Pencil size={15} />
                   <span>Tahrirlash</span>
@@ -309,7 +312,7 @@ const AdminCouriersPage: React.FC = () => {
                     );
                   }}
                   disabled={isTogglePending}
-                  className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold active:scale-95 disabled:opacity-60 ${toggleClass}`}
+                  className={`inline-flex h-11 items-center justify-center gap-2 rounded-2xl px-3 text-sm font-semibold transition active:scale-95 disabled:opacity-60 ${toggleClass}`}
                 >
                   {isTogglePending ? <Loader2 size={15} className="animate-spin" /> : <Power size={15} />}
                   <span>{toggleLabel}</span>
@@ -326,7 +329,7 @@ const AdminCouriersPage: React.FC = () => {
           setFeedback(null);
           setActiveModal({ type: 'create' });
         }}
-        className="fixed right-5 z-40 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-[0_18px_40px_rgba(15,23,42,0.22)] active:scale-95"
+        className="fixed right-5 z-40 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-[0_20px_42px_rgba(15,23,42,0.28)] transition active:scale-95"
         style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 82px)' }}
         aria-label="Kuryer qo'shish"
       >
@@ -487,18 +490,18 @@ const StatusChip: React.FC<{ tone: 'emerald' | 'amber' | 'slate'; label: string 
 }) => {
   const toneClass =
     tone === 'emerald'
-      ? 'bg-emerald-500 text-white'
+      ? 'border border-emerald-200 bg-emerald-500 text-white shadow-[0_6px_16px_rgba(16,185,129,0.28)]'
       : tone === 'amber'
-        ? 'bg-amber-500 text-white'
-        : 'bg-slate-500 text-white';
+        ? 'border border-amber-200 bg-amber-500 text-white shadow-[0_6px_16px_rgba(245,158,11,0.28)]'
+        : 'border border-slate-300 bg-slate-500 text-white';
 
-  return <span className={`inline-flex rounded-lg px-2.5 py-1.5 text-[11px] font-black ${toneClass}`}>{label}</span>;
+  return <span className={`inline-flex rounded-xl px-3 py-1.5 text-[12px] font-black ${toneClass}`}>{label}</span>;
 };
 
 const StatChip: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <div className="rounded-xl bg-slate-50 px-3 py-2 text-center">
-    <p className="text-[10px] font-bold text-slate-400">{label}</p>
-    <p className="mt-1 text-xs font-black text-slate-800">{value}</p>
+  <div className="rounded-2xl border border-slate-100 bg-slate-50/90 px-3 py-2.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+    <p className="text-[11px] font-bold tracking-wide text-slate-400">{label}</p>
+    <p className="mt-1 text-sm font-black text-slate-800">{value}</p>
   </div>
 );
 
