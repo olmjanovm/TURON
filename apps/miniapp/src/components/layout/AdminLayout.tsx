@@ -64,8 +64,11 @@ const AdminLayout: React.FC = () => {
     if (pathname.startsWith('/admin/orders')) return 'Buyurtma page';
     if (pathname.startsWith('/admin/menu')) return 'Menu page';
     if (pathname.startsWith('/admin/promos')) return 'Promo page';
+    if (pathname.startsWith('/admin/couriers')) return 'Kuryer page';
+    if (pathname.startsWith('/admin/reports')) return 'Hisobot page';
+    if (pathname.startsWith('/admin/notifications')) return 'Bildirishnoma page';
     if (pathname.startsWith('/admin/dashboard') || pathname === '/admin') return 'Home page';
-    return 'Home page';
+    return 'Admin page';
   };
 
   const pageHeaderTitle = getPageHeaderTitle(location.pathname);
@@ -133,7 +136,7 @@ const AdminLayout: React.FC = () => {
       style={layoutVars}
     >
       <div
-        className="fixed inset-x-0 top-0 z-50 px-3"
+        className="fixed inset-x-0 top-0 z-[70] px-3"
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
       >
         <div className="mx-auto flex w-full max-w-[430px] items-center justify-between gap-3">
