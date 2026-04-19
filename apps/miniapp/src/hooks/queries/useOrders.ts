@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import type {
@@ -495,11 +495,21 @@ export const useCourierOrderDetails = (id: string) => {
 
 export const useUpdateCourierOrderStage = () => {
   const queryClient = useQueryClient();
+  // One stable key per hook instance — all rapid taps share the same key,
+  // so the backend processes only the first and returns the cached response for the rest.
+  const idempotencyKeyRef = useRef(crypto.randomUUID());
 
   return useMutation({
     mutationFn: ({ id, stage }: { id: string; stage: DeliveryStage }) =>
-      api.post(`/courier/order/${id}/${resolveCourierStageActionPath(stage)}`) as Promise<Order>,
+      api.post(
+        `/courier/order/${id}/${resolveCourierStageActionPath(stage)}`,
+        undefined,
+        { headers: { 'Idempotency-Key': idempotencyKeyRef.current } },
+      ) as Promise<Order>,
     onSuccess: (updatedOrder) => {
+      // Rotate key so the next stage action gets a fresh idempotency scope
+      idempotencyKeyRef.current = crypto.randomUUID();
+
       const previousOrder = useOrdersStore.getState().getOrderById(updatedOrder.id);
       const { upsertOrder } = useOrdersStore.getState();
 
@@ -512,11 +522,18 @@ export const useUpdateCourierOrderStage = () => {
 
 export const useDeclineCourierOrder = () => {
   const queryClient = useQueryClient();
+  const idempotencyKeyRef = useRef(crypto.randomUUID());
 
   return useMutation({
     mutationFn: ({ id }: { id: string }) =>
-      api.post(`/courier/order/${id}/decline`) as Promise<{ success: boolean; orderId: string }>,
+      api.post(
+        `/courier/order/${id}/decline`,
+        undefined,
+        { headers: { 'Idempotency-Key': idempotencyKeyRef.current } },
+      ) as Promise<{ success: boolean; orderId: string }>,
     onSuccess: (_result, { id }) => {
+      idempotencyKeyRef.current = crypto.randomUUID();
+
       // Remove from courier orders cache immediately — courier no longer owns this order
       queryClient.setQueryData<CourierOrderPreview[]>(
         ['courier-orders'],

@@ -121,6 +121,19 @@ async function runCourierAction(
 ) {
   const requester = request.user as any;
   const params = request.params as { id: string };
+  const idempotencyKey = request.headers['idempotency-key'] as string | undefined;
+
+  // Return cached response for duplicate requests (e.g. user tapped 4 times offline)
+  if (idempotencyKey) {
+    try {
+      const cached = await prisma.idempotencyKey.findUnique({ where: { key: idempotencyKey } });
+      if (cached) {
+        return reply.send(JSON.parse(cached.responseJson));
+      }
+    } catch {
+      // idempotency_keys table unavailable — proceed without cache
+    }
+  }
 
   try {
     const result = await CourierOrderActionsService.perform({
@@ -163,7 +176,20 @@ async function runCourierAction(
       });
     }
 
-    return reply.send(await publishCourierActionResult(result));
+    const serializedOrder = await publishCourierActionResult(result);
+
+    // Cache response so future duplicate requests return immediately
+    if (idempotencyKey) {
+      prisma.idempotencyKey.create({
+        data: {
+          key: idempotencyKey,
+          orderId: result.order.id,
+          responseJson: JSON.stringify(serializedOrder),
+        },
+      }).catch(() => {});
+    }
+
+    return reply.send(serializedOrder);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Kuryer amalini bajarib bo'lmadi";
     const statusCode =
@@ -382,6 +408,19 @@ export async function deliverCourierOrder(
   const requester = request.user as any;
   const { id: orderId } = request.params;
   const { gpsLatitude, gpsLongitude, photoBase64 } = request.body;
+  const idempotencyKey = request.headers['idempotency-key'] as string | undefined;
+
+  // Return cached response for duplicate delivery confirmation requests
+  if (idempotencyKey) {
+    try {
+      const cached = await prisma.idempotencyKey.findUnique({ where: { key: idempotencyKey } });
+      if (cached) {
+        return reply.send(JSON.parse(cached.responseJson));
+      }
+    } catch {
+      // idempotency_keys table unavailable — proceed without cache
+    }
+  }
 
   try {
     // 1. Load order — verify courier has access and get destination coordinates
@@ -473,7 +512,19 @@ export async function deliverCourierOrder(
       });
     }
 
-    return reply.send(await publishCourierActionResult(result));
+    const serializedOrder = await publishCourierActionResult(result);
+
+    if (idempotencyKey) {
+      prisma.idempotencyKey.create({
+        data: {
+          key: idempotencyKey,
+          orderId: result.order.id,
+          responseJson: JSON.stringify(serializedOrder),
+        },
+      }).catch(() => {});
+    }
+
+    return reply.send(serializedOrder);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Topshirishda xatolik yuz berdi";
     const statusCode =
