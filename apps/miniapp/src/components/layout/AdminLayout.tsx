@@ -68,7 +68,7 @@ const AdminLayout: React.FC = () => {
     if (pathname.startsWith('/admin/reports')) return 'Hisobot page';
     if (pathname.startsWith('/admin/notifications')) return 'Bildirishnoma page';
     if (pathname.startsWith('/admin/dashboard') || pathname === '/admin') return 'Home page';
-    return 'Admin page';
+    return '';
   };
 
   const pageHeaderTitle = getPageHeaderTitle(location.pathname);
@@ -139,8 +139,14 @@ const AdminLayout: React.FC = () => {
         className="fixed inset-x-0 top-0 z-[70] px-3"
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
       >
-        <div className="mx-auto flex w-full max-w-[430px] items-center justify-between gap-3">
-          <h1 className="truncate text-lg font-black tracking-tight text-slate-900">{pageHeaderTitle}</h1>
+        <div className="mx-auto flex w-full max-w-[430px] items-center justify-between gap-3 rounded-[20px] border border-white/80 bg-white/92 px-3 py-2 shadow-[0_14px_34px_rgba(15,23,42,0.18)] backdrop-blur-xl">
+          {pageHeaderTitle ? (
+            <h1 className="truncate text-lg font-black tracking-tight text-slate-900 [text-shadow:0_1px_0_rgba(255,255,255,0.65)]">
+              {pageHeaderTitle}
+            </h1>
+          ) : (
+            <span />
+          )}
           <button
             type="button"
             onClick={() => navigate('/admin/notifications')}
