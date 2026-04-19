@@ -160,20 +160,6 @@ const AdminDashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-6">
-      <section
-        className="relative overflow-hidden rounded-[32px] bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.22),transparent_36%),radial-gradient(circle_at_bottom_right,rgba(56,189,248,0.18),transparent_40%),linear-gradient(135deg,#0b1a44_0%,#071a3d_45%,#020617_100%)] px-6 py-6 text-white shadow-[0_26px_70px_rgba(15,23,42,0.22)]"
-        style={{
-          marginTop: 'calc(0px - var(--admin-header-clearance))',
-          paddingTop: 'calc(env(safe-area-inset-top, 0px) + 22px)',
-        }}
-      >
-        <div className="absolute -right-20 -top-20 h-52 w-52 rounded-full bg-white/10 blur-3xl" />
-        <div className="absolute -left-24 bottom-0 h-56 w-56 rounded-full bg-sky-500/16 blur-3xl" />
-        <div className="relative pr-14">
-          <h1 className="text-[34px] font-black leading-none tracking-[-0.045em]">Turon Bot</h1>
-          <p className="mt-3 text-sm font-semibold leading-6 text-white/76">Admin panel boshqaruvi</p>
-        </div>
-      </section>
 
       <section className="grid grid-cols-2 gap-3">
         <StatCard

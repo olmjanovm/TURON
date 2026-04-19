@@ -8,9 +8,10 @@ import { useDeleteAdminPromo } from '../../../hooks/queries/usePromos';
 
 interface Props {
   promo: AdminPromo;
+  index?: number;
 }
 
-export const PromoCodeCard: React.FC<Props> = ({ promo }) => {
+export const PromoCodeCard: React.FC<Props> = ({ promo, index = 0 }) => {
   const navigate = useNavigate();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const deleteMutation = useDeleteAdminPromo();
@@ -27,23 +28,23 @@ export const PromoCodeCard: React.FC<Props> = ({ promo }) => {
 
   if (confirmDelete) {
     return (
-      <div className="bg-white rounded-[24px] p-4 border-2 border-rose-100 shadow-sm">
-        <p className="font-bold text-slate-800 text-sm mb-1">
-          <span className="uppercase tracking-widest text-rose-600">{promo.code}</span> — o'chirilsinmi?
+      <div className="rounded-[12px] border border-rose-200 bg-[#FFFFFF] p-4 shadow-[0_8px_18px_rgba(220,38,38,0.08)]">
+        <p className="mb-1 text-sm font-bold text-slate-800">
+          <span className="uppercase tracking-widest text-rose-600">{promo.code}</span> - o&apos;chirilsinmi?
         </p>
-        <p className="text-xs text-slate-400 mb-3">Bu amalni qaytarib bo'lmaydi</p>
+        <p className="mb-3 text-xs text-[#6B7280]">Bu amalni qaytarib bo&apos;lmaydi</p>
         <div className="flex gap-2">
           <button
             onClick={() => { void handleDelete(); }}
             disabled={deleteMutation.isPending}
-            className="flex-1 h-10 bg-rose-500 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 active:scale-95 transition-transform disabled:opacity-60"
+            className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-[10px] bg-[#DC2626] text-sm font-bold text-white transition-transform active:scale-95 disabled:opacity-60"
           >
             {deleteMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-            O'chirish
+            O&apos;chirish
           </button>
           <button
             onClick={() => setConfirmDelete(false)}
-            className="flex-1 h-10 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm active:scale-95 transition-transform"
+            className="h-9 flex-1 rounded-[10px] bg-[#F3F4F6] text-sm font-bold text-[#374151] transition-transform active:scale-95"
           >
             Bekor qilish
           </button>
@@ -53,20 +54,23 @@ export const PromoCodeCard: React.FC<Props> = ({ promo }) => {
   }
 
   return (
-    <div className="bg-white rounded-[24px] p-4 border border-slate-100 shadow-sm flex items-center justify-between gap-4 group transition-shadow hover:shadow-md">
-      <div className="flex-shrink-0 w-12 h-12 bg-indigo-50 text-indigo-500 rounded-2xl flex items-center justify-center">
-        <Tag size={24} />
+    <article
+      className="group flex items-center justify-between gap-3 rounded-[12px] border border-[#E5E7EB] bg-[#FFFFFF] p-3.5 shadow-[0_6px_16px_rgba(17,24,39,0.05)] transition-all hover:-translate-y-0.5 hover:shadow-[0_10px_22px_rgba(17,24,39,0.08)]"
+      style={{ transitionDelay: `${Math.min(index, 8) * 30}ms` }}
+    >
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-blue-50 text-[#2563EB]">
+        <Tag size={18} />
       </div>
 
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <h3 className="font-black text-slate-900 text-[15px] truncate uppercase tracking-widest">{promo.code}</h3>
+      <div className="min-w-0 flex-1">
+        <div className="mb-1 flex items-center gap-2">
+          <h3 className="truncate text-[14px] font-black uppercase tracking-[0.08em] text-[#111827]">{promo.code}</h3>
           <PromoStatusBadge status={status} />
         </div>
         <div className="flex flex-col gap-0.5">
-          <p className="text-[12px] font-bold text-slate-500 line-clamp-1">{promo.title || 'Sarlavhasiz'}</p>
-          <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 mt-1">
-            <span className="bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100 text-indigo-600">
+          <p className="line-clamp-1 text-[12px] font-semibold text-[#6B7280]">{promo.title || 'Sarlavhasiz'}</p>
+          <div className="mt-0.5 flex items-center gap-2 text-[11px] font-medium text-[#9CA3AF]">
+            <span className="rounded-md border border-[#E5E7EB] bg-[#F9FAFB] px-2 py-0.5 text-[#2563EB]">
               Chegirma: {discountText}
             </span>
             <span>Ishlatilgan: {promo.timesUsed}{promo.usageLimit ? ` / ${promo.usageLimit}` : ''}</span>
@@ -74,20 +78,20 @@ export const PromoCodeCard: React.FC<Props> = ({ promo }) => {
         </div>
       </div>
 
-      <div className="flex items-center gap-1.5 shrink-0">
+      <div className="flex shrink-0 items-center gap-1.5">
         <button
           onClick={() => navigate(`/admin/promos/${promo.id}/edit`)}
-          className="w-10 h-10 rounded-2xl border-2 border-slate-100 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors active:scale-90"
+          className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-[#E5E7EB] text-[#6B7280] transition-colors active:scale-90 hover:bg-blue-50 hover:text-[#2563EB]"
         >
-          <Edit2 size={18} />
+          <Edit2 size={16} />
         </button>
         <button
           onClick={() => setConfirmDelete(true)}
-          className="w-10 h-10 rounded-2xl border-2 border-slate-100 flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-100 transition-colors active:scale-90"
+          className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-[#E5E7EB] text-[#6B7280] transition-colors active:scale-90 hover:border-rose-200 hover:bg-rose-50 hover:text-[#DC2626]"
         >
-          <Trash2 size={18} />
+          <Trash2 size={16} />
         </button>
       </div>
-    </div>
+    </article>
   );
 };
