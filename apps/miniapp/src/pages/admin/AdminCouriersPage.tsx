@@ -150,23 +150,6 @@ const AdminCouriersPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="space-y-4 pb-24">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h1 className="text-lg font-black tracking-tight text-slate-950">Kuryerlar</h1>
-            <p className="mt-1 text-xs font-semibold text-slate-500">Ro'yxat yuklanmoqda...</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              void refetch();
-            }}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-sm text-slate-500"
-            aria-label="Yangilash"
-          >
-            <RefreshCw size={18} className={isFetching ? 'animate-spin' : ''} />
-          </button>
-        </div>
-
         {Array.from({ length: 5 }).map((_, idx) => (
           <div key={idx} className="rounded-[28px] bg-white p-5 shadow-sm border border-slate-100 animate-pulse">
             <div className="flex items-start justify-between gap-4">
@@ -220,13 +203,7 @@ const AdminCouriersPage: React.FC = () => {
 
   return (
     <div className="space-y-4 pb-24">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-black tracking-tight text-slate-950">Kuryerlar</h1>
-          <p className="mt-1 text-xs font-semibold text-slate-500">
-            {couriers.length} ta kuryer
-          </p>
-        </div>
+      <div className="flex justify-end pt-2">
         <button
           type="button"
           onClick={() => {

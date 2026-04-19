@@ -48,11 +48,7 @@ const AdminPromosPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300 pb-8">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Promokodlar</h1>
-          <p className="text-sm text-slate-400 font-medium mt-1">Chegirmalarni boshqaring</p>
-        </div>
+      <div className="flex justify-end">
         <button
           onClick={() => navigate('/admin/promos/new')}
           className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white shadow-lg shadow-indigo-200 transition-transform active:scale-95 sm:w-auto"

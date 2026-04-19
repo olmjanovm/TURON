@@ -11,11 +11,6 @@ const AdminMenuDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300 pb-8">
-      <div>
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Menyu boshqaruvi</h1>
-        <p className="text-sm text-slate-400 font-medium mt-1">Kategoriyalar va taomlarni boshqaring</p>
-      </div>
-
       {isError ? (
         <div className="rounded-[28px] border border-rose-200 bg-rose-50 px-5 py-4">
           <p className="text-xs font-black uppercase tracking-widest text-rose-500">Xatolik</p>

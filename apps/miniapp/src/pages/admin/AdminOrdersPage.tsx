@@ -248,7 +248,7 @@ const AdminOrdersPage: React.FC = () => {
 
   return (
     <div className="space-y-4 pb-6">
-      <section className="sticky top-0 z-40" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)', paddingBottom: '12px', backgroundColor: 'rgb(248, 250, 252)', margin: '0 -16px 16px -16px', paddingLeft: '16px', paddingRight: '16px' }}>
+      <section className="sticky top-0 z-40" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)', paddingBottom: '12px', backgroundColor: 'rgb(248, 250, 252)', margin: '6px -16px 16px -16px', paddingLeft: '16px', paddingRight: '16px' }}>
         <div className="rounded-[20px] border border-slate-200 bg-white px-4 py-3">
           <label className="flex items-center gap-3">
             <Search size={19} className="text-slate-400" />
