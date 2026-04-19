@@ -47,45 +47,48 @@ const AdminPromosPage: React.FC = () => {
   }, [filters, promos]);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300 pb-8">
-      <div className="flex justify-end">
-        <button
-          onClick={() => navigate('/admin/promos/new')}
-          className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white shadow-lg shadow-indigo-200 transition-transform active:scale-95 sm:w-auto"
-        >
-          <Plus size={18} />
-          Qo&apos;shish
-        </button>
-      </div>
+    <div className="space-y-4 animate-in fade-in duration-300 pb-10 pt-2">
+      <section className="relative overflow-hidden rounded-[22px] border border-white/80 bg-white/75 p-3 shadow-[0_16px_36px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+        <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-indigo-400 via-sky-300 to-fuchsia-400" />
+        <div className="absolute -right-8 -top-10 h-24 w-24 rounded-full bg-indigo-300/20 blur-2xl animate-pulse" />
+        <div className="absolute -left-10 bottom-0 h-20 w-20 rounded-full bg-sky-300/20 blur-2xl animate-pulse" />
+        <div className="relative flex items-center gap-2">
+          <button
+            onClick={() => navigate('/admin/promos/new')}
+            className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[14px] bg-gradient-to-r from-indigo-600 to-violet-600 px-4 text-sm font-black text-white shadow-[0_12px_26px_rgba(79,70,229,0.35)] transition-all hover:shadow-[0_14px_30px_rgba(79,70,229,0.42)] active:scale-[0.98]"
+          >
+            <Plus size={18} />
+            Qo&apos;shish
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              void refetch();
+            }}
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] border border-slate-200 bg-white text-slate-500 shadow-sm transition-transform active:scale-95"
+            aria-label="Promokodlarni yangilash"
+          >
+            {isFetching ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} />}
+          </button>
+        </div>
+      </section>
 
       <PromoSummaryCards promos={promos} />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-        <div className="w-full flex-1">
-          <PromoFiltersBar filters={filters} onChange={setFilters} />
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            void refetch();
-          }}
-          className="flex h-11 w-full shrink-0 items-center justify-center rounded-2xl border border-slate-100 bg-white text-slate-500 shadow-sm transition-transform active:scale-95 sm:w-11"
-          aria-label="Promokodlarni yangilash"
-        >
-          {isFetching ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} />}
-        </button>
+      <div className="rounded-[22px] border border-white/80 bg-white/78 p-3 shadow-[0_12px_28px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+        <PromoFiltersBar filters={filters} onChange={setFilters} />
       </div>
 
       {isLoading ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, index) => (
-            <div key={index} className="h-24 rounded-[24px] bg-slate-200 animate-pulse" />
+            <div key={index} className="h-[110px] rounded-[20px] bg-white animate-pulse shadow-sm" />
           ))}
         </div>
       ) : null}
 
       {isError ? (
-        <div className="bg-rose-50 border border-rose-100 rounded-[24px] p-4 flex items-start gap-3">
+        <div className="bg-rose-50 border border-rose-100 rounded-[20px] p-4 flex items-start gap-3">
           <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
             <AlertCircle size={20} />
           </div>
@@ -100,21 +103,16 @@ const AdminPromosPage: React.FC = () => {
 
       {!isLoading && !isError && filteredPromos.length > 0 ? (
         <div className="space-y-3">
-          {filteredPromos.map((promo) => (
-            <PromoCodeCard key={promo.id} promo={promo} />
+          {filteredPromos.map((promo, index) => (
+            <PromoCodeCard key={promo.id} promo={promo} index={index} />
           ))}
         </div>
       ) : null}
 
       {!isLoading && !isError && filteredPromos.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-3xl mb-4">
-            {'\u{1F3F7}\uFE0F'}
-          </div>
-          <h3 className="font-bold text-slate-600 text-lg">Promokodlar yo&apos;q</h3>
-          <p className="text-sm text-slate-400 mt-1">
-            Yangi chegirma kodi qo&apos;shish uchun yuqoridagi tugmani bosing
-          </p>
+        <div className="rounded-[22px] border border-dashed border-slate-200 bg-white px-5 py-12 text-center">
+          <p className="text-base font-black text-slate-700">Promokod topilmadi</p>
+          <p className="mt-2 text-sm font-semibold text-slate-400">Filtr yoki qidiruvni o&apos;zgartiring</p>
         </div>
       ) : null}
     </div>

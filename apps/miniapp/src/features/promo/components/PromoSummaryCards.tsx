@@ -9,40 +9,30 @@ export const PromoSummaryCards: React.FC<{ promos: AdminPromo[] }> = ({ promos }
   const expiredCount = promos.filter(p => getPromoStatus(p) === PromoStatusEnum.EXPIRED).length;
 
   return (
-    <div className="grid grid-cols-2 gap-4">
-      {/* Total Promos */}
-      <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-[28px] p-5 text-white shadow-lg shadow-indigo-200">
-        <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center mb-4">
-          <Tag size={24} className="text-white" />
+    <div className="grid grid-cols-3 gap-3">
+      <article className="group rounded-[20px] border border-indigo-200 bg-gradient-to-br from-indigo-500 to-violet-600 p-4 text-white shadow-[0_14px_28px_rgba(79,70,229,0.26)] transition-transform hover:-translate-y-0.5">
+        <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white/20">
+          <Tag size={18} className="text-white" />
         </div>
-        <div>
-          <p className="text-white/80 text-xs font-bold uppercase tracking-widest mb-1">Jami</p>
-          <p className="text-3xl font-black leading-none">{total}</p>
-        </div>
-      </div>
+        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/80">Jami</p>
+        <p className="mt-1 text-3xl font-black leading-none">{total}</p>
+      </article>
 
-      {/* Stats */}
-      <div className="space-y-4">
-        <div className="bg-white rounded-[24px] p-4 border border-emerald-100 flex items-center justify-between shadow-sm">
-          <div className="w-10 h-10 bg-emerald-50 text-emerald-500 rounded-xl flex items-center justify-center">
-            <CheckCircle size={20} />
-          </div>
-          <div className="text-right">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Faol</p>
-            <p className="text-xl font-black text-slate-800 leading-none mt-0.5">{activeCount}</p>
-          </div>
+      <article className="rounded-[20px] border border-emerald-200 bg-white p-4 shadow-[0_10px_22px_rgba(16,185,129,0.10)] transition-transform hover:-translate-y-0.5">
+        <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+          <CheckCircle size={18} />
         </div>
+        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Faol</p>
+        <p className="mt-1 text-3xl font-black leading-none text-slate-900">{activeCount}</p>
+      </article>
 
-        <div className="bg-white rounded-[24px] p-4 border border-rose-100 flex items-center justify-between shadow-sm">
-          <div className="w-10 h-10 bg-rose-50 text-rose-500 rounded-xl flex items-center justify-center">
-            <Clock size={20} />
-          </div>
-          <div className="text-right">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tugagan</p>
-            <p className="text-xl font-black text-slate-800 leading-none mt-0.5">{expiredCount}</p>
-          </div>
+      <article className="rounded-[20px] border border-rose-200 bg-white p-4 shadow-[0_10px_22px_rgba(244,63,94,0.08)] transition-transform hover:-translate-y-0.5">
+        <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
+          <Clock size={18} />
         </div>
-      </div>
+        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Tugagan</p>
+        <p className="mt-1 text-3xl font-black leading-none text-slate-900">{expiredCount}</p>
+      </article>
     </div>
   );
 };
