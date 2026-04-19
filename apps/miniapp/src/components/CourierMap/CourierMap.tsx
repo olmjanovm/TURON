@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useCourierStore } from '../../store/courierStore';
+import { MapOverlayBadges } from './MapOverlayBadges';
+import { BottomPanel } from './BottomPanel';
 
 interface CourierMapProps {
   ymaps3: any;
@@ -152,7 +154,18 @@ export function CourierMap({ ymaps3, destination }: CourierMapProps) {
     routeFeatureRef.current = routeFeature;
   }, [routePoints, ymaps3]);
 
-  return <div ref={mapRef} className="w-full h-full absolute inset-0" />;
+  return (
+    <div className="relative w-full h-[100dvh] overflow-hidden bg-[#1a1b26]">
+      {/* Asosiy xarita qatlami */}
+      <div ref={mapRef} className="absolute inset-0 z-0" />
+      
+      {/* Tepa burchaklardagi status va masofa nishonlari */}
+      <MapOverlayBadges />
+      
+      {/* Pastki boshqaruv paneli (Bottom Sheet UI) */}
+      <BottomPanel />
+    </div>
+  );
 }
 
 // --- SVG konstantalar ---

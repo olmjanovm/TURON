@@ -1,6 +1,28 @@
 import { create } from 'zustand';
 import { lowPassFilterCircular } from '../lib/headingUtils';
 
+export type CourierDeliveryStage = 1 | 2 | 3;
+
+export interface OrderItem {
+  id: string;
+  name: string;
+  quantity: number;
+  price: number;
+}
+
+export interface OrderInfo {
+  orderId: string;
+  orderItems: OrderItem[];
+  restaurantName: string;
+  restaurantAddress: string;
+  restaurantPhone: string;
+  customerName: string;
+  customerAddress: string;
+  customerPhone: string;
+  customerCoords: [number, number] | null;
+  restaurantCoords: [number, number] | null;
+}
+
 interface CourierState {
   // ── GPS ────────────────────────────────────────────────────────────────────
   /** [longitude, latitude] — GeoJSON / ymaps3 format */
@@ -25,6 +47,10 @@ interface CourierState {
   /** Polyline nuqtalari [longitude, latitude][] */
   routePoints: [number, number][];
 
+  // ── Delivery Stage & Info ─────────────────────────────────────────────────
+  deliveryStage: CourierDeliveryStage;
+  orderInfo: OrderInfo | null;
+
   // ── Actions ────────────────────────────────────────────────────────────────
   setCoords: (coords: [number, number], accuracy: number) => void;
   setGpsData: (lat: number, lng: number, speed: number | null, heading: number | null) => void;
@@ -32,6 +58,8 @@ interface CourierState {
   setCompassHeading: (raw: number) => void;
   setCompassPermission: (status: 'granted' | 'denied') => void;
   setRouteInfo: (distance: number, time: number, points: [number, number][]) => void;
+  setDeliveryStage: (stage: CourierDeliveryStage) => void;
+  setOrderInfo: (info: OrderInfo) => void;
   resetCourierState: () => void;
   _updateSmoothedHeading: () => void;
 }
@@ -47,6 +75,9 @@ export const useCourierStore = create<CourierState>((set, get) => ({
   distanceLeft: null,
   timeLeft: null,
   routePoints: [],
+  
+  deliveryStage: 1,
+  orderInfo: null,
 
   setCoords: (coords, accuracy) => set({ coords, accuracy }),
 
@@ -77,6 +108,10 @@ export const useCourierStore = create<CourierState>((set, get) => ({
 
   setRouteInfo: (distance, time, points) =>
     set({ distanceLeft: distance, timeLeft: time, routePoints: points }),
+    
+  setDeliveryStage: (stage) => set({ deliveryStage: stage }),
+  
+  setOrderInfo: (info) => set({ orderInfo: info }),
 
   resetCourierState: () =>
     set({
@@ -90,6 +125,8 @@ export const useCourierStore = create<CourierState>((set, get) => ({
       distanceLeft: null,
       timeLeft: null,
       routePoints: [],
+      deliveryStage: 1,
+      orderInfo: null,
     }),
 
   _updateSmoothedHeading: () => {

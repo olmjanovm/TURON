@@ -19,6 +19,7 @@ import {
   serializeOrder,
 } from '../orders/order-helpers.js';
 import { eligibleCourierCache } from '../../../services/courier-assignment.service.js';
+import { OrderReassignmentQueue } from '../../../services/order-reassignment-queue.service.js';
 
 const COURIER_LIST_ASSIGNMENT_STATUSES = [
   'ASSIGNED',
@@ -537,16 +538,6 @@ export async function declineCourierOrder(
           actorUserId: requester.id,
         },
       });
-
-      await InAppNotificationsService.notifyAdmins(
-        {
-          type: NotificationTypeEnum.WARNING,
-          title: 'Kuryer buyurtmani rad etdi',
-          message: `#${String((order as any).orderNumber)} buyurtma kuryer tomonidan rad etildi. Qayta biriktirish kerak.`,
-          relatedOrderId: order.id,
-        },
-        tx,
-      );
     });
 
     // Refresh and broadcast the updated order

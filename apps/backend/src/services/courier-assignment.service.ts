@@ -497,7 +497,11 @@ export class CourierAssignmentService {
     };
   }
 
-  static async autoAssignOrder(orderId: string, db: DbClient = prisma): Promise<AutoAssignResult> {
+  static async autoAssignOrder(
+    orderId: string,
+    db: DbClient = prisma,
+    excludeCourierIds: string[] = [],
+  ): Promise<AutoAssignResult> {
     const order = await fetchAssignableOrder(orderId, db);
 
     if (!order) {
@@ -536,7 +540,14 @@ export class CourierAssignmentService {
     }
 
     const candidates = await this.rankEligibleCouriers(db);
-    const selectedCandidate = candidates[0] ?? null;
+
+    // Filter out couriers who already declined this order
+    const eligible =
+      excludeCourierIds.length > 0
+        ? candidates.filter((c) => !excludeCourierIds.includes(c.id))
+        : candidates;
+
+    const selectedCandidate = eligible[0] ?? null;
 
     if (!selectedCandidate) {
       return {
