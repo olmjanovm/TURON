@@ -565,6 +565,10 @@ export async function declineCourierOrder(
       metadata: { assignmentId: assignment.id },
     });
 
+    // Fire-and-forget: auto-reassign to the next best available courier.
+    // The queue handles retries and notifies admin only if all attempts fail.
+    OrderReassignmentQueue.enqueue(orderId, (order as any).orderNumber);
+
     return reply.send({ success: true, orderId });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Buyurtmani rad etib bo'lmadi";
