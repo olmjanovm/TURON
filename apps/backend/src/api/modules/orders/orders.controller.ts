@@ -31,6 +31,7 @@ import {
 } from './order-helpers.js';
 import { evaluatePromoForSubtotal } from '../promos/promo-helpers.js';
 import { enqueueCourierAssignment, orderQueue } from '../../../lib/order.queue.js';
+import { StorageService } from '../../../services/storage.service.js';
 
 async function addTracking(order: any) {
   return {
@@ -667,6 +668,15 @@ export async function handleCreateOrder(
     }
   }
 
+  // Mijoz jo'natgan to'lov cheki rasmini Supabase Storage ga yuklash
+  let uploadedReceiptUrl = receiptImageBase64;
+  if (paymentMethod === PaymentMethodEnum.MANUAL_TRANSFER && receiptImageBase64) {
+    uploadedReceiptUrl = await StorageService.uploadBase64(receiptImageBase64, 'receipts');
+    if (!uploadedReceiptUrl) {
+      return reply.status(500).send({ error: "Chek rasmini yuklashda xatolik yuz berdi" });
+    }
+  }
+
   let orderPricing: Awaited<ReturnType<typeof buildOrderPricing>>;
 
   try {
@@ -756,7 +766,7 @@ export async function handleCreateOrder(
                 : paymentMethod === 'EXTERNAL_PAYMENT'
                   ? 'External payment'
                   : null,
-            receiptImageBase64: paymentMethod === 'MANUAL_TRANSFER' ? receiptImageBase64 : null,
+            receiptImageBase64: paymentMethod === 'MANUAL_TRANSFER' ? uploadedReceiptUrl : null,
             receiptUploadedAt: paymentMethod === 'MANUAL_TRANSFER' ? new Date() : null,
           },
         },
@@ -1702,6 +1712,9 @@ export async function getOrderJobStatus(
   request: FastifyRequest<{ Params: { jobId: string } }>,
   reply: FastifyReply,
 ) {
+  if (!orderQueue) {
+    return reply.status(503).send({ error: 'Order queue mavjud emas (Redis sozlanmagan).' });
+  }
   const job = await orderQueue.getJob(request.params.jobId);
 
   if (!job) {

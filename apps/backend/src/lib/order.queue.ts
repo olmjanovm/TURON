@@ -1,15 +1,70 @@
 import { Queue } from 'bullmq';
-import { redis } from '../lib/redis.js';
+import { getRedisConnection } from './redis.js';
+
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+export interface CourierAssignJobData {
+  orderId: string;
+  orderNumber: string;
+  excludeCourierIds?: string[];
+}
+
+// ── Queues ─────────────────────────────────────────────────────────────────────
+
+const conn = getRedisConnection();
 
 /**
- * High-load Order Creation Queue
+ * Order creation queue — serialises heavy DB writes under high load.
+ * Falls back gracefully when REDIS_URL is not set.
  */
-export const orderQueue = new Queue('order-processing', {
-  connection: redis,
-  defaultJobOptions: {
-    attempts: 3, // Agar xatolik bo'lsa 3 marta qayta urinadi
-    backoff: { type: 'exponential', delay: 1000 },
-    removeOnComplete: true, // Xotirani to'ldirmaslik uchun bajarilganlarni o'chiradi
-    removeOnFail: false, // Xato bo'lganlarni admin ko'rishi uchun qoldiradi
-  },
-});
+export const orderQueue: Queue | null = conn
+  ? new Queue('order-processing', {
+      connection: conn,
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 1000 },
+        removeOnComplete: true,
+        removeOnFail: false,
+      },
+    })
+  : null;
+
+/**
+ * Courier auto-assignment queue — triggered after every approved order.
+ */
+export const courierAssignmentQueue: Queue<CourierAssignJobData> | null = conn
+  ? new Queue<CourierAssignJobData>('courier-assignment', {
+      connection: conn,
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 2000 },
+        removeOnComplete: true,
+        removeOnFail: false,
+      },
+    })
+  : null;
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+/**
+ * Adds a courier-assignment job to the BullMQ queue.
+ * Returns `true` if successfully enqueued via Redis, `false` if Redis is unavailable.
+ * Caller is responsible for the in-process fallback when `false` is returned.
+ */
+export async function enqueueCourierAssignment(data: CourierAssignJobData): Promise<boolean> {
+  if (courierAssignmentQueue) {
+    await courierAssignmentQueue.add('assign-courier', data);
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Gracefully closes both queues on process shutdown.
+ */
+export async function closeCourierAssignmentQueue(): Promise<void> {
+  await Promise.allSettled([
+    orderQueue?.close(),
+    courierAssignmentQueue?.close(),
+  ]);
+}

@@ -12,6 +12,7 @@ import { CourierPresenceService } from '../../../services/courier-presence.servi
 import { locationWriteBuffer } from '../../../services/location-write-buffer.service.js';
 import { CourierStatsService } from '../../../services/courier-stats.service.js';
 import { orderTrackingService } from '../../../services/order-tracking.service.js';
+import { StorageService } from '../../../services/storage.service.js';
 import {
   ACTIVE_ASSIGNMENT_STATUSES,
   ORDER_INCLUDE,
@@ -298,12 +299,7 @@ export async function getCourierOrders(request: FastifyRequest, reply: FastifyRe
       total: serialized.total,
       deliveryFee: serialized.deliveryFee,
       paymentMethod: serialized.paymentMethod,
-      restaurantName: serialized.restaurantName ?? RESTAURANT_COORDINATES.name,
-      restaurantPhone: serialized.restaurantPhone ?? null,
-      restaurantAddress: serialized.restaurantAddress ?? null,
-      restaurantCoords: (serialized.pickupLat && serialized.pickupLng)
-        ? { lat: serialized.pickupLat, lng: serialized.pickupLng }
-        : null,
+      restaurantName: RESTAURANT_COORDINATES.name,
       distanceToRestaurantMeters:
         typeof relevantAssignment?.distanceMeters === 'number' ? relevantAssignment.distanceMeters : null,
       etaToRestaurantMinutes:
@@ -463,6 +459,12 @@ export async function deliverCourierOrder(
       });
     }
 
+    // 3.5. Rasmni Supabase Storage-ga yuklash
+    let uploadedPhotoUrl = null;
+    if (photoBase64) {
+      uploadedPhotoUrl = await StorageService.uploadBase64(photoBase64, 'deliveries');
+    }
+
     // 4. Atomic: save DeliveryProof + perform DELIVER in one transaction
     const result = await prisma.$transaction(async (tx) => {
       await (tx as any).deliveryProof.create({
@@ -472,7 +474,7 @@ export async function deliverCourierOrder(
           gpsLatitude,
           gpsLongitude,
           distanceMeters: Math.round(distanceMeters),
-          photoBase64: photoBase64 ?? null,
+          photoBase64: uploadedPhotoUrl ?? null,
         },
       });
 
@@ -799,12 +801,7 @@ export async function getNextAvailableOrder(
       total: serialized.total,
       deliveryFee: serialized.deliveryFee,
       paymentMethod: serialized.paymentMethod,
-      restaurantName: serialized.restaurantName ?? RESTAURANT_COORDINATES.name,
-      restaurantPhone: serialized.restaurantPhone ?? null,
-      restaurantAddress: serialized.restaurantAddress ?? null,
-      restaurantCoords: (serialized.pickupLat && serialized.pickupLng)
-        ? { lat: serialized.pickupLat, lng: serialized.pickupLng }
-        : null,
+      restaurantName: RESTAURANT_COORDINATES.name,
       distanceToRestaurantMeters:
         typeof ra?.distanceMeters === 'number' ? ra.distanceMeters : null,
       etaToRestaurantMinutes:
@@ -823,7 +820,7 @@ export async function getNextAvailableOrder(
 
 /**
  * POST /courier/order/:id/notify-customer
- * Sends a Telegram message to the customer asking them to be ready at the door.
+ * Sends a Telegram message to the customer to be ready at the door.
  */
 export async function notifyCustomer(
   request: FastifyRequest<{ Params: { id: string } }>,
@@ -859,6 +856,6 @@ export async function notifyCustomer(
     return reply.send({ ok: true });
   } catch (err: any) {
     console.warn('[notifyCustomer] Telegram send failed:', err?.message);
-    return reply.status(502).send({ error: "Xabar yuborishda xatolik yuz berdi." });
+    return reply.status(502).send({ error: 'Xabar yuborishda xatolik yuz berdi.' });
   }
 }
