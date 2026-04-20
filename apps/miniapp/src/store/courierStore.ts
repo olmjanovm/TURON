@@ -66,6 +66,9 @@ interface CourierState {
   distanceToDestination: number | null;
   timeToDestination: number | null;
 
+  // ── Panel UI ───────────────────────────────────────────────────────────────
+  isPanelExpanded: boolean;
+
   // ── Actions ────────────────────────────────────────────────────────────────
   setCoords: (coords: [number, number], accuracy: number) => void;
   setGpsData: (lat: number, lng: number, speed: number | null, heading: number | null) => void;
@@ -75,6 +78,7 @@ interface CourierState {
   setRouteInfo: (distance: number, time: number, points: [number, number][]) => void;
   setDeliveryStage: (stage: CourierDeliveryStage) => void;
   setOrderInfo: (info: OrderInfo) => void;
+  setPanelExpanded: (v: boolean) => void;
   resetCourierState: () => void;
   _updateSmoothedHeading: () => void;
 }
@@ -91,6 +95,8 @@ export const useCourierStore = create<CourierState>((set, get) => ({
   timeLeft: null,
   routePoints: [],
   
+  isPanelExpanded: true,
+
   deliveryStage: 1,
   orderInfo: null,
   orderId: null,
@@ -144,6 +150,7 @@ export const useCourierStore = create<CourierState>((set, get) => ({
     }),
     
   setDeliveryStage: (stage) => set({ deliveryStage: stage }),
+  setPanelExpanded: (v) => set({ isPanelExpanded: v }),
   
   setOrderInfo: (info) =>
     set({
@@ -163,6 +170,7 @@ export const useCourierStore = create<CourierState>((set, get) => ({
 
   resetCourierState: () =>
     set({
+      isPanelExpanded: true,
       coords: null,
       accuracy: null,
       speed: null,
