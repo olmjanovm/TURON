@@ -115,7 +115,11 @@ export const LocationPermissionPrompt: React.FC<LocationPermissionPromptProps> =
           <div className="mt-4 flex gap-2">
             {isDenied && (
               <button
-                onClick={() => { window.location.href = 'tel:+998'; }}
+                onClick={() => {
+                  window.Telegram?.WebApp?.showAlert?.(
+                    'Telegram sozlamalaridan Location ruxsatini yoqing va qayta urining.',
+                  );
+                }}
                 className="flex-1 rounded-lg bg-slate-200 px-4 py-2 font-medium text-slate-700 hover:bg-slate-300 transition-colors dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 text-sm"
               >
                 Sozlamalar

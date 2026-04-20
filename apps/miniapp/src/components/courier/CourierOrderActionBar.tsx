@@ -2,6 +2,7 @@ import React from 'react';
 import { ChevronRight, Navigation, PackageCheck, Phone } from 'lucide-react';
 import { DeliveryStageEnum } from '@turon/shared';
 import { getDeliveryStageAction, getDeliveryStageMeta } from '../../features/courier/deliveryStage';
+import { initiateCall } from '../../lib/callUtils';
 
 interface CourierOrderActionBarProps {
   stage: DeliveryStageEnum;
@@ -35,12 +36,13 @@ export const CourierOrderActionBar: React.FC<CourierOrderActionBarProps> = ({
         </div>
 
         <div className="flex gap-2">
-          <a
-            href={`tel:${phoneNumber}`}
+          <button
+            type="button"
+            onClick={() => initiateCall(phoneNumber, customerName)}
             className="flex h-12 w-12 items-center justify-center rounded-full bg-green-50 text-green-600 transition-active hover:bg-green-100"
           >
             <Phone size={22} fill="currentColor" />
-          </a>
+          </button>
           <button className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-600 transition-active hover:bg-blue-100">
             <Navigation size={22} fill="currentColor" />
           </button>

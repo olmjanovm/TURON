@@ -5,6 +5,7 @@ import { LoadingSkeleton } from '../../components/customer/CustomerComponents';
 import { OrderCard, OrderTimeline, OrdersEmptyState } from '../../components/customer/OrderHistoryComponents';
 import { OrderStatus } from '../../data/types';
 import { useMyOrders } from '../../hooks/queries/useOrders';
+import { initiateCall } from '../../lib/callUtils';
 
 const OrdersPage: React.FC = () => {
   const navigate = useNavigate();
@@ -79,7 +80,7 @@ const OrdersPage: React.FC = () => {
                   </div>
                   <OrderTimeline 
                     status={order.orderStatus} 
-                    onCallCourier={() => window.location.href = 'tel:+998901234567'} 
+                    onCallCourier={() => initiateCall(order.courierPhone || '+998901234567', 'kuryer')} 
                   />
                 </div>
               ))}

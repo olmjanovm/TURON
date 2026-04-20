@@ -33,6 +33,7 @@ import { useGPS } from '../../hooks/useGPS';
 import { useCompass } from '../../hooks/useCompass';
 import { useCourierStore } from '../../store/courierStore';
 import { api } from '../../lib/api';
+import { initiateCall } from '../../lib/callUtils';
 import {
   getDeliveryRouteMeta,
   getDeliveryStageMeta,
@@ -569,7 +570,7 @@ const CourierMapPage: React.FC = () => {
       window.alert('Mijozning telefon raqami mavjud emas');
       return;
     }
-    window.location.href = `tel:${order.customerPhone}`;
+    initiateCall(order.customerPhone, order.customerName || 'mijoz');
   };
 
   const handleProblemSubmit = () => {

@@ -31,6 +31,7 @@ import {
 } from './order-helpers.js';
 import { evaluatePromoForSubtotal } from '../promos/promo-helpers.js';
 import { enqueueCourierAssignment } from '../../../lib/order.queue.js';
+import { getRestaurantSettings } from '../../../services/restaurant-settings.service.js';
 
 async function addTracking(order: any) {
   return {
@@ -690,6 +691,9 @@ export async function handleCreateOrder(
 
   const { deliveryAddress, orderItemsData, promo, quote } = orderPricing;
 
+  // Snapshot restaurant data at order-creation time
+  const restaurantSnap = await getRestaurantSettings().catch(() => null);
+
   const createdOrder = await prisma.$transaction(async (tx) => {
     if (promo?.id) {
       // Atomic increment — acquires an exclusive row lock on this promo row.
@@ -742,6 +746,13 @@ export async function handleCreateOrder(
         note: note?.trim() || null,
         destinationLat: deliveryAddress.latitude,
         destinationLng: deliveryAddress.longitude,
+        // Restaurant snapshot — cast to any until prisma generate runs in CI
+        ...(restaurantSnap && {
+          restaurantPhone: restaurantSnap.phone || null,
+          restaurantAddressText: restaurantSnap.addressText || null,
+          restaurantLon: restaurantSnap.longitude || null,
+          restaurantLat: restaurantSnap.latitude || null,
+        } as any),
         items: {
           create: orderItemsData,
         },

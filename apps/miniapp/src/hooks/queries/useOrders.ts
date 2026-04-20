@@ -569,6 +569,13 @@ export const useDeclineCourierOrder = () => {
   });
 };
 
+export const useNotifyCustomer = () => {
+  return useMutation({
+    mutationFn: ({ id }: { id: string }) =>
+      api.post(`/courier/order/${id}/notify-customer`) as Promise<{ ok: boolean }>,
+  });
+};
+
 export const useReportCourierProblem = () => {
   const queryClient = useQueryClient();
 

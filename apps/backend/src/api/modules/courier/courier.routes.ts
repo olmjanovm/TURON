@@ -11,6 +11,7 @@ import {
   getCourierStatus,
   getCourierTodayStats,
   notifyApproaching,
+  notifyCustomer,
   pickupCourierOrder,
   reportCourierProblem,
   startCourierDelivery,
@@ -119,6 +120,10 @@ export default async function courierRoutes(fastify: FastifyInstance) {
       body: TrackingLocationSchema,
     }
   }, updateCourierLocation);
+
+  fastify.post('/order/:id/notify-customer', {
+    schema: { params: IdParamSchema },
+  }, notifyCustomer);
 
   // ── In-app chat (courier ↔ customer) ─────────────────────────────────────
   fastify.get('/order/:id/chat', { schema: { params: IdParamSchema } }, getOrderChat);

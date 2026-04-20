@@ -149,6 +149,12 @@ const AdminDashboardPage: React.FC = () => {
         onClick: () => navigate('/admin/chats'),
         badge: chatUnread || undefined,
       },
+      {
+        key: 'restaurant',
+        label: 'Restoran',
+        icon: <UtensilsCrossed size={20} />,
+        onClick: () => navigate('/admin/restaurant'),
+      },
     ],
     [navigate, newOrders.length, busyCouriers, pendingOrders.length, chatUnread],
   );

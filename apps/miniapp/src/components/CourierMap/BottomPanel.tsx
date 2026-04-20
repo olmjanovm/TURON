@@ -4,6 +4,7 @@ import { useAutoConfirmArrival } from '../../hooks/useAutoConfirmArrival';
 import { useUpdateCourierOrderStage } from '../../hooks/queries/useOrders';
 import { initiateCall } from '../../lib/callUtils';
 import { useCourierStore } from '../../store/courierStore';
+import { CallActionSheet } from './CallActionSheet';
 import { InfoCards } from './InfoCards';
 import { OrderDetailSheet } from './OrderDetailSheet';
 import { StageTracker } from './StageTracker';
@@ -140,6 +141,7 @@ export function BottomPanel({ onChat, onProblem }: BottomPanelProps) {
 
   const updateStageMutation = useUpdateCourierOrderStage();
   const [isOrderSheetOpen, setOrderSheetOpen] = useState(false);
+  const [isCallSheetOpen, setCallSheetOpen] = useState(false);
 
   // ── Panel DOM ref + animation ──────────────────────────────────────────────
   const panelRef    = useRef<HTMLDivElement>(null);
@@ -519,7 +521,13 @@ export function BottomPanel({ onChat, onProblem }: BottomPanelProps) {
           <ActionBtn
             label="Qo'ng'iroq"
             color="#f5a623"
-            onClick={() => initiateCall(callPhone)}
+            onClick={() => {
+              if (deliveryStage === 2) {
+                setCallSheetOpen(true);
+              } else {
+                initiateCall(callPhone);
+              }
+            }}
           >
             <path d="M22 16.92v3a2 2 0 01-2.18 2 19.8 19.8 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.8 19.8 0 012.1 4.18 2 2 0 014.1 2h3a2 2 0 012 1.72c.13.96.35 1.9.66 2.8a2 2 0 01-.45 2.11L8.1 9.84a16 16 0 006.06 6.06l1.21-1.21a2 2 0 012.11-.45c.9.31 1.84.53 2.8.66A2 2 0 0122 16.92z" />
           </ActionBtn>
@@ -563,6 +571,14 @@ export function BottomPanel({ onChat, onProblem }: BottomPanelProps) {
         orderId={displayOrderId}
         items={orderItems}
       />
+
+      {isCallSheetOpen && orderId && (
+        <CallActionSheet
+          orderId={orderId}
+          customerPhone={customerPhone}
+          onClose={() => setCallSheetOpen(false)}
+        />
+      )}
     </>
   );
 }

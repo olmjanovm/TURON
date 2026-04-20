@@ -19,6 +19,7 @@ import {
   serializeOrder,
 } from '../orders/order-helpers.js';
 import { eligibleCourierCache } from '../../../services/courier-assignment.service.js';
+import { getBotState } from '../../../services/telegram-bot.service.js';
 
 const COURIER_LIST_ASSIGNMENT_STATUSES = [
   'ASSIGNED',
@@ -297,7 +298,12 @@ export async function getCourierOrders(request: FastifyRequest, reply: FastifyRe
       total: serialized.total,
       deliveryFee: serialized.deliveryFee,
       paymentMethod: serialized.paymentMethod,
-      restaurantName: RESTAURANT_COORDINATES.name,
+      restaurantName: serialized.restaurantName ?? RESTAURANT_COORDINATES.name,
+      restaurantPhone: serialized.restaurantPhone ?? null,
+      restaurantAddress: serialized.restaurantAddress ?? null,
+      restaurantCoords: (serialized.pickupLat && serialized.pickupLng)
+        ? { lat: serialized.pickupLat, lng: serialized.pickupLng }
+        : null,
       distanceToRestaurantMeters:
         typeof relevantAssignment?.distanceMeters === 'number' ? relevantAssignment.distanceMeters : null,
       etaToRestaurantMinutes:
@@ -793,7 +799,12 @@ export async function getNextAvailableOrder(
       total: serialized.total,
       deliveryFee: serialized.deliveryFee,
       paymentMethod: serialized.paymentMethod,
-      restaurantName: RESTAURANT_COORDINATES.name,
+      restaurantName: serialized.restaurantName ?? RESTAURANT_COORDINATES.name,
+      restaurantPhone: serialized.restaurantPhone ?? null,
+      restaurantAddress: serialized.restaurantAddress ?? null,
+      restaurantCoords: (serialized.pickupLat && serialized.pickupLng)
+        ? { lat: serialized.pickupLat, lng: serialized.pickupLng }
+        : null,
       distanceToRestaurantMeters:
         typeof ra?.distanceMeters === 'number' ? ra.distanceMeters : null,
       etaToRestaurantMinutes:
@@ -808,4 +819,46 @@ export async function getNextAvailableOrder(
       latestCourierEventType: null,
     },
   });
+}
+
+/**
+ * POST /courier/order/:id/notify-customer
+ * Sends a Telegram message to the customer asking them to be ready at the door.
+ */
+export async function notifyCustomer(
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply,
+) {
+  const requester = request.user as any;
+
+  const access = await getAccessibleCourierOrder(request.params.id, requester);
+  if (!access) {
+    return reply.status(403).send({ error: 'Ruxsat etilmadi: Bu buyurtma sizga tegishli emas.' });
+  }
+
+  const { order } = access;
+  const customerTelegramId = (order.user as any)?.telegramId as bigint | undefined;
+
+  if (!customerTelegramId) {
+    return reply.status(422).send({ error: "Mijozning Telegram ID'si topilmadi." });
+  }
+
+  const { bot } = getBotState();
+  if (!bot) {
+    return reply.status(503).send({ error: 'Bot hozirda mavjud emas.' });
+  }
+
+  const orderNumber = order.orderNumber ? `#${order.orderNumber}` : '';
+  const text =
+    `🛵 Kuryer yetib kelmoqda!\n\n` +
+    `Buyurtma ${orderNumber} — iltimos, eshik oldida tayyor bo'ling.\n` +
+    `Kuryer: ${requester.fullName || 'Kuryer'}`;
+
+  try {
+    await bot.telegram.sendMessage(String(customerTelegramId), text);
+    return reply.send({ ok: true });
+  } catch (err: any) {
+    console.warn('[notifyCustomer] Telegram send failed:', err?.message);
+    return reply.status(502).send({ error: "Xabar yuborishda xatolik yuz berdi." });
+  }
 }

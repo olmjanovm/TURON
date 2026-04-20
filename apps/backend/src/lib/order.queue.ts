@@ -1,57 +1,15 @@
 import { Queue } from 'bullmq';
-import { getRedisConnection } from './redis.js';
-
-export interface CourierAssignJobData {
-  orderId: string;
-  orderNumber: string;
-  /** Rad etgan kuryer IDlarini takroran yubormaslik uchun */
-  excludeCourierIds?: string[];
-}
-
-let _queue: Queue<CourierAssignJobData> | null = null;
-
-function getQueue(): Queue<CourierAssignJobData> | null {
-  const conn = getRedisConnection();
-  if (!conn) return null;
-
-  if (!_queue) {
-    _queue = new Queue<CourierAssignJobData>('courier-assignment', {
-      connection: conn,
-      defaultJobOptions: {
-        removeOnComplete: { count: 300 },
-        removeOnFail: { count: 100 },
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 5_000 }, // 5s → 25s → 125s
-      },
-    });
-  }
-
-  return _queue;
-}
+import { redis } from '../lib/redis.js';
 
 /**
- * Kuryer tayinlash jobini BullMQ navbatiga qo'yadi.
- *
- * @returns true  — job navbatga qo'yildi (BullMQ/Redis mavjud)
- * @returns false — Redis yo'q, caller o'zi in-process fallback ishlatishi kerak
+ * High-load Order Creation Queue
  */
-export async function enqueueCourierAssignment(
-  data: CourierAssignJobData,
-): Promise<boolean> {
-  const queue = getQueue();
-  if (!queue) return false;
-
-  await queue.add('assign-courier', data, {
-    // Bir buyurtma uchun faqat bitta job bo'lishi uchun dedup
-    jobId: `assign-${data.orderId}`,
-  });
-
-  return true;
-}
-
-export async function closeCourierAssignmentQueue(): Promise<void> {
-  if (_queue) {
-    await _queue.close();
-    _queue = null;
-  }
-}
+export const orderQueue = new Queue('order-processing', {
+  connection: redis,
+  defaultJobOptions: {
+    attempts: 3, // Agar xatolik bo'lsa 3 marta qayta urinadi
+    backoff: { type: 'exponential', delay: 1000 },
+    removeOnComplete: true, // Xotirani to'ldirmaslik uchun bajarilganlarni o'chiradi
+    removeOnFail: false, // Xato bo'lganlarni admin ko'rishi uchun qoldiradi
+  },
+});

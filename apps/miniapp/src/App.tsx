@@ -30,6 +30,7 @@ import AdminPromoFormPage from './pages/admin/promos/AdminPromoFormPage';
 import AdminCouriersPage from './pages/admin/AdminCouriersPage';
 import AdminReportsPage from './pages/admin/AdminReportsPage';
 import AdminChatsPage from './pages/admin/AdminChatsPage';
+import RestaurantSettingsPage from './pages/admin/RestaurantSettingsPage';
 
 // --- Courier Pages ---
 import CourierStatusPage from './pages/courier/CourierStatusPage';
@@ -144,6 +145,7 @@ export default function App() {
             <Route path="couriers" element={<AdminCouriersPage />} />
             <Route path="reports" element={<AdminReportsPage />} />
             <Route path="chats" element={<AdminChatsPage />} />
+            <Route path="restaurant" element={<RestaurantSettingsPage />} />
           </Route>
 
           {/* Courier Module */}
