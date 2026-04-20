@@ -69,7 +69,7 @@ export async function handleSubmitDeliveryProof(
   reply: FastifyReply,
 ) {
   const courier = request.user as any;
-  const { photoBase64, gpsLatitude, gpsLongitude, customerOtp } = request.body as any;
+  const { gpsLatitude, gpsLongitude, customerOtp, photoBase64 } = request.body as any;
 
   const order = await prisma.order.findUnique({
     where: { id: request.params.id },
@@ -90,10 +90,6 @@ export async function handleSubmitDeliveryProof(
 
   if (!order.courierAssignments.length) {
     return reply.status(403).send({ error: "Bu buyurtma siz uchun emas" });
-  }
-
-  if (!photoBase64 || typeof photoBase64 !== 'string') {
-    return reply.status(400).send({ error: "To'lov proof fotografi kerak" });
   }
 
   // Validate GPS if provided
@@ -121,7 +117,6 @@ export async function handleSubmitDeliveryProof(
     data: {
       orderId: order.id,
       courierAssignmentId: order.courierAssignments[0].id,
-      photoBase64,
       gpsLatitude: gpsLatitude ? Number(gpsLatitude) : null,
       gpsLongitude: gpsLongitude ? Number(gpsLongitude) : null,
       distanceMeters,
@@ -193,7 +188,6 @@ export async function handleGetDeliveryProof(
 
   return reply.send({
     orderId: proof.orderId,
-    photoBase64: proof.photoBase64,
     gpsLatitude: proof.gpsLatitude,
     gpsLongitude: proof.gpsLongitude,
     distanceMeters: proof.distanceMeters,

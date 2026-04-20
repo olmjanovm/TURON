@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useCourierStore } from '../../store/courierStore';
 import { MapOverlayBadges } from './MapOverlayBadges';
 import { BottomPanel } from './BottomPanel';
+import { useGeofence } from '../../hooks/useGeofence';
 
 interface CourierMapProps {
   ymaps3: any;
@@ -24,6 +25,9 @@ export function CourierMap({ ymaps3, destination }: CourierMapProps) {
   const destMarkerRef = useRef<any>(null);
 
   const { coords, smoothedHeading, routePoints } = useCourierStore();
+  
+  // Geofencing avtomatizatsiyasini orqa fonda ishga tushiramiz
+  useGeofence();
 
   // --- Xarita va marker yaratish ---
   useEffect(() => {
@@ -34,6 +38,7 @@ export function CourierMap({ ymaps3, destination }: CourierMapProps) {
       YMapDefaultSchemeLayer,
       YMapDefaultFeaturesLayer,
       YMapMarker,
+      YMapFeature,
     } = ymaps3;
 
     // Xarita — 3D perspektiva, qorong'i tema, Yandex Navigator style
@@ -53,16 +58,12 @@ export function CourierMap({ ymaps3, destination }: CourierMapProps) {
 
     // Courier markeri — sariq uchburchak
     const courierEl = document.createElement('div');
-    courierEl.innerHTML = COURIER_MARKER_HTML;
+    courierEl.innerHTML = COURIER_SVG;
     courierEl.style.cssText = `
-      width: 52px;
-      height: 52px;
+      width: 40px;
+      height: 48px;
       transform-origin: 50% 75%;
       transition: transform 0.25s ease-out;
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
     `;
     markerElRef.current = courierEl;
 
@@ -95,15 +96,6 @@ export function CourierMap({ ymaps3, destination }: CourierMapProps) {
       }
     };
   }, [ymaps3]);
-
-  useEffect(() => {
-    if (!destMarkerRef.current) return;
-    try {
-      destMarkerRef.current.update({ coordinates: destination });
-    } catch {
-      // Skip
-    }
-  }, [destination]);
 
   // --- GPS yangilanishi: marker va xarita markazi ---
   useEffect(() => {
@@ -182,26 +174,8 @@ export function CourierMap({ ymaps3, destination }: CourierMapProps) {
 
 // --- SVG konstantalar ---
 
-const COURIER_MARKER_HTML = `
-<style>
-@keyframes courierPulse {
-  0% { transform: translate(-50%,-50%) scale(0.7); opacity: 0.7; }
-  100% { transform: translate(-50%,-50%) scale(1.8); opacity: 0; }
-}
-.courier-pulse-ring {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 52px;
-  height: 52px;
-  border: 2px solid #2dd4a0;
-  border-radius: 50%;
-  animation: courierPulse 2s ease-out infinite;
-  pointer-events: none;
-}
-</style>
-<div class="courier-pulse-ring"></div>
-<svg width="40" height="48" viewBox="0 0 40 48" xmlns="http://www.w3.org/2000/svg" style="position:relative;z-index:2">
+const COURIER_SVG = `
+<svg width="40" height="48" viewBox="0 0 40 48" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="cg" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#FFD700"/>

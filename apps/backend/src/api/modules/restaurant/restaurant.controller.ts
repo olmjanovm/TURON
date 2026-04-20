@@ -1,7 +1,7 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import {
+  getRestaurantOpenStatus,
   getRestaurantSettings,
-  isRestaurantOpen,
   patchRestaurantSettings,
   type PatchRestaurantSettings,
 } from '../../../services/restaurant-settings.service.js';
@@ -21,6 +21,5 @@ export async function updateSettings(
 }
 
 export async function getOpenStatus(_request: FastifyRequest, reply: FastifyReply) {
-  const open = await isRestaurantOpen();
-  return reply.send({ isOpen: open });
+  return reply.send(await getRestaurantOpenStatus());
 }

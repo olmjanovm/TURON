@@ -524,8 +524,14 @@ export function BottomPanel({ onChat, onProblem }: BottomPanelProps) {
             onClick={() => {
               if (deliveryStage === 2) {
                 setCallSheetOpen(true);
+              } else if (!callPhone) {
+                window.Telegram?.WebApp?.showAlert?.(
+                  deliveryStage === 1
+                    ? 'Restaurant telefon raqami admin sozlamalarida kiritilmagan.'
+                    : "Mijoz telefon raqami topilmadi.",
+                );
               } else {
-                initiateCall(callPhone);
+                initiateCall(callPhone, callTarget);
               }
             }}
           >
@@ -576,6 +582,7 @@ export function BottomPanel({ onChat, onProblem }: BottomPanelProps) {
         <CallActionSheet
           orderId={orderId}
           customerPhone={customerPhone}
+          customerName={customerName || 'Mijoz'}
           onClose={() => setCallSheetOpen(false)}
         />
       )}

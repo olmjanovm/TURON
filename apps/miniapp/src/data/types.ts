@@ -110,6 +110,9 @@ export interface Order {
   customerName?: string;
   customerPhone?: string | null;
   courierPhone?: string | null;
+  restaurantName?: string | null;
+  restaurantPhone?: string | null;
+  restaurantAddress?: string | null;
   pickupLat?: number;
   pickupLng?: number;
   destinationLat?: number;

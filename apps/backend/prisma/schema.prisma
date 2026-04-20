@@ -312,6 +312,7 @@ model Order {
   cardLast4          String?   @map("card_last_4")
 
   // ── Restaurant snapshot (captured at order-creation time) ────────────────
+  restaurantName        String? @map("restaurant_name")
   restaurantPhone       String? @map("restaurant_phone")
   restaurantAddressText String? @map("restaurant_address_text")
   restaurantLon         Decimal? @map("restaurant_lon") @db.Decimal(10, 7)

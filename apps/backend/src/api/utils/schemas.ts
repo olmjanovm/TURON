@@ -164,6 +164,42 @@ export const DeliverOrderSchema = z.object({
   photoBase64: z.string().min(1000).optional(),
 });
 
+const WorkingHoursDaySchema = z.object({
+  open: z.string().regex(/^\d{2}:\d{2}$/),
+  close: z.string().regex(/^\d{2}:\d{2}$/),
+  closed: z.boolean(),
+});
+
+export const RestaurantSettingsPatchSchema = z
+  .object({
+    name: z.string().trim().min(2).max(80).optional(),
+    phone: z
+      .string()
+      .trim()
+      .regex(/^\+998\d{9}$/)
+      .or(z.literal(''))
+      .optional(),
+    addressText: z.string().trim().min(5).max(240).optional(),
+    longitude: z.number().min(55).max(75).optional(),
+    latitude: z.number().min(37).max(46).optional(),
+    workingHours: z
+      .object({
+        mon: WorkingHoursDaySchema,
+        tue: WorkingHoursDaySchema,
+        wed: WorkingHoursDaySchema,
+        thu: WorkingHoursDaySchema,
+        fri: WorkingHoursDaySchema,
+        sat: WorkingHoursDaySchema,
+        sun: WorkingHoursDaySchema,
+      })
+      .optional(),
+    isOpen: z.boolean().optional(),
+    autoSchedule: z.boolean().optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: 'Kamida bitta restoran sozlamasi yuborilishi kerak',
+  });
+
 export const AdminCreateCourierSchema = z.object({
   telegramId: z.coerce.bigint(),
   fullName: z.string().trim().min(3).max(120),

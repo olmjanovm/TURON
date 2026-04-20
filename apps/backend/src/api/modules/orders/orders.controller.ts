@@ -32,6 +32,7 @@ import {
 import { evaluatePromoForSubtotal } from '../promos/promo-helpers.js';
 import { enqueueCourierAssignment, orderQueue } from '../../../lib/order.queue.js';
 import { StorageService } from '../../../services/storage.service.js';
+import { getRestaurantSettings } from '../../../services/restaurant-settings.service.js';
 
 async function addTracking(order: any) {
   return {
@@ -699,6 +700,7 @@ export async function handleCreateOrder(
   }
 
   const { deliveryAddress, orderItemsData, promo, quote } = orderPricing;
+  const restaurantSettings = await getRestaurantSettings();
 
   const createdOrder = await prisma.$transaction(async (tx) => {
     if (promo?.id) {
@@ -752,6 +754,11 @@ export async function handleCreateOrder(
         note: note?.trim() || null,
         destinationLat: deliveryAddress.latitude,
         destinationLng: deliveryAddress.longitude,
+        restaurantName: restaurantSettings.name || null,
+        restaurantPhone: restaurantSettings.phone || null,
+        restaurantAddressText: restaurantSettings.addressText || null,
+        restaurantLon: restaurantSettings.longitude,
+        restaurantLat: restaurantSettings.latitude,
         items: {
           create: orderItemsData,
         },

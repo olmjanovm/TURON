@@ -127,7 +127,7 @@ function mergeCourierPreview(
     total: updatedOrder.total,
     deliveryFee: updatedOrder.deliveryFee,
     paymentMethod: updatedOrder.paymentMethod,
-    restaurantName: 'Turon Kafesi',
+    restaurantName: updatedOrder.restaurantName || 'Turon Kafesi',
     distanceToRestaurantMeters: null,
     etaToRestaurantMinutes: updatedOrder.deliveryEtaMinutes ?? null,
     customerName: updatedOrder.customerName || 'Mijoz',
@@ -571,8 +571,20 @@ export const useDeclineCourierOrder = () => {
 
 export const useNotifyCustomer = () => {
   return useMutation({
-    mutationFn: ({ id }: { id: string }) =>
-      api.post(`/courier/order/${id}/notify-customer`) as Promise<{ ok: boolean }>,
+    mutationFn: ({
+      id,
+      method = 'telegram_message',
+    }: {
+      id: string;
+      method?: 'telegram_message' | 'telegram_call' | 'phone_call';
+    }) =>
+      api.post(`/courier/order/${id}/notify-customer`, { method }) as Promise<{
+        ok: boolean;
+        action: string;
+        warningSent?: boolean;
+        customerPhone?: string | null;
+        reason?: string;
+      }>,
   });
 };
 

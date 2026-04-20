@@ -184,7 +184,7 @@ export function serializeOrder(order: any) {
     customerName: order.user?.fullName,
     customerUserId: order.userId,
     customerPhone: order.user?.phoneNumber || undefined,
-    restaurantName: RESTAURANT_COORDINATES.name,
+    restaurantName: order.restaurantName ?? RESTAURANT_COORDINATES.name,
     pickupLat: order.restaurantLat ? Number(order.restaurantLat) : RESTAURANT_COORDS.latitude,
     pickupLng: order.restaurantLon ? Number(order.restaurantLon) : RESTAURANT_COORDS.longitude,
     restaurantPhone: order.restaurantPhone ?? null,

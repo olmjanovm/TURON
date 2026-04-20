@@ -3,6 +3,7 @@
 -- the restaurant data that was current when the order was placed.
 
 ALTER TABLE "orders"
+  ADD COLUMN IF NOT EXISTS "restaurant_name"         TEXT,
   ADD COLUMN IF NOT EXISTS "restaurant_phone"        TEXT,
   ADD COLUMN IF NOT EXISTS "restaurant_address_text" TEXT,
   ADD COLUMN IF NOT EXISTS "restaurant_lon"          DECIMAL(10,7),

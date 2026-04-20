@@ -28,6 +28,14 @@ export interface RestaurantSettings {
   autoSchedule: boolean;
 }
 
+export interface RestaurantOpenStatus {
+  isOpen: boolean;
+  reason: 'manual' | 'schedule' | 'schedule_closed';
+  dayKey: keyof WorkingHours;
+  today: WorkingHoursDay;
+  nextChange: string | null;
+}
+
 const DEFAULT_WORKING_HOURS: WorkingHours = {
   mon: { open: '09:00', close: '22:00', closed: false },
   tue: { open: '09:00', close: '22:00', closed: false },
@@ -60,6 +68,10 @@ async function setSetting(key: string, value: string, dataType: string, updatedB
     update: { value, dataType, updatedById: updatedById ?? null },
     create: { key, value, dataType, updatedById: updatedById ?? null },
   });
+}
+
+function normalizePhone(phone: string) {
+  return phone.replace(/[^\d+]/g, '');
 }
 
 export async function getRestaurantSettings(): Promise<RestaurantSettings> {
@@ -112,7 +124,7 @@ export async function patchRestaurantSettings(
   if (patch.name !== undefined)
     tasks.push(setSetting('name', patch.name, 'string', updatedById));
   if (patch.phone !== undefined)
-    tasks.push(setSetting('phone', patch.phone, 'string', updatedById));
+    tasks.push(setSetting('phone', normalizePhone(patch.phone), 'string', updatedById));
   if (patch.addressText !== undefined)
     tasks.push(setSetting('address_text', patch.addressText, 'string', updatedById));
   if (patch.longitude !== undefined)
@@ -130,33 +142,70 @@ export async function patchRestaurantSettings(
   return getRestaurantSettings();
 }
 
-/** Returns true if the restaurant is currently open (respects auto_schedule). */
-export async function isRestaurantOpen(): Promise<boolean> {
-  const settings = await getRestaurantSettings();
+function getTashkentDate(date = new Date()) {
+  const utcOffset = 5 * 60; // minutes
+  return new Date(date.getTime() + utcOffset * 60 * 1000);
+}
 
-  if (!settings.autoSchedule) {
-    return settings.isOpen;
+function toMinutes(time: string) {
+  const [hours, minutes] = time.split(':').map(Number);
+  return hours * 60 + minutes;
+}
+
+function isWithinWindow(currentMin: number, openMin: number, closeMin: number) {
+  if (closeMin <= openMin) {
+    return currentMin >= openMin || currentMin < closeMin;
   }
 
-  // Auto-schedule: check current day/time against working hours (Tashkent = UTC+5)
-  const now = new Date();
-  const utcOffset = 5 * 60; // minutes
-  const localMs = now.getTime() + utcOffset * 60 * 1000;
-  const local = new Date(localMs);
+  return currentMin >= openMin && currentMin < closeMin;
+}
+
+/** Returns detailed open/closed status (respects auto_schedule). */
+export async function getRestaurantOpenStatus(): Promise<RestaurantOpenStatus> {
+  const settings = await getRestaurantSettings();
 
   const dayMap: Record<number, keyof WorkingHours> = {
     0: 'sun', 1: 'mon', 2: 'tue', 3: 'wed', 4: 'thu', 5: 'fri', 6: 'sat',
   };
+  const local = getTashkentDate();
   const dayKey = dayMap[local.getUTCDay()];
   const dayHours = settings.workingHours[dayKey];
 
-  if (dayHours.closed) return false;
+  if (!settings.autoSchedule) {
+    return {
+      isOpen: settings.isOpen,
+      reason: 'manual',
+      dayKey,
+      today: dayHours,
+      nextChange: null,
+    };
+  }
 
-  const [openH, openM] = dayHours.open.split(':').map(Number);
-  const [closeH, closeM] = dayHours.close.split(':').map(Number);
+  if (dayHours.closed) {
+    return {
+      isOpen: false,
+      reason: 'schedule_closed',
+      dayKey,
+      today: dayHours,
+      nextChange: null,
+    };
+  }
+
   const currentMin = local.getUTCHours() * 60 + local.getUTCMinutes();
-  const openMin = openH * 60 + openM;
-  const closeMin = closeH * 60 + closeM;
+  const openMin = toMinutes(dayHours.open);
+  const closeMin = toMinutes(dayHours.close);
+  const isOpen = isWithinWindow(currentMin, openMin, closeMin);
 
-  return currentMin >= openMin && currentMin < closeMin;
+  return {
+    isOpen,
+    reason: 'schedule',
+    dayKey,
+    today: dayHours,
+    nextChange: isOpen ? dayHours.close : dayHours.open,
+  };
+}
+
+/** Returns true if the restaurant is currently open (respects auto_schedule). */
+export async function isRestaurantOpen(): Promise<boolean> {
+  return (await getRestaurantOpenStatus()).isOpen;
 }

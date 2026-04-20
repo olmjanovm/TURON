@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Bell, ChevronLeft, LayoutDashboard, ShoppingBag, Tag, Truck, UtensilsCrossed } from 'lucide-react';
+import { Bell, ChevronLeft, LayoutDashboard, ShoppingBag, Store, Tag, Truck, UtensilsCrossed } from 'lucide-react';
 import { OrderStatusEnum, UserRoleEnum } from '@turon/shared';
 import { AppErrorBoundary } from '../ui/AppErrorBoundary';
 import NotificationBadge from '../../features/notifications/components/NotificationBadge';
@@ -118,6 +118,7 @@ const AdminLayout: React.FC = () => {
     if (pathname.startsWith('/admin/menu')) return 'Menyu';
     if (pathname.startsWith('/admin/promos')) return 'Promokodlar';
     if (pathname.startsWith('/admin/couriers')) return 'Kuryerlar';
+    if (pathname.startsWith('/admin/restaurant')) return 'Restoran';
     if (pathname.startsWith('/admin/reports')) return 'Hisobotlar';
     if (pathname.startsWith('/admin/notifications')) return 'Bildirishnomalar';
     if (pathname.startsWith('/admin/dashboard') || pathname === '/admin') return 'Bosh sahifa';
@@ -135,6 +136,7 @@ const AdminLayout: React.FC = () => {
     if (pathname.startsWith('/admin/menu')) return '/admin/dashboard';
     if (pathname.startsWith('/admin/orders')) return '/admin/dashboard';
     if (pathname.startsWith('/admin/couriers')) return '/admin/dashboard';
+    if (pathname.startsWith('/admin/restaurant')) return '/admin/dashboard';
     if (pathname.startsWith('/admin/promos')) return '/admin/dashboard';
     if (pathname.startsWith('/admin/reports')) return '/admin/dashboard';
     if (pathname.startsWith('/admin/notifications')) return '/admin/dashboard';
@@ -241,15 +243,30 @@ const AdminLayout: React.FC = () => {
               <span />
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => navigate('/admin/notifications')}
-            aria-label="Bildirishnomalar"
-            className="relative flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-[0_18px_40px_rgba(15,23,42,0.12)] backdrop-blur-md transition-transform active:scale-95"
-          >
-            <Bell size={20} />
-            <NotificationBadge role={UserRoleEnum.ADMIN} />
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => navigate('/admin/restaurant')}
+              aria-label="Restoran sozlamalari"
+              className={`relative flex h-11 items-center justify-center gap-2 rounded-full border px-3 shadow-[0_18px_40px_rgba(15,23,42,0.12)] backdrop-blur-md transition-transform active:scale-95 ${
+                location.pathname.startsWith('/admin/restaurant')
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  : 'border-slate-200 bg-white/90 text-slate-600'
+              }`}
+            >
+              <Store size={19} />
+              <span className="hidden text-[11px] font-black sm:inline">Sozlama</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/admin/notifications')}
+              aria-label="Bildirishnomalar"
+              className="relative flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-[0_18px_40px_rgba(15,23,42,0.12)] backdrop-blur-md transition-transform active:scale-95"
+            >
+              <Bell size={20} />
+              <NotificationBadge role={UserRoleEnum.ADMIN} />
+            </button>
+          </div>
         </div>
       </header>
 
