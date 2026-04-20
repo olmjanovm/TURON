@@ -2,11 +2,27 @@ import axios from 'axios';
 import { useAuthStore } from '../store/useAuthStore';
 
 // Determine API base URL (can be env-driven)
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+function resolveApiBaseUrl() {
+  const configuredUrl = import.meta.env.VITE_API_URL?.trim();
+
+  if (configuredUrl) {
+    return configuredUrl.replace(/\/$/, '');
+  }
+
+  if (import.meta.env.DEV) {
+    return 'http://localhost:3000';
+  }
+
+  // Production must never point at localhost inside Telegram WebView.
+  // Use a same-origin proxy only when Vercel/Nginx is configured for /api.
+  return '/api';
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+ timeout: 20000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -23,7 +39,17 @@ api.interceptors.request.use((config) => {
 
 // Response Interceptor for Error Handling
 api.interceptors.response.use(
-  (response) => response.data,
+  (response) => {
+    const payload = response.data;
+
+    if (typeof payload === 'string' && /<!doctype html|<html[\s>]/i.test(payload.trim().slice(0, 200))) {
+      return Promise.reject(
+        new Error("API manzili noto'g'ri sozlangan. VITE_API_URL yoki /api proxy backendga ulanmagan."),
+      );
+    }
+
+    return payload;
+  },
   (error) => {
     // Transform system errors into human-readable Uzbek messages
     const responseData = error.response?.data;
