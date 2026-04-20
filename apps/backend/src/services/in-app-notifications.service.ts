@@ -13,6 +13,15 @@ interface CreateNotificationInput {
   relatedOrderId?: string | null;
 }
 
+interface SyncOrderNotificationInput {
+  roleTarget: UserRoleEnum;
+  relatedOrderId: string;
+  type: NotificationTypeEnum;
+  title: string;
+  message: string;
+  isRead?: boolean;
+}
+
 function serializeNotification(notification: any) {
   return {
     id: notification.id,
@@ -107,6 +116,69 @@ export class InAppNotificationsService {
     );
   }
 
+  static async syncOrderNotificationForRole(
+    input: SyncOrderNotificationInput,
+    db: DbClient = prisma,
+  ) {
+    const users = await db.user.findMany({
+      where: {
+        role: input.roleTarget as any,
+        isActive: true,
+      },
+      select: { id: true },
+    });
+
+    if (!users.length) {
+      return;
+    }
+
+    const userIds = users.map((user) => user.id);
+    const existing = await db.notification.findMany({
+      where: {
+        userId: { in: userIds },
+        roleTarget: input.roleTarget as any,
+        relatedOrderId: input.relatedOrderId,
+      },
+      select: { userId: true },
+    });
+    const existingUserIds = new Set(existing.map((row) => row.userId));
+
+    if (existing.length) {
+      await db.notification.updateMany({
+        where: {
+          userId: { in: userIds },
+          roleTarget: input.roleTarget as any,
+          relatedOrderId: input.relatedOrderId,
+        },
+        data: {
+          type: input.type as any,
+          title: input.title,
+          message: input.message,
+          isRead: input.isRead ?? false,
+        },
+      });
+    }
+
+    const missingUserIds = userIds.filter((id) => !existingUserIds.has(id));
+    if (missingUserIds.length) {
+      await db.notification.createMany({
+        data: missingUserIds.map((userId) => ({
+          userId,
+          roleTarget: input.roleTarget as any,
+          type: input.type as any,
+          title: input.title,
+          message: input.message,
+          relatedOrderId: input.relatedOrderId,
+          isRead: input.isRead ?? false,
+        })),
+      });
+    }
+
+    for (const userId of userIds) {
+      invalidateNotifCache(userId);
+    }
+  }
+
   static async notifyUser(
     input: CreateNotificationInput,
     db: DbClient = prisma,
@@ -165,6 +237,7 @@ export class InAppNotificationsService {
       },
     });
 
+    invalidateNotifCache(userId);
     return serializeNotification(updatedNotification);
   }
 
@@ -183,5 +256,7 @@ export class InAppNotificationsService {
         isRead: true,
       },
     });
+
+    invalidateNotifCache(userId);
   }
 }

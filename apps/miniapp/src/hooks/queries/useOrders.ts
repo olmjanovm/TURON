@@ -444,6 +444,8 @@ export const useAdminOrders = () => {
   const query = useQuery<Order[]>({
     queryKey: ['admin-orders'],
     queryFn: async () => (await api.get('/orders')) as Order[],
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
   });
 
   useSyncOrdersStore(query.data);

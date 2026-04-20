@@ -5,6 +5,7 @@ import {
   UserRoleEnum,
 } from '@turon/shared';
 import { prisma } from '../lib/prisma.js';
+import { invalidateNotifCache } from './in-app-notifications.service.js';
 import { CourierOperationalStatusService } from './courier-operational-status.service.js';
 import { CourierPresenceService } from './courier-presence.service.js';
 import { StatusService } from './status.service.js';
@@ -620,6 +621,8 @@ export class CourierAssignmentService {
 
       return assignment;
     });
+
+    invalidateNotifCache(courierId);
 
     return {
       assignmentId: createdAssignment.id,

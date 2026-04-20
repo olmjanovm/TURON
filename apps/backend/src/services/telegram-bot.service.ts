@@ -8,6 +8,8 @@ import {
 } from '@turon/shared';
 import { env } from '../config.js';
 import { prisma } from '../lib/prisma.js';
+import { AuditService } from './audit.service.js';
+import { CourierAssignmentService } from './courier-assignment.service.js';
 import { InAppNotificationsService } from './in-app-notifications.service.js';
 import { orderTrackingService } from './order-tracking.service.js';
 import { SupportService } from './support.service.js';
@@ -774,6 +776,153 @@ async function publishRealtimeOrderSnapshot(orderId: string): Promise<void> {
   }
 }
 
+async function syncAdminOrderDecisionNotification(params: {
+  orderId: string;
+  orderNumber: string;
+  status: OrderStatusEnum.PREPARING | OrderStatusEnum.CANCELLED;
+}) {
+  if (params.status === OrderStatusEnum.PREPARING) {
+    await InAppNotificationsService.syncOrderNotificationForRole({
+      roleTarget: UserRoleEnum.ADMIN,
+      relatedOrderId: params.orderId,
+      type: NotificationTypeEnum.SUCCESS,
+      title: 'Buyurtma tasdiqlandi',
+      message: `#${params.orderNumber} buyurtma Telegram bot orqali tasdiqlandi. Kuryer biriktirish jarayoni boshlandi.`,
+      isRead: false,
+    });
+    return;
+  }
+
+  await InAppNotificationsService.syncOrderNotificationForRole({
+    roleTarget: UserRoleEnum.ADMIN,
+    relatedOrderId: params.orderId,
+    type: NotificationTypeEnum.ERROR,
+    title: 'Buyurtma bekor qilindi',
+    message: `#${params.orderNumber} buyurtma Telegram bot orqali bekor qilindi. Kuryerga yuborilmaydi.`,
+    isRead: false,
+  });
+}
+
+function scheduleTelegramCourierAssignmentTimeout(params: {
+  orderId: string;
+  orderNumber: string;
+  assignmentId: string;
+  courierId: string;
+}) {
+  setTimeout(() => {
+    void (async () => {
+      const assignment = await prisma.courierAssignment.findUnique({
+        where: { id: params.assignmentId },
+        select: { id: true, status: true },
+      });
+
+      if (!assignment || assignment.status !== 'ASSIGNED') {
+        return;
+      }
+
+      const now = new Date();
+      await prisma.$transaction(async (tx) => {
+        await tx.courierAssignment.update({
+          where: { id: params.assignmentId },
+          data: {
+            status: 'CANCELLED' as any,
+            cancelledAt: now,
+          },
+        });
+
+        await tx.order.update({
+          where: { id: params.orderId },
+          data: { courierId: null },
+        });
+
+        await tx.courierAssignmentEvent.create({
+          data: {
+            assignmentId: params.assignmentId,
+            orderId: params.orderId,
+            courierId: params.courierId,
+            eventType: 'CANCELLED' as any,
+            eventAt: now,
+            payload: {
+              reason: 'courier_response_timeout',
+              timeoutSeconds: 30,
+            },
+          },
+        });
+
+        await InAppNotificationsService.notifyAdmins(
+          {
+            type: NotificationTypeEnum.WARNING,
+            title: 'Kuryer javob bermadi',
+            message: `#${params.orderNumber} buyurtma 30 soniyada qabul qilinmadi. Qayta dispatch qiling.`,
+            relatedOrderId: params.orderId,
+          },
+          tx,
+        );
+      });
+
+      await publishRealtimeOrderSnapshot(params.orderId);
+      await sendAdminAlert(
+        `⚠️ <b>Kuryer javob bermadi</b>\n\nBuyurtma <b>#${escapeHtml(params.orderNumber)}</b> 30 soniyada qabul qilinmadi. Admin panel orqali qayta dispatch qiling.`,
+      );
+    })().catch((error) => {
+      console.warn('[Bot] Courier assignment timeout failed.', {
+        orderId: params.orderId,
+        assignmentId: params.assignmentId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+  }, 30_000);
+}
+
+function triggerPostTelegramApprovalCourierAssignment(orderId: string, orderNumber: string) {
+  void (async () => {
+    try {
+      const autoAssignmentResult = await CourierAssignmentService.autoAssignOrder(orderId);
+
+      if (autoAssignmentResult?.assignment) {
+        if (!autoAssignmentResult.assignment.reusedExistingAssignment) {
+          scheduleTelegramCourierAssignmentTimeout({
+            orderId,
+            orderNumber,
+            assignmentId: autoAssignmentResult.assignment.assignmentId,
+            courierId: autoAssignmentResult.assignment.courierId,
+          });
+        }
+
+        await AuditService.record({
+          action: 'AUTO_ASSIGN_COURIER',
+          entity: 'Order',
+          entityId: orderId,
+          newValue: {
+            assignmentId: autoAssignmentResult.assignment.assignmentId,
+            courierId: autoAssignmentResult.assignment.courierId,
+            courierName: autoAssignmentResult.assignment.courierName,
+            etaMinutes: autoAssignmentResult.assignment.etaMinutes,
+            distanceMeters: autoAssignmentResult.assignment.distanceMeters,
+            rankingCandidate: autoAssignmentResult.selectedCandidate,
+          },
+          metadata: {
+            mode: 'AUTO',
+            source: 'telegram_approval',
+          },
+        });
+
+        await publishRealtimeOrderSnapshot(orderId);
+        return;
+      }
+
+      await sendAdminAlert(
+        `⚠️ <b>Kuryer topilmadi</b>\n\nBuyurtma <b>#${escapeHtml(orderNumber)}</b> tasdiqlandi, lekin onlayn bo'sh kuryer topilmadi.\n\nAdmin panel orqali qo'lda tayinlang.`,
+      );
+    } catch (error) {
+      console.error(`[Bot] Auto courier assignment failed for order ${orderId}:`, error);
+      await sendAdminAlert(
+        `⚠️ Buyurtma <b>#${escapeHtml(orderNumber)}</b> uchun kuryer tayinlashda xatolik: ${escapeHtml(error instanceof Error ? error.message : String(error))}`,
+      );
+    }
+  })();
+}
+
 async function syncCallbackMessageStatus(
   ctx: any,
   orderId: string,
@@ -948,10 +1097,16 @@ async function applyTelegramOrderAction(params: {
       message: `#${orderNumber} buyurtma tasdiqlandi`,
       relatedOrderId: order.id,
     });
+    await syncAdminOrderDecisionNotification({
+      orderId: order.id,
+      orderNumber,
+      status: OrderStatusEnum.PREPARING,
+    });
     await Promise.all([
       publishRealtimeOrderSnapshot(order.id),
       syncTelegramOrderStatus(order.id, nextOrderStatus),
     ]);
+    triggerPostTelegramApprovalCourierAssignment(order.id, orderNumber);
 
     return {
       answerText: 'Tasdiqlandi',
@@ -994,6 +1149,11 @@ async function applyTelegramOrderAction(params: {
     title: 'Buyurtma bekor qilindi',
     message: `#${orderNumber} buyurtma bekor qilindi`,
     relatedOrderId: order.id,
+  });
+  await syncAdminOrderDecisionNotification({
+    orderId: order.id,
+    orderNumber,
+    status: OrderStatusEnum.CANCELLED,
   });
   await Promise.all([
     publishRealtimeOrderSnapshot(order.id),

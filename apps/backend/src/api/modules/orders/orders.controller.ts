@@ -98,6 +98,49 @@ function syncTelegramOrderStatusInBackground(orderId: string, status?: string | 
   }
 }
 
+async function syncAdminOrderDecisionNotification(params: {
+  orderId: string;
+  orderNumber: bigint;
+  status: OrderStatusEnum;
+  source: 'admin' | 'bot' | 'payment';
+}) {
+  const displayNumber = `#${String(params.orderNumber)}`;
+
+  if (params.status === OrderStatusEnum.PREPARING) {
+    const sourceLabel =
+      params.source === 'bot'
+        ? 'Telegram bot orqali'
+        : params.source === 'payment'
+          ? "to'lov tasdiqlangani sababli"
+          : 'admin panel orqali';
+
+    await InAppNotificationsService.syncOrderNotificationForRole({
+      roleTarget: UserRoleEnum.ADMIN,
+      relatedOrderId: params.orderId,
+      type: NotificationTypeEnum.SUCCESS,
+      title: 'Buyurtma tasdiqlandi',
+      message: `${displayNumber} buyurtma ${sourceLabel} tasdiqlandi. Kuryer biriktirish jarayoni boshlandi.`,
+      isRead: false,
+    });
+    return;
+  }
+
+  if (params.status === OrderStatusEnum.CANCELLED) {
+    await InAppNotificationsService.syncOrderNotificationForRole({
+      roleTarget: UserRoleEnum.ADMIN,
+      relatedOrderId: params.orderId,
+      type: NotificationTypeEnum.ERROR,
+      title: 'Buyurtma bekor qilindi',
+      message: `${displayNumber} buyurtma bekor qilindi. Kuryerga yuborilmaydi.`,
+      isRead: false,
+    });
+  }
+}
+
+function triggerPostConfirmationCourierAssignment(orderId: string) {
+  void continueAutoAssignmentAfterOrderCreation(orderId);
+}
+
 function scheduleCourierAssignmentTimeout(params: {
   orderId: string;
   orderNumber: bigint;
@@ -194,6 +237,20 @@ async function continueAutoAssignmentAfterOrderCreation(orderId: string) {
     const autoAssignmentResult = await CourierAssignmentService.autoAssignOrder(orderId);
 
     if (autoAssignmentResult?.assignment) {
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        select: { orderNumber: true },
+      });
+
+      if (!autoAssignmentResult.assignment.reusedExistingAssignment && order) {
+        scheduleCourierAssignmentTimeout({
+          orderId,
+          orderNumber: order.orderNumber,
+          assignmentId: autoAssignmentResult.assignment.assignmentId,
+          courierId: autoAssignmentResult.assignment.courierId,
+        });
+      }
+
       await AuditService.record({
         action: 'AUTO_ASSIGN_COURIER',
         entity: 'Order',
@@ -1120,8 +1177,22 @@ export async function handleUpdateStatus(
     order,
   });
 
+  if (status === OrderStatusEnum.PREPARING || status === OrderStatusEnum.CANCELLED) {
+    await syncAdminOrderDecisionNotification({
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      status,
+      source: 'admin',
+    });
+  }
+
   const serializedOrder = await publishOrderSnapshot(order.id);
   syncTelegramOrderStatusInBackground(order.id, serializedOrder?.orderStatus ?? status);
+
+  if (status === OrderStatusEnum.PREPARING || status === OrderStatusEnum.READY_FOR_PICKUP) {
+    triggerPostConfirmationCourierAssignment(order.id);
+  }
+
   return reply.send(serializedOrder);
 }
 
@@ -1139,6 +1210,21 @@ export async function handleConfirmOrder(
   }
 
   if (order.status !== OrderStatusEnum.PENDING) {
+    if (order.status === OrderStatusEnum.PREPARING || order.status === OrderStatusEnum.READY_FOR_PICKUP) {
+      await syncAdminOrderDecisionNotification({
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        status: OrderStatusEnum.PREPARING,
+        source: 'admin',
+      });
+
+      const serializedOrder = await publishOrderSnapshot(order.id);
+      syncTelegramOrderStatusInBackground(order.id, serializedOrder?.orderStatus ?? order.status);
+      triggerPostConfirmationCourierAssignment(order.id);
+
+      return reply.send(serializedOrder);
+    }
+
     return reply.status(400).send({ error: 'Faqat PENDING buyurtma tasdiqlanadi' });
   }
 
@@ -1162,6 +1248,13 @@ export async function handleConfirmOrder(
 
   const serializedOrder = await publishOrderSnapshot(order.id);
   syncTelegramOrderStatusInBackground(order.id, serializedOrder?.orderStatus ?? OrderStatusEnum.PREPARING);
+  await syncAdminOrderDecisionNotification({
+    orderId: order.id,
+    orderNumber: order.orderNumber,
+    status: OrderStatusEnum.PREPARING,
+    source: 'admin',
+  });
+  triggerPostConfirmationCourierAssignment(order.id);
 
   return reply.send(serializedOrder);
 }
@@ -1392,6 +1485,16 @@ export async function handleApprovePayment(
     message: `#${String(order.orderNumber)} buyurtma uchun to'lov qabul qilindi`,
     relatedOrderId: order.id,
   });
+
+  if (order.status === OrderStatusEnum.PENDING) {
+    await syncAdminOrderDecisionNotification({
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      status: OrderStatusEnum.PREPARING,
+      source: 'payment',
+    });
+    triggerPostConfirmationCourierAssignment(order.id);
+  }
 
   return reply.send(serializedOrder);
 }
