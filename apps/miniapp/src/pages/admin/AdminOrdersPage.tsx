@@ -59,19 +59,31 @@ const ACTION_LABELS: Partial<Record<OrderStatus, string>> = {
   [OrderStatus.CANCELLED]: "Ko'rish",
 };
 
-function getMinutesSince(timestamp: string) {
-  return Math.max(1, Math.floor((Date.now() - new Date(timestamp).getTime()) / 60000));
-}
-
 function formatOrderTime(timestamp: string) {
-  const minutes = getMinutesSince(timestamp);
+  const diffSeconds = Math.max(0, Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000));
 
+  if (diffSeconds < 60) {
+    const seconds = Math.max(1, diffSeconds);
+    return `${seconds} sekund oldin`;
+  }
+
+  const minutes = Math.floor(diffSeconds / 60);
   if (minutes < 60) {
     return `${minutes} daqiqa oldin`;
   }
 
   const hours = Math.floor(minutes / 60);
-  return `${hours} soat oldin`;
+  if (hours < 24) {
+    return `${hours} soat oldin`;
+  }
+
+  const days = Math.floor(hours / 24);
+  if (days < 30) {
+    return `${days} kun oldin`;
+  }
+
+  const months = Math.floor(days / 30);
+  return `${months} oy oldin`;
 }
 
 function matchesSearch(order: Order, query: string) {

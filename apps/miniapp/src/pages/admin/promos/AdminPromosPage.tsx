@@ -76,7 +76,17 @@ const AdminPromosPage: React.FC = () => {
         </div>
       </section>
 
-      <PromoSummaryCards promos={promos} />
+      <PromoSummaryCards
+        promos={promos}
+        selectedFilter={filters.statusFilter === 'active' || filters.statusFilter === 'expired' ? filters.statusFilter : 'all'}
+        onSelectFilter={(next) => {
+          setFilters((current) => ({
+            ...current,
+            statusFilter: next,
+          }));
+          window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light');
+        }}
+      />
 
       <div className="rounded-[16px] border border-[#E5E7EB] bg-[#FFFFFF] p-3 shadow-[0_8px_20px_rgba(17,24,39,0.05)]">
         <PromoFiltersBar filters={filters} onChange={setFilters} />

@@ -20,7 +20,6 @@ import {
   useAdminCouriers,
   useApproveOrderPayment,
   useAssignCourierToOrder,
-  useConfirmOrder,
   useOrderDetails,
   useRejectOrderPayment,
   useOrderTrackingStream,
@@ -116,7 +115,6 @@ const AdminOrderDetailPage: React.FC = () => {
     refetch,
   } = useOrderDetails(orderId || '');
   const { connectionState, isConnected } = useOrderTrackingStream(orderId || '', Boolean(orderId));
-  const confirmOrderMutation = useConfirmOrder();
   const updateOrderStatusMutation = useUpdateOrderStatus();
   const approvePaymentMutation = useApproveOrderPayment();
   const rejectPaymentMutation = useRejectOrderPayment();
@@ -170,13 +168,10 @@ const AdminOrderDetailPage: React.FC = () => {
     setStatusError(null);
 
     try {
-      const updatedOrder =
-        order.orderStatus === OrderStatus.PENDING && next === OrderStatus.PREPARING
-          ? await confirmOrderMutation.mutateAsync({ id: order.id })
-          : await updateOrderStatusMutation.mutateAsync({
-              id: order.id,
-              status: next,
-            });
+      const updatedOrder = await updateOrderStatusMutation.mutateAsync({
+        id: order.id,
+        status: next,
+      });
 
       setOrder(updatedOrder);
 
@@ -450,7 +445,7 @@ const AdminOrderDetailPage: React.FC = () => {
           currentStatus={order.orderStatus}
           onUpdate={(next) => void handleStatusUpdate(next)}
           onCancel={handleCancel}
-          isPending={updateOrderStatusMutation.isPending || confirmOrderMutation.isPending}
+          isPending={updateOrderStatusMutation.isPending}
         />
       </div>
 
