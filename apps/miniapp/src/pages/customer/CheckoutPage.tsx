@@ -7,6 +7,7 @@ import PaymentMethodSelector from '../../components/customer/PaymentMethodSelect
 import OrderSummaryCard from '../../components/customer/OrderSummaryCard';
 import { CheckoutSectionCard, EmptyCartState } from '../../components/customer/CheckoutComponents';
 import { CustomerPromoInputCard } from '../../features/promo/components/CustomerPromoInputCard';
+import { OrderProcessingOverlay } from '../../hooks/OrderProcessingOverlay';
 import { useAddresses, useAutoDetectAndSaveAddress } from '../../hooks/queries/useAddresses';
 import { useProducts } from '../../hooks/queries/useMenu';
 import { useCreateOrder, useOrderQuote } from '../../hooks/queries/useOrders';
@@ -465,6 +466,8 @@ const CheckoutPage: React.FC = () => {
           <PaymentMethodSelector />
         </section>
       </main>
+      <OrderProcessingOverlay isVisible={createOrderMutation.isPending} />
+
       {/* ── Phone entry modal — shown when backend rejects with PHONE_REQUIRED ── */}
       {showPhoneModal && (
         <PhoneModal
