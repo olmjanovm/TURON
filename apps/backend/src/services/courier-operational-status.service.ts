@@ -178,8 +178,9 @@ export class CourierOperationalStatusService {
     let nextIsAcceptingOrders = current.isAcceptingOrders;
     if (input.isAcceptingOrders !== undefined) {
       nextIsAcceptingOrders = input.isAcceptingOrders;
-    } else if (input.isOnline === true && !current.isOnline) {
-      nextIsAcceptingOrders = true; // Kuryer onlayn bo'lganda avtomat zakaz olishni yoqish
+    } else if (nextIsOnline === true && !current.isOnline) {
+      // HOTFIX: Kuryer onlayn bo'lganda avtomat zakaz olish yoqiladi
+      nextIsAcceptingOrders = true;
     }
 
     if (nextIsOnline === false || currentActiveAssignmentCount > 0) {

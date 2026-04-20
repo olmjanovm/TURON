@@ -7,6 +7,7 @@ import {
   type CourierActionName,
 } from '../../../services/courier-order-actions.service.js';
 import { InAppNotificationsService } from '../../../services/in-app-notifications.service.js';
+import { getBotState } from '../../../services/telegram-bot.service.js';
 import { CourierOperationalStatusService } from '../../../services/courier-operational-status.service.js';
 import { CourierPresenceService } from '../../../services/courier-presence.service.js';
 import { locationWriteBuffer } from '../../../services/location-write-buffer.service.js';
@@ -812,4 +813,97 @@ export async function getNextAvailableOrder(
       latestCourierEventType: null,
     },
   });
+}
+
+type CustomerContactMethod = 'telegram_message' | 'telegram_call' | 'phone_call';
+
+/**
+ * POST /courier/order/:id/notify-customer
+ * Contacts the customer through Telegram first, then returns phone-call fallback metadata.
+ */
+export async function notifyCustomer(
+  request: FastifyRequest<{ Params: { id: string }; Body?: { method?: CustomerContactMethod } }>,
+  reply: FastifyReply,
+) {
+  const requester = request.user as any;
+  const method = request.body?.method ?? 'telegram_message';
+  const access = await getAccessibleCourierOrder(request.params.id, requester);
+
+  if (!access) {
+    return reply.status(403).send({ error: 'Ruxsat etilmadi: Bu buyurtma sizga tegishli emas.' });
+  }
+
+  const { order } = access;
+  const customerTelegramId = (order.user as any)?.telegramId as bigint | undefined;
+  const customerPhone = (order.user as any)?.phoneNumber || null;
+  const courierName = String(requester.fullName || 'Kuryer');
+  const orderNumber = order.orderNumber ? `#${order.orderNumber}` : '';
+  const deliveryAddress =
+    (order.deliveryAddress as any)?.address ||
+    (order.deliveryAddress as any)?.addressText ||
+    "Manzil ko'rsatilmagan";
+  const { bot } = getBotState();
+
+  if (!customerTelegramId || !bot) {
+    if (method === 'phone_call') {
+      return reply.send({
+        ok: true,
+        action: 'phone_call',
+        warningSent: false,
+        customerPhone,
+        reason: !customerTelegramId ? 'customer_telegram_missing' : 'bot_unavailable',
+      });
+    }
+
+    return reply
+      .status(!customerTelegramId ? 422 : 503)
+      .send({
+        error: !customerTelegramId ? "Mijozning Telegram ID'si topilmadi." : 'Bot hozirda mavjud emas.',
+      });
+  }
+
+  const text =
+    method === 'phone_call'
+      ? `Kuryer ${courierName} sizga telefon qilmoqchi.\n\n` +
+        `Buyurtma: ${orderNumber}\n` +
+        `Agar noma'lum raqamdan qo'ng'iroq kelsa, bu sizning kuryeringiz bo'ladi.`
+      : `Kuryer ${courierName} siz bilan bog'lanmoqchi.\n\n` +
+        `Buyurtma: ${orderNumber}\n` +
+        `Manzil: ${deliveryAddress}\n\n` +
+        `Agar savol bo'lsa, shu Telegram chatda javob bering.`;
+
+  try {
+    await bot.telegram.sendMessage(String(customerTelegramId), text);
+
+    InAppNotificationsService.notifyUser({
+      userId: order.userId,
+      roleTarget: 'CUSTOMER' as any,
+      type: NotificationTypeEnum.ORDER_STATUS_UPDATE,
+      title: method === 'phone_call' ? "Kuryer qo'ng'iroq qilmoqchi" : "Kuryer bog'lanmoqchi",
+      message: `${courierName} buyurtma ${orderNumber} bo'yicha siz bilan aloqa qilmoqda`,
+      relatedOrderId: order.id,
+    }).catch(() => {});
+
+    return reply.send({
+      ok: true,
+      action: method,
+      warningSent: method === 'phone_call',
+      customerPhone,
+      customerTelegramId: String(customerTelegramId),
+    });
+  } catch (err: any) {
+    console.warn('[notifyCustomer] Telegram send failed:', err?.message);
+
+    if (method === 'phone_call') {
+      return reply.send({
+        ok: true,
+        action: 'phone_call',
+        warningSent: false,
+        customerPhone,
+        reason: 'telegram_send_failed',
+      });
+    }
+
+    return reply.status(502).send({ error: 'Xabar yuborishda xatolik yuz berdi.' });
+  }
 }
