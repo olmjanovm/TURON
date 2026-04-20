@@ -6,7 +6,9 @@ import { useCustomerLanguage } from '../../features/i18n/customerLocale';
 import {
   getProductImageUrl,
   getProductPosterUrl,
-} from '../../features/menu/placeholders'; getProductPromotion,
+} from '../../features/menu/placeholders';
+import {
+  getProductPromotion,
   getProductSecondaryText,
 } from '../../features/menu/customerCatalog';
 import type { MenuProduct } from '../../features/menu/types';
