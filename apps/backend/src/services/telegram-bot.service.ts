@@ -606,27 +606,27 @@ function buildAdminOrderNotificationText(order: {
   const deliveryDistance = formatDistanceMeters(order.deliveryDistanceMeters);
 
   return [
-    `🧾 <b>Buyurtma ${escapeHtml(formatTelegramOrderDisplayNumber(order.orderNumber))}</b>`,
+    `<b>Buyurtma ${escapeHtml(formatTelegramOrderDisplayNumber(order.orderNumber))}</b>`,
     '',
-    `🕒 Vaqt: <b>${escapeHtml(formatTelegramOrderDate(order.createdAt))}</b>`,
-    `📌 Holat: <b>${escapeHtml(getTelegramOrderStatusLabel(order.orderStatus))}</b>`,
+    `Vaqt: <b>${escapeHtml(formatTelegramOrderDate(order.createdAt))}</b>`,
+    `Holat: <b>${escapeHtml(getTelegramOrderStatusLabel(order.orderStatus))}</b>`,
     '',
-    `👤 <b>Mijoz ma'lumotlari</b>`,
-    `🙍 Ism: ${escapeHtml(order.customerName)}`,
-    order.customerPhone ? `📞 Telefon: ${escapeHtml(order.customerPhone)}` : null,
-    `📍 Manzil: ${escapeHtml(order.customerAddress)}`,
-    deliveryDistance ? `📏 Buyurtmagacha masofa: ${escapeHtml(deliveryDistance)}` : null,
-    order.customerAddressNote ? `📝 Izoh: ${escapeHtml(order.customerAddressNote)}` : null,
+    `<b>Mijoz ma'lumotlari</b>`,
+    `Ism: ${escapeHtml(order.customerName)}`,
+    order.customerPhone ? `Telefon: ${escapeHtml(order.customerPhone)}` : null,
+    `Manzil: ${escapeHtml(order.customerAddress)}`,
+    deliveryDistance ? `Buyurtmagacha masofa: ${escapeHtml(deliveryDistance)}` : null,
+    order.customerAddressNote ? `Izoh: ${escapeHtml(order.customerAddressNote)}` : null,
     '',
-    `🍽 <b>Buyurtma tarkibi</b>`,
+    `<b>Buyurtma tarkibi</b>`,
     itemLines,
     '',
-    `💳 <b>To'lov</b>`,
-    `💼 Usul: ${escapeHtml(paymentLabel)}`,
-    order.hasReceipt ? `🧾 Chek: yuborilgan` : null,
-    `🛍 Mahsulotlar: ${formatMoney(order.subtotal)} so'm`,
-    `🚚 Yetkazib berish: ${formatMoney(order.deliveryFee)} so'm`,
-    `💰 <b>Jami: ${formatMoney(order.total)} so'm</b>`,
+    `<b>To'lov</b>`,
+    `Usul: ${escapeHtml(paymentLabel)}`,
+    order.hasReceipt ? `Chek: yuborilgan` : null,
+    `Mahsulotlar: ${formatMoney(order.subtotal)} so'm`,
+    `Yetkazib berish: ${formatMoney(order.deliveryFee)} so'm`,
+    `<b>Jami: ${formatMoney(order.total)} so'm</b>`,
   ].filter((line) => line !== null).join('\n');
 }
 
@@ -668,7 +668,7 @@ function buildOrderConfirmKeyboard(isApprove: boolean, orderId: string) {
 
 
 function updateTelegramOrderStatusLine(messageText: string, statusLabel: string): string {
-  const nextStatusLine = `📌 Holat: <b>${escapeHtml(statusLabel)}</b>`;
+  const nextStatusLine = `Holat: <b>${escapeHtml(statusLabel)}</b>`;
 
   // Support both legacy plain-text lines (`Holat: Kutilmoqda`) and
   // current HTML-formatted lines (`Holat: <b>Kutilmoqda</b>`).
@@ -687,17 +687,17 @@ function updateTelegramOrderStatusLine(messageText: string, statusLabel: string)
 
 function buildStatusOnlyMessage(statusLabel: string) {
   return [
-    '🔄 <b>Buyurtma holati yangilandi</b>',
+    '<b>Buyurtma holati yangilandi</b>',
     '',
-    `📌 Holat: <b>${escapeHtml(statusLabel)}</b>`,
+    `Holat: <b>${escapeHtml(statusLabel)}</b>`,
   ].join('\n');
 }
 
 function buildStatusFallbackForOrder(orderId: string, statusLabel: string) {
   return [
-    `🧾 <b>Buyurtma ${escapeHtml(orderId)}</b>`,
+    `<b>Buyurtma ${escapeHtml(orderId)}</b>`,
     '',
-    `📌 Holat: <b>${escapeHtml(statusLabel)}</b>`,
+    `Holat: <b>${escapeHtml(statusLabel)}</b>`,
   ].join('\n');
 }
 
@@ -914,9 +914,35 @@ function triggerPostTelegramApprovalCourierAssignment(orderId: string, orderNumb
         return;
       }
 
-      await sendAdminAlert(
-        `⚠️ <b>Kuryer topilmadi</b>\n\nBuyurtma <b>#${escapeHtml(orderNumber)}</b> tasdiqlandi, lekin onlayn bo'sh kuryer topilmadi.\n\nAdmin panel orqali qo'lda tayinlang.`,
-      );
+      // --- AGAR AVTOMATIK KURYER TOPILMASA, BOTDA RO'YXAT CHIQARAMIZ ---
+      const dispatchCouriers = await CourierAssignmentService.rankDispatchCouriers();
+
+      if (dispatchCouriers.length === 0) {
+        await sendAdminAlert(
+          `⚠️ <b>Kuryer topilmadi</b>\n\nBuyurtma <b>#${escapeHtml(orderNumber)}</b> tasdiqlandi, lekin tizimda umuman onlayn kuryer yo'q!`
+        );
+        return;
+      }
+
+      // Kuryerlar ro'yxatini inline-keyboard tugmalari ko'rinishida yasash
+      const buttons = dispatchCouriers.slice(0, 10).map((c) => {
+        const statusStr = c.isFree ? '🟢 Bo\'sh' : `🟠 Band (~${c.etaMinutes} daq)`;
+        return [Markup.button.callback(`${c.fullName} | ${statusStr}`, `assign_courier:${orderId}:${c.id}`)];
+      });
+
+      const chatIds = resolveOrderNotificationRecipientChatIds();
+      const state = getBotState();
+
+      for (const chatId of chatIds) {
+        await state.bot.telegram.sendMessage(
+          chatId,
+          `⚠️ <b>Avtomatik kuryer topilmadi</b>\n\nBuyurtma <b>#${escapeHtml(orderNumber)}</b> uchun bo'sh kuryer topilmadi. Quyidagi ro'yxatdan kuryerni qo'lda tayinlang:`,
+          {
+            parse_mode: 'HTML',
+            reply_markup: { inline_keyboard: buttons }
+          }
+        ).catch(() => {});
+      }
     } catch (error) {
       console.error(`[Bot] Auto courier assignment failed for order ${orderId}:`, error);
       await sendAdminAlert(
@@ -1278,6 +1304,36 @@ function bindHandlers(bot: Telegraf) {
       }
 
       await ctx.answerCbQuery();
+      return;
+    }
+
+    // ── Kuryerni qo'lda biriktirish (Tugma bosilganda) ─────────────────────
+    if (data.startsWith('assign_courier:')) {
+      const [, orderId, courierId] = data.split(':');
+
+      try {
+        const adminUserId = ctx.from?.id ? await resolveTelegramAdminUserId(ctx.from.id) : null;
+        const assignment = await CourierAssignmentService.assignCourierToOrder(orderId, courierId, {
+          mode: 'MANUAL',
+          assignedByUserId: adminUserId ?? undefined,
+        });
+
+        const msgId = (ctx.callbackQuery as any).message?.message_id;
+        const chatId = (ctx.callbackQuery as any).message?.chat?.id;
+
+        if (msgId && chatId) {
+          await ctx.telegram.editMessageText(
+            chatId, msgId, undefined,
+            `✅ <b>Kuryer tayinlandi!</b>\n\nBuyurtma kuryer <b>${escapeHtml(assignment.courierName)}</b> ga muvaffaqiyatli biriktirildi.`,
+            { parse_mode: 'HTML' }
+          ).catch(() => {});
+        }
+
+        await publishRealtimeOrderSnapshot(orderId);
+        await ctx.answerCbQuery("Kuryer biriktirildi!", { show_alert: true });
+      } catch (err) {
+        await ctx.answerCbQuery(err instanceof Error ? err.message : 'Xatolik yuz berdi', { show_alert: true });
+      }
       return;
     }
 
