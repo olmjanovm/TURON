@@ -302,10 +302,15 @@ function getAdminSenderLabel(message: AdminReplyMessage): string {
 }
 
 async function handleAdminSupportReply(message: AdminReplyMessage) {
-  const adminChatId = resolveAdminChatId();
-  if (!adminChatId) return;
+  const validAdminIds = parseConfiguredChatIds(env.ADMIN_IDS);
+  const primaryAdminChatId = env.ADMIN_CHAT_ID?.trim();
+  if (primaryAdminChatId && !validAdminIds.includes(primaryAdminChatId)) {
+    validAdminIds.push(primaryAdminChatId);
+  }
+
+  if (validAdminIds.length === 0) return;
+  if (!validAdminIds.includes(String(message.chat.id))) return;
   if (!message.text?.trim()) return;
-  if (String(message.chat.id) !== String(adminChatId)) return;
 
   const replyToMessageId = message.reply_to_message?.message_id;
   if (!replyToMessageId) return;
@@ -337,7 +342,7 @@ async function handleAdminSupportReply(message: AdminReplyMessage) {
           adminUserId,
           'ADMIN',
           message.text.trim(),
-          { telegramMessageId: BigInt(message.message_id) },
+              linked.senderRole // Admin javobini bevosita asl xabarchiga (Mijozga) yo'naltirish
         );
         return; // handled — do NOT fall through to support service
       }
