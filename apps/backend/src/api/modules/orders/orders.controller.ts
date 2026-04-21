@@ -935,7 +935,20 @@ export async function streamOrderTracking(
     reply.raw.write(': keep-alive\n\n');
   }, 15_000);
 
+  // Determine the requester's chat role for filtering admin-directed messages
+  const requesterChatRole: 'COURIER' | 'CUSTOMER' | 'ADMIN' =
+    requester.role === 'COURIER' ? 'COURIER'
+    : requester.role === 'ADMIN' ? 'ADMIN'
+    : 'CUSTOMER';
+
   const unsubscribe = orderTrackingService.subscribe(order.id, (event) => {
+    // Filter admin chat messages by targetRole so each party only sees messages for them
+    if (event.type === 'chat.message' && event.chatMessage && requesterChatRole !== 'ADMIN') {
+      const { senderRole, targetRole } = event.chatMessage;
+      if (senderRole === 'ADMIN' && targetRole != null && targetRole !== requesterChatRole) {
+        return; // Drop: admin message is directed at the other party
+      }
+    }
     sendEvent(event);
   });
 
