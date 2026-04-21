@@ -1,5 +1,6 @@
+import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../../lib/api';
+import { api, API_BASE_URL } from '../../lib/api';
 import type { CategoryFormData, MenuCategory, MenuProduct, ProductFormData } from '../../features/menu/types';
 
 const menuKeys = {
@@ -170,4 +171,17 @@ export const useDeleteProduct = () => {
       queryClient.invalidateQueries({ queryKey: menuKeys.all });
     },
   });
+};
+
+/** Subscribes to live menu updates via SSE. Call this in MenuPage. */
+export const useMenuStream = () => {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const es = new EventSource(`${API_BASE_URL}/menu/stream`);
+    es.onmessage = () => {
+      void queryClient.invalidateQueries({ queryKey: menuKeys.products });
+      void queryClient.invalidateQueries({ queryKey: menuKeys.categories });
+    };
+    return () => es.close();
+  }, [queryClient]);
 };

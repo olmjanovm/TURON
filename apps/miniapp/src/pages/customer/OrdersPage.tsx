@@ -3,13 +3,48 @@ import { AlertCircle, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { LoadingSkeleton } from '../../components/customer/CustomerComponents';
 import { OrderCard, OrderTimeline, OrdersEmptyState } from '../../components/customer/OrderHistoryComponents';
-import { OrderStatus } from '../../data/types';
+import { Order, OrderStatus } from '../../data/types';
 import { useMyOrders } from '../../hooks/queries/useOrders';
+import { useProducts } from '../../hooks/queries/useMenu';
+import { useCartStore } from '../../store/useCartStore';
+import { useToast } from '../../components/ui/Toast';
 import { initiateCall } from '../../lib/callUtils';
 
 const OrdersPage: React.FC = () => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const { data: orders = [], isLoading, error, refetch } = useMyOrders();
+  const { data: products = [] } = useProducts();
+  const { setItems } = useCartStore();
+
+  const handleReorder = (order: Order) => {
+    const productMap = new Map(products.map((p) => [p.id, p]));
+    const nextItems = order.items
+      .map((item) => {
+        const menuItemId = (item as any).menuItemId ?? item.id;
+        const product = menuItemId ? productMap.get(menuItemId) : undefined;
+        if (!product) return null;
+        return {
+          id: product.id,
+          menuItemId: product.id,
+          categoryId: product.categoryId,
+          name: product.name,
+          description: product.description,
+          price: product.price,
+          image: product.imageUrl,
+          isAvailable: true,
+          quantity: (item as any).quantity ?? 1,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+
+    if (!nextItems.length) {
+      showToast("Bu buyurtmadagi taomlar hozir menyuda mavjud emas.", 'warning');
+      return;
+    }
+    setItems(nextItems);
+    navigate('/customer/cart');
+  };
 
   const activeOrders = orders.filter(
     (order) => order.orderStatus !== OrderStatus.DELIVERED && order.orderStatus !== OrderStatus.CANCELLED,
@@ -109,10 +144,11 @@ const OrdersPage: React.FC = () => {
 
             <div className="space-y-4">
               {completedOrders.map((order) => (
-                <OrderCard 
+                <OrderCard
                   key={order.id}
-                  order={order} 
-                  onClick={() => navigate(`/customer/orders/${order.id}`)} 
+                  order={order}
+                  onClick={() => navigate(`/customer/orders/${order.id}`)}
+                  onReorder={() => handleReorder(order)}
                 />
               ))}
             </div>

@@ -191,57 +191,7 @@ async function continueAutoAssignmentAfterOrderCreation(orderId: string) {
       return;
     }
 
-    OrderReassignmentQueue.enqueue(orderId, order.orderNumber);
-    return;
-
-    const autoAssignmentResult = await CourierAssignmentService.autoAssignOrder(orderId);
-
-    if (autoAssignmentResult?.assignment) {
-      const order = await prisma.order.findUnique({
-        where: { id: orderId },
-        select: { orderNumber: true },
-      });
-
-      if (!autoAssignmentResult.assignment.reusedExistingAssignment && order) {
-        scheduleCourierAssignmentTimeout({
-          orderId,
-          orderNumber: order.orderNumber,
-          assignmentId: autoAssignmentResult.assignment.assignmentId,
-          courierId: autoAssignmentResult.assignment.courierId,
-        });
-      }
-
-      await AuditService.record({
-        action: 'AUTO_ASSIGN_COURIER',
-        entity: 'Order',
-        entityId: orderId,
-        newValue: {
-          assignmentId: autoAssignmentResult.assignment.assignmentId,
-          courierId: autoAssignmentResult.assignment.courierId,
-          courierName: autoAssignmentResult.assignment.courierName,
-          etaMinutes: autoAssignmentResult.assignment.etaMinutes,
-          distanceMeters: autoAssignmentResult.assignment.distanceMeters,
-          rankingCandidate: autoAssignmentResult.selectedCandidate,
-        },
-        metadata: {
-          mode: 'AUTO',
-        },
-      });
-
-      await publishOrderSnapshot(orderId);
-      if (order && !autoAssignmentResult.assignment.reusedExistingAssignment) {
-        void sendAdminAlert(
-          `<b>Kuryer biriktirildi</b>\n\nBuyurtma <b>#${String(order.orderNumber)}</b> kuryer <b>${autoAssignmentResult.assignment.courierName}</b>ga yuborildi.`,
-        );
-      }
-    } else {
-      const order = await prisma.order.findUnique({
-        where: { id: orderId },
-        select: { orderNumber: true },
-      });
-        // Avtomatik kuryer topilmasa botga telegramdagi inline tugmalarni jo'natamiz
-        await sendAdminCourierListOptions(orderId, String(order?.orderNumber ?? orderId));
-    }
+    OrderReassignmentQueue.enqueue(orderId, Number(order.orderNumber));
   } catch (error) {
     console.error(`Auto courier assignment failed for order ${orderId}:`, error);
     void sendAdminAlert(`⚠️ Buyurtma <b>${orderId}</b> uchun kuryer tayinlashda xatolik: ${error instanceof Error ? error.message : String(error)}`);

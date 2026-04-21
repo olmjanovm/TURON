@@ -281,6 +281,7 @@ const CheckoutPage: React.FC = () => {
   const { paymentMethod, note, receiptImage, resetCheckout } = useCheckoutStore();
   const { selectedAddressId, selectAddress, setInitialDraft } = useAddressStore();
   const user = useAuthStore((s) => s.user);
+  const updateUser = useAuthStore((s) => s.updateUser);
   const hasPhone = Boolean(user?.phoneNumber);
   const createOrderMutation = useCreateOrder();
   const autoDetectAddressMutation = useAutoDetectAndSaveAddress();
@@ -289,8 +290,6 @@ const CheckoutPage: React.FC = () => {
   const [addressHint, setAddressHint] = useState<string | null>(null);
   const [addressError, setAddressError] = useState<string | null>(null);
   const [locationPermDenied, setLocationPermDenied] = useState(false);
-  const [showPhoneModal, setShowPhoneModal] = useState(false);
-  // Holds the payload to re-submit after user saves their phone
   const pendingPayloadRef = useRef<object | null>(null);
   // Stable idempotency key — same UUID for every retry of this checkout session.
   // Rotated to a fresh UUID only after a successful order so the next checkout
@@ -407,9 +406,11 @@ const CheckoutPage: React.FC = () => {
         navigate(`/customer/order-success?orderId=${order.id}`, { state: { order } });
       },
       onError: (error: Error) => {
-        // Backend: phone number missing — show the quick-entry modal
         if ((error as any).code === 'PHONE_REQUIRED') {
-          setShowPhoneModal(true);
+          // Clear stale phone so InlinePhoneEntry re-appears
+          updateUser({ phoneNumber: null });
+          pendingPayloadRef.current = null;
+          showToast("Iltimos, telefon raqamingizni kiriting", 'warning');
           return;
         }
         pendingPayloadRef.current = null;
@@ -580,34 +581,6 @@ const CheckoutPage: React.FC = () => {
         </section>
       </main>
       <OrderProcessingOverlay isVisible={createOrderMutation.isPending} />
-
-      {/* ── Phone entry modal — shown when backend rejects with PHONE_REQUIRED ── */}
-      {showPhoneModal && (
-        <PhoneModal
-          onSaved={() => {
-            setShowPhoneModal(false);
-            // Re-submit the order now that we have a phone number
-            if (pendingPayloadRef.current) {
-              createOrderMutation.mutate(pendingPayloadRef.current as any, {
-                onSuccess: (order) => {
-                  pendingPayloadRef.current = null;
-                  if (window.Telegram?.WebApp?.HapticFeedback) {
-                    window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-                  }
-                  clearCart();
-                  resetCheckout();
-                  navigate(`/customer/order-success?orderId=${order.id}`, { state: { order } });
-                },
-                onError: (err: Error) => {
-                  pendingPayloadRef.current = null;
-                  showToast(err.message || 'Buyurtmani yaratishda xatolik yuz berdi', 'error');
-                },
-              });
-            }
-          }}
-          onClose={() => setShowPhoneModal(false)}
-        />
-      )}
 
       <div
         className="fixed inset-x-0 z-40 px-4"

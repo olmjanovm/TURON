@@ -3,6 +3,7 @@ import { ProductAvailabilityEnum, ProductBadgeEnum } from '@turon/shared';
 import { prisma } from '../../../lib/prisma.js';
 import { AuditService } from '../../../services/audit.service.js';
 import { menuCache } from '../../../lib/cache.js';
+import { menuBroadcastService } from '../../../services/menu-broadcast.service.js';
 
 function slugify(value: string) {
   return value
@@ -242,8 +243,8 @@ export async function handleCreateCategory(
     },
   });
 
-  // Invalidate cache
   menuCache.clear();
+  menuBroadcastService.publish();
 
   const serializedCategory = serializeCategory(category);
 
@@ -291,8 +292,8 @@ export async function handleUpdateCategory(
     },
   });
 
-  // Invalidate cache
   menuCache.clear();
+  menuBroadcastService.publish();
 
   const updatedCategory = await getSerializedCategoryById(request.params.id);
 
@@ -333,6 +334,9 @@ export async function handleSetCategoryActive(
     where: { id: request.params.id },
     data: { isActive },
   });
+
+  menuCache.clear();
+  menuBroadcastService.publish();
 
   const updatedCategory = await getSerializedCategoryById(request.params.id);
 
@@ -380,6 +384,9 @@ export async function handleDeleteCategory(
       },
     }),
   ]);
+
+  menuCache.clear();
+  menuBroadcastService.publish();
 
   await AuditService.record({
     userId: user.id,
@@ -437,8 +444,8 @@ export async function handleCreateProduct(
     include: { category: true },
   });
 
-  // Invalidate cache
   menuCache.clear();
+  menuBroadcastService.publish();
 
   const serializedProduct = serializeProduct(product);
 
@@ -507,8 +514,8 @@ export async function handleUpdateProduct(
     },
   });
 
-  // Invalidate cache
   menuCache.clear();
+  menuBroadcastService.publish();
 
   const updatedProduct = await getSerializedProductById(request.params.id);
 
@@ -554,6 +561,9 @@ export async function handleSetProductActive(
     },
   });
 
+  menuCache.clear();
+  menuBroadcastService.publish();
+
   const updatedProduct = await getSerializedProductById(request.params.id);
 
   await AuditService.record({
@@ -593,6 +603,9 @@ export async function handleDeleteProduct(
     },
   });
 
+  menuCache.clear();
+  menuBroadcastService.publish();
+
   await AuditService.record({
     userId: user.id,
     actorRole: user.role,
@@ -604,4 +617,28 @@ export async function handleDeleteProduct(
   });
 
   return reply.status(204).send();
+}
+
+export async function streamMenuUpdates(request: FastifyRequest, reply: FastifyReply) {
+  reply.hijack();
+  reply.raw.writeHead(200, {
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  reply.raw.flushHeaders?.();
+  reply.raw.write('retry: 3000\n\n');
+
+  const heartbeat = setInterval(() => reply.raw.write(': keep-alive\n\n'), 15_000);
+
+  const unsubscribe = menuBroadcastService.subscribe(() => {
+    reply.raw.write(`data: ${JSON.stringify({ type: 'menu.updated' })}\n\n`);
+  });
+
+  request.raw.on('close', () => {
+    clearInterval(heartbeat);
+    unsubscribe();
+    try { reply.raw.end(); } catch { /* already ended */ }
+  });
 }

@@ -319,7 +319,18 @@ async function handleAdminSupportReply(message: AdminReplyMessage) {
 
     if (linked) {
       // Resolve admin user from their Telegram ID
-      const adminUserId = await resolveTelegramAdminUserId(message.from?.id ? Number(message.from.id) : undefined);
+      let adminUserId = await resolveTelegramAdminUserId(message.from?.id ? Number(message.from.id) : undefined);
+
+      // Telegram account not linked in DB → fall back to any active admin user so
+      // the reply still reaches the customer via SSE.
+      if (!adminUserId) {
+        const fallbackAdmin = await prisma.user.findFirst({
+          where: { role: UserRoleEnum.ADMIN, isActive: true },
+          select: { id: true },
+        });
+        adminUserId = fallbackAdmin?.id ?? null;
+      }
+
       if (adminUserId) {
         await OrderChatService.sendMessage(
           linked.orderId,

@@ -16,7 +16,7 @@ function resolveApiBaseUrl() {
   throw new Error('Production build uchun VITE_API_URL majburiy. Qiymat: https://turonkafe.duckdns.org');
 }
 
-const API_BASE_URL = resolveApiBaseUrl();
+export const API_BASE_URL = resolveApiBaseUrl();
 
 export const api = axios.create({
   baseURL: API_BASE_URL,

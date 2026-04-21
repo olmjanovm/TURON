@@ -47,7 +47,7 @@ export const OrderStatusBadge: React.FC<{ status: OrderStatus }> = ({ status }) 
   );
 };
 
-export const OrderCard: React.FC<{ order: Order; onClick: () => void }> = ({ order, onClick }) => {
+export const OrderCard: React.FC<{ order: Order; onClick: () => void; onReorder?: () => void }> = ({ order, onClick, onReorder }) => {
   const { formatText, intlLocale } = useCustomerLanguage();
   const date = new Date(order.createdAt).toLocaleDateString(intlLocale, {
     day: 'numeric',
@@ -89,12 +89,21 @@ export const OrderCard: React.FC<{ order: Order; onClick: () => void }> = ({ ord
           <p className="text-[16px] font-black text-[#202020]">{order.total.toLocaleString()} so'm</p>
         </div>
         
-        <button
-          onClick={onClick}
-          className="rounded-full bg-[#C2FF00] px-4 py-2.5 text-[14px] font-black text-[#111] shadow-sm transition-transform active:scale-95"
-        >
-          {isCompleted || isCancelled ? "Qayta buyurtma" : "Kuzatish"}
-        </button>
+        {isCompleted || isCancelled ? (
+          <button
+            onClick={(e) => { e.stopPropagation(); onReorder?.(); }}
+            className="rounded-full bg-[#C2FF00] px-4 py-2.5 text-[14px] font-black text-[#111] shadow-sm transition-transform active:scale-95"
+          >
+            Qayta buyurtma
+          </button>
+        ) : (
+          <button
+            onClick={onClick}
+            className="rounded-full bg-[#C2FF00] px-4 py-2.5 text-[14px] font-black text-[#111] shadow-sm transition-transform active:scale-95"
+          >
+            Kuzatish
+          </button>
+        )}
       </div>
     </div>
   );

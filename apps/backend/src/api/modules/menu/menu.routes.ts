@@ -1,11 +1,11 @@
 import { FastifyInstance } from 'fastify';
-import { 
-  getCategories, 
+import {
+  getCategories,
   getAdminCategories,
-  getProducts, 
+  getProducts,
   getAdminProducts,
-  getProductById, 
-  handleCreateCategory, 
+  getProductById,
+  handleCreateCategory,
   handleUpdateCategory,
   handleSetCategoryActive,
   handleDeleteCategory,
@@ -13,6 +13,7 @@ import {
   handleUpdateProduct,
   handleSetProductActive,
   handleDeleteProduct,
+  streamMenuUpdates,
 } from './menu.controller.js';
 import { 
   IdParamSchema, 
@@ -26,6 +27,7 @@ export default async function menuRoutes(fastify: FastifyInstance) {
   // Public routes
   fastify.get('/categories', getCategories);
   fastify.get('/products', getProducts);
+  fastify.get('/stream', streamMenuUpdates);
   fastify.get('/products/:id', {
     schema: { params: IdParamSchema }
   }, getProductById);
