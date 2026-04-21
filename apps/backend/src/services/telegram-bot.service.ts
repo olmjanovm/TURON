@@ -1079,11 +1079,11 @@ async function applyTelegramOrderAction(params: {
   isApprove: boolean;
   telegramUserId?: number;
 }) {
-  const adminUserId = await resolveTelegramAdminUserId(params.telegramUserId);
-  const order = await prisma.order.findUnique({
-    where: { id: params.orderId },
-    include: { payment: true },
-  });
+  // Parallel: resolve admin user + fetch order simultaneously
+  const [adminUserId, order] = await Promise.all([
+    resolveTelegramAdminUserId(params.telegramUserId),
+    prisma.order.findUnique({ where: { id: params.orderId }, include: { payment: true } }),
+  ]);
 
   if (!order) {
     return {
@@ -1147,27 +1147,28 @@ async function applyTelegramOrderAction(params: {
       }
     });
 
-    await InAppNotificationsService.notifyUser({
-      userId: order.userId,
-      roleTarget: UserRoleEnum.CUSTOMER,
-      type: NotificationTypeEnum.SUCCESS,
-      title: 'Buyurtma tasdiqlandi',
-      message: `#${orderNumber} buyurtma tasdiqlandi`,
-      relatedOrderId: order.id,
-    });
-    await syncAdminOrderDecisionNotification({
-      orderId: order.id,
-      orderNumber,
-      status: OrderStatusEnum.PREPARING,
-    });
-    await Promise.all([
+    // All post-transaction side-effects run in parallel
+    void Promise.all([
+      InAppNotificationsService.notifyUser({
+        userId: order.userId,
+        roleTarget: UserRoleEnum.CUSTOMER,
+        type: NotificationTypeEnum.SUCCESS,
+        title: 'Buyurtma tasdiqlandi',
+        message: `#${orderNumber} buyurtma tasdiqlandi`,
+        relatedOrderId: order.id,
+      }),
+      syncAdminOrderDecisionNotification({
+        orderId: order.id,
+        orderNumber,
+        status: OrderStatusEnum.PREPARING,
+      }),
       publishRealtimeOrderSnapshot(order.id),
       syncTelegramOrderStatus(order.id, nextOrderStatus),
     ]);
     triggerPostTelegramApprovalCourierAssignment(order.id, orderNumber);
 
     return {
-      answerText: 'Tasdiqlandi',
+      answerText: 'Tasdiqlandi ✅',
       resultLine: '✅ Tasdiqlangan',
       statusLabel: getTelegramOrderStatusLabel(nextOrderStatus),
     };
@@ -1200,26 +1201,26 @@ async function applyTelegramOrderAction(params: {
     }
   });
 
-  await InAppNotificationsService.notifyUser({
-    userId: order.userId,
-    roleTarget: UserRoleEnum.CUSTOMER,
-    type: NotificationTypeEnum.ERROR,
-    title: 'Buyurtma bekor qilindi',
-    message: `#${orderNumber} buyurtma bekor qilindi`,
-    relatedOrderId: order.id,
-  });
-  await syncAdminOrderDecisionNotification({
-    orderId: order.id,
-    orderNumber,
-    status: OrderStatusEnum.CANCELLED,
-  });
-  await Promise.all([
+  void Promise.all([
+    InAppNotificationsService.notifyUser({
+      userId: order.userId,
+      roleTarget: UserRoleEnum.CUSTOMER,
+      type: NotificationTypeEnum.ERROR,
+      title: 'Buyurtma bekor qilindi',
+      message: `#${orderNumber} buyurtma bekor qilindi`,
+      relatedOrderId: order.id,
+    }),
+    syncAdminOrderDecisionNotification({
+      orderId: order.id,
+      orderNumber,
+      status: OrderStatusEnum.CANCELLED,
+    }),
     publishRealtimeOrderSnapshot(order.id),
     syncTelegramOrderStatus(order.id, OrderStatusEnum.CANCELLED),
   ]);
 
   return {
-    answerText: 'Bekor qilindi',
+    answerText: 'Bekor qilindi ❌',
     resultLine: '❌ Bekor qilingan',
     statusLabel: getTelegramOrderStatusLabel(OrderStatusEnum.CANCELLED),
   };
@@ -1290,16 +1291,19 @@ function bindHandlers(bot: Telegraf) {
   });
 
   // ── Order approve / reject callback buttons ───────────────────────────────
+  //
+  // PERFORMANCE RULE: answerCbQuery() is called FIRST (removes the spinner
+  // in ~25-30ms). All DB work and message edits run fire-and-forget after.
   bot.on('callback_query', async (ctx) => {
     const data = (ctx.callbackQuery as any).data as string | undefined;
-    if (!data) return ctx.answerCbQuery();
+    if (!data) { void ctx.answerCbQuery(); return; }
 
     const allowedRecipientChatIds = resolveOrderNotificationRecipientChatIds();
     const chatId = (ctx.callbackQuery as any).message?.chat?.id;
 
-    // Only process if this callback comes from an allowed order-recipient chat.
     if (allowedRecipientChatIds.length > 0 && !allowedRecipientChatIds.includes(String(chatId))) {
-      return ctx.answerCbQuery('Ruxsat yo\'q');
+      void ctx.answerCbQuery('Ruxsat yo\'q');
+      return;
     }
 
     // ── Step 1: Show confirmation dialog ──────────────────────────────────
@@ -1313,65 +1317,72 @@ function bindHandlers(bot: Telegraf) {
       const message = (ctx.callbackQuery as any).message;
       const msgId = message?.message_id;
 
-      if (msgId && chatId) {
-        try {
-          const hasPhoto = Boolean(message.photo?.length);
-          const currentText = hasPhoto ? (message.caption ?? '') : (message.text ?? '');
-          const newText = `${currentText}\n\n${question}`;
-          if (hasPhoto) {
-            await ctx.telegram.editMessageCaption(chatId, msgId, undefined, newText, {
-              parse_mode: 'HTML',
-              ...confirmKeyboard,
-            });
-          } else {
-            await ctx.telegram.editMessageText(chatId, msgId, undefined, newText, {
-              parse_mode: 'HTML',
-              ...confirmKeyboard,
-            });
-          }
-        } catch { /* message already updated or too old */ }
-      }
+      // Answer immediately — spinner gone in ~25ms
+      void ctx.answerCbQuery();
 
-      await ctx.answerCbQuery();
+      // Edit message in background (non-blocking)
+      if (msgId && chatId) {
+        void (async () => {
+          try {
+            const hasPhoto = Boolean(message.photo?.length);
+            const currentText = hasPhoto ? (message.caption ?? '') : (message.text ?? '');
+            const newText = `${currentText}\n\n${question}`;
+            if (hasPhoto) {
+              await ctx.telegram.editMessageCaption(chatId, msgId, undefined, newText, {
+                parse_mode: 'HTML', ...confirmKeyboard,
+              });
+            } else {
+              await ctx.telegram.editMessageText(chatId, msgId, undefined, newText, {
+                parse_mode: 'HTML', ...confirmKeyboard,
+              });
+            }
+          } catch { /* message already updated or too old */ }
+        })();
+      }
       return;
     }
 
-    // ── Kuryerni qo'lda biriktirish (Tugma bosilganda) ─────────────────────
+    // ── Kuryerni qo'lda biriktirish ────────────────────────────────────────
     if (data.startsWith('ac:')) {
       const shortId = data.slice(3);
       const payloadRow = await prisma.restaurantSetting.findUnique({
-        where: { key: `_cb_assign_${shortId}` }
+        where: { key: `_cb_assign_${shortId}` },
       });
 
       if (!payloadRow) {
-        return ctx.answerCbQuery('Tugma eskirgan yoki xatolik yuz berdi', { show_alert: true });
+        void ctx.answerCbQuery('Tugma eskirgan yoki xatolik yuz berdi', { show_alert: true });
+        return;
       }
 
-      const { orderId, courierId } = JSON.parse(payloadRow.value);
+      // Answer immediately
+      void ctx.answerCbQuery('Biriktirilmoqda...');
 
-      try {
-        const adminUserId = ctx.from?.id ? await resolveTelegramAdminUserId(ctx.from.id) : null;
-        const assignment = await CourierAssignmentService.assignCourierToOrder(orderId, courierId, {
-          mode: 'MANUAL',
-          assignedByUserId: adminUserId ?? undefined,
-        });
+      const { orderId, courierId } = JSON.parse(payloadRow.value) as { orderId: string; courierId: string };
+      const msgId = (ctx.callbackQuery as any).message?.message_id;
+      const msgChatId = (ctx.callbackQuery as any).message?.chat?.id;
 
-        const msgId = (ctx.callbackQuery as any).message?.message_id;
-        const chatId = (ctx.callbackQuery as any).message?.chat?.id;
+      void (async () => {
+        try {
+          const adminUserId = ctx.from?.id ? await resolveTelegramAdminUserId(ctx.from.id) : null;
+          const assignment = await CourierAssignmentService.assignCourierToOrder(orderId, courierId, {
+            mode: 'MANUAL',
+            assignedByUserId: adminUserId ?? undefined,
+          });
 
-        if (msgId && chatId) {
-          await ctx.telegram.editMessageText(
-            chatId, msgId, undefined,
-            `✅ <b>Kuryer tayinlandi!</b>\n\nBuyurtma kuryer <b>${escapeHtml(assignment.courierName)}</b> ga muvaffaqiyatli biriktirildi.`,
-            { parse_mode: 'HTML' }
-          ).catch(() => {});
+          void Promise.all([
+            publishRealtimeOrderSnapshot(orderId),
+            msgId && msgChatId
+              ? ctx.telegram.editMessageText(
+                  msgChatId, msgId, undefined,
+                  `✅ <b>Kuryer tayinlandi!</b>\n\nBuyurtma kuryer <b>${escapeHtml(assignment.courierName)}</b> ga muvaffaqiyatli biriktirildi.`,
+                  { parse_mode: 'HTML' },
+                ).catch(() => {})
+              : Promise.resolve(),
+          ]);
+        } catch (err) {
+          console.error('[Bot] Assign courier error:', err);
         }
-
-        await publishRealtimeOrderSnapshot(orderId);
-        await ctx.answerCbQuery("Kuryer biriktirildi!", { show_alert: true });
-      } catch (err) {
-        await ctx.answerCbQuery(err instanceof Error ? err.message : 'Xatolik yuz berdi', { show_alert: true });
-      }
+      })();
       return;
     }
 
@@ -1381,28 +1392,28 @@ function bindHandlers(bot: Telegraf) {
       const message = (ctx.callbackQuery as any).message;
       const msgId = message?.message_id;
 
+      // Answer immediately
+      void ctx.answerCbQuery();
+
       if (msgId && chatId) {
-        const storedText = await getStoredOrderMessageText(orderId);
-        const restoredKeyboard = buildOrderInitialKeyboard(orderId);
-        const hasPhoto = Boolean(message.photo?.length);
-        const restoreText = storedText || (hasPhoto ? (message.caption ?? '') : (message.text ?? ''));
-
-        try {
-          if (hasPhoto) {
-            await ctx.telegram.editMessageCaption(chatId, msgId, undefined, restoreText, {
-              parse_mode: 'HTML',
-              ...restoredKeyboard,
-            });
-          } else {
-            await ctx.telegram.editMessageText(chatId, msgId, undefined, restoreText, {
-              parse_mode: 'HTML',
-              ...restoredKeyboard,
-            });
-          }
-        } catch { /* ignore */ }
+        void (async () => {
+          try {
+            const storedText = await getStoredOrderMessageText(orderId);
+            const restoredKeyboard = buildOrderInitialKeyboard(orderId);
+            const hasPhoto = Boolean(message.photo?.length);
+            const restoreText = storedText || (hasPhoto ? (message.caption ?? '') : (message.text ?? ''));
+            if (hasPhoto) {
+              await ctx.telegram.editMessageCaption(chatId, msgId, undefined, restoreText, {
+                parse_mode: 'HTML', ...restoredKeyboard,
+              });
+            } else {
+              await ctx.telegram.editMessageText(chatId, msgId, undefined, restoreText, {
+                parse_mode: 'HTML', ...restoredKeyboard,
+              });
+            }
+          } catch { /* ignore */ }
+        })();
       }
-
-      await ctx.answerCbQuery();
       return;
     }
 
@@ -1411,22 +1422,26 @@ function bindHandlers(bot: Telegraf) {
       const isApprove = data.startsWith('order_approve_confirm:');
       const orderId = data.split(':')[1];
 
-      try {
-        const result = await applyTelegramOrderAction({
-          orderId,
-          isApprove,
-          telegramUserId: ctx.from?.id,
-        });
-        await syncCallbackMessageStatus(ctx, orderId, result.statusLabel);
-        await ctx.answerCbQuery(result.answerText);
-      } catch (err) {
-        console.error('[Bot] Order callback error:', err);
-        await ctx.answerCbQuery('Xatolik yuz berdi');
-      }
+      // Answer immediately — removes spinner before any DB work
+      void ctx.answerCbQuery(isApprove ? 'Tasdiqlandi ✅' : 'Bekor qilindi ❌');
+
+      // Process + update message in background
+      void (async () => {
+        try {
+          const result = await applyTelegramOrderAction({
+            orderId,
+            isApprove,
+            telegramUserId: ctx.from?.id,
+          });
+          await syncCallbackMessageStatus(ctx, orderId, result.statusLabel);
+        } catch (err) {
+          console.error('[Bot] Order callback error:', err);
+        }
+      })();
       return;
     }
 
-    return ctx.answerCbQuery();
+    void ctx.answerCbQuery();
   });
 
   bot.catch((error, ctx) => {
