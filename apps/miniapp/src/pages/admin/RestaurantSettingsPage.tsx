@@ -17,9 +17,10 @@ import {
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import {
-  loadYandexMaps,
-  reverseGeocodeCoordinates,
-} from '../../features/maps/yandex';
+  toLngLat,
+  loadYandexMaps3,
+} from '../../features/maps/yandex3';
+import { fetchAddressSuggestions, reverseGeocodePin } from '../../features/maps/api';
 import type { MapPin as MapPoint } from '../../features/maps/MapProvider';
 
 type DayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
@@ -215,9 +216,24 @@ function AdminRestaurantMap({
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
+  const ymaps3Ref = useRef<any>(null);
+  const listenerRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
   const onChangeRef = useRef(onChange);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const centerRef = useRef<MapPoint>({ lat: value.latitude, lng: value.longitude });
+  const pointerDownRef = useRef(false);
+
+  const setPoint = React.useCallback(
+    async (pin: MapPoint, withReverseGeocode: boolean) => {
+      onChangeRef.current({ latitude: pin.lat, longitude: pin.lng });
+      if (withReverseGeocode) {
+        const address = await reverseGeocodePin(pin);
+        if (address) onChangeRef.current({ addressText: address });
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -226,65 +242,73 @@ function AdminRestaurantMap({
   useEffect(() => {
     let disposed = false;
 
-    const setPoint = async (coords: number[], withReverseGeocode: boolean) => {
-      const [latitude, longitude] = coords;
-      onChangeRef.current({ latitude, longitude });
-
-      if (withReverseGeocode) {
-        const address = await reverseGeocodeCoordinates({ lat: latitude, lng: longitude });
-        if (address) onChangeRef.current({ addressText: address });
-      }
-    };
-
     async function initMap() {
       if (!containerRef.current) return;
 
       try {
-        const ymaps = await loadYandexMaps();
+        const ymaps3 = await loadYandexMaps3();
         if (disposed || !containerRef.current) return;
 
-        const center = [value.latitude, value.longitude];
-        const map = new ymaps.Map(
-          containerRef.current,
-          {
-            center,
-            zoom: 16,
-            controls: ['zoomControl', 'geolocationControl'],
-          },
-          {
-            suppressMapOpenBlock: true,
-          },
-        );
+        ymaps3Ref.current = ymaps3;
+        const centerPin: MapPoint = { lat: value.latitude, lng: value.longitude };
+        centerRef.current = centerPin;
 
-        const marker = new ymaps.Placemark(
-          center,
-          {
-            hintContent: value.name || 'Restoran',
-            balloonContent: value.addressText || 'Restoran manzili',
-          },
-          {
-            draggable: true,
-            preset: 'islands#redIcon',
-            iconColor: '#ef4444',
-          },
-        );
-
-        marker.events.add('dragend', () => {
-          const coords = marker.geometry.getCoordinates();
-          void setPoint(coords, true);
+        const map = new ymaps3.YMap(containerRef.current, {
+          location: { center: toLngLat(centerPin), zoom: 16 },
+          camera: { tilt: 35, azimuth: 0 },
+          mode: 'vector',
+          behaviors: [
+            'drag',
+            'pinchZoom',
+            'pinchRotate',
+            'oneFingerZoom',
+            'dblClick',
+            'scrollZoom',
+            'mouseRotate',
+            'mouseTilt',
+          ],
         });
 
-        map.events.add('click', (event: any) => {
-          const coords = event.get('coords');
-          marker.geometry.setCoordinates(coords);
-          void setPoint(coords, true);
-        });
+        map.addChild(new ymaps3.YMapDefaultSchemeLayer({ theme: 'light' }));
+        if (ymaps3.YMapDefaultFeaturesLayer) {
+          map.addChild(new ymaps3.YMapDefaultFeaturesLayer({}));
+        }
 
-        map.behaviors.enable(['drag', 'multiTouch', 'multiTouchZoom']);
-        map.geoObjects.add(marker);
+        try {
+          if (ymaps3.YMapControls && ymaps3.YMapZoomControl) {
+            const controls = new ymaps3.YMapControls({ position: 'right' });
+            controls.addChild(new ymaps3.YMapZoomControl({}));
+            map.addChild(controls);
+          }
+        } catch {
+          // optional
+        }
+
+        const pinEl = document.createElement('div');
+        pinEl.style.cssText =
+          'width:20px;height:20px;border-radius:9999px;transform:translate(-50%,-50%);' +
+          'background:#EF4444;border:4px solid #fff;box-shadow:0 10px 26px rgba(2,6,23,0.25);';
+
+        const marker = new ymaps3.YMapMarker({ coordinates: toLngLat(centerPin), zIndex: 200 }, pinEl);
+        map.addChild(marker);
+
+        const listener = new ymaps3.YMapListener({
+          onUpdate: ({ location }: { location?: { center?: [number, number] } }) => {
+            const center = location?.center;
+            if (!center || center.length < 2) return;
+            centerRef.current = { lat: center[1], lng: center[0] };
+            try {
+              marker.update({ coordinates: center });
+            } catch {
+              // ignore
+            }
+          },
+        });
+        map.addChild(listener);
 
         mapRef.current = map;
         markerRef.current = marker;
+        listenerRef.current = listener;
         setStatus('ready');
       } catch {
         if (!disposed) setStatus('error');
@@ -296,22 +320,52 @@ function AdminRestaurantMap({
     return () => {
       disposed = true;
       if (mapRef.current) {
-        mapRef.current.destroy();
+        try {
+          mapRef.current.destroy();
+        } catch {
+          // ignore
+        }
         mapRef.current = null;
       }
+      ymaps3Ref.current = null;
+      listenerRef.current = null;
       markerRef.current = null;
     };
   }, []);
 
   useEffect(() => {
-    const coords = [value.latitude, value.longitude];
-    markerRef.current?.geometry?.setCoordinates?.(coords);
-    mapRef.current?.setCenter?.(coords, undefined, { duration: 250 });
+    const coords = toLngLat({ lat: value.latitude, lng: value.longitude });
+    centerRef.current = { lat: value.latitude, lng: value.longitude };
+    try {
+      markerRef.current?.update?.({ coordinates: coords });
+    } catch {
+      // ignore
+    }
+    try {
+      mapRef.current?.update?.({ location: { center: coords, duration: 250 } });
+    } catch {
+      // ignore
+    }
   }, [value.latitude, value.longitude]);
 
   return (
     <div className="relative overflow-hidden rounded-[26px] border border-white/70 bg-slate-100 shadow-[0_18px_38px_rgba(15,23,42,0.08)]">
-      <div ref={containerRef} className="h-[300px] w-full" />
+      <div
+        ref={containerRef}
+        className="h-[300px] w-full"
+        onPointerDown={() => {
+          pointerDownRef.current = true;
+        }}
+        onPointerUp={() => {
+          if (!pointerDownRef.current) return;
+          pointerDownRef.current = false;
+          const pin = centerRef.current;
+            void setPoint(pin, true);
+        }}
+        onPointerCancel={() => {
+          pointerDownRef.current = false;
+        }}
+      />
 
       {status !== 'ready' ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/70 px-6 text-center text-white backdrop-blur-sm">
@@ -427,15 +481,19 @@ function AddressTab({
     setError(null);
 
     try {
-      const ymaps = await loadYandexMaps();
-      const result = await ymaps.geocode(`${draft.addressText}, Toshkent`, { results: 1 });
-      const first = result.geoObjects.get(0);
-      const coords = first?.geometry?.getCoordinates?.();
-
-      if (!coords) throw new Error('coords_not_found');
-
-      const address = first?.getAddressLine?.() || draft.addressText;
-      onChange({ latitude: coords[0], longitude: coords[1], addressText: address });
+      const matches = await fetchAddressSuggestions(`${draft.addressText}, Toshkent`, 1, {
+        lat: draft.latitude,
+        lng: draft.longitude,
+      });
+      const first = matches[0];
+      if (!first?.pin) {
+        throw new Error('not_found');
+      }
+      onChange({
+        latitude: first.pin.lat,
+        longitude: first.pin.lng,
+        addressText: first.address || draft.addressText,
+      });
     } catch {
       setError("Bu manzil xaritada topilmadi. Marker orqali qo'lda belgilang.");
     } finally {
@@ -460,7 +518,7 @@ function AddressTab({
         };
         onChange({ latitude: pin.lat, longitude: pin.lng });
 
-        const address = await reverseGeocodeCoordinates(pin);
+        const address = await reverseGeocodePin(pin);
         if (address) onChange({ addressText: address });
         setBusy(null);
       },

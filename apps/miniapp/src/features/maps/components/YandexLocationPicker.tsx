@@ -1,10 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { LocationPickerProps } from '../MapProvider';
-import { getMapAnimationDuration, getRouteSyncDelay } from '../performance';
 import { fetchRouteDetails } from '../api';
+import { getRouteSyncDelay } from '../performance';
 import { estimateRouteInfo } from '../route';
+import { isYandexMaps3Enabled, loadYandexMaps3, toLngLat } from '../yandex3';
 import MockMapComponent from './MockMapComponent';
-import { isYandexMapsEnabled, loadYandexMaps, toYandexCoords } from '../yandex';
 
 export default function YandexLocationPicker({
   initialCenter,
@@ -19,32 +19,39 @@ export default function YandexLocationPicker({
 }: LocationPickerProps) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
-  const routeRef = useRef<any>(null);
-  const userPlacemarkRef = useRef<any>(null);
-  const userAccuracyCircleRef = useRef<any>(null);
-  const restaurantPlacemarkRef = useRef<any>(null);
+  const ymaps3Ref = useRef<any>(null);
+  const routeFeatureRef = useRef<any>(null);
+  const userMarkerRef = useRef<any>(null);
+  const restaurantMarkerRef = useRef<any>(null);
+  const listenerRef = useRef<any>(null);
   const routeSyncTimeoutRef = useRef<number | null>(null);
   const routeRequestIdRef = useRef(0);
-  const skipNextViewportSyncRef = useRef(false);
   const lastRouteInfoRef = useRef<string | null>(null);
-  const [isLoading, setIsLoading] = useState(isYandexMapsEnabled());
-  const [hasFallback, setHasFallback] = useState(!isYandexMapsEnabled());
+  const centerRef = useRef<{ lat: number; lng: number }>(initialCenter);
+  const pointerDownRef = useRef(false);
   const handlersRef = useRef({ onInteractionStart, onInteractionEnd, onLocationSelect });
+  const yandexExpected = isYandexMaps3Enabled();
+  const [isLoading, setIsLoading] = useState(yandexExpected);
+  const [hasFallback, setHasFallback] = useState(!yandexExpected);
 
   // Keep handlers stable via ref
   useEffect(() => {
     handlersRef.current = { onInteractionStart, onInteractionEnd, onLocationSelect };
   }, [onInteractionStart, onInteractionEnd, onLocationSelect]);
 
-  const focusSelectedCenter = () => {
-    if (!mapRef.current) {
-      return;
-    }
-
-    mapRef.current.setCenter(toYandexCoords(initialCenter), 17, {
-      duration: getMapAnimationDuration(220),
-    });
-  };
+  const markerElements = useMemo(() => {
+    const createDot = (color: string) => {
+      const el = document.createElement('div');
+      el.style.cssText =
+        'width:18px;height:18px;border-radius:9999px;transform:translate(-50%,-50%);' +
+        `background:${color};border:3px solid #fff;box-shadow:0 6px 18px rgba(0,0,0,0.22);`;
+      return el;
+    };
+    return {
+      user: createDot('#38BDF8'),
+      restaurant: createDot('#10B981'),
+    };
+  }, []);
 
   const emitRouteInfo = (distance: string, eta: string) => {
     const nextKey = `${distance}|${eta}`;
@@ -57,51 +64,57 @@ export default function YandexLocationPicker({
   };
 
   const clearRoute = () => {
-    if (!mapRef.current || !routeRef.current) {
-      return;
+    const map = mapRef.current;
+    if (!map || !routeFeatureRef.current) return;
+    try {
+      map.removeChild(routeFeatureRef.current);
+    } catch {
+      // ignore
     }
-
-    mapRef.current.geoObjects.remove(routeRef.current);
-    routeRef.current = null;
+    routeFeatureRef.current = null;
   };
 
-  const renderRoutePolyline = (coordinates: number[][]) => {
-    const ymaps = window.ymaps;
+  const renderRoutePolyline = (coords: Array<{ lat: number; lng: number }>) => {
+    const ymaps3 = ymaps3Ref.current;
     const map = mapRef.current;
+    if (!ymaps3 || !map) return;
 
-    if (!ymaps?.Polyline || !map) {
-      return;
+    const coordinates = coords.map((p) => toLngLat(p));
+    if (coordinates.length < 2) return;
+
+    if (routeFeatureRef.current) {
+      try {
+        routeFeatureRef.current.update({
+          geometry: { type: 'LineString', coordinates },
+        });
+        return;
+      } catch {
+        try {
+          map.removeChild(routeFeatureRef.current);
+        } catch {
+          // ignore
+        }
+        routeFeatureRef.current = null;
+      }
     }
 
-    if (routeRef.current) {
-      map.geoObjects.remove(routeRef.current);
-      routeRef.current = null;
+    try {
+      const feature = new ymaps3.YMapFeature({
+        id: 'customer-route',
+        geometry: { type: 'LineString', coordinates },
+        style: { stroke: [{ color: '#FFD600', width: 6, opacity: 0.95 }] },
+      });
+      map.addChild(feature);
+      routeFeatureRef.current = feature;
+    } catch {
+      // ignore
     }
-
-    // Shadow polyline for depth
-    const shadow = new ymaps.Polyline(coordinates, {}, {
-      strokeColor: '#FFD700',
-      strokeOpacity: 0.15,
-      strokeWidth: 9,
-      zIndex: 49,
-    });
-
-    routeRef.current = new ymaps.Polyline(coordinates, {}, {
-      strokeColor: '#FFD700',
-      strokeOpacity: 0.9,
-      strokeWidth: 4.5,
-      zIndex: 50,
-    });
-
-    map.geoObjects.add(shadow);
-    map.geoObjects.add(routeRef.current);
   };
 
   const syncRoute = async () => {
-    const ymaps = window.ymaps;
     const map = mapRef.current;
 
-    if (!ymaps || !map) {
+    if (!map) {
       return;
     }
 
@@ -110,7 +123,6 @@ export default function YandexLocationPicker({
       return;
     }
 
-    const referencePoints = [toYandexCoords(restaurantLocationPin), toYandexCoords(initialCenter)];
     const requestId = ++routeRequestIdRef.current;
 
     try {
@@ -121,11 +133,7 @@ export default function YandexLocationPicker({
       }
 
       emitRouteInfo(routeDetails.distance, routeDetails.eta);
-      renderRoutePolyline(
-        routeDetails.polyline?.length
-          ? routeDetails.polyline.map(toYandexCoords)
-          : referencePoints,
-      );
+      renderRoutePolyline(routeDetails.polyline || [restaurantLocationPin, initialCenter]);
     } catch {
       if (requestId !== routeRequestIdRef.current) {
         return;
@@ -133,7 +141,7 @@ export default function YandexLocationPicker({
 
       const estimatedRouteInfo = estimateRouteInfo(restaurantLocationPin, initialCenter);
       emitRouteInfo(estimatedRouteInfo.distance, estimatedRouteInfo.eta);
-      renderRoutePolyline(referencePoints);
+      renderRoutePolyline([restaurantLocationPin, initialCenter]);
     }
   };
 
@@ -159,106 +167,83 @@ export default function YandexLocationPicker({
     let isDisposed = false;
 
     async function initMap() {
-      if (!isYandexMapsEnabled()) {
+      if (!yandexExpected) {
         setHasFallback(true);
         setIsLoading(false);
         return;
       }
 
       try {
-        const ymaps = await loadYandexMaps();
+        const ymaps3 = await loadYandexMaps3();
 
-        if (isDisposed || !mapContainerRef.current) {
-          return;
+        if (isDisposed || !mapContainerRef.current) return;
+
+        ymaps3Ref.current = ymaps3;
+
+        const map = new ymaps3.YMap(mapContainerRef.current, {
+          location: { center: toLngLat(initialCenter), zoom: 17 },
+          camera: { tilt: 50, azimuth: 0 },
+          mode: 'vector',
+          behaviors: [
+            'drag',
+            'pinchZoom',
+            'pinchRotate',
+            'oneFingerZoom',
+            'dblClick',
+            'scrollZoom',
+            'mouseRotate',
+            'mouseTilt',
+          ],
+        });
+
+        map.addChild(new ymaps3.YMapDefaultSchemeLayer({ theme: 'dark' }));
+        if (ymaps3.YMapDefaultFeaturesLayer) {
+          map.addChild(new ymaps3.YMapDefaultFeaturesLayer({}));
         }
 
-        const map = new ymaps.Map(
-          mapContainerRef.current,
-          {
-            center: toYandexCoords(initialCenter),
-            zoom: 17,
-            controls: [
-              new ymaps.control.ZoomControl({
-                options: {
-                  size: 'large',
-                  position: { left: 10, top: 108 },
-                },
-              }),
-            ],
+        try {
+          if (ymaps3.YMapControls && ymaps3.YMapZoomControl) {
+            const controls = new ymaps3.YMapControls({ position: 'right' });
+            controls.addChild(new ymaps3.YMapZoomControl({}));
+            map.addChild(controls);
+          }
+        } catch {
+          // optional
+        }
+
+        const listener = new ymaps3.YMapListener({
+          onUpdate: ({ location }: { location?: { center?: [number, number] } }) => {
+            const center = location?.center;
+            if (!center || center.length < 2) return;
+            // ymaps3: [lng, lat]
+            centerRef.current = { lat: center[1], lng: center[0] };
           },
-          {
-            suppressMapOpenBlock: true,
-            suppressLbsEvents: true, // Disable POI balloons
-          },
-        );
+        });
+        map.addChild(listener);
+        listenerRef.current = listener;
 
-        map.behaviors.enable([
-          'scrollZoom',
-          'dblClickZoom',
-          'multiTouchZoom',
-          'drag',
-        ]);
-        map.behaviors.disable(['leftMouseButtonMagnifier']);
+        if (restaurantLocationPin) {
+          try {
+            const marker = new ymaps3.YMapMarker({ coordinates: toLngLat(restaurantLocationPin), zIndex: 120 }, markerElements.restaurant);
+            map.addChild(marker);
+            restaurantMarkerRef.current = marker;
+          } catch {
+            // ignore
+          }
+        }
 
-        const userPlacemark = userLocationPin
-          ? new ymaps.Placemark(
-              toYandexCoords(userLocationPin),
-              {
-                hintContent: 'Sizning joylashuvingiz',
-              },
-              {
-                preset: 'islands#blueCircleIcon', // Consistent with tracking
-                iconColor: '#38BDF8',
-                draggable: false,
-              },
-            )
-          : null;
-        const restaurantPlacemark = restaurantLocationPin
-          ? new ymaps.Placemark(
-              toYandexCoords(restaurantLocationPin),
-              {
-                hintContent: 'Restoran',
-              },
-              {
-                preset: 'islands#greenCircleIcon',
-                iconColor: '#10B981',
-                draggable: false,
-              },
-            )
-          : null;
-
-        const emitLocation = (coords: number[]) => {
-          onLocationSelect?.({ lat: coords[0], lng: coords[1] });
-        };
+        if (userLocationPin) {
+          try {
+            const marker = new ymaps3.YMapMarker({ coordinates: toLngLat(userLocationPin), zIndex: 130 }, markerElements.user);
+            map.addChild(marker);
+            userMarkerRef.current = marker;
+          } catch {
+            // ignore
+          }
+        }
 
         mapRef.current = map;
         scheduleRouteSync();
-
-        if (userPlacemark) {
-          map.geoObjects.add(userPlacemark);
-        }
-        if (restaurantPlacemark) {
-          map.geoObjects.add(restaurantPlacemark);
-        }
-
-        map.events.add('actionend', () => {
-          const coords = map.getCenter() as number[] | undefined;
-          if (coords) {
-            skipNextViewportSyncRef.current = true;
-            handlersRef.current.onLocationSelect?.({ lat: coords[0], lng: coords[1] });
-          }
-          handlersRef.current.onInteractionEnd?.();
-        });
-
-        map.events.add('actionbegin', () => {
-          handlersRef.current.onInteractionStart?.();
-        });
-
-        userPlacemarkRef.current = userPlacemark;
-        restaurantPlacemarkRef.current = restaurantPlacemark;
-
-        // Focus only once on init
-        map.setCenter(toYandexCoords(initialCenter), 17);
       } catch {
         setHasFallback(true);
       } finally {
@@ -275,7 +260,11 @@ export default function YandexLocationPicker({
       routeRequestIdRef.current += 1;
 
       if (mapRef.current) {
-        mapRef.current.destroy();
+        try {
+          mapRef.current.destroy();
+        } catch {
+          // ignore
+        }
         mapRef.current = null;
       }
 
@@ -284,122 +273,89 @@ export default function YandexLocationPicker({
         routeSyncTimeoutRef.current = null;
       }
 
-      routeRef.current = null;
-      userPlacemarkRef.current = null;
-      restaurantPlacemarkRef.current = null;
+      ymaps3Ref.current = null;
+      listenerRef.current = null;
+      routeFeatureRef.current = null;
+      userMarkerRef.current = null;
+      restaurantMarkerRef.current = null;
     };
-  }, [onInteractionEnd, onInteractionStart, onLocationSelect, onRouteInfoChange]);
+  }, [markerElements.restaurant, markerElements.user, onRouteInfoChange, yandexExpected]);
 
   useEffect(() => {
-    if (!mapRef.current) {
-      return;
-    }
-
+    if (!mapRef.current) return;
     scheduleRouteSync();
-
-    if (skipNextViewportSyncRef.current) {
-      skipNextViewportSyncRef.current = false;
-      return;
+    try {
+      mapRef.current.update({
+        location: {
+          center: toLngLat(initialCenter),
+          zoom: 17,
+          duration: 260,
+        },
+      });
+    } catch {
+      // ignore
     }
-
-    // Only snap back when requested (e.g. initial load or explicit jumps)
-    // but avoid snapping on every prop change to allow smooth panning
-    mapRef.current.setCenter(toYandexCoords(initialCenter), 17, {
-      duration: getMapAnimationDuration(200),
-    });
   }, [initialCenter.lat, initialCenter.lng]);
 
   useEffect(() => {
-    if (!mapRef.current) {
+    const map = mapRef.current;
+    const ymaps3 = ymaps3Ref.current;
+    if (!map || !ymaps3) return;
+
+    if (!userLocationPin) {
+      if (userMarkerRef.current) {
+        try { map.removeChild(userMarkerRef.current); } catch { /* ignore */ }
+        userMarkerRef.current = null;
+      }
       return;
     }
 
-    const map = mapRef.current;
-    const ymaps = window.ymaps;
-    if (!ymaps) return;
-
-    if (userLocationPin) {
-      const coords = toYandexCoords(userLocationPin);
-      
-      // Update or create accuracy circle (10-meter radius as requested)
-      if (!userAccuracyCircleRef.current) {
-        userAccuracyCircleRef.current = new ymaps.Circle(
-          [coords, 10],
-          {
-            hintContent: 'Sizning aniq joylashuvingiz',
-          },
-          {
-            fillColor: 'rgba(56, 189, 248, 0.15)',
-            strokeColor: 'rgba(56, 189, 248, 0.45)',
-            strokeOpacity: 0.8,
-            strokeWidth: 2,
-          }
-        );
-        map.geoObjects.add(userAccuracyCircleRef.current);
-      } else {
-        userAccuracyCircleRef.current.geometry.setCoordinates(coords);
-      }
-
-      // Update or create placemark
-      if (!userPlacemarkRef.current) {
-        userPlacemarkRef.current = new ymaps.Placemark(
-          coords,
-          {
-            hintContent: 'Sizning joylashuvingiz',
-          },
-          {
-            preset: 'islands#blueCircleDotIconWithOutline',
-            iconColor: '#0ea5e9',
-            draggable: false,
-          },
-        );
-        map.geoObjects.add(userPlacemarkRef.current);
-      } else {
-        userPlacemarkRef.current.geometry?.setCoordinates(coords);
+    const coords = toLngLat(userLocationPin);
+    if (!userMarkerRef.current) {
+      try {
+        const marker = new ymaps3.YMapMarker({ coordinates: coords, zIndex: 130 }, markerElements.user);
+        map.addChild(marker);
+        userMarkerRef.current = marker;
+      } catch {
+        // ignore
       }
     } else {
-      if (userAccuracyCircleRef.current) {
-        map.geoObjects.remove(userAccuracyCircleRef.current);
-        userAccuracyCircleRef.current = null;
-      }
-      if (userPlacemarkRef.current) {
-        map.geoObjects.remove(userPlacemarkRef.current);
-        userPlacemarkRef.current = null;
+      try {
+        userMarkerRef.current.update({ coordinates: coords });
+      } catch {
+        // ignore
       }
     }
-  }, [userLocationPin?.lat, userLocationPin?.lng]);
+  }, [markerElements.user, userLocationPin?.lat, userLocationPin?.lng]);
 
   useEffect(() => {
-    if (!mapRef.current) {
+    const map = mapRef.current;
+    const ymaps3 = ymaps3Ref.current;
+    if (!map || !ymaps3) return;
+
+    if (!restaurantLocationPin) {
+      if (restaurantMarkerRef.current) {
+        try { map.removeChild(restaurantMarkerRef.current); } catch { /* ignore */ }
+        restaurantMarkerRef.current = null;
+      }
       return;
     }
 
-    if (restaurantLocationPin) {
-      if (!restaurantPlacemarkRef.current) {
-        const ymaps = window.ymaps;
-        if (!ymaps) {
-          return;
-        }
-
-        restaurantPlacemarkRef.current = new ymaps.Placemark(
-          toYandexCoords(restaurantLocationPin),
-          {
-            hintContent: 'Restoran',
-            balloonContent: 'Restoranning joylashuvi',
-          },
-          {
-            preset: 'islands#greenDotIcon',
-            draggable: false,
-          },
-        );
-
-        mapRef.current.geoObjects.add(restaurantPlacemarkRef.current);
-      } else {
-        restaurantPlacemarkRef.current.geometry?.setCoordinates(toYandexCoords(restaurantLocationPin));
+    const coords = toLngLat(restaurantLocationPin);
+    if (!restaurantMarkerRef.current) {
+      try {
+        const marker = new ymaps3.YMapMarker({ coordinates: coords, zIndex: 120 }, markerElements.restaurant);
+        map.addChild(marker);
+        restaurantMarkerRef.current = marker;
+      } catch {
+        // ignore
       }
-    } else if (restaurantPlacemarkRef.current) {
-      mapRef.current.geoObjects.remove(restaurantPlacemarkRef.current);
-      restaurantPlacemarkRef.current = null;
+    } else {
+      try {
+        restaurantMarkerRef.current.update({ coordinates: coords });
+      } catch {
+        // ignore
+      }
     }
 
     scheduleRouteSync();
@@ -427,7 +383,25 @@ export default function YandexLocationPicker({
   }
 
   return (
-    <div className={`relative overflow-hidden rounded-[40px] ${className}`} style={{ height }}>
+    <div
+      className={`relative overflow-hidden rounded-[40px] ${className}`}
+      style={{ height }}
+      onPointerDown={() => {
+        pointerDownRef.current = true;
+        handlersRef.current.onInteractionStart?.();
+      }}
+      onPointerUp={() => {
+        if (!pointerDownRef.current) return;
+        pointerDownRef.current = false;
+        const pin = centerRef.current;
+        handlersRef.current.onLocationSelect?.(pin);
+        handlersRef.current.onInteractionEnd?.();
+      }}
+      onPointerCancel={() => {
+        pointerDownRef.current = false;
+        handlersRef.current.onInteractionEnd?.();
+      }}
+    >
       <div ref={mapContainerRef} className="h-full w-full" />
 
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
