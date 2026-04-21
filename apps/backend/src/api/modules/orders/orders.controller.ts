@@ -620,44 +620,50 @@ export async function handleCreateOrder(
 
   // Navbatdagi (Queue) mijozlar sonini tekshiramiz
   let activeJobsCount = 0;
+  let isQueueHealthy = false;
   if (orderQueue) {
     try {
       const counts = await orderQueue.getJobCounts('waiting', 'active');
       activeJobsCount = counts.waiting + counts.active;
+      isQueueHealthy = true;
     } catch (e) {
       console.warn('[Queue] Redis ga ulanib bolmadi, sinxron davom etamiz.');
     }
   }
 
   // Agar tizimda 10 tadan ko'p buyurtma kutilayotgan bo'lsa, navbatga (Queue) tashlaymiz
-  if (orderQueue && activeJobsCount > 10) {
-    const job = await orderQueue.add(
-      'process-order',
-      {
-        idempotencyKey,
-        userId: user.id,
-        deliveryAddressId,
-        paymentMethod,
-        note,
-        receiptImageBase64,
-        quote,
-        orderItemsData,
-        promoId: promo?.id,
-        destinationLat: Number(deliveryAddress.latitude),
-        destinationLng: Number(deliveryAddress.longitude),
-        restaurantSettings,
-      },
-      {
-        jobId: idempotencyKey, // BullMQ Redis'da bu kalit orqali 2 marta ishlashni bloklaydi
-        removeOnComplete: true,
-        removeOnFail: 1000,
-      }
-    );
-
-    return reply.status(202).send({
-      status: 'PROCESSING',
-      jobId: job.id,
-    });
+  if (isQueueHealthy && activeJobsCount > 10) {
+    try {
+      const job = await orderQueue.add(
+        'process-order',
+        {
+          idempotencyKey,
+          userId: user.id,
+          deliveryAddressId,
+          paymentMethod,
+          note,
+          receiptImageBase64,
+          quote,
+          orderItemsData,
+          promoId: promo?.id,
+          destinationLat: Number(deliveryAddress.latitude),
+          destinationLng: Number(deliveryAddress.longitude),
+          restaurantSettings,
+        },
+        {
+          jobId: idempotencyKey,
+          removeOnComplete: true,
+          removeOnFail: 1000,
+        }
+      );
+  
+      return reply.status(202).send({
+        status: 'PROCESSING',
+        jobId: job.id,
+      });
+    } catch (err) {
+      console.warn('[Queue] Job qoshishda xato (Redis uzildi), sinxron davom etamiz', err);
+    }
   }
 
   // --- SINXRON YARATISH (Yuklama kamligida yoki Redis ishlamaganda darhol yaratiladi) ---
@@ -969,6 +975,13 @@ export async function streamOrders(request: FastifyRequest, reply: FastifyReply)
 
   const unsubscribe = orderTrackingService.subscribeAll((event) => {
     if (requester.role === UserRoleEnum.ADMIN) {
+      // --- PERFORMANCE-FIX: ADMIN STREAM OPTIMIZATION ---
+      // Adminlar uchun barcha event'larni yuborish serverga katta yuklama tushiradi,
+      // ayniqsa kuryerlarning har 5 soniyadagi lokatsiya yangilanishlari.
+      // Asosiy "orders" streamiga faqat muhim, sekin o'zgaradigan event'larni yuboramiz.
+      if (event.type === 'courier.location.updated') {
+        return; // Bu yuqori chastotali event'ni o'tkazib yuboramiz.
+      }
       sendEvent(event);
       accessibleOrderIds.add(event.orderId);
       return;

@@ -956,7 +956,7 @@ export async function sendAdminCourierListOptions(orderId: string, orderNumber: 
     return;
   }
 
-  const buttons = dispatchCouriers.slice(0, 10).map((courier) => {
+  const buttons = await Promise.all(dispatchCouriers.slice(0, 10).map(async (courier) => {
     const c = {
       ...courier,
       isFree: courier.isAcceptingOrders && courier.activeAssignments === 0,
@@ -968,8 +968,17 @@ export async function sendAdminCourierListOptions(orderId: string, orderNumber: 
             : null,
     };
     const statusStr = c.isFree ? '🟢 Bo\'sh' : `🟠 Band (~${c.etaMinutes} daq)`;
-    return [Markup.button.callback(`${c.fullName} | ${statusStr}`, `assign_courier:${orderId}:${c.id}`)];
-  });
+    
+    const shortId = Math.random().toString(36).substring(2, 10);
+    const payloadKey = `_cb_assign_${shortId}`;
+    
+    await prisma.restaurantSetting.upsert({
+      where: { key: payloadKey },
+      update: { value: JSON.stringify({ orderId, courierId: c.id }) },
+      create: { key: payloadKey, value: JSON.stringify({ orderId, courierId: c.id }), dataType: 'string' }
+    });
+    return [Markup.button.callback(`${c.fullName} | ${statusStr}`, `ac:${shortId}`)];
+  }));
 
   const chatIds = resolveOrderNotificationRecipientChatIds();
   const state = getBotState();

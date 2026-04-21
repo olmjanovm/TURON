@@ -1,5 +1,10 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { DeliveryStageEnum, NotificationTypeEnum, RESTAURANT_COORDINATES } from '@turon/shared';
+import {
+  DeliveryStageEnum,
+  NotificationTypeEnum,
+  PaymentMethodEnum,
+  RESTAURANT_COORDINATES,
+} from '@turon/shared';
 import { prisma } from '../../../lib/prisma.js';
 import { AuditService } from '../../../services/audit.service.js';
 import {
@@ -82,6 +87,37 @@ async function getAccessibleCourierOrder(orderId: string, requester: any) {
   }
 
   return { order, relevantAssignment };
+}
+
+async function checkAndApplyAutoGeofence(order: any, requester: any, currentLat: number, currentLng: number) {
+  if (!order) return;
+  const assignment = getRelevantAssignment(order, requester);
+  if (!assignment) return;
+
+  try {
+    const restLat = Number(order.restaurantLat || RESTAURANT_COORDINATES.latitude);
+    const restLng = Number(order.restaurantLon || RESTAURANT_COORDINATES.longitude);
+
+    if (assignment.status === 'ACCEPTED') {
+      const dist = haversineMeters(currentLat, currentLng, restLat, restLng);
+      if (dist <= 50) {
+        const result = await CourierOrderActionsService.perform({
+          orderId: order.id, courierId: requester.id, actorUserId: requester.id, action: 'ARRIVE_RESTAURANT'
+        });
+        await publishCourierActionResult(result);
+      }
+    } else if (assignment.status === 'PICKED_UP') {
+      const dist = haversineMeters(currentLat, currentLng, restLat, restLng);
+      if (dist > 100) {
+        const result = await CourierOrderActionsService.perform({
+          orderId: order.id, courierId: requester.id, actorUserId: requester.id, action: 'START_DELIVERY'
+        });
+        await publishCourierActionResult(result);
+      }
+    }
+  } catch (e) {
+    // Ignore non-critical state transition errors
+  }
 }
 
 function mapStageToCourierAction(stage: DeliveryStageEnum): CourierActionName {
@@ -923,4 +959,93 @@ export async function notifyCustomer(
       error: error instanceof Error ? error.message : "Mijoz bilan bog'lanib bo'lmadi",
     });
   }
+}
+
+export async function settleCourierCash(
+  request: FastifyRequest<{
+    Params: { courierId: string };
+    Body: { amount: number; note?: string };
+  }>,
+  reply: FastifyReply,
+) {
+  const admin = request.user as any;
+  const { courierId } = request.params;
+  const { amount, note } = request.body;
+
+  if (typeof amount !== 'number' || amount <= 0) {
+    return reply.status(400).send({ error: "To'g'ri summa kiritilishi kerak." });
+  }
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      // Kuryer statusi mavjudligiga ishonch hosil qilamiz
+      await CourierOperationalStatusService.getOrCreate(courierId, tx);
+
+      const updatedStatus = await tx.courierOperationalStatus.update({
+        where: { courierId },
+        data: {
+          cashBalance: {
+            decrement: amount,
+          },
+        },
+      });
+
+      if (Number(updatedStatus.cashBalance) < 0) {
+        throw new Error('Hisob-kitob summasi kuryerning joriy balansidan oshib ketdi.');
+      }
+
+      const transaction = await tx.courierCashTransaction.create({
+        data: {
+          courierId,
+          type: 'MANUAL_SETTLEMENT',
+          amount: -amount, // Balansdan ayirilganini bildirish uchun manfiy
+          balanceAfter: updatedStatus.cashBalance,
+          settledByAdminId: admin.id,
+          note: note,
+        },
+      });
+
+      return { updatedStatus, transaction };
+    });
+
+    await AuditService.record({
+      userId: admin.id,
+      actorRole: admin.role,
+      action: 'SETTLE_COURIER_CASH',
+      entity: 'CourierOperationalStatus',
+      entityId: courierId,
+      oldValue: { cashBalance: Number(result.updatedStatus.cashBalance) + amount },
+      newValue: { cashBalance: result.updatedStatus.cashBalance },
+      metadata: {
+        settlementAmount: amount,
+        note,
+        transactionId: result.transaction.id,
+      },
+    });
+
+    return reply.send({ success: true, newBalance: result.updatedStatus.cashBalance });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Kassa hisob-kitobida xatolik.';
+    return reply.status(400).send({ error: message });
+  }
+}
+
+export async function getCourierCashTransactions(
+  request: FastifyRequest<{
+    Params: { courierId: string };
+  }>,
+  reply: FastifyReply,
+) {
+  const { courierId } = request.params;
+
+  const transactions = await prisma.courierCashTransaction.findMany({
+    where: { courierId },
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+    include: {
+      order: { select: { orderNumber: true } },
+    },
+  });
+
+  return reply.send(transactions);
 }
