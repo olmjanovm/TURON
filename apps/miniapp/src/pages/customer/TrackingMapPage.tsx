@@ -15,6 +15,7 @@ import {
 } from '../../features/maps/route';
 import { DEFAULT_RESTAURANT_LOCATION } from '../../features/maps/restaurant';
 import { useEtaCountdown } from '../../features/maps/useEtaCountdown';
+import { useSmoothedPin } from '../../features/maps/useSmoothedPin';
 import {
   getCustomerTrackingDistanceFallbackKm,
   getCustomerTrackingEtaFallbackMinutes,
@@ -68,6 +69,9 @@ const TrackingMapPage: React.FC = () => {
         : undefined,
     [order?.tracking?.courierLocation],
   );
+
+  // Smoothly interpolate the marker between GPS updates instead of jumping
+  const smoothedCourierPin = useSmoothedPin(courierPin);
 
   const trackingMeta = React.useMemo(
     () => (order ? getCustomerTrackingMeta(order, language) : null),
@@ -284,7 +288,7 @@ const TrackingMapPage: React.FC = () => {
           <RouteMap
             pickup={pickupPin}
             destination={destinationPin}
-            courierPos={trackingMeta.showCourierMarker ? courierPin : undefined}
+            courierPos={trackingMeta.showCourierMarker ? smoothedCourierPin : undefined}
             routeFrom={routeFrom}
             routeTo={routeTo}
             height="360px"
