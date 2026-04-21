@@ -558,8 +558,7 @@ const ProfilePage: React.FC = () => {
         <Row
           icon={<MapPin size={19} color={RED} />}
           label="Mening manzillarim"
-          value="Chilonzor 19..."
-          onClick={() => {}}
+          onClick={() => navigate('/customer/addresses')}
         />
 
         {/* Orders */}
@@ -573,13 +572,7 @@ const ProfilePage: React.FC = () => {
         <Row
           icon={<Gift size={19} color={RED} />}
           label="Promokod va bonuslar"
-          right={(
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#16A34A' }}>12 000 so'm</span>
-              <ChevronRight size={18} color="var(--app-muted)" />
-            </div>
-          )}
-          onClick={() => {}}
+          onClick={() => navigate('/customer/promos')}
         />
 
         {/* Language */}
@@ -629,6 +622,7 @@ const ProfilePage: React.FC = () => {
             }} />
             <button
               type="button"
+              onClick={() => navigate('/customer/support')}
               style={{
                 position: 'relative', zIndex: 1,
                 width: '100%', height: 52,

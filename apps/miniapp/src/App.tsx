@@ -59,6 +59,7 @@ import OrderDetailPage from './pages/customer/OrderDetailPage';
 import TrackingMapPage from './pages/customer/TrackingMapPage';
 import CustomerNotificationsPage from './pages/customer/NotificationsPage';
 import ProfilePage from './pages/customer/ProfilePage';
+import CustomerPromosPage from './pages/customer/CustomerPromosPage';
 import SupportPage from './pages/customer/SupportPage';
 
 const queryClient = new QueryClient({
@@ -117,6 +118,7 @@ export default function App() {
             <Route path="orders" element={<OrdersPage />} />
             <Route path="orders/:orderId" element={<OrderDetailPage />} />
             <Route path="profile" element={<ProfilePage />} />
+            <Route path="promos" element={<CustomerPromosPage />} />
             <Route path="support" element={<SupportPage />} />
             <Route path="notifications" element={<CustomerNotificationsPage />} />
           </Route>
