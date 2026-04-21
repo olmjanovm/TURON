@@ -292,6 +292,10 @@ const CheckoutPage: React.FC = () => {
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   // Holds the payload to re-submit after user saves their phone
   const pendingPayloadRef = useRef<object | null>(null);
+  // Stable idempotency key — same UUID for every retry of this checkout session.
+  // Rotated to a fresh UUID only after a successful order so the next checkout
+  // gets its own key. This prevents duplicate orders on double-tap / network retry.
+  const idempotencyKeyRef = useRef(crypto.randomUUID());
 
   const selectedAddress = addresses.find((address) => address.id === selectedAddressId);
   const subtotal = getSubtotal();
@@ -379,7 +383,7 @@ const CheckoutPage: React.FC = () => {
     }
 
     const payload = {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: idempotencyKeyRef.current,
       items: quoteItems,
       deliveryAddressId: selectedAddress.id,
       paymentMethod,
@@ -393,6 +397,8 @@ const CheckoutPage: React.FC = () => {
     createOrderMutation.mutate(payload, {
       onSuccess: (order) => {
         pendingPayloadRef.current = null;
+        // Rotate key so the next checkout session gets a fresh idempotency scope
+        idempotencyKeyRef.current = crypto.randomUUID();
         if (window.Telegram?.WebApp?.HapticFeedback) {
           window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
         }
