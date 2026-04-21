@@ -177,13 +177,12 @@ export function useOrderChat(
                 appendMessage(payload.chatMessage);
               }
 
-              // Update isRead flag on our own messages when the other party reads them
+              // Update isRead flag on our own messages when ANY other party reads them
               if (payload.type === 'chat.read' && payload.chatRead) {
                 const { readerRole } = payload.chatRead;
-                // My messages are read by the other role
                 const myRole = role === 'courier' ? 'COURIER' : 'CUSTOMER';
-                const otherRole = myRole === 'COURIER' ? 'CUSTOMER' : 'COURIER';
-                if (readerRole === otherRole) {
+                // Any role other than me reading = my messages are now read (covers ADMIN reader too)
+                if (readerRole !== myRole) {
                   queryClient.setQueryData<ChatMessage[]>(chatKey(orderId), (prev) =>
                     prev
                       ? prev.map((m) =>
