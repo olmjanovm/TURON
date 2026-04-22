@@ -519,12 +519,26 @@ export async function handleQuoteOrder(
   }
 }
 
+export async function handleGenerateUploadUrl(
+  request: FastifyRequest<{ Querystring: { type?: 'receipt' } }>,
+  reply: FastifyReply,
+) {
+  const bucket = request.query.type === 'receipt' ? 'receipts' : 'deliveries';
+  const urls = await StorageService.createSignedUploadUrl(bucket, 'jpg');
+  
+  if (!urls) {
+    return reply.status(500).send({ error: "Yuklash URL manzilini yaratishda xatolik" });
+  }
+  
+  return reply.send(urls);
+}
+
 export async function handleCreateOrder(
   request: FastifyRequest<{ Body: any }>,
   reply: FastifyReply,
 ) {
   const user = request.user as any;
-  const { items, deliveryAddressId, paymentMethod, promoCode, note, receiptImageBase64, idempotencyKey } = request.body as any;
+  const { items, deliveryAddressId, paymentMethod, promoCode, note, receiptImageBase64, receiptImageUrl, idempotencyKey } = request.body as any;
 
   // ── 1. SECURITY: Muvaffaqiyatli Idempotency-Key majburiyati ─────────────
   if (!idempotencyKey || typeof idempotencyKey !== 'string' || idempotencyKey.trim() === '') {
@@ -583,7 +597,7 @@ export async function handleCreateOrder(
   }
 
   if (paymentMethod === PaymentMethodEnum.MANUAL_TRANSFER) {
-    if (typeof receiptImageBase64 !== 'string' || !receiptImageBase64.trim()) {
+    if (!receiptImageUrl && (!receiptImageBase64 || typeof receiptImageBase64 !== 'string' || !receiptImageBase64.trim())) {
       return reply.status(422).send({
         code: 'RECEIPT_REQUIRED',
         error: "Manual transfer uchun to'lov cheki (rasm) yuborilishi shart",
@@ -643,6 +657,7 @@ export async function handleCreateOrder(
           paymentMethod,
           note,
           receiptImageBase64,
+          receiptImageUrl,
           quote,
           orderItemsData,
           promoId: promo?.id,
@@ -668,8 +683,8 @@ export async function handleCreateOrder(
 
   // --- SINXRON YARATISH (Yuklama kamligida yoki Redis ishlamaganda darhol yaratiladi) ---
   
-  let uploadedReceiptUrl = receiptImageBase64;
-  if (paymentMethod === PaymentMethodEnum.MANUAL_TRANSFER && receiptImageBase64) {
+  let uploadedReceiptUrl = receiptImageUrl;
+  if (paymentMethod === PaymentMethodEnum.MANUAL_TRANSFER && !receiptImageUrl && receiptImageBase64) {
     const uploadedUrl = await StorageService.uploadBase64(receiptImageBase64, 'receipts');
     if (!uploadedUrl) {
       return reply.status(500).send({ error: "Chek rasmini yuklashda xatolik yuz berdi" });

@@ -10,6 +10,43 @@ const SUPABASE_KEY =
  */
 export class StorageService {
   /**
+   * Frontend to'g'ridan-to'g'ri rasm yuklashi uchun Pre-signed URL yaratish.
+   * Buni API orqali frontendga beramiz, frontend o'zi Supabase-ga PUT qiladi.
+   */
+  static async createSignedUploadUrl(bucket: 'receipts' | 'deliveries', ext: 'jpg' | 'png' = 'jpg'): Promise<{ uploadUrl: string, publicUrl: string } | null> {
+    if (!SUPABASE_URL || !SUPABASE_KEY) return null;
+
+    try {
+      const filename = `${Date.now()}-${randomUUID()}.${ext}`;
+      const url = `${SUPABASE_URL}/storage/v1/object/upload/sign/${bucket}/${filename}`;
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          apikey: SUPABASE_KEY,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        console.error(`[StorageService] Presigned URL failed (${res.status}):`, body);
+        return null;
+      }
+
+      const data = await res.json();
+      return {
+        uploadUrl: `${SUPABASE_URL}${data.url}`,
+        publicUrl: `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${filename}`
+      };
+    } catch (err) {
+      console.error(`[StorageService] Presigned URL error:`, err);
+      return null;
+    }
+  }
+
+  /**
    * Upload a base64 image to Supabase Storage.
    * @param base64Str  Raw or data-URL base64 string
    * @param bucket     'receipts' | 'deliveries'
