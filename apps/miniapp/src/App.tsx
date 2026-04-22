@@ -67,16 +67,16 @@ const queryClient = new QueryClient({
   },
 });
 
-function RouteFallback() {
-  return (
-    <div className="flex min-h-[40vh] items-center justify-center px-6">
-      <div className="flex items-center gap-3 rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 shadow-sm">
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600" />
-        Yuklanmoqda...
-      </div>
-    </div>
-  );
-}
+// function RouteFallback() {
+//   return (
+//     <div className="flex min-h-[40vh] items-center justify-center px-6">
+//       <div className="flex items-center gap-3 rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 shadow-sm">
+//         <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600" />
+//         Yuklanmoqda...
+//       </div>
+//     </div>
+//   );
+// }
 
 export default function App() {
   return (
@@ -85,7 +85,8 @@ export default function App() {
       <PullToRefreshIndicator />
       <AppBootstrapGate>
         <AppErrorBoundary theme="dark" homeUrl="/">
-          <React.Suspense fallback={<RouteFallback />}>
+          {/* <React.Suspense fallback={<RouteFallback />}> */}
+          <React.Suspense >
             <Routes>
               {/* Base Redirect is handled inside AppBootstrapGate */}
               <Route path="/" element={<div />} />
