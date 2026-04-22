@@ -63,20 +63,24 @@ const queryClient = new QueryClient({
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
+      // Sahifaga qaytadan kirganda 2 daqiqa davomida API qayta chaqirilmaydi (Keshdan olinadi)
+      staleTime: 1000 * 60 * 2, 
+      // Kesh xotirada (RAM) 10 daqiqa ushlab turiladi
+      gcTime: 1000 * 60 * 10,
     },
   },
 });
 
-// function RouteFallback() {
-//   return (
-//     <div className="flex min-h-[40vh] items-center justify-center px-6">
-//       <div className="flex items-center gap-3 rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 shadow-sm">
-//         <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600" />
-//         Yuklanmoqda...
-//       </div>
-//     </div>
-//   );
-// }
+function RouteFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center px-6 bg-[#f6f6f7]">
+      <div className="flex items-center gap-3 rounded-[18px] border border-slate-200 bg-white px-5 py-4 text-sm font-bold text-slate-700 shadow-sm">
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-black" />
+        Sahifa yuklanmoqda...
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   return (
@@ -85,8 +89,7 @@ export default function App() {
       <PullToRefreshIndicator />
       <AppBootstrapGate>
         <AppErrorBoundary theme="dark" homeUrl="/">
-          {/* <React.Suspense fallback={<RouteFallback />}> */}
-          {/* <React.Suspense > */}
+          <React.Suspense fallback={<RouteFallback />}>
             <Routes>
               {/* Base Redirect is handled inside AppBootstrapGate */}
               <Route path="/" element={<div />} />
@@ -177,7 +180,7 @@ export default function App() {
               {/* Fallback 404 */}
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
-          {/* </React.Suspense> */}
+          </React.Suspense>
         </AppErrorBoundary>
       </AppBootstrapGate>
       </BrowserRouter>
