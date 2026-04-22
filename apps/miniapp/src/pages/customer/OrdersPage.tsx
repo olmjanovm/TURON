@@ -13,7 +13,8 @@ import { initiateCall } from '../../lib/callUtils';
 const OrdersPage: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const { data: orders = [], isLoading, error, refetch } = useMyOrders();
+  // @ts-ignore - useMyOrders hookidan isFetching ni ham olamiz
+  const { data: orders = [], isLoading, isFetching, error, refetch } = useMyOrders();
   const { data: products = [] } = useProducts();
   const { setItems } = useCartStore();
 
@@ -53,7 +54,9 @@ const OrdersPage: React.FC = () => {
     (order) => order.orderStatus === OrderStatus.DELIVERED || order.orderStatus === OrderStatus.CANCELLED,
   );
 
-  if (isLoading) {
+  // 🚨 CRITICAL FIX: Faqatgina kesh umuman bo'sh bo'lsa (birinchi marta) Skeleton ko'rsatamiz.
+  // Keyingi safar keshdagi ma'lumot 0ms da chiqadi.
+  if (isLoading && !orders.length) {
     return <LoadingSkeleton />;
   }
 
@@ -88,6 +91,13 @@ const OrdersPage: React.FC = () => {
       className="min-h-screen bg-[#f6f6f7] animate-in fade-in duration-300"
       style={{ paddingBottom: 'calc(var(--customer-nav-top-edge, 78px) + 16px)' }}
     >
+      {/* Orqa fonda yangilanayotganini bildiruvchi kichik indikator */}
+      {isFetching && orders.length > 0 && (
+        <div className="flex justify-center pt-3 pb-1">
+          <span className="text-[10px] font-bold text-slate-400 animate-pulse uppercase tracking-widest">Yangilanmoqda...</span>
+        </div>
+      )}
+
       <div className="px-4 pb-6 pt-4 space-y-8">
         {activeOrders.length ? (
           <section>
