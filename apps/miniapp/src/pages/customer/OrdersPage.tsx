@@ -133,11 +133,36 @@ const OrdersPage: React.FC = () => {
   }, [orders]);
 
   // 🚨 CRITICAL FIX: Faqatgina kesh umuman bo'sh bo'lsa (birinchi marta) Skeleton ko'rsatamiz.
-  // Keyingi safar keshdagi ma'lumot 0ms da chiqadi.
   if (isLoading && !orders.length) {
     return (
-      <div className="min-h-screen bg-[#f6f6f7] px-4 pb-6 pt-4 space-y-4">
-        <LoadingSkeleton />
+      <div 
+        className="min-h-screen bg-[#f6f6f7] px-4 pb-6 pt-4" 
+        style={{ paddingBottom: 'calc(var(--customer-nav-top-edge, 78px) + 16px)' }}
+      >
+        {/* Skeleton Sarlavha */}
+        <div className="mb-4 flex items-end justify-between mt-2">
+          <div>
+            <div className="h-3 w-16 bg-slate-200 animate-pulse rounded-full mb-2.5"></div>
+            <div className="h-6 w-40 bg-slate-200 animate-pulse rounded-lg"></div>
+          </div>
+          <div className="h-6 w-12 bg-slate-200 animate-pulse rounded-full"></div>
+        </div>
+        {/* Skeleton Kartalar */}
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white p-4 rounded-[20px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100">
+              <div className="flex justify-between items-center mb-4">
+                <div className="h-4 w-32 bg-slate-200 animate-pulse rounded-md"></div>
+                <div className="h-4 w-16 bg-slate-200 animate-pulse rounded-md"></div>
+              </div>
+              <div className="h-20 w-full bg-slate-100 animate-pulse rounded-[14px] mb-4"></div>
+              <div className="flex justify-between items-center mt-2 border-t border-slate-50 pt-4">
+                <div className="h-4 w-24 bg-slate-200 animate-pulse rounded-md"></div>
+                <div className="h-9 w-28 bg-slate-200 animate-pulse rounded-full"></div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

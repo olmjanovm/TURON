@@ -89,17 +89,19 @@ const CartPage: React.FC = () => {
   const navigate = useNavigate();
   const { isKeyboardOpen } = useOutletContext<{ isKeyboardOpen?: boolean }>() || {};
   const { formatText } = useCustomerLanguage();
-  const {
-    items,
-    updateQuantity,
-    removeFromCart,
-    getSubtotal,
-    getDiscount,
-    appliedPromo,
-    setPromo,
-    syncWithProducts,
-    clearCart,
-  } = useCartStore();
+  
+  // 🚨 ZUSTAND OPTIMIZATION: Barcha state'ni birdaniga olmaslik. 
+  // Atomic selector'lar orqali Redmi 9A kabi telefonlarda qotishlarning oldi olinadi.
+  const items = useCartStore((state) => state.items);
+  const updateQuantity = useCartStore((state) => state.updateQuantity);
+  const removeFromCart = useCartStore((state) => state.removeFromCart);
+  const getSubtotal = useCartStore((state) => state.getSubtotal);
+  const getDiscount = useCartStore((state) => state.getDiscount);
+  const appliedPromo = useCartStore((state) => state.appliedPromo);
+  const setPromo = useCartStore((state) => state.setPromo);
+  const syncWithProducts = useCartStore((state) => state.syncWithProducts);
+  const clearCart = useCartStore((state) => state.clearCart);
+
   const { selectedAddressId } = useAddressStore();
   const { data: addresses = [] } = useAddresses();
   const { data: products = [], isLoading: isProductsLoading, isError: isProductsError } = useProducts();
@@ -129,18 +131,22 @@ const CartPage: React.FC = () => {
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
   React.useEffect(() => {
+    // Keshda mavjud bo'lgan (yoki endi yuklangan) products bilan 
+    // Zustand savatini sinxronlash (narx o'zgargan bo'lsa yangilash)
     if (!isProductsLoading && !isProductsError) {
       syncWithProducts(products);
     }
   }, [isProductsError, isProductsLoading, products, syncWithProducts]);
 
   React.useEffect(() => {
+    // Promo state bilan local input'ni sinxronlash
     if (appliedPromo) {
       setPromoCode(appliedPromo.code);
     }
   }, [appliedPromo]);
 
   React.useEffect(() => {
+    // Savat summasi promokod minimumidan tushib ketsa, promoni bekor qilish
     if (!appliedPromo || subtotal >= appliedPromo.minOrderValue) {
       return;
     }
@@ -193,7 +199,10 @@ const CartPage: React.FC = () => {
 
   if (items.length === 0) {
     return (
-      <div className="min-h-screen bg-[#f6f6f7] text-[#202020]">
+      <div 
+        className="min-h-screen bg-[#f6f6f7] text-[#202020] animate-in fade-in duration-300" 
+        style={{ transform: 'translateZ(0)' }}
+      >
         <main className="mx-auto flex min-h-[calc(100dvh-160px)] max-w-[430px] flex-col items-center justify-center px-6 text-center">
           <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white text-[#202020] shadow-[0_14px_34px_rgba(15,23,42,0.08)]">
             <ShoppingCart size={34} strokeWidth={2.3} />
@@ -216,7 +225,10 @@ const CartPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#f6f6f7] text-[#202020]">
+    <div 
+      className="min-h-screen bg-[#f6f6f7] text-[#202020] animate-in fade-in duration-300" 
+      style={{ transform: 'translateZ(0)', willChange: 'transform' }}
+    >
       <main className="px-4 pb-[calc(env(safe-area-inset-bottom,0px)+190px)] pt-4">
 
         <div className="mb-4 mt-2 flex items-center justify-between px-1">
@@ -310,7 +322,11 @@ const CartPage: React.FC = () => {
               ) : deliveryFee === 0 ? (
                 <span className="font-black text-emerald-600">Bepul!</span>
               ) : deliveryFee !== null ? (
-                <span>{formatMoney(deliveryFee)}</span>
+                <span className="flex items-center gap-2">
+                  {/* Keshdan olingan narx ko'rinib turadi, orqa fonda yangilanayotganini bildirib qo'yamiz */}
+                  {isQuoteLoading && <Loader2 size={10} className="animate-spin text-slate-400" />}
+                  <span>{formatMoney(deliveryFee)}</span>
+                </span>
               ) : (
                 <span className="text-[#b0b0b8]">
                   {selectedAddress ? 'Hisoblanmoqda...' : 'Manzil tanlangach'}
@@ -325,8 +341,12 @@ const CartPage: React.FC = () => {
               <p className="mt-1 text-[12px] font-semibold text-[#9a9aa3]">{totalItems} ta mahsulot</p>
             </div>
             <p className="text-[24px] font-black tracking-[-0.06em]">
-              {!orderQuoteQuery.data && selectedAddress && deliveryFee === null ? '≈ ' : ''}
-              {formatMoney(totalPrice)}
+              {isQuoteLoading && deliveryFee === null ? (
+                <span className="inline-block h-8 w-24 animate-pulse rounded-md bg-slate-200"></span>
+              ) : (
+                <>{!orderQuoteQuery.data && selectedAddress && deliveryFee === null ? '≈ ' : ''}
+                {formatMoney(totalPrice)}</>
+              )}
             </p>
           </div>
         </section>
@@ -341,10 +361,21 @@ const CartPage: React.FC = () => {
             <button
               type="button"
               onClick={() => navigate('/customer/checkout')}
-              disabled={items.some((item) => item.isAvailable === false)}
-              className="flex h-[58px] w-full items-center justify-center rounded-[18px] bg-[#C62020] text-[16px] font-black text-white shadow-[0_16px_28px_rgba(198,32,32,0.25)] transition active:scale-[0.985] disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none"
+              // Agar products hali tortilayotgan bo'lsa yoki quote kutilayotgan bo'lsa,
+              // mijozni to'xtatmaymiz (checkout'ga o'tish ruxsat etiladi), u yoqda skeleton ko'rsatiladi.
+              disabled={items.some((item) => item.isAvailable === false) || isProductsError}
+              className={`flex h-[58px] w-full items-center justify-center rounded-[18px] bg-[#C62020] text-[16px] font-black text-white shadow-[0_16px_28px_rgba(198,32,32,0.25)] transition active:scale-[0.985] disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none ${
+                isQuoteLoading && deliveryFee === null ? 'opacity-80' : ''
+              }`}
             >
-              Buyurtma berish
+              {isQuoteLoading && deliveryFee === null ? (
+                 <span className="flex items-center gap-2">
+                   <Loader2 size={18} className="animate-spin" /> 
+                   Kutilmoqda...
+                 </span>
+              ) : (
+                'Buyurtma berish'
+              )}
             </button>
           </div>
         </div>

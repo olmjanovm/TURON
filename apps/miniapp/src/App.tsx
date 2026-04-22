@@ -14,6 +14,14 @@ const AdminLayout = React.lazy(() => import('./components/layout/AdminLayout'));
 const CourierLayout = React.lazy(() => import('./components/layout/CourierLayout'));
 const CustomerLayout = React.lazy(() => import('./components/layout/CustomerLayout'));
 
+// 🚀 PERFORMANCE FIX: Asosiy menyu sahifalari (Bottom Tabs) to'g'ridan-to'g'ri yuklanadi.
+// Bu navigatsiyani 0ms ga tushiradi va oq ekranda (Suspense fallback) qotib qolishning oldini oladi.
+import HomePage from './pages/customer/HomePage';
+import MenuPage from './pages/customer/MenuPage';
+import CartPage from './pages/customer/CartPage';
+import OrdersPage from './pages/customer/OrdersPage';
+import ProfilePage from './pages/customer/ProfilePage';
+
 const AdminDashboardPage = React.lazy(() => import('./pages/admin/AdminDashboardPage'));
 const AdminOrdersPage = React.lazy(() => import('./pages/admin/AdminOrdersPage'));
 const AdminOrderDetailPage = React.lazy(() => import('./pages/admin/AdminOrderDetailPage'));
@@ -38,23 +46,18 @@ const CourierNotificationsPage = React.lazy(() => import('./pages/courier/Courie
 const CourierHistoryPage = React.lazy(() => import('./pages/courier/CourierHistoryPage'));
 const CourierProfilePage = React.lazy(() => import('./pages/courier/CourierProfilePage'));
 
-const HomePage = React.lazy(() => import('./pages/customer/HomePage'));
 const SearchPage = React.lazy(() => import('./pages/customer/SearchPage'));
 const FavoritesPage = React.lazy(() => import('./pages/customer/FavoritesPage'));
 const CategoryPage = React.lazy(() => import('./pages/customer/CategoryPage'));
-const MenuPage = React.lazy(() => import('./pages/customer/MenuPage'));
 const ProductPage = React.lazy(() => import('./pages/customer/ProductPage'));
-const CartPage = React.lazy(() => import('./pages/customer/CartPage'));
 const CheckoutPage = React.lazy(() => import('./pages/customer/CheckoutPage'));
 const OrderSuccessPage = React.lazy(() => import('./pages/customer/OrderSuccessPage'));
 const AddressListPage = React.lazy(() => import('./pages/customer/AddressListPage'));
 const AddressFormPage = React.lazy(() => import('./pages/customer/AddressFormPage'));
 const MapSelectionPage = React.lazy(() => import('./pages/customer/MapSelectionPage'));
-const OrdersPage = React.lazy(() => import('./pages/customer/OrdersPage'));
 const OrderDetailPage = React.lazy(() => import('./pages/customer/OrderDetailPage'));
 const TrackingMapPage = React.lazy(() => import('./pages/customer/TrackingMapPage'));
 const CustomerNotificationsPage = React.lazy(() => import('./pages/customer/NotificationsPage'));
-const ProfilePage = React.lazy(() => import('./pages/customer/ProfilePage'));
 const CustomerPromosPage = React.lazy(() => import('./pages/customer/CustomerPromosPage'));
 const SupportPage = React.lazy(() => import('./pages/customer/SupportPage'));
 
