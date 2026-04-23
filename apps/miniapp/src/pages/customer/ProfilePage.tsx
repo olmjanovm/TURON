@@ -1,7 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  Bell, ChevronRight, ClipboardList, Gift, Globe2, Headphones,
-  Loader2, MapPin, Moon, Pencil, Phone, Trash2, X,
+  Bell,
+  ChevronRight,
+  ClipboardList,
+  Gift,
+  Globe2,
+  Headphones,
+  Loader2,
+  MapPin,
+  Moon,
+  Pencil,
+  Phone,
+  Trash2,
+  X,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -10,119 +21,123 @@ import { useTelegram } from '../../hooks/useTelegram';
 import { api } from '../../lib/api';
 
 const RED = '#C62020';
+const HERO_HEIGHT = 172;
+const HERO_SHAPE_WIDTH = '150%';
+const HERO_SHAPE_HEIGHT = 232;
+const AVATAR_SIZE = 104;
 
-/* ─── Animation keyframes injected once ──────────────────────────────────── */
 const ANIM_STYLES = `
-  @keyframes turon-unfurl {
-    0%   { clip-path: ellipse(50% 1% at 50% 0%); opacity: 0.55; }
-    30%  { clip-path: ellipse(52% 38% at 50% 0%); opacity: 1; }
-    65%  { clip-path: ellipse(55% 82% at 50% 0%); }
-    100% { clip-path: ellipse(56% 100% at 50% 0%); }
+  @keyframes turon-hero-drop {
+    0% {
+      opacity: 0;
+      transform: translate3d(-50%, -42px, 0) scale(1.06);
+    }
+    58% {
+      opacity: 1;
+      transform: translate3d(-50%, 4px, 0) scale(1.015);
+    }
+    100% {
+      opacity: 1;
+      transform: translate3d(-50%, 0, 0) scale(1);
+    }
   }
 
-  @keyframes turon-fade-quick {
-    from { opacity: 0; transform: translateY(-6px); }
-    to   { opacity: 1; transform: translateY(0); }
+  @keyframes turon-avatar-float {
+    0% {
+      opacity: 0;
+      transform: translate3d(0, 20px, 0) scale(0.88);
+    }
+    55% {
+      opacity: 1;
+      transform: translate3d(0, -4px, 0) scale(1.03);
+    }
+    100% {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1);
+    }
   }
 
-  @keyframes turon-layer-left {
-    0%   { transform: translateX(-72px) scale(0.55); opacity: 0; }
-    40%  { transform: translateX(0) scale(1.1);  opacity: 0.6; }
-    75%  { transform: translateX(0) scale(0.96); opacity: 0.28; }
-    100% { transform: translateX(0) scale(1);    opacity: 0; }
-  }
-
-  @keyframes turon-layer-right {
-    0%   { transform: translateX(72px) scale(0.55);  opacity: 0; }
-    40%  { transform: translateX(0) scale(1.1);  opacity: 0.6; }
-    75%  { transform: translateX(0) scale(0.96); opacity: 0.28; }
-    100% { transform: translateX(0) scale(1);    opacity: 0; }
-  }
-
-  @keyframes turon-avatar-snap {
-    0%   { transform: scale(0.15) rotate(-12deg); opacity: 0; filter: blur(8px); }
-    55%  { transform: scale(1.14) rotate(4deg);   opacity: 1; filter: blur(0); }
-    78%  { transform: scale(0.93) rotate(-2deg); }
-    100% { transform: scale(1)    rotate(0deg);   opacity: 1; }
-  }
-
-  @keyframes turon-letter-up {
-    0%   { transform: translateY(22px); opacity: 0; }
-    60%  { transform: translateY(-5px); opacity: 1; }
-    100% { transform: translateY(0);   opacity: 1; }
+  @keyframes turon-fade-up-soft {
+    0% {
+      opacity: 0;
+      transform: translate3d(0, 18px, 0);
+    }
+    100% {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
   }
 
   @keyframes turon-cascade-3d {
-    0%   { opacity: 0; transform: perspective(700px) rotateX(24deg) translateY(-20px); }
-    100% { opacity: 1; transform: perspective(700px) rotateX(0deg)  translateY(0px); }
+    0% {
+      opacity: 0;
+      transform: perspective(700px) rotateX(24deg) translateY(-20px);
+    }
+    100% {
+      opacity: 1;
+      transform: perspective(700px) rotateX(0deg) translateY(0px);
+    }
   }
 
   @keyframes turon-pulse-ring {
-    0%   { transform: scale(1);   opacity: 0.55; }
-    100% { transform: scale(2.1); opacity: 0; }
+    0% {
+      transform: scale(1);
+      opacity: 0.55;
+    }
+    100% {
+      transform: scale(2.1);
+      opacity: 0;
+    }
   }
 `;
 
-/* ─── Helpers ────────────────────────────────────────────────────────────── */
 function normalizePhone(raw: string): string | null {
-  const d = raw.replace(/\D/g, '');
-  if (d.length === 12 && d.startsWith('998')) return `+${d}`;
-  if (d.length === 10 && d.startsWith('0')) return `+998${d.slice(1)}`;
-  if (d.length === 9) return `+998${d}`;
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('998')) return `+${digits}`;
+  if (digits.length === 10 && digits.startsWith('0')) return `+998${digits.slice(1)}`;
+  if (digits.length === 9) return `+998${digits}`;
   return null;
 }
 
-/* ─── StaggerText ────────────────────────────────────────────────────────── */
-const StaggerText: React.FC<{
-  text: string;
-  baseDelay: number;
-  gap?: number;
-  style?: React.CSSProperties;
-}> = ({ text, baseDelay, gap = 0.07, style }) => {
-  const words = text.split(' ').filter(Boolean);
-  return (
-    <span style={{ display: 'block', ...style }}>
-      {words.map((word, wi) => (
-        <span
-          key={`${wi}-${word}`}
-          style={{
-            display: 'inline-block',
-            marginRight: wi < words.length - 1 ? '0.3em' : 0,
-            animation: `turon-letter-up 0.4s cubic-bezier(0.34,1.56,0.64,1) ${baseDelay + wi * gap}s both`,
-          }}
-        >
-          {word}
-        </span>
-      ))}
-    </span>
-  );
-};
-
-/* ─── Toggle ─────────────────────────────────────────────────────────────── */
 const Toggle: React.FC<{ on: boolean; onChange: () => void }> = ({ on, onChange }) => (
   <button
     type="button"
-    onClick={(e) => { e.stopPropagation(); onChange(); }}
+    onClick={(event) => {
+      event.stopPropagation();
+      onChange();
+    }}
     style={{
-      width: 50, height: 28, borderRadius: 14,
-      background: on ? RED : '#D1D5DB',
-      border: 'none', cursor: 'pointer', position: 'relative',
-      transition: 'background 0.25s', flexShrink: 0,
+      width: 56,
+      height: 32,
+      borderRadius: 999,
+      background: on ? RED : 'rgba(148, 163, 184, 0.38)',
+      border: 'none',
+      cursor: 'pointer',
+      position: 'relative',
+      transition: 'background 0.25s ease',
+      flexShrink: 0,
+      boxShadow: on
+        ? 'inset 0 0 0 1px rgba(198,32,32,0.18)'
+        : 'inset 0 0 0 1px rgba(148,163,184,0.16)',
     }}
     aria-label="toggle"
   >
-    <span style={{
-      position: 'absolute', top: 4,
-      left: on ? 26 : 4,
-      width: 20, height: 20, borderRadius: '50%',
-      background: 'white',
-      boxShadow: '0 1px 6px rgba(0,0,0,0.22)',
-      transition: 'left 0.25s cubic-bezier(0.34,1.56,0.64,1)',
-    }} />
+    <span
+      style={{
+        position: 'absolute',
+        top: 4,
+        left: on ? 28 : 4,
+        width: 24,
+        height: 24,
+        borderRadius: '50%',
+        background: '#FFFFFF',
+        boxShadow: '0 2px 10px rgba(15,23,42,0.18)',
+        transition: 'left 0.25s cubic-bezier(0.34,1.56,0.64,1)',
+      }}
+    />
   </button>
 );
 
-/* ─── Row ────────────────────────────────────────────────────────────────── */
 const Row: React.FC<{
   icon: React.ReactNode;
   label: string;
@@ -133,35 +148,56 @@ const Row: React.FC<{
 }> = ({ icon, label, value, onClick, right, last }) => {
   const content = (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
-        <div style={{
-          width: 40, height: 40, borderRadius: 12,
-          background: 'var(--app-icon-bg)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0,
-        }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0, flex: 1 }}>
+        <div
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: 18,
+            background: 'linear-gradient(180deg, rgba(198,32,32,0.11) 0%, rgba(198,32,32,0.07) 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
           {icon}
         </div>
-        <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--app-text)' }}>{label}</span>
+        <span style={{ fontSize: 17, fontWeight: 750, color: 'var(--app-text)' }}>{label}</span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, minWidth: 0 }}>
-        {value && (
-          <span style={{ fontSize: 13, color: 'var(--app-muted)', fontWeight: 500 }}>{value}</span>
-        )}
-        {right ?? (onClick ? <ChevronRight size={18} color="var(--app-muted)" /> : null)}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, minWidth: 0 }}>
+        {value ? (
+          <span
+            style={{
+              maxWidth: 144,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              fontSize: 15,
+              color: 'var(--app-muted)',
+              fontWeight: 650,
+            }}
+          >
+            {value}
+          </span>
+        ) : null}
+        {right ?? (onClick ? <ChevronRight size={20} color="var(--app-muted)" /> : null)}
       </div>
     </>
   );
 
   const baseStyle: React.CSSProperties = {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    width: '100%', background: 'var(--app-card)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    background: 'var(--app-card)',
     border: 'none',
     borderBottom: last ? 'none' : '1px solid var(--app-line)',
-    padding: '15px 20px',
+    padding: '22px 20px',
     cursor: onClick ? 'pointer' : 'default',
     textAlign: 'left',
-    transition: 'background 0.15s',
+    transition: 'background 0.15s ease',
   };
 
   if (onClick) {
@@ -175,30 +211,40 @@ const Row: React.FC<{
   return <div style={baseStyle}>{content}</div>;
 };
 
-/* ─── Section ────────────────────────────────────────────────────────────── */
-const Section: React.FC<{ title?: string; children: React.ReactNode; delay: number }> = ({
-  title, children, delay,
-}) => (
-  <div style={{
-    marginTop: 28,
-    animation: `turon-cascade-3d 0.48s cubic-bezier(0.16,1,0.3,1) ${delay}s both`,
-  }}>
-    {title && (
-      <p style={{
-        fontSize: 11, fontWeight: 700, color: 'var(--app-section-label)',
-        textTransform: 'uppercase', letterSpacing: '0.1em',
-        marginBottom: 8, paddingInline: 20,
-      }}>
+const Section: React.FC<{ title?: string; children: React.ReactNode; delay: number }> = ({ title, children, delay }) => (
+  <div
+    style={{
+      marginTop: 30,
+      animation: `turon-cascade-3d 0.48s cubic-bezier(0.16,1,0.3,1) ${delay}s both`,
+    }}
+  >
+    {title ? (
+      <p
+        style={{
+          fontSize: 11,
+          fontWeight: 800,
+          color: 'var(--app-section-label)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.16em',
+          margin: '0 0 10px',
+          paddingInline: 20,
+        }}
+      >
         {title}
       </p>
-    )}
-    <div style={{ overflow: 'hidden', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
+    ) : null}
+    <div
+      style={{
+        overflow: 'hidden',
+        background: 'var(--app-card)',
+        boxShadow: '0 4px 18px rgba(15,23,42,0.04)',
+      }}
+    >
       {children}
     </div>
   </div>
 );
 
-/* ─── PhoneEditModal ─────────────────────────────────────────────────────── */
 const PhoneEditModal: React.FC<{
   initialPhone?: string | null;
   onClose: () => void;
@@ -214,7 +260,10 @@ const PhoneEditModal: React.FC<{
   useEffect(() => {
     const syncKeyboardInset = () => {
       const viewport = window.visualViewport;
-      if (!viewport) { setKeyboardInset(0); return; }
+      if (!viewport) {
+        setKeyboardInset(0);
+        return;
+      }
       setKeyboardInset(Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop));
     };
 
@@ -240,11 +289,11 @@ const PhoneEditModal: React.FC<{
     }
     setSaving(true);
     try {
-      const res = await api.patch('/users/me/phone', { phone: normalized }) as { phoneNumber: string | null };
+      const res = (await api.patch('/users/me/phone', { phone: normalized })) as { phoneNumber: string | null };
       onSaved(res.phoneNumber);
       onClose();
     } catch (err: any) {
-      setError(err?.response?.data?.error || "Telefon saqlanmadi");
+      setError(err?.response?.data?.error || 'Telefon saqlanmadi');
     } finally {
       setSaving(false);
     }
@@ -270,7 +319,9 @@ const PhoneEditModal: React.FC<{
         backdropFilter: 'blur(8px)',
         paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + ${keyboardInset}px + 10px)`,
       }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
     >
       <div className="max-h-[min(620px,calc(100dvh-24px))] w-full max-w-[430px] overflow-y-auto rounded-[24px] bg-[var(--app-card)] px-5 pb-5 pt-4 shadow-2xl">
         <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-200" />
@@ -307,7 +358,10 @@ const PhoneEditModal: React.FC<{
           type="tel"
           inputMode="tel"
           value={value}
-          onChange={(e) => { setValue(e.target.value); setError(''); }}
+          onChange={(event) => {
+            setValue(event.target.value);
+            setError('');
+          }}
           placeholder="+998 90 123 45 67"
           className="h-14 w-full rounded-[14px] border border-[var(--app-line)] bg-[var(--app-bg)] px-4 text-[16px] font-bold text-[var(--app-text)] outline-none focus:border-red-400"
         />
@@ -317,7 +371,9 @@ const PhoneEditModal: React.FC<{
           <button
             type="button"
             disabled={saving}
-            onClick={() => { void savePhone(); }}
+            onClick={() => {
+              void savePhone();
+            }}
             className="flex h-[52px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#C62020] px-4 text-[14px] font-black text-white shadow-lg shadow-red-200 active:scale-[0.98] disabled:opacity-50"
           >
             {saving ? <Loader2 size={17} className="animate-spin" /> : null}
@@ -329,7 +385,6 @@ const PhoneEditModal: React.FC<{
   );
 };
 
-/* ─── Profile Page ───────────────────────────────────────────────────────── */
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
   const { user, updateUser } = useAuthStore();
@@ -357,8 +412,13 @@ const ProfilePage: React.FC = () => {
     (tgUser ? `${tgUser.first_name ?? ''} ${tgUser.last_name ?? ''}`.trim() : 'Turon Mijozi');
   const username = tgUser?.username ? `@${tgUser.username}` : '';
   const phoneLabel = user?.phoneNumber || 'Kiritilmagan';
-  const initials = displayName
-    .split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || 'TK';
+  const initials =
+    displayName
+      .split(' ')
+      .map((item: string) => item[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase() || 'TK';
 
   const langLabel =
     language === 'ru' ? 'Русский' : language === 'uz-cyrl' ? 'Ўзбекча' : "O'zbekcha";
@@ -388,78 +448,95 @@ const ProfilePage: React.FC = () => {
   };
 
   return (
-    <div style={{
-      minHeight: '100dvh',
-      background: 'var(--app-bg)',
-      paddingBottom: 100,
-      color: 'var(--app-text)',
-    }}>
-      {/* Inject keyframes */}
+    <div
+      style={{
+        minHeight: '100dvh',
+        background: 'var(--app-bg)',
+        paddingBottom: 100,
+        color: 'var(--app-text)',
+        overflowX: 'hidden',
+      }}
+    >
       <style>{ANIM_STYLES}</style>
 
-      {/* ── Red Unfurl Shape ─────────────────────────────────────────────── */}
-      <div style={{
-        position: 'relative',
-        width: '100%',
-        height: 220,
-        background: `linear-gradient(160deg, #9B0000 0%, ${RED} 60%, #E53535 100%)`,
-        animation: 'turon-unfurl 0.55s cubic-bezier(0.16,1,0.3,1) 0.04s both',
-        zIndex: 1,
-        boxShadow: '0 10px 40px rgba(198,32,32,0.28)',
-      }}>
-        <h1 style={{
-          position: 'absolute',
-          top: 'max(env(safe-area-inset-top, 0px), 16px)',
-          left: 0, right: 0,
-          textAlign: 'center',
-          fontSize: 18, fontWeight: 800, color: 'white',
-          margin: 0,
-          paddingTop: 14,
-          animation: 'turon-fade-quick 0.3s 0.5s both',
-        }}>
+      <div
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: HERO_HEIGHT,
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            left: '50%',
+            top: -74,
+            width: HERO_SHAPE_WIDTH,
+            height: HERO_SHAPE_HEIGHT,
+            transform: 'translateX(-50%)',
+            borderBottomLeftRadius: '50% 36%',
+            borderBottomRightRadius: '50% 36%',
+            background:
+              'radial-gradient(circle at top, rgba(255,255,255,0.08), transparent 42%), linear-gradient(160deg, #980000 0%, #C62020 58%, #E53A3A 100%)',
+            boxShadow: '0 18px 40px rgba(198,32,32,0.28)',
+            animation: 'turon-hero-drop 1s cubic-bezier(0.22,1,0.36,1) both',
+            willChange: 'transform, opacity',
+          }}
+        />
+
+        <h1
+          style={{
+            position: 'absolute',
+            top: 'max(env(safe-area-inset-top, 0px), 16px)',
+            left: 0,
+            right: 0,
+            textAlign: 'center',
+            fontSize: 18,
+            fontWeight: 800,
+            color: '#FFFFFF',
+            margin: 0,
+            paddingTop: 14,
+            animation: 'turon-fade-up-soft 0.72s cubic-bezier(0.22,1,0.36,1) 0.08s both',
+          }}
+        >
           Profil
         </h1>
       </div>
 
-      {/* ── Avatar + Identity ────────────────────────────────────────────── */}
-      <div style={{
-        display: 'flex', flexDirection: 'column', alignItems: 'center',
-        marginTop: -49,
-        paddingBottom: 6,
-        position: 'relative', zIndex: 2,
-      }}>
-        {/* Avatar with ghost assembly layers */}
-        <div style={{ position: 'relative', width: 98, height: 98 }}>
-          {/* Ghost layer — flies in from left */}
-          <div style={{
-            position: 'absolute',
-            top: 4, left: 4, right: 4, bottom: 4,
-            borderRadius: '50%',
-            background: RED,
-            animation: 'turon-layer-left 0.5s ease-out 0.22s both',
-            pointerEvents: 'none',
-          }} />
-          {/* Ghost layer — flies in from right */}
-          <div style={{
-            position: 'absolute',
-            top: 4, left: 4, right: 4, bottom: 4,
-            borderRadius: '50%',
-            background: '#E53535',
-            animation: 'turon-layer-right 0.5s ease-out 0.22s both',
-            pointerEvents: 'none',
-          }} />
-          {/* Real avatar — snaps in */}
-          <div style={{
-            position: 'relative', zIndex: 1,
-            width: 98, height: 98,
-            borderRadius: '50%',
-            border: '4px solid white',
-            boxShadow: '0 8px 28px rgba(198,32,32,0.38), 0 2px 8px rgba(0,0,0,0.14)',
-            overflow: 'hidden',
-            background: `linear-gradient(135deg, ${RED}, #7B0000)`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            animation: 'turon-avatar-snap 0.48s cubic-bezier(0.34,1.56,0.64,1) 0.45s both',
-          }}>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          marginTop: -52,
+          paddingBottom: 14,
+          position: 'relative',
+          zIndex: 2,
+        }}
+      >
+        <div
+          style={{
+            width: AVATAR_SIZE,
+            height: AVATAR_SIZE,
+            animation: 'turon-avatar-float 1s cubic-bezier(0.22,1,0.36,1) both',
+            willChange: 'transform, opacity',
+          }}
+        >
+          <div
+            style={{
+              width: AVATAR_SIZE,
+              height: AVATAR_SIZE,
+              borderRadius: '50%',
+              border: '4px solid #FFFFFF',
+              boxShadow: '0 12px 34px rgba(198,32,32,0.28), 0 3px 12px rgba(15,23,42,0.16)',
+              overflow: 'hidden',
+              background: `linear-gradient(135deg, ${RED}, #7B0000)`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
             {photoUrl ? (
               <img
                 src={photoUrl}
@@ -467,171 +544,174 @@ const ProfilePage: React.FC = () => {
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
             ) : (
-              <span style={{ fontSize: 32, fontWeight: 900, color: 'white' }}>{initials}</span>
+              <span style={{ fontSize: 32, fontWeight: 900, color: '#FFFFFF' }}>{initials}</span>
             )}
           </div>
         </div>
 
-        {/* Name — staggered word reveal */}
-        <StaggerText
-          text={displayName}
-          baseDelay={0.72}
+        <div
           style={{
-            fontSize: 20, fontWeight: 800, color: 'var(--app-text)',
-            marginTop: 14, textAlign: 'center', lineHeight: 1.2,
+            marginTop: 18,
+            paddingInline: 20,
+            textAlign: 'center',
+            animation: 'turon-fade-up-soft 0.88s cubic-bezier(0.22,1,0.36,1) 0.08s both',
           }}
-        />
-
-        {/* Username */}
-        {username ? (
-          <StaggerText
-            text={username}
-            baseDelay={0.80}
-            gap={0.045}
+        >
+          <h2
             style={{
-              fontSize: 13, color: 'var(--app-muted)',
-              marginTop: 4, textAlign: 'center',
+              margin: 0,
+              fontSize: 22,
+              fontWeight: 850,
+              lineHeight: 1.16,
+              letterSpacing: '-0.03em',
+              color: 'var(--app-text)',
             }}
-          />
-        ) : null}
+          >
+            {displayName}
+          </h2>
+          {username ? (
+            <p
+              style={{
+                margin: '8px 0 0',
+                fontSize: 14,
+                fontWeight: 600,
+                color: 'var(--app-muted)',
+              }}
+            >
+              {username}
+            </p>
+          ) : null}
+        </div>
       </div>
 
-      {/* ── Asosiy ───────────────────────────────────────────────────────── */}
-      <Section title="Asosiy" delay={0.88}>
-        {/* Phone row */}
+      <Section title="Asosiy" delay={0.32}>
         <Row
-          icon={<Phone size={19} color={RED} />}
+          icon={<Phone size={22} color={RED} />}
           label="Telefon raqam"
-          right={(
+          right={
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, minWidth: 0 }}>
-              <span style={{
-                maxWidth: 130,
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                fontSize: 13, color: 'var(--app-muted)', fontWeight: 700,
-              }}>
+              <span
+                style={{
+                  maxWidth: 140,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  fontSize: 15,
+                  color: 'var(--app-muted)',
+                  fontWeight: 700,
+                }}
+              >
                 {phoneLabel}
               </span>
               <button
                 type="button"
-                onClick={() => { setPhoneFeedback(''); setIsPhoneOpen(true); }}
+                onClick={() => {
+                  setPhoneFeedback('');
+                  setIsPhoneOpen(true);
+                }}
                 style={{
-                  width: 32, height: 32, borderRadius: 10,
+                  width: 36,
+                  height: 36,
+                  borderRadius: 12,
                   border: '1px solid rgba(198,32,32,0.16)',
                   background: 'rgba(198,32,32,0.08)',
-                  color: RED, display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', flexShrink: 0, cursor: 'pointer',
+                  color: RED,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  cursor: 'pointer',
                 }}
                 aria-label="Telefonni tahrirlash"
               >
-                <Pencil size={15} />
+                <Pencil size={16} />
               </button>
               {user?.phoneNumber ? (
                 <button
                   type="button"
                   disabled={phoneDeleting}
-                  onClick={() => { void deletePhone(); }}
+                  onClick={() => {
+                    void deletePhone();
+                  }}
                   style={{
-                    width: 32, height: 32, borderRadius: 10,
+                    width: 36,
+                    height: 36,
+                    borderRadius: 12,
                     border: '1px solid rgba(198,32,32,0.16)',
                     background: 'rgba(198,32,32,0.08)',
-                    color: RED, display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', flexShrink: 0, cursor: 'pointer',
+                    color: RED,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    cursor: 'pointer',
                     opacity: phoneDeleting ? 0.55 : 1,
                   }}
                   aria-label="Telefonni o'chirish"
                 >
-                  {phoneDeleting
-                    ? <Loader2 size={15} className="animate-spin" />
-                    : <Trash2 size={15} />}
+                  {phoneDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
                 </button>
               ) : null}
             </div>
-          )}
+          }
         />
         {phoneFeedback ? (
-          <p style={{ padding: '0 20px 12px 74px', fontSize: 12, fontWeight: 700, color: RED }}>
-            {phoneFeedback}
-          </p>
+          <p style={{ padding: '0 20px 12px 92px', fontSize: 12, fontWeight: 700, color: RED }}>{phoneFeedback}</p>
         ) : null}
 
-        {/* Addresses */}
-        <Row
-          icon={<MapPin size={19} color={RED} />}
-          label="Mening manzillarim"
-          onClick={() => navigate('/customer/addresses')}
-        />
-
-        {/* Orders */}
-        <Row
-          icon={<ClipboardList size={19} color={RED} />}
-          label="Buyurtmalar tarixi"
-          onClick={() => navigate('/customer/orders')}
-        />
-
-        {/* Bonuses */}
-        <Row
-          icon={<Gift size={19} color={RED} />}
-          label="Promokod va bonuslar"
-          onClick={() => navigate('/customer/promos')}
-        />
-
-        {/* Language */}
-        <Row
-          icon={<Globe2 size={19} color={RED} />}
-          label="Tilni o'zgartirish"
-          value={langLabel}
-          onClick={cycleLanguage}
-          last
-        />
+        <Row icon={<MapPin size={22} color={RED} />} label="Mening manzillarim" onClick={() => navigate('/customer/addresses')} />
+        <Row icon={<ClipboardList size={22} color={RED} />} label="Buyurtmalar tarixi" onClick={() => navigate('/customer/orders')} />
+        <Row icon={<Gift size={22} color={RED} />} label="Promokod va bonuslar" onClick={() => navigate('/customer/promos')} />
+        <Row icon={<Globe2 size={22} color={RED} />} label="Tilni o'zgartirish" value={langLabel} onClick={cycleLanguage} last />
       </Section>
 
-      {/* ── Sozlamalar ───────────────────────────────────────────────────── */}
-      <Section title="Sozlamalar" delay={1.01}>
-        <Row
-          icon={<Moon size={19} color={RED} />}
-          label="Dark Mode"
-          right={<Toggle on={darkMode} onChange={() => setDarkMode((v) => !v)} />}
-        />
-        <Row
-          icon={<Bell size={19} color={RED} />}
-          label="Bildirishnomalar"
-          right={<Toggle on={notifOn} onChange={() => setNotifOn((v) => !v)} />}
-          last
-        />
+      <Section title="Sozlamalar" delay={0.4}>
+        <Row icon={<Moon size={22} color={RED} />} label="Dark Mode" right={<Toggle on={darkMode} onChange={() => setDarkMode((value) => !value)} />} />
+        <Row icon={<Bell size={22} color={RED} />} label="Bildirishnomalar" right={<Toggle on={notifOn} onChange={() => setNotifOn((value) => !value)} />} last />
       </Section>
 
-      {/* ── Qo'llab-quvvatlash ───────────────────────────────────────────── */}
-      <Section title="Qo'llab-quvvatlash" delay={1.14}>
+      <Section title="Qo'llab-quvvatlash" delay={0.48}>
         <div style={{ padding: '18px 20px', background: 'var(--app-card)' }}>
           <div style={{ position: 'relative' }}>
-            {/* Pulse ring 1 */}
-            <div style={{
-              position: 'absolute', inset: 0,
-              borderRadius: 14,
-              border: `1.5px solid ${RED}`,
-              animation: 'turon-pulse-ring 2s ease-out 0s infinite',
-              pointerEvents: 'none',
-            }} />
-            {/* Pulse ring 2 — offset */}
-            <div style={{
-              position: 'absolute', inset: 0,
-              borderRadius: 14,
-              border: `1.5px solid ${RED}`,
-              animation: 'turon-pulse-ring 2s ease-out 0.8s infinite',
-              pointerEvents: 'none',
-            }} />
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                borderRadius: 14,
+                border: `1.5px solid ${RED}`,
+                animation: 'turon-pulse-ring 2s ease-out 0s infinite',
+                pointerEvents: 'none',
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                borderRadius: 14,
+                border: `1.5px solid ${RED}`,
+                animation: 'turon-pulse-ring 2s ease-out 0.8s infinite',
+                pointerEvents: 'none',
+              }}
+            />
             <button
               type="button"
               onClick={() => navigate('/customer/support')}
               style={{
-                position: 'relative', zIndex: 1,
-                width: '100%', height: 52,
+                position: 'relative',
+                zIndex: 1,
+                width: '100%',
+                height: 52,
                 borderRadius: 14,
                 background: 'rgba(198,32,32,0.07)',
-                border: `1.5px solid rgba(198,32,32,0.22)`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                gap: 10, cursor: 'pointer',
-                fontSize: 15, fontWeight: 700, color: RED,
+                border: '1.5px solid rgba(198,32,32,0.22)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+                cursor: 'pointer',
+                fontSize: 15,
+                fontWeight: 700,
+                color: RED,
               }}
             >
               <Headphones size={20} color={RED} />
@@ -641,7 +721,6 @@ const ProfilePage: React.FC = () => {
         </div>
       </Section>
 
-      {/* ── Phone modal ──────────────────────────────────────────────────── */}
       {isPhoneOpen ? (
         <PhoneEditModal
           initialPhone={user?.phoneNumber || null}
