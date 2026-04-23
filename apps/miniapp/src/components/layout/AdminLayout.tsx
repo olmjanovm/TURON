@@ -113,7 +113,7 @@ const AdminLayout: React.FC = () => {
     const timer = window.setTimeout(() => {
       computeKeyboardOpen();
       syncModalState();
-    }, 100);
+    }, 250);
     return () => window.clearTimeout(timer);
   }, [location.pathname, computeKeyboardOpen, syncModalState]);
 
@@ -200,14 +200,19 @@ const AdminLayout: React.FC = () => {
       <button
         type="button"
         onClick={() => navigate(path)}
-        className={`relative flex h-[60px] min-w-0 flex-col items-center justify-center gap-1 rounded-[20px] transition-all ${
+        className={`relative flex h-[60px] min-w-0 flex-col items-center justify-center gap-1 rounded-[22px] transition-all duration-300 ${
           isActive
-            ? 'bg-blue-50 text-blue-600 shadow-[inset_0_0_0_1px_rgba(59,130,246,0.14)]'
-            : 'text-slate-500'
+            ? 'bg-rose-50 text-[#C62020] shadow-[inset_0_0_0_1px_rgba(198,32,32,0.1)] scale-105'
+            : 'text-slate-400 hover:text-slate-600'
         }`}
       >
-        <div className="relative">{icon}</div>
-        <span className={`text-[10px] font-black ${isActive ? 'text-blue-600' : 'text-slate-500'}`}>
+        <div className="relative transition-transform duration-300">
+          {React.cloneElement(icon as React.ReactElement, { 
+            strokeWidth: isActive ? 2.5 : 2,
+            size: 22
+          })}
+        </div>
+        <span className={`text-[9px] font-black uppercase tracking-widest ${isActive ? 'text-[#C62020]' : 'text-slate-400'}`}>
           {label}
         </span>
         {badge !== undefined && badge > 0 ? (

@@ -73,6 +73,44 @@ const CourierLayout: React.FC = () => {
   // Silently request location on mount — toast shows briefly if granted for first time
   useLocationPermission({ autoRequest: true });
 
+  const [isKeyboardOpen, setIsKeyboardOpen] = React.useState(false);
+
+  const isTypingElement = (element: Element | null) => {
+    if (!element) return false;
+    const tag = element.tagName;
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (element as HTMLElement).isContentEditable;
+  };
+
+  const computeKeyboardOpen = React.useCallback(() => {
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    const keyboardLikelyVisible = (window.innerHeight - viewportHeight) > 140;
+    const hasInputFocus = isTypingElement(document.activeElement);
+    setIsKeyboardOpen(hasInputFocus || keyboardLikelyVisible);
+  }, []);
+
+  React.useEffect(() => {
+    computeKeyboardOpen();
+    window.addEventListener('focusin', computeKeyboardOpen);
+    window.addEventListener('focusout', computeKeyboardOpen);
+    window.visualViewport?.addEventListener('resize', computeKeyboardOpen);
+    window.visualViewport?.addEventListener('scroll', computeKeyboardOpen);
+
+    return () => {
+      window.removeEventListener('focusin', computeKeyboardOpen);
+      window.removeEventListener('focusout', computeKeyboardOpen);
+      window.visualViewport?.removeEventListener('resize', computeKeyboardOpen);
+      window.visualViewport?.removeEventListener('scroll', computeKeyboardOpen);
+    };
+  }, [computeKeyboardOpen]);
+
+  // CRITICAL: Re-sync UI state on navigation to prevent "stuck" hidden nav
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => {
+      computeKeyboardOpen();
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [location.pathname, computeKeyboardOpen]);
+
   const isMapPage = location.pathname.includes('/map/');
   const activeDelivery = orders.find((o) => isActiveDeliveryStage(o.deliveryStage));
 
@@ -176,7 +214,7 @@ const CourierLayout: React.FC = () => {
             : activeDelivery
               ? 'calc(env(safe-area-inset-top, 0px) + 64px + 52px)'
               : 'calc(env(safe-area-inset-top, 0px) + 64px)',
-          paddingBottom: isMapPage ? 0 : 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
+          paddingBottom: isMapPage ? 0 : isKeyboardOpen ? 'env(safe-area-inset-bottom, 20px)' : 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
         }}
       >
         <AppErrorBoundary theme="light" homeUrl="/courier">
@@ -185,9 +223,10 @@ const CourierLayout: React.FC = () => {
       </main>
 
       {/* ─── Bottom navigation ─────────────────────────────────────── */}
-      {!isMapPage && (
         <nav
-          className="fixed bottom-0 left-0 right-0 z-50 flex items-center border-t border-slate-100 bg-white/95 backdrop-blur-xl"
+          className={`fixed bottom-0 left-0 right-0 z-50 flex items-center border-t border-slate-100 bg-white/95 backdrop-blur-xl transition-all duration-300 ${
+            isMapPage || isKeyboardOpen ? 'pointer-events-none translate-y-full opacity-0' : 'translate-y-0 opacity-100'
+          }`}
           style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)', height: 'calc(env(safe-area-inset-bottom, 0px) + 80px)' }}
         >
           <div className="flex w-full items-center justify-around px-2 pt-2">
@@ -218,7 +257,6 @@ const CourierLayout: React.FC = () => {
             })}
           </div>
         </nav>
-      )}
     </div>
   );
 };
