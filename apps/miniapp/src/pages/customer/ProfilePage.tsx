@@ -510,9 +510,26 @@ const ProfilePage: React.FC = () => {
             borderBottomRightRadius: '50% 36%',
             background:
               'radial-gradient(circle at top, rgba(255,255,255,0.08), transparent 42%), linear-gradient(160deg, #980000 0%, #C62020 58%, #E53A3A 100%)',
-            boxShadow: '0 18px 40px rgba(198,32,32,0.28)',
+            boxShadow: '0 14px 30px rgba(15,23,42,0.10)',
             animation: 'turon-hero-drop 1s cubic-bezier(0.22,1,0.36,1) both',
             willChange: 'transform, opacity',
+          }}
+        />
+
+        <div
+          style={{
+            position: 'absolute',
+            left: '50%',
+            bottom: -34,
+            width: '126%',
+            height: 94,
+            transform: 'translateX(-50%)',
+            borderTopLeftRadius: '50% 72%',
+            borderTopRightRadius: '50% 72%',
+            background: 'var(--app-bg)',
+            boxShadow: '0 -8px 18px rgba(15,23,42,0.03)',
+            pointerEvents: 'none',
+            zIndex: 1,
           }}
         />
 
@@ -529,6 +546,7 @@ const ProfilePage: React.FC = () => {
             margin: 0,
             paddingTop: 14,
             animation: 'turon-fade-up-soft 0.72s cubic-bezier(0.22,1,0.36,1) 0.08s both',
+            zIndex: 2,
           }}
         >
           Profil
@@ -546,15 +564,15 @@ const ProfilePage: React.FC = () => {
         <div
           style={{
             position: 'absolute',
-            top: 36,
+            top: 30,
             left: '50%',
-            width: '118%',
-            height: 138,
+            width: '124%',
+            height: 146,
             transform: 'translateX(-50%)',
-            borderTopLeftRadius: '50% 58%',
-            borderTopRightRadius: '50% 58%',
+            borderTopLeftRadius: '50% 64%',
+            borderTopRightRadius: '50% 64%',
             background: 'var(--app-bg)',
-            boxShadow: '0 -10px 24px rgba(15,23,42,0.05)',
+            boxShadow: '0 -6px 18px rgba(15,23,42,0.035)',
             pointerEvents: 'none',
             zIndex: 0,
           }}
