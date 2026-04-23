@@ -63,46 +63,39 @@ const AdminLayout: React.FC = () => {
   const [keyboardOpen, setKeyboardOpen] = React.useState(false);
   const [modalOpen, setModalOpen] = React.useState(false);
 
+  const isTypingElement = (element: Element | null) => {
+    if (!element) return false;
+    const tag = element.tagName;
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (element as HTMLElement).isContentEditable;
+  };
+
+  const computeKeyboardOpen = React.useCallback(() => {
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    const keyboardLikelyVisible = window.innerHeight - viewportHeight > 140;
+    const hasInputFocus = isTypingElement(document.activeElement);
+    setKeyboardOpen(hasInputFocus || keyboardLikelyVisible);
+  }, []);
+
+  const syncModalState = React.useCallback(() => {
+    setModalOpen(document.body.getAttribute('data-admin-modal-open') === '1');
+  }, []);
+
   React.useEffect(() => {
-    const isTypingElement = (element: Element | null) => {
-      if (!element) return false;
-      const tag = element.tagName;
-      return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (element as HTMLElement).isContentEditable;
-    };
-
-    const computeKeyboardOpen = () => {
-      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-      const keyboardLikelyVisible = window.innerHeight - viewportHeight > 140;
-      const hasInputFocus = isTypingElement(document.activeElement);
-      // Global behavior for admin module:
-      // hide bottom nav whenever user is typing in a field, and also when viewport shrinks like mobile keyboard.
-      setKeyboardOpen(hasInputFocus || keyboardLikelyVisible);
-    };
-
-    const handleFocusOut = () => {
-      // Let browser move focus first, then recompute.
-      window.setTimeout(computeKeyboardOpen, 0);
-    };
-
     computeKeyboardOpen();
     window.visualViewport?.addEventListener('resize', computeKeyboardOpen);
     window.visualViewport?.addEventListener('scroll', computeKeyboardOpen);
     window.addEventListener('focusin', computeKeyboardOpen);
-    window.addEventListener('focusout', handleFocusOut);
+    window.addEventListener('focusout', computeKeyboardOpen);
 
     return () => {
       window.visualViewport?.removeEventListener('resize', computeKeyboardOpen);
       window.visualViewport?.removeEventListener('scroll', computeKeyboardOpen);
       window.removeEventListener('focusin', computeKeyboardOpen);
-      window.removeEventListener('focusout', handleFocusOut);
+      window.removeEventListener('focusout', computeKeyboardOpen);
     };
-  }, []);
+  }, [computeKeyboardOpen]);
 
   React.useEffect(() => {
-    const syncModalState = () => {
-      setModalOpen(document.body.getAttribute('data-admin-modal-open') === '1');
-    };
-
     syncModalState();
 
     const observer = new MutationObserver(syncModalState);
@@ -112,7 +105,17 @@ const AdminLayout: React.FC = () => {
     });
 
     return () => observer.disconnect();
-  }, []);
+  }, [syncModalState]);
+
+  // CRITICAL: Re-sync UI state on navigation to prevent "stuck" hidden nav
+  React.useEffect(() => {
+    // Small delay to allow DOM updates and focus shifts
+    const timer = window.setTimeout(() => {
+      computeKeyboardOpen();
+      syncModalState();
+    }, 100);
+    return () => window.clearTimeout(timer);
+  }, [location.pathname, computeKeyboardOpen, syncModalState]);
 
   const getPageHeaderTitle = (pathname: string) => {
     if (pathname.startsWith('/admin/orders')) return 'Buyurtmalar';
@@ -146,8 +149,9 @@ const AdminLayout: React.FC = () => {
 
   const pageHeaderTitle = getPageHeaderTitle(location.pathname);
   const isHomePage = location.pathname === '/admin' || location.pathname === '/admin/dashboard';
-  const isAdminFormRoute = /\/(new|edit)$/.test(location.pathname);
-  const hideBottomNav = keyboardOpen || modalOpen || isAdminFormRoute;
+  const isFormRoute = /\/(new|edit)$/.test(location.pathname);
+  const isChatRoute = location.pathname.includes('/admin/chats');
+  const hideBottomNav = keyboardOpen || modalOpen || isFormRoute || isChatRoute;
 
   const handleBack = () => {
     const fallback = getBackFallbackPath(location.pathname);
