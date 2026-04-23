@@ -113,7 +113,7 @@ const AdminLayout: React.FC = () => {
     const timer = window.setTimeout(() => {
       computeKeyboardOpen();
       syncModalState();
-    }, 100);
+    }, 250);
     return () => window.clearTimeout(timer);
   }, [location.pathname, computeKeyboardOpen, syncModalState]);
 

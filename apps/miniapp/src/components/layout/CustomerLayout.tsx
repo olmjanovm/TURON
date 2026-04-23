@@ -75,43 +75,42 @@ const CustomerLayout: React.FC = () => {
   const navigate = useNavigate();
   const cartCount = useCartStore((s) => s.getTotalItems());
   const [isKeyboardOpen, setIsKeyboardOpen] = React.useState(false);
+  const isTypingElement = (element: Element | null) => {
+    if (!element) return false;
+    const tag = element.tagName;
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (element as HTMLElement).isContentEditable;
+  };
+
+  const computeKeyboardOpen = React.useCallback(() => {
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    // On mobile, keyboard is usually > 200px. 140px is a safe threshold for most devices.
+    const keyboardLikelyVisible = (window.innerHeight - viewportHeight) > 140;
+    const hasInputFocus = isTypingElement(document.activeElement);
+    setIsKeyboardOpen(hasInputFocus || keyboardLikelyVisible);
+  }, []);
 
   useEffect(() => {
-    const handleFocus = (e: Event) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
-        setIsKeyboardOpen(true);
-      }
-    };
-    const handleBlur = (e: Event) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
-        setTimeout(() => setIsKeyboardOpen(false), 50); // slight delay to prevent flicker
-      }
-    };
-
-    let lastHeight = window.innerHeight;
-    const handleResize = () => {
-      if (window.innerHeight > lastHeight + 100) {
-        setIsKeyboardOpen(false);
-      } else if (window.innerHeight < lastHeight - 100) {
-        setIsKeyboardOpen(true);
-      }
-      lastHeight = window.innerHeight;
-    };
-
-    window.addEventListener('focusin', handleFocus);
-    window.addEventListener('focusout', handleBlur);
-    window.addEventListener('resize', handleResize);
-    window.visualViewport?.addEventListener('resize', handleResize);
+    computeKeyboardOpen();
+    window.addEventListener('focusin', computeKeyboardOpen);
+    window.addEventListener('focusout', computeKeyboardOpen);
+    window.visualViewport?.addEventListener('resize', computeKeyboardOpen);
+    window.visualViewport?.addEventListener('scroll', computeKeyboardOpen);
 
     return () => {
-      window.removeEventListener('focusin', handleFocus);
-      window.removeEventListener('focusout', handleBlur);
-      window.removeEventListener('resize', handleResize);
-      window.visualViewport?.removeEventListener('resize', handleResize);
+      window.removeEventListener('focusin', computeKeyboardOpen);
+      window.removeEventListener('focusout', computeKeyboardOpen);
+      window.visualViewport?.removeEventListener('resize', computeKeyboardOpen);
+      window.visualViewport?.removeEventListener('scroll', computeKeyboardOpen);
     };
-  }, []);
+  }, [computeKeyboardOpen]);
+
+  // CRITICAL: Re-sync UI state on navigation to prevent "stuck" hidden nav
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      computeKeyboardOpen();
+    }, 250); // Slightly longer delay for smoother transitions
+    return () => window.clearTimeout(timer);
+  }, [location.pathname, computeKeyboardOpen]);
 
   const layoutVars: React.CSSProperties & Record<string, string> = {
     '--customer-nav-height': '72px',
@@ -160,7 +159,7 @@ const CustomerLayout: React.FC = () => {
           style={{
             position: 'relative',
             minHeight: '100dvh',
-            paddingBottom: !hideBottomNav && !isKeyboardOpen ? '88px' : 'env(safe-area-inset-bottom, 20px)',
+            paddingBottom: !hideBottomNav ? 'var(--customer-nav-top-edge)' : 'env(safe-area-inset-bottom, 20px)',
           }}
         >
           <CustomerErrorBoundary>
@@ -169,7 +168,15 @@ const CustomerLayout: React.FC = () => {
         </main>
       </div>
 
-      {!hideBottomNav && !isKeyboardOpen ? <BottomNavbar /> : null}
+      <div 
+        className={`fixed inset-x-0 bottom-0 z-[80] transition-all duration-300 ease-in-out ${
+          hideBottomNav || isKeyboardOpen 
+            ? 'pointer-events-none translate-y-full opacity-0' 
+            : 'translate-y-0 opacity-100'
+        }`}
+      >
+        <BottomNavbar />
+      </div>
 
 
     </div>
