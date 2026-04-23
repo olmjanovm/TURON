@@ -31,8 +31,17 @@ const CategoryPage: React.FC = () => {
     setHeroImageSrc(getCategoryImageUrl(selectedCategory));
   }, [selectedCategory]);
 
-  if (isCategoriesLoading || isProductsLoading) {
-    return <LoadingSkeleton />;
+  // 🚨 CRITICAL FIX: Faqatgina kesh umuman bo'sh bo'lsa (birinchi marta) Skeleton ko'rsatamiz.
+  // Keyingi safar keshdagi ma'lumot 0ms da chiqadi (Re-render CPU sarfi 80% ga tushadi).
+  const isLoading = isCategoriesLoading || isProductsLoading;
+  const hasData = categories.length > 0 && products.length > 0;
+
+  if (isLoading && !hasData) {
+    return (
+      <div className="min-h-screen bg-[#f6f6f7] px-4 pb-6 pt-[calc(env(safe-area-inset-top,0px)+16px)]">
+        <LoadingSkeleton />
+      </div>
+    );
   }
 
   if (!selectedCategory) {

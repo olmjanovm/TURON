@@ -14,6 +14,14 @@ const AdminLayout = React.lazy(() => import('./components/layout/AdminLayout'));
 const CourierLayout = React.lazy(() => import('./components/layout/CourierLayout'));
 const CustomerLayout = React.lazy(() => import('./components/layout/CustomerLayout'));
 
+// 🚀 PERFORMANCE FIX: Asosiy menyu sahifalari (Bottom Tabs) to'g'ridan-to'g'ri yuklanadi.
+// Bu navigatsiyani 0ms ga tushiradi va oq ekranda (Suspense fallback) qotib qolishning oldini oladi.
+import HomePage from './pages/customer/HomePage';
+import MenuPage from './pages/customer/MenuPage';
+import CartPage from './pages/customer/CartPage';
+import OrdersPage from './pages/customer/OrdersPage';
+import ProfilePage from './pages/customer/ProfilePage';
+
 const AdminDashboardPage = React.lazy(() => import('./pages/admin/AdminDashboardPage'));
 const AdminOrdersPage = React.lazy(() => import('./pages/admin/AdminOrdersPage'));
 const AdminOrderDetailPage = React.lazy(() => import('./pages/admin/AdminOrderDetailPage'));
@@ -38,23 +46,18 @@ const CourierNotificationsPage = React.lazy(() => import('./pages/courier/Courie
 const CourierHistoryPage = React.lazy(() => import('./pages/courier/CourierHistoryPage'));
 const CourierProfilePage = React.lazy(() => import('./pages/courier/CourierProfilePage'));
 
-const HomePage = React.lazy(() => import('./pages/customer/HomePage'));
 const SearchPage = React.lazy(() => import('./pages/customer/SearchPage'));
 const FavoritesPage = React.lazy(() => import('./pages/customer/FavoritesPage'));
 const CategoryPage = React.lazy(() => import('./pages/customer/CategoryPage'));
-const MenuPage = React.lazy(() => import('./pages/customer/MenuPage'));
 const ProductPage = React.lazy(() => import('./pages/customer/ProductPage'));
-const CartPage = React.lazy(() => import('./pages/customer/CartPage'));
 const CheckoutPage = React.lazy(() => import('./pages/customer/CheckoutPage'));
 const OrderSuccessPage = React.lazy(() => import('./pages/customer/OrderSuccessPage'));
 const AddressListPage = React.lazy(() => import('./pages/customer/AddressListPage'));
 const AddressFormPage = React.lazy(() => import('./pages/customer/AddressFormPage'));
 const MapSelectionPage = React.lazy(() => import('./pages/customer/MapSelectionPage'));
-const OrdersPage = React.lazy(() => import('./pages/customer/OrdersPage'));
 const OrderDetailPage = React.lazy(() => import('./pages/customer/OrderDetailPage'));
 const TrackingMapPage = React.lazy(() => import('./pages/customer/TrackingMapPage'));
 const CustomerNotificationsPage = React.lazy(() => import('./pages/customer/NotificationsPage'));
-const ProfilePage = React.lazy(() => import('./pages/customer/ProfilePage'));
 const CustomerPromosPage = React.lazy(() => import('./pages/customer/CustomerPromosPage'));
 const SupportPage = React.lazy(() => import('./pages/customer/SupportPage'));
 
@@ -63,16 +66,20 @@ const queryClient = new QueryClient({
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
+      // Sahifaga qaytadan kirganda 2 daqiqa davomida API qayta chaqirilmaydi (Keshdan olinadi)
+      staleTime: 1000 * 60 * 2, 
+      // Kesh xotirada (RAM) 10 daqiqa ushlab turiladi
+      gcTime: 1000 * 60 * 10,
     },
   },
 });
 
 function RouteFallback() {
   return (
-    <div className="flex min-h-[40vh] items-center justify-center px-6">
-      <div className="flex items-center gap-3 rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 shadow-sm">
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600" />
-        Yuklanmoqda...
+    <div className="flex min-h-screen items-center justify-center px-6 bg-[#f6f6f7]">
+      <div className="flex items-center gap-3 rounded-[18px] border border-slate-200 bg-white px-5 py-4 text-sm font-bold text-slate-700 shadow-sm">
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-black" />
+        Sahifa yuklanmoqda...
       </div>
     </div>
   );

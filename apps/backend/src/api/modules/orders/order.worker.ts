@@ -17,6 +17,7 @@ export interface OrderJobPayload {
   paymentMethod: string;
   note?: string;
   receiptImageBase64?: string;
+  receiptImageUrl?: string;
   
   // Backend Controller hisob-kitob qilib jo'natadigan tayyor ma'lumotlar
   quote: any;
@@ -40,6 +41,7 @@ export const orderWorker = new Worker<OrderJobPayload>(
       paymentMethod, 
       note, 
       receiptImageBase64,
+      receiptImageUrl,
       quote,
       orderItemsData,
       promoId,
@@ -59,8 +61,8 @@ export const orderWorker = new Worker<OrderJobPayload>(
     }
 
     // Katta rasmni Supabase ga yuklash (DB qotib qolmasligi uchun)
-    let uploadedReceiptUrl = receiptImageBase64;
-    if (paymentMethod === 'MANUAL_TRANSFER' && receiptImageBase64) {
+    let uploadedReceiptUrl = receiptImageUrl;
+    if (paymentMethod === 'MANUAL_TRANSFER' && !receiptImageUrl && receiptImageBase64) {
       const uploadedUrl = await StorageService.uploadBase64(receiptImageBase64, 'receipts');
       if (!uploadedUrl) {
         throw new Error("To'lov cheki rasmini saqlab bo'lmadi");
