@@ -327,41 +327,43 @@ export const AdminOrderCard: React.FC<{
   return (
     <button 
       onClick={onClick}
-      className="w-full bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all text-left flex items-center justify-between group active:scale-[0.99]"
+      className="w-full admin-pro-card p-5 text-left flex items-center justify-between group active:scale-[0.99] animate-in fade-in slide-in-from-bottom-2 duration-300"
     >
-      <div className="flex items-center gap-5">
-        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors ${statusMeta.iconClass}`}>
-          <Package size={28} />
+      <div className="flex items-center gap-4">
+        <div className={`w-14 h-14 rounded-[20px] flex items-center justify-center transition-all group-hover:scale-105 ${statusMeta.iconClass}`}>
+          <Package size={24} strokeWidth={2.5} />
         </div>
         
-        <div>
+        <div className="min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <span className="font-black text-slate-900 text-lg italic uppercase tracking-tighter italic">#{order.orderNumber}</span>
-            <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg ${statusMeta.badgeClass}`}>
+            <span className="font-black text-slate-900 text-lg italic tracking-tighter">#{order.orderNumber}</span>
+            <div className={`text-[8px] font-black uppercase tracking-[0.1em] px-2 py-0.5 rounded-full border border-current opacity-70`}>
               {statusMeta.label}
-            </span>
+            </div>
           </div>
           <div className="flex items-center gap-3">
              <div className="flex items-center gap-1 text-slate-400">
-               <Clock size={12} />
-               <span className="text-[10px] font-bold uppercase">{date}</span>
+               <Clock size={11} />
+               <span className="text-[10px] font-bold uppercase tracking-wider">{date}</span>
              </div>
              <div className="flex items-center gap-1 text-slate-400">
-               <User size={12} />
-               <span className="text-[10px] font-bold uppercase">{order.courierName || 'Kuryer yo\'q'}</span>
+               <User size={11} />
+               <span className="text-[10px] font-bold uppercase tracking-wider truncate max-w-[80px]">
+                 {order.courierName ? order.courierName.split(' ')[0] : 'Biriktirilmagan'}
+               </span>
              </div>
           </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
-        <div className="text-right mr-2">
-          <p className="font-black text-slate-900 text-lg tracking-tight italic">
-            {(order.total || 0).toLocaleString()} <span className="text-[10px] uppercase">so'm</span>
+      <div className="flex items-center gap-3 pl-2">
+        <div className="text-right">
+          <p className="font-black text-slate-950 text-base tracking-tight italic">
+            {(order.total || 0).toLocaleString()} <span className="text-[9px] font-bold uppercase text-slate-400">so'm</span>
           </p>
         </div>
-        <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-300 group-hover:bg-slate-900 group-hover:text-white transition-all">
-          <ChevronRight size={20} />
+        <div className="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center text-slate-300 group-hover:bg-slate-950 group-hover:text-white transition-all shadow-sm">
+          <ChevronRight size={18} />
         </div>
       </div>
     </button>
