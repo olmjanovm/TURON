@@ -1,4 +1,4 @@
-import { OrderDistanceDisplay } from '../../components/OrderDistanceDisplay';
+﻿import { OrderDistanceDisplay } from '../../components/OrderDistanceDisplay';
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
@@ -34,52 +34,51 @@ import { getStatusColor, getStatusLabel } from '../../lib/orderStatusUtils';
 import { AdminCourierOption, Order, OrderStatus } from '../../data/types';
 import { CourierMapView } from '../../components/courier/CourierMapView';
 import { DEFAULT_RESTAURANT_LOCATION } from '../../features/maps/restaurant';
-import { formatEtaMinutes, formatRouteDistance, estimateRouteMetrics } from '../../features/maps/route';
+import { estimateRouteMetrics, formatEtaMinutes, formatRouteDistance } from '../../features/maps/route';
 
-const STATUS_STYLES: Record<string, { surface: string; border: string; icon: string; iconShadow: string; label: string }> = {
+const STATUS_STYLES: Record<
+  string,
+  { surface: string; border: string; icon: string; label: string }
+> = {
   slate: {
-    surface: 'bg-slate-50',
-    border: 'border-slate-100',
-    icon: 'bg-slate-500 text-white',
-    iconShadow: 'shadow-slate-200',
-    label: 'text-slate-600',
+    surface: 'bg-[rgba(255,250,238,0.88)]',
+    border: 'border-[rgba(118,90,35,0.12)]',
+    icon: 'bg-[#2b2418] text-[#ffe39b]',
+    label: 'text-[#7a5600]',
   },
   amber: {
-    surface: 'bg-amber-50',
-    border: 'border-amber-100',
-    icon: 'bg-amber-500 text-white',
-    iconShadow: 'shadow-amber-200',
-    label: 'text-amber-600',
+    surface: 'bg-[rgba(255,212,59,0.14)]',
+    border: 'border-[rgba(255,190,11,0.18)]',
+    icon: 'bg-[var(--admin-pro-primary)] text-[var(--admin-pro-primary-contrast)]',
+    label: 'text-[#7a5600]',
   },
   orange: {
-    surface: 'bg-orange-50',
-    border: 'border-orange-100',
-    icon: 'bg-orange-500 text-white',
-    iconShadow: 'shadow-orange-200',
-    label: 'text-orange-600',
+    surface: 'bg-[rgba(255,212,59,0.18)]',
+    border: 'border-[rgba(255,190,11,0.18)]',
+    icon: 'bg-[#1f1a12] text-[#ffe39b]',
+    label: 'text-[#7a5600]',
   },
   violet: {
-    surface: 'bg-violet-50',
-    border: 'border-violet-100',
-    icon: 'bg-violet-500 text-white',
-    iconShadow: 'shadow-violet-200',
-    label: 'text-violet-600',
+    surface: 'bg-[#1f1a12]',
+    border: 'border-[#3d2f12]',
+    icon: 'bg-[var(--admin-pro-primary)] text-[var(--admin-pro-primary-contrast)]',
+    label: 'text-[#ffe39b]',
   },
   emerald: {
     surface: 'bg-emerald-50',
     border: 'border-emerald-100',
     icon: 'bg-emerald-500 text-white',
-    iconShadow: 'shadow-emerald-200',
-    label: 'text-emerald-600',
+    label: 'text-emerald-700',
   },
   red: {
-    surface: 'bg-red-50',
-    border: 'border-red-100',
-    icon: 'bg-red-500 text-white',
-    iconShadow: 'shadow-red-200',
-    label: 'text-red-600',
+    surface: 'bg-rose-50',
+    border: 'border-rose-100',
+    icon: 'bg-rose-500 text-white',
+    label: 'text-rose-700',
   },
 };
+
+const sectionClassName = 'admin-pro-card rounded-[32px] p-6';
 
 function formatTrackingTime(timestamp?: string) {
   if (!timestamp) {
@@ -92,6 +91,56 @@ function formatTrackingTime(timestamp?: string) {
     second: '2-digit',
   });
 }
+
+const AlertBanner: React.FC<{
+  title: string;
+  message: string;
+  tone?: 'danger' | 'warning' | 'info';
+}> = ({ title, message, tone = 'danger' }) => {
+  const toneClasses =
+    tone === 'warning'
+      ? 'border-amber-100 bg-amber-50 text-amber-900'
+      : tone === 'info'
+        ? 'border-[rgba(255,190,11,0.18)] bg-[rgba(255,212,59,0.14)] text-[#6f5200]'
+        : 'border-rose-100 bg-rose-50 text-rose-900';
+
+  const iconClasses =
+    tone === 'warning'
+      ? 'bg-amber-100 text-amber-600'
+      : tone === 'info'
+        ? 'bg-[rgba(255,212,59,0.18)] text-[#7a5600]'
+        : 'bg-rose-100 text-rose-600';
+
+  const bodyClasses =
+    tone === 'warning'
+      ? 'text-amber-700'
+      : tone === 'info'
+        ? 'text-[#8a6a20]'
+        : 'text-rose-700';
+
+  return (
+    <div className={`flex items-start gap-3 rounded-[24px] border p-4 ${toneClasses}`}>
+      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${iconClasses}`}>
+        <AlertCircle size={20} />
+      </div>
+      <div>
+        <p className="text-sm font-black">{title}</p>
+        <p className={`mt-1 text-xs font-bold leading-relaxed ${bodyClasses}`}>{message}</p>
+      </div>
+    </div>
+  );
+};
+
+const MetricTile: React.FC<{
+  label: string;
+  value: string;
+  subtle?: boolean;
+}> = ({ label, value, subtle = false }) => (
+  <div className={`rounded-2xl border px-4 py-3 ${subtle ? 'border-white/8 bg-white/6' : 'border-[rgba(118,90,35,0.12)] bg-[rgba(255,250,238,0.74)]'}`}>
+    <p className={`text-[10px] font-black uppercase tracking-[0.16em] ${subtle ? 'text-white/48' : 'text-[var(--admin-pro-text-muted)]'}`}>{label}</p>
+    <p className={`mt-1 text-lg font-black ${subtle ? 'text-white' : 'text-[var(--admin-pro-text)]'}`}>{value}</p>
+  </div>
+);
 
 const AdminOrderDetailPage: React.FC = () => {
   const { orderId } = useParams<{ orderId: string }>();
@@ -142,9 +191,7 @@ const AdminOrderDetailPage: React.FC = () => {
   }, [fetchedOrder, isFetching, storeOrder]);
 
   useEffect(() => {
-    if (!orderId) {
-      return;
-    }
+    if (!orderId) return;
 
     void refetch().then((result) => {
       if (result.data) {
@@ -175,17 +222,11 @@ const AdminOrderDetailPage: React.FC = () => {
   }, [location.search, order]);
 
   const handleStatusUpdate = async (next: OrderStatus) => {
-    if (!order) {
-      return;
-    }
+    if (!order) return;
 
     if (next === OrderStatus.DELIVERING && !order.courierId) {
-      setStatusError('Buyurtmani yo\'lga chiqarishdan oldin kuryer biriktiring');
-
-      if (window.Telegram?.WebApp?.HapticFeedback) {
-        window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
-      }
-
+      setStatusError("Buyurtmani yo'lga chiqarishdan oldin kuryer biriktiring");
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('error');
       return;
     }
 
@@ -196,79 +237,54 @@ const AdminOrderDetailPage: React.FC = () => {
         id: order.id,
         status: next,
       });
-
       setOrder(updatedOrder);
-
-      if (window.Telegram?.WebApp?.HapticFeedback) {
-        window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
-      }
+      window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('medium');
     } catch (mutationFailure) {
       setStatusError(
         mutationFailure instanceof Error ? mutationFailure.message : 'Status yangilanmadi',
       );
-
-      if (window.Telegram?.WebApp?.HapticFeedback) {
-        window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
-      }
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('error');
     }
   };
 
   const handleApprovePayment = () => {
-    if (!order || approvePaymentMutation.isPending) {
-      return;
-    }
+    if (!order || approvePaymentMutation.isPending) return;
 
     setPaymentError(null);
-
     approvePaymentMutation.mutate(
       { id: order.id },
       {
         onSuccess: (updatedOrder) => {
           setOrder(updatedOrder);
-
-          if (window.Telegram?.WebApp?.HapticFeedback) {
-            window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-          }
+          window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
         },
         onError: (mutationFailure) => {
           setPaymentError(
-            mutationFailure instanceof Error ? mutationFailure.message : 'To\'lov tasdiqlanmadi',
+            mutationFailure instanceof Error ? mutationFailure.message : "To'lov tasdiqlanmadi",
           );
-
-          if (window.Telegram?.WebApp?.HapticFeedback) {
-            window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
-          }
+          window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('error');
         },
       },
     );
   };
 
   const handleRejectPayment = () => {
-    if (!order || rejectPaymentMutation.isPending) {
-      return;
-    }
+    if (!order || rejectPaymentMutation.isPending) return;
 
-    if (window.confirm('Ushbu to\'lovni rad etsangiz, buyurtma ham bekor qilinadi. Davom etasizmi?')) {
+    if (window.confirm("Ushbu to'lovni rad etsangiz, buyurtma ham bekor qilinadi. Davom etasizmi?")) {
       setPaymentError(null);
-
       rejectPaymentMutation.mutate(
         { id: order.id },
         {
           onSuccess: (updatedOrder) => {
             setOrder(updatedOrder);
-
-            if (window.Telegram?.WebApp?.HapticFeedback) {
-              window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-            }
+            window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
           },
           onError: (mutationFailure) => {
             setPaymentError(
-              mutationFailure instanceof Error ? mutationFailure.message : 'To\'lov rad etilmadi',
+              mutationFailure instanceof Error ? mutationFailure.message : "To'lov rad etilmadi",
             );
-
-            if (window.Telegram?.WebApp?.HapticFeedback) {
-              window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
-            }
+            window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('error');
           },
         },
       );
@@ -282,19 +298,13 @@ const AdminOrderDetailPage: React.FC = () => {
   };
 
   const handleCourierAssign = async (courier: AdminCourierOption) => {
-    if (!order) {
-      return;
-    }
+    if (!order) return;
 
     setAssignmentError(null);
 
     if (order.orderStatus === OrderStatus.PENDING) {
       setAssignmentError('Avval buyurtmani tasdiqlang, keyin kuryerga yuboring');
-
-      if (window.Telegram?.WebApp?.HapticFeedback) {
-        window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
-      }
-
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('error');
       return;
     }
 
@@ -303,21 +313,14 @@ const AdminOrderDetailPage: React.FC = () => {
         id: order.id,
         courierId: courier.id,
       });
-
       setOrder(updatedOrder);
       setIsCourierModalOpen(false);
-
-      if (window.Telegram?.WebApp?.HapticFeedback) {
-        window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-      }
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
     } catch (mutationFailure) {
       setAssignmentError(
         mutationFailure instanceof Error ? mutationFailure.message : 'Kuryer biriktirilmadi',
       );
-
-      if (window.Telegram?.WebApp?.HapticFeedback) {
-        window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
-      }
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('error');
     }
   };
 
@@ -325,8 +328,8 @@ const AdminOrderDetailPage: React.FC = () => {
     return (
       <div className="space-y-4 animate-pulse">
         <div className="h-12 w-28 rounded-2xl bg-slate-200" />
-        <div className="h-24 rounded-[32px] bg-slate-200" />
-        <div className="h-44 rounded-[32px] bg-slate-200" />
+        <div className="h-36 rounded-[32px] bg-slate-200" />
+        <div className="h-52 rounded-[32px] bg-slate-200" />
         <div className="h-48 rounded-[32px] bg-slate-200" />
       </div>
     );
@@ -336,16 +339,16 @@ const AdminOrderDetailPage: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
         <AlertCircle size={40} className="text-rose-500" />
-        <h3 className="text-xl font-black text-slate-900 mt-4 uppercase tracking-tighter">
+        <h3 className="mt-4 text-xl font-black uppercase tracking-tighter text-[var(--admin-pro-text)]">
           Buyurtma yuklanmadi
         </h3>
-        <p className="text-sm font-bold text-slate-500 mt-2 leading-relaxed max-w-xs">
+        <p className="mt-2 max-w-xs text-sm font-bold leading-relaxed text-[var(--admin-pro-text-muted)]">
           {(error as Error).message}
         </p>
         <button
           type="button"
           onClick={() => refetch()}
-          className="mt-5 h-11 px-5 rounded-2xl bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest"
+          className="admin-pro-button-primary mt-5 h-11 rounded-2xl px-5 text-[11px] font-black uppercase tracking-widest"
         >
           Qayta yuklash
         </button>
@@ -356,12 +359,12 @@ const AdminOrderDetailPage: React.FC = () => {
   if (!order) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
-        <h3 className="text-xl font-black text-slate-900 mb-2 italic uppercase tracking-tighter italic">
+        <h3 className="mb-2 text-xl font-black uppercase italic tracking-tighter text-[var(--admin-pro-text)]">
           Buyurtma topilmadi
         </h3>
         <button
           onClick={() => navigate('/admin/orders')}
-          className="text-blue-500 font-bold uppercase tracking-widest text-[10px]"
+          className="text-[10px] font-bold uppercase tracking-widest text-[#7a5600]"
         >
           Ro'yxatga qaytish
         </button>
@@ -397,9 +400,8 @@ const AdminOrderDetailPage: React.FC = () => {
     order.destinationLat != null && order.destinationLng != null
       ? { latitude: order.destinationLat, longitude: order.destinationLng }
       : order.customerAddress?.latitude != null && order.customerAddress?.longitude != null
-      ? { latitude: order.customerAddress.latitude, longitude: order.customerAddress.longitude }
-      : undefined;
-  // Use shared component for distance
+        ? { latitude: order.customerAddress.latitude, longitude: order.customerAddress.longitude }
+        : undefined;
   const remainingEta =
     typeof order.tracking?.courierLocation?.remainingEtaMinutes === 'number'
       ? formatEtaMinutes(order.tracking.courierLocation.remainingEtaMinutes)
@@ -409,69 +411,77 @@ const AdminOrderDetailPage: React.FC = () => {
     order.orderStatus === OrderStatus.READY_FOR_PICKUP ||
     order.orderStatus === OrderStatus.DELIVERING ||
     Boolean(order.tracking?.courierLocation);
+  const routeSnapshot = estimateRouteMetrics(courierPin ?? pickupPin, destinationPin, {
+    minimumDistanceKm: 0,
+    minimumEtaMinutes: 1,
+  });
+  const routeDistanceLabel = formatRouteDistance(routeSnapshot.distanceKm);
+  const routeEtaLabel = remainingEta || formatEtaMinutes(routeSnapshot.etaMinutes);
+  const syncBadgeClass = isConnected
+    ? 'admin-pro-sync-good'
+    : connectionState === 'reconnecting'
+      ? 'admin-pro-sync-warn'
+      : 'admin-pro-sync-idle';
 
   return (
     <div className="space-y-6 pb-40 animate-in fade-in slide-in-from-bottom duration-500">
-      <div className="flex items-center justify-between">
-        <button
-          onClick={() => navigate('/admin/orders')}
-          className="w-10 h-10 bg-white rounded-xl shadow-sm border border-slate-100 flex items-center justify-center text-slate-400 active:scale-90 transition-transform"
-        >
-          <ArrowLeft size={20} />
-        </button>
-        <div className="text-right">
-          <h2 className="text-xl font-black text-slate-900 leading-none italic uppercase tracking-tighter italic">
-            #{order.orderNumber}
-          </h2>
-          <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-1">
-            {date}
-          </p>
-        </div>
-      </div>
+      <section className="admin-pro-card admin-hero-card relative overflow-hidden p-6">
+        <div className="flex items-start justify-between gap-4">
+          <button
+            type="button"
+            onClick={() => navigate('/admin/orders')}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-white/80 transition active:scale-95"
+          >
+            <ArrowLeft size={20} />
+          </button>
 
-      {statusError ? (
-        <div className="bg-rose-50 border border-rose-100 rounded-[24px] p-4 flex items-start gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
-            <AlertCircle size={20} />
-          </div>
-          <div>
-            <p className="text-sm font-black text-rose-900">Status yangilanmadi</p>
-            <p className="text-xs font-bold text-rose-700 mt-1 leading-relaxed">{statusError}</p>
+          <div className="min-w-0 flex-1 text-right">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">Admin order detail</p>
+            <h2 className="mt-2 truncate text-3xl font-black tracking-tight text-white">#{order.orderNumber}</h2>
+            <p className="mt-1 text-xs font-bold text-white/58">{date}</p>
           </div>
         </div>
-      ) : null}
 
-      {paymentError ? (
-        <div className="bg-rose-50 border border-rose-100 rounded-[24px] p-4 flex items-start gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
-            <AlertCircle size={20} />
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+          <div className={`inline-flex items-center gap-3 rounded-[22px] border px-4 py-3 ${statusStyles.surface} ${statusStyles.border}`}>
+            <div className={`flex h-11 w-11 items-center justify-center rounded-2xl shadow-lg ${statusStyles.icon}`}>
+              <Clock size={20} />
+            </div>
+            <div className="text-left">
+              <p className={`text-[10px] font-black uppercase tracking-[0.16em] ${statusStyles.label}`}>Holat</p>
+              <p className="mt-1 text-sm font-black uppercase tracking-wide text-white">
+                {getStatusLabel(order.orderStatus)}
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-black text-rose-900">To&apos;lov yangilanmadi</p>
-            <p className="text-xs font-bold text-rose-700 mt-1 leading-relaxed">{paymentError}</p>
-          </div>
-        </div>
-      ) : null}
 
-      <div className={`w-full p-6 rounded-[32px] border flex items-center justify-between shadow-lg ${statusStyles.surface} ${statusStyles.border}`}>
-        <div className="flex items-center gap-4">
-          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg ${statusStyles.icon} ${statusStyles.iconShadow}`}>
-            <Clock size={24} />
-          </div>
-          <div>
-            <h4 className={`text-[10px] font-black uppercase tracking-widest ${statusStyles.label}`}>Holat</h4>
-            <p className="text-lg font-black text-slate-900 uppercase tracking-tight">
-              {getStatusLabel(order.orderStatus)}
-            </p>
+          <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] ${syncBadgeClass}`}>
+            <Radio size={12} className={isConnected ? 'animate-pulse' : ''} />
+            <span>
+              {isConnected ? 'Jonli' : connectionState === 'reconnecting' ? 'Qayta ulanmoqda' : 'Kutilyapti'}
+            </span>
           </div>
         </div>
-        <StatusActionButtons
-          currentStatus={order.orderStatus}
-          onUpdate={(next) => void handleStatusUpdate(next)}
-          onCancel={handleCancel}
-          isPending={updateOrderStatusMutation.isPending}
-        />
-      </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <MetricTile label="Jami" value={`${order.total.toLocaleString()} so'm`} subtle />
+          <MetricTile label="Mahsulot" value={`${order.items.length} ta`} subtle />
+          <MetricTile label="Masofa" value={routeDistanceLabel} subtle />
+          <MetricTile label="ETA" value={routeEtaLabel} subtle />
+        </div>
+
+        <div className="mt-5 flex justify-end">
+          <StatusActionButtons
+            currentStatus={order.orderStatus}
+            onUpdate={(next) => void handleStatusUpdate(next)}
+            onCancel={handleCancel}
+            isPending={updateOrderStatusMutation.isPending}
+          />
+        </div>
+      </section>
+
+      {statusError ? <AlertBanner title="Status yangilanmadi" message={statusError} tone="danger" /> : null}
+      {paymentError ? <AlertBanner title="To'lov yangilanmadi" message={paymentError} tone="danger" /> : null}
 
       <PaymentVerificationCard
         order={order}
@@ -481,142 +491,134 @@ const AdminOrderDetailPage: React.FC = () => {
       />
 
       {order.dispatchState === 'MANUAL_ASSIGNMENT_REQUIRED' ? (
-        <div className="rounded-[24px] border border-amber-100 bg-amber-50 p-4">
-          <p className="text-sm font-black text-amber-900">Qo'lda kuryer biriktirish kerak</p>
-          <p className="mt-1 text-xs font-bold leading-relaxed text-amber-700">
-            Avtomatik urinishlar tugadi. Buyurtma saqlanib qolgan, endi admin mos kuryerni qo'lda biriktirishi kerak.
-          </p>
-        </div>
+        <AlertBanner
+          title="Qo'lda kuryer biriktirish kerak"
+          message="Avtomatik urinishlar tugadi. Buyurtma saqlanib qolgan, endi admin mos kuryerni qo'lda biriktirishi kerak."
+          tone="warning"
+        />
       ) : null}
 
       {order.dispatchState === 'SEARCHING' && !order.courierId ? (
-        <div className="rounded-[24px] border border-sky-100 bg-sky-50 p-4">
-          <p className="text-sm font-black text-sky-900">Tizim boshqa kuryerni qidirmoqda</p>
-          <p className="mt-1 text-xs font-bold leading-relaxed text-sky-700">
-            Oldingi kuryer buyurtmani olmadi. Agar kerak bo'lsa, shu yerning o'zidan qo'lda biriktirishingiz mumkin.
-          </p>
-        </div>
+        <AlertBanner
+          title="Tizim boshqa kuryerni qidirmoqda"
+          message="Oldingi kuryer buyurtmani olmadi. Agar kerak bo'lsa, shu yerning o'zidan qo'lda biriktirishingiz mumkin."
+          tone="info"
+        />
       ) : null}
 
-      <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm">
-        <div className="flex justify-between items-center mb-4 px-1">
-          <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-            Yetkazib beruvchi
-          </h3>
+      <section className={sectionClassName}>
+        <div className="mb-4 flex items-center justify-between gap-3 px-1">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--admin-pro-text-muted)]">Yetkazib beruvchi</p>
+            <p className="mt-1 text-lg font-black text-[var(--admin-pro-text)]">Kuryer biriktirish va bog'lanish</p>
+          </div>
           <button
+            type="button"
             onClick={() => {
               if (order.orderStatus === OrderStatus.PENDING) {
                 setAssignmentError('Avval buyurtmani tasdiqlang, keyin kuryerga yuboring');
                 return;
               }
-
               setAssignmentError(null);
               setIsCourierModalOpen(true);
             }}
-            className={`text-[10px] font-black uppercase tracking-widest ${
-              order.orderStatus === OrderStatus.PENDING ? 'text-slate-400' : 'text-indigo-600'
+            className={`rounded-full px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] ${
+              order.orderStatus === OrderStatus.PENDING
+                ? 'border border-[var(--admin-pro-line)] text-[var(--admin-pro-text-muted)]'
+                : 'admin-pro-button-primary'
             }`}
           >
             {order.orderStatus === OrderStatus.PENDING
               ? 'Avval tasdiqlang'
               : order.courierId
-                ? "Qayta biriktirish"
+                ? 'Qayta biriktirish'
                 : 'Kuryer biriktirish'}
           </button>
         </div>
 
         {assignmentError ? (
-          <div className="mb-4 bg-rose-50 border border-rose-100 rounded-2xl p-3 flex items-start gap-2">
-            <AlertCircle size={16} className="text-rose-500 shrink-0 mt-0.5" />
-            <p className="text-xs font-bold text-rose-700 leading-relaxed">{assignmentError}</p>
+          <div className="mb-4">
+            <AlertBanner title="Biriktirish xatosi" message={assignmentError} tone="danger" />
           </div>
         ) : null}
 
         {order.courierName ? (
-          <div className="flex items-center gap-4 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100">
-            <div className="w-12 h-12 bg-indigo-500 text-white rounded-xl flex items-center justify-center shrink-0">
-              <User size={24} />
+          <div className="rounded-[24px] border border-[rgba(255,190,11,0.16)] bg-[linear-gradient(135deg,rgba(255,212,59,0.14)_0%,rgba(255,250,239,0.96)_100%)] p-4 shadow-[0_18px_34px_rgba(255,190,11,0.1)]">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#1f1a12] text-[#ffe39b] shadow-lg">
+                <User size={24} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-black text-[var(--admin-pro-text)]">{order.courierName}</p>
+                <p className="mt-0.5 text-[10px] font-black uppercase tracking-[0.16em] text-[#7a5600]">
+                  Kuryer biriktirilgan
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {order.courierPhone ? (
+                  <button
+                    type="button"
+                    onClick={() => initiateCall(order.courierPhone)}
+                    title={`Kuryerga qo'ng'iroq: ${order.courierPhone}`}
+                    className="admin-pro-button-secondary flex h-10 w-10 items-center justify-center rounded-xl text-emerald-600"
+                  >
+                    <Phone size={18} />
+                  </button>
+                ) : order.courierTelegramId || order.courierUsername ? (
+                  <button
+                    type="button"
+                    onClick={() => openTelegramProfile(order.courierUsername)}
+                    title="Telegram orqali bog'lanish"
+                    className="admin-pro-button-secondary flex h-10 w-10 items-center justify-center rounded-xl text-[#7a5600]"
+                  >
+                    <MessageCircle size={18} />
+                  </button>
+                ) : null}
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-black text-indigo-900 truncate">{order.courierName}</p>
-              <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-0.5">
-                Kuryer biriktirilgan
-              </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {order.courierPhone ? (
-                <button
-                  type="button"
-                  onClick={() => initiateCall(order.courierPhone)}
-                  title={`Kuryerga qo'ng'iroq: ${order.courierPhone}`}
-                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 active:scale-90 transition-transform hover:bg-emerald-100"
-                >
-                  <Phone size={18} />
-                </button>
-              ) : order.courierTelegramId || order.courierUsername ? (
-                <button
-                  type="button"
-                  onClick={() => openTelegramProfile(order.courierUsername)}
-                  title="Telegram orqali bog'lanish"
-                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-50 text-sky-500 active:scale-90 transition-transform hover:bg-sky-100"
-                >
-                  <MessageCircle size={18} />
-                </button>
-              ) : null}
-              {assignCourierMutation.isPending ? (
-                <div className="text-[10px] font-black uppercase tracking-widest text-indigo-500">
-                  Yangilanmoqda
-                </div>
-              ) : null}
-            </div>
+
+            {assignCourierMutation.isPending ? (
+              <p className="mt-3 text-[10px] font-black uppercase tracking-[0.16em] text-[#7a5600]">Yangilanmoqda</p>
+            ) : null}
           </div>
         ) : (
-          <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 opacity-60">
-            <div className="w-12 h-12 bg-slate-100 text-slate-400 rounded-xl flex items-center justify-center">
-              <Truck size={24} />
+          <div className="rounded-[24px] border border-dashed border-[var(--admin-pro-line)] bg-[rgba(255,248,229,0.52)] p-4">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgba(255,212,59,0.14)] text-[#b99836]">
+                <Truck size={24} />
+              </div>
+              <div>
+                <p className="text-sm font-black text-[var(--admin-pro-text)]">Kuryer biriktirilmagan</p>
+                <p className="mt-1 text-xs font-semibold text-[var(--admin-pro-text-muted)]">
+                  Shu joydan mos kuryerni qo'lda biriktirishingiz mumkin.
+                </p>
+              </div>
             </div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest italic">
-              Kuryer biriktirilmagan
-            </p>
           </div>
         )}
-      </div>
+      </section>
 
       {showTrackingPanel ? (
-        <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm">
+        <section className={sectionClassName}>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Jonli kuzatuv
-              </p>
-              <p className="mt-2 text-lg font-black text-slate-900">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--admin-pro-text-muted)]">Jonli kuzatuv</p>
+              <p className="mt-2 text-lg font-black text-[var(--admin-pro-text)]">
                 {order.courierName ? `${order.courierName} harakatda` : 'Kuryer kuzatuvi'}
               </p>
-              <p className="mt-1 text-xs font-bold text-slate-500">
-                So&apos;nggi yangilanish: {formatTrackingTime(order.tracking?.lastEventAt)}
+              <p className="mt-1 text-xs font-bold text-[var(--admin-pro-text-muted)]">
+                So'nggi yangilanish: {formatTrackingTime(order.tracking?.lastEventAt)}
               </p>
             </div>
-            <div
-              className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ${
-                isConnected
-                  ? 'bg-emerald-50 text-emerald-700'
-                  : connectionState === 'reconnecting'
-                    ? 'bg-amber-50 text-amber-700'
-                    : 'bg-slate-100 text-slate-500'
-              }`}
-            >
+            <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${syncBadgeClass}`}>
               <Radio size={12} className={isConnected ? 'animate-pulse' : ''} />
               <span>
-                {isConnected
-                  ? 'Jonli'
-                  : connectionState === 'reconnecting'
-                    ? 'Qayta ulanmoqda'
-                    : 'Kutilyapti'}
+                {isConnected ? 'Jonli' : connectionState === 'reconnecting' ? 'Qayta ulanmoqda' : 'Kutilyapti'}
               </span>
             </div>
           </div>
 
-          <div className="mt-4 overflow-hidden rounded-[28px] border border-slate-100 bg-slate-50 shadow-sm">
+          <div className="mt-4 overflow-hidden rounded-[28px] border border-[var(--admin-pro-line)] bg-[rgba(255,248,229,0.48)] shadow-[0_12px_28px_rgba(74,56,16,0.08)]">
             <CourierMapView
               pickup={pickupPin}
               destination={destinationPin}
@@ -628,20 +630,21 @@ const AdminOrderDetailPage: React.FC = () => {
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-3">
-            <div className="rounded-2xl bg-slate-50 px-4 py-3">
-              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                <Route size={14} className="text-indigo-500" />
+            <div className="rounded-2xl border border-[var(--admin-pro-line)] bg-[rgba(255,250,238,0.8)] px-4 py-3">
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--admin-pro-text-muted)]">
+                <Route size={14} className="text-[#7a5600]" />
                 <span>Qolgan masofa</span>
               </div>
               <OrderDistanceDisplay
                 courier={courierLocation}
                 destination={destinationLocation}
                 label="Qolgan masofa"
-                className="mt-2 text-lg font-black text-slate-900"
+                className="mt-2 text-lg font-black text-[var(--admin-pro-text)]"
               />
             </div>
-            <div className="rounded-2xl bg-slate-50 px-4 py-3">
-              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+
+            <div className="rounded-2xl border border-[var(--admin-pro-line)] bg-[rgba(255,250,238,0.8)] px-4 py-3">
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--admin-pro-text-muted)]">
                 <TimerReset size={14} className="text-emerald-500" />
                 <span>Qolgan ETA</span>
               </div>
@@ -650,93 +653,108 @@ const AdminOrderDetailPage: React.FC = () => {
           </div>
 
           {!courierPin ? (
-            <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3">
-              <p className="text-xs font-bold leading-relaxed text-slate-500">
-                Kuryer joylashuvi hali uzatilmadi. Jonli marker kuryer xarita sahifasida harakat boshlaganda ko&apos;rinadi.
+            <div className="mt-4 rounded-2xl border border-dashed border-[var(--admin-pro-line)] bg-[rgba(255,248,229,0.52)] px-4 py-3">
+              <p className="text-xs font-bold leading-relaxed text-[var(--admin-pro-text-muted)]">
+                Kuryer joylashuvi hali uzatilmadi. Jonli marker kuryer xarita sahifasida harakat boshlaganda ko'rinadi.
               </p>
             </div>
           ) : null}
-        </div>
+        </section>
       ) : null}
 
-      <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm">
-        <div className="flex items-center justify-between mb-4 px-1">
-          <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-            Mijoz va Manzil
-          </h3>
-          {(order.customerName || order.customerPhone) && (
-            <div className="flex items-center gap-2">
-              {order.customerPhone && (
-                <button
-                  type="button"
-                  onClick={() => initiateCall(order.customerPhone)}
-                  title={`Mijozga qo'ng'iroq: ${order.customerPhone}`}
-                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 active:scale-90 transition-transform hover:bg-emerald-100"
-                >
-                  <Phone size={17} />
-                </button>
-              )}
-              {order.customerName && (
-                <span className="text-xs font-bold text-slate-600 max-w-[120px] truncate">
-                  {order.customerName}
-                </span>
-              )}
-            </div>
-          )}
+      <section className={sectionClassName}>
+        <div className="mb-4 flex items-center justify-between gap-4 px-1">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--admin-pro-text-muted)]">Mijoz va manzil</p>
+            <p className="mt-1 text-lg font-black text-[var(--admin-pro-text)]">Yetkazish nuqtasi va aloqa</p>
+          </div>
+          {order.customerPhone ? (
+            <button
+              type="button"
+              onClick={() => initiateCall(order.customerPhone)}
+              title={`Mijozga qo'ng'iroq: ${order.customerPhone}`}
+              className="admin-pro-button-primary flex h-10 items-center justify-center gap-2 rounded-full px-4 text-[11px] font-black uppercase tracking-[0.16em]"
+            >
+              <Phone size={15} />
+              Qo'ng'iroq
+            </button>
+          ) : null}
         </div>
+
         <div className="space-y-4">
-          <div className="flex items-start gap-4">
-            <div className="w-10 h-10 bg-slate-50 text-slate-400 rounded-xl flex items-center justify-center shrink-0">
+          <div className="flex items-start gap-4 rounded-[24px] border border-[var(--admin-pro-line)] bg-[rgba(255,250,238,0.82)] p-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[rgba(255,212,59,0.16)] text-[#7a5600]">
               <MapPin size={20} />
             </div>
             <div>
-              <p className="font-bold text-slate-900 leading-tight">
+              <p className="font-black leading-tight text-[var(--admin-pro-text)]">
                 {order.customerAddress?.label || 'Manzil'}
               </p>
-              <p className="text-slate-500 text-xs mt-1 leading-snug">
-                {order.customerAddress?.addressText || 'Manzil yo\'q'}
+              <p className="mt-1 text-xs font-semibold leading-snug text-[var(--admin-pro-text-muted)]">
+                {order.customerAddress?.addressText || "Manzil yo'q"}
               </p>
             </div>
           </div>
-          {order.note ? (
-            <div className="flex items-start gap-4 p-3 bg-amber-50 rounded-xl border border-amber-100">
-              <MessageCircle size={16} className="text-amber-500 shrink-0 mt-0.5" />
-              <p className="text-xs font-bold text-amber-700 italic">{order.note}</p>
+
+          {order.customerName ? (
+            <div className="flex items-center gap-3 rounded-2xl border border-[var(--admin-pro-line)] bg-[rgba(255,250,238,0.76)] px-4 py-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#1f1a12] text-[#ffe39b]">
+                <User size={18} />
+              </div>
+              <div>
+                <p className="text-sm font-black text-[var(--admin-pro-text)]">{order.customerName}</p>
+                <p className="text-[11px] font-semibold text-[var(--admin-pro-text-muted)]">
+                  {order.customerPhone || 'Telefon kiritilmagan'}
+                </p>
+              </div>
             </div>
           ) : null}
-        </div>
-      </div>
 
-      <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm">
-        <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4 px-1">
-          Buyurtma tarkibi
-        </h3>
-        <div className="space-y-4">
-          {order.items.map((item, idx) => (
-            <div key={idx} className="flex justify-between items-center text-sm">
+          {order.note ? (
+            <AlertBanner title="Mijoz izohi" message={order.note} tone="warning" />
+          ) : null}
+        </div>
+      </section>
+
+      <section className={sectionClassName}>
+        <div className="mb-4 px-1">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--admin-pro-text-muted)]">Buyurtma tarkibi</p>
+          <p className="mt-1 text-lg font-black text-[var(--admin-pro-text)]">Mahsulotlar va to'lov tarkibi</p>
+        </div>
+
+        <div className="space-y-3">
+          {order.items.map((item, index) => (
+            <div key={index} className="flex items-center justify-between rounded-2xl border border-[var(--admin-pro-line)] bg-[rgba(255,250,238,0.7)] px-4 py-3 text-sm">
               <div className="flex items-center gap-3">
-                <span className="w-6 h-6 bg-slate-50 rounded flex items-center justify-center text-[10px] font-black text-slate-400">
+                <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-[rgba(255,212,59,0.16)] text-[10px] font-black text-[#7a5600]">
                   {item.quantity}
                 </span>
-                <span className="font-bold text-slate-700">{item.name}</span>
+                <span className="font-bold text-[var(--admin-pro-text)]">{item.name}</span>
               </div>
-              <span className="font-black text-slate-900">
+              <span className="font-black text-[var(--admin-pro-text)]">
                 {(item.price * item.quantity).toLocaleString()} so'm
               </span>
             </div>
           ))}
-          <div className="pt-4 border-t border-slate-50 space-y-2">
-            <div className="flex justify-between text-xs font-bold text-slate-400 uppercase">
+
+          <div className="rounded-[24px] border border-[var(--admin-pro-line)] bg-[rgba(255,248,229,0.58)] p-4">
+            <div className="flex justify-between text-xs font-black uppercase tracking-[0.14em] text-[var(--admin-pro-text-muted)]">
               <span>Jami</span>
-              <span className="text-slate-900">{order.total.toLocaleString()} so'm</span>
+              <span className="text-[var(--admin-pro-text)]">{order.total.toLocaleString()} so'm</span>
             </div>
-            <div className="flex justify-between text-[10px] font-black text-slate-300 uppercase tracking-widest italic">
-              <span>To'lov usuli</span>
-              <span>{order.paymentMethod === 'CASH' ? 'Naqd' : 'Onlayn'}</span>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <MetricTile
+                label="To'lov usuli"
+                value={order.paymentMethod === 'CASH' ? 'Naqd' : 'Onlayn'}
+              />
+              <MetricTile
+                label="Kutilgan ETA"
+                value={routeEtaLabel}
+              />
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       <CourierAssignModal
         isOpen={isCourierModalOpen}
@@ -756,3 +774,4 @@ const AdminOrderDetailPage: React.FC = () => {
 };
 
 export default AdminOrderDetailPage;
+

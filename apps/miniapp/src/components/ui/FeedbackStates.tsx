@@ -4,7 +4,35 @@ import { useNavigate } from 'react-router-dom';
 
 // ─── TuronSplashScreen - Animated centered logo + loading dots ────────────────
 
-export const LoadingScreen: React.FC<{ message?: string }> = () => {
+type LoadingScreenTone = 'customer' | 'ops-yellow';
+
+const LOADING_SCREEN_TONES: Record<
+  LoadingScreenTone,
+  {
+    background: string;
+    overlayTop: string;
+    overlayBottom: string;
+    dot: string;
+  }
+> = {
+  customer: {
+    background: '#C62828',
+    overlayTop: 'rgba(255,255,255,0.06)',
+    overlayBottom: 'rgba(0,0,0,0.08)',
+    dot: 'rgba(255,255,255,0.9)',
+  },
+  'ops-yellow': {
+    background: 'linear-gradient(180deg, #F2C520 0%, #E6B616 52%, #C18D08 100%)',
+    overlayTop: 'rgba(255,248,216,0.22)',
+    overlayBottom: 'rgba(111,80,11,0.2)',
+    dot: 'rgba(255,250,240,0.92)',
+  },
+};
+
+export const LoadingScreen: React.FC<{ message?: string; tone?: LoadingScreenTone }> = ({
+  tone = 'customer',
+}) => {
+  const currentTone = LOADING_SCREEN_TONES[tone];
   return (
     <>
       <style>{`
@@ -32,21 +60,34 @@ export const LoadingScreen: React.FC<{ message?: string }> = () => {
         style={{
           minHeight: '100dvh',
           width: '100%',
+          position: 'relative',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          background: '#C62828',
+          background: currentTone.background,
           overflow: 'hidden',
           animation: 'turon-bg-in 0.3s ease-out forwards',
           gap: 0,
         }}
       >
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            pointerEvents: 'none',
+            background: `radial-gradient(circle at 20% 16%, ${currentTone.overlayTop} 0%, transparent 28%),
+                         radial-gradient(circle at 82% 84%, ${currentTone.overlayBottom} 0%, transparent 28%)`,
+          }}
+        />
+
         {/* Logo - transparent bg on red */}
         <img
           src="/turon-logo.png"
           alt="Turon Kafesi"
           style={{
+            position: 'relative',
+            zIndex: 1,
             width: '85%',
             maxWidth: 380,
             objectFit: 'contain',
@@ -58,6 +99,8 @@ export const LoadingScreen: React.FC<{ message?: string }> = () => {
         {/* 3 loading dots */}
         <div
           style={{
+            position: 'relative',
+            zIndex: 1,
             display: 'flex',
             gap: 10,
             marginTop: 48,
@@ -71,7 +114,7 @@ export const LoadingScreen: React.FC<{ message?: string }> = () => {
                 width: 10,
                 height: 10,
                 borderRadius: '50%',
-                background: 'rgba(255,255,255,0.9)',
+                background: currentTone.dot,
                 animation: `turon-dot-bounce 1.2s ease-in-out ${i * 0.2}s infinite`,
               }}
             />

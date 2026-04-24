@@ -78,7 +78,7 @@ export const PromoForm: React.FC<Props> = ({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 animate-in fade-in duration-300 pb-8 text-slate-100">
-      <section className="sticky top-[calc(env(safe-area-inset-top,0px)+8px)] z-10 rounded-2xl border border-white/10 bg-slate-900/70 p-3 backdrop-blur-xl shadow-[0_16px_44px_rgba(0,0,0,0.35)]">
+      <section className="sticky top-[calc(env(safe-area-inset-top,0px)+8px)] z-10 rounded-2xl border border-white/10 bg-[#1b160f]/90 p-3 backdrop-blur-xl shadow-[0_16px_44px_rgba(0,0,0,0.35)]">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <h2 className="truncate text-lg font-semibold tracking-tight text-white">Promokodni tahrirlash</h2>
@@ -95,7 +95,7 @@ export const PromoForm: React.FC<Props> = ({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-indigo-500 px-3.5 text-sm font-semibold text-white shadow-[0_0_22px_rgba(99,102,241,0.38)] transition-all duration-200 hover:bg-indigo-400 active:scale-[0.98] disabled:opacity-60"
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-[linear-gradient(135deg,var(--admin-pro-primary)_0%,var(--admin-pro-primary-strong)_100%)] px-3.5 text-sm font-semibold text-white shadow-[0_0_22px_rgba(255,190,11,0.24)] transition-all duration-200 hover:bg-indigo-400 active:scale-[0.98] disabled:opacity-60"
             >
               <Save size={15} />
               {isSubmitting ? 'Saqlanmoqda...' : 'Saqlash'}
@@ -104,7 +104,7 @@ export const PromoForm: React.FC<Props> = ({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-slate-900/55 p-4 backdrop-blur-xl shadow-[0_10px_28px_rgba(0,0,0,0.28)]">
+      <section className="rounded-2xl border border-white/10 bg-[#1b160f]/88 p-4 backdrop-blur-xl shadow-[0_10px_28px_rgba(0,0,0,0.28)]">
         <h3 className="mb-3 text-sm font-semibold text-white">Asosiy ma'lumotlar</h3>
         <div className="space-y-3">
           <div className="space-y-1.5">
@@ -114,8 +114,8 @@ export const PromoForm: React.FC<Props> = ({
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
               placeholder="MEGA50"
-              className={`h-11 w-full rounded-xl border bg-white/5 px-3 font-semibold tracking-[0.18em] uppercase text-white placeholder:text-slate-500 outline-none transition-all duration-200 focus:ring-2 focus:ring-indigo-400/40 ${
-                errors.code ? 'border-rose-400/60' : 'border-white/15 focus:border-indigo-400'
+              className={`h-11 w-full rounded-xl border bg-white/5 px-3 font-semibold tracking-[0.18em] uppercase text-white placeholder:text-slate-500 outline-none transition-all duration-200 focus:ring-2 focus:ring-[rgba(255,212,59,0.18)] ${
+                errors.code ? 'border-rose-400/60' : 'border-white/15 focus:border-[rgba(255,190,11,0.52)]'
               }`}
             />
             {errors.code && <p className="text-xs font-medium text-rose-300">{errors.code}</p>}
@@ -128,7 +128,7 @@ export const PromoForm: React.FC<Props> = ({
               value={titleStr}
               onChange={(e) => setTitleStr(e.target.value)}
               placeholder="Yangi mijozlarga aksiya"
-              className="h-11 w-full rounded-xl border border-white/15 bg-white/5 px-3 text-sm text-white placeholder:text-slate-500 outline-none transition-all duration-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/40"
+              className="h-11 w-full rounded-xl border border-white/15 bg-white/5 px-3 text-sm text-white placeholder:text-slate-500 outline-none transition-all duration-200 focus:border-[rgba(255,190,11,0.52)] focus:ring-2 focus:ring-[rgba(255,212,59,0.18)]"
             />
           </div>
 
@@ -139,13 +139,13 @@ export const PromoForm: React.FC<Props> = ({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Qisqa tavsif"
               rows={3}
-              className="w-full resize-none rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none transition-all duration-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/40"
+              className="w-full resize-none rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none transition-all duration-200 focus:border-[rgba(255,190,11,0.52)] focus:ring-2 focus:ring-[rgba(255,212,59,0.18)]"
             />
           </div>
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-slate-900/55 p-4 backdrop-blur-xl shadow-[0_10px_28px_rgba(0,0,0,0.28)]">
+      <section className="rounded-2xl border border-white/10 bg-[#1b160f]/88 p-4 backdrop-blur-xl shadow-[0_10px_28px_rgba(0,0,0,0.28)]">
         <h3 className="mb-3 text-sm font-semibold text-white">Chegirma sozlamalari</h3>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
@@ -153,7 +153,7 @@ export const PromoForm: React.FC<Props> = ({
             <select
               value={discountType}
               onChange={(e) => setDiscountType(e.target.value as DiscountTypeEnum)}
-              className="h-11 w-full rounded-xl border border-white/15 bg-white/5 px-3 text-sm font-medium text-white outline-none transition-all duration-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/40"
+              className="h-11 w-full rounded-xl border border-white/15 bg-white/5 px-3 text-sm font-medium text-white outline-none transition-all duration-200 focus:border-[rgba(255,190,11,0.52)] focus:ring-2 focus:ring-[rgba(255,212,59,0.18)]"
             >
               <option className="text-slate-900" value={DiscountTypeEnum.PERCENTAGE}>Foizli (%)</option>
               <option className="text-slate-900" value={DiscountTypeEnum.FIXED}>Miqdorli</option>
@@ -166,8 +166,8 @@ export const PromoForm: React.FC<Props> = ({
               type="number"
               value={discountValue || ''}
               onChange={(e) => setDiscountValue(parseInt(e.target.value) || 0)}
-              className={`h-11 w-full rounded-xl border bg-white/5 px-3 text-sm font-semibold text-white outline-none transition-all duration-200 focus:ring-2 focus:ring-indigo-400/40 ${
-                errors.discountValue ? 'border-rose-400/60' : 'border-white/15 focus:border-indigo-400'
+              className={`h-11 w-full rounded-xl border bg-white/5 px-3 text-sm font-semibold text-white outline-none transition-all duration-200 focus:ring-2 focus:ring-[rgba(255,212,59,0.18)] ${
+                errors.discountValue ? 'border-rose-400/60' : 'border-white/15 focus:border-[rgba(255,190,11,0.52)]'
               }`}
             />
           </div>
@@ -180,12 +180,12 @@ export const PromoForm: React.FC<Props> = ({
             type="number"
             value={minOrderValue || ''}
             onChange={(e) => setMinOrderValue(parseInt(e.target.value) || 0)}
-            className="h-11 w-full rounded-xl border border-white/15 bg-white/5 px-3 text-sm font-medium text-white outline-none transition-all duration-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/40"
+            className="h-11 w-full rounded-xl border border-white/15 bg-white/5 px-3 text-sm font-medium text-white outline-none transition-all duration-200 focus:border-[rgba(255,190,11,0.52)] focus:ring-2 focus:ring-[rgba(255,212,59,0.18)]"
           />
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-slate-900/55 p-4 backdrop-blur-xl shadow-[0_10px_28px_rgba(0,0,0,0.28)]">
+      <section className="rounded-2xl border border-white/10 bg-[#1b160f]/88 p-4 backdrop-blur-xl shadow-[0_10px_28px_rgba(0,0,0,0.28)]">
         <h3 className="mb-3 text-sm font-semibold text-white">Foydalanish qoidalari</h3>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
@@ -194,7 +194,7 @@ export const PromoForm: React.FC<Props> = ({
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="h-11 w-full rounded-xl border border-white/15 bg-white/5 px-3 text-sm font-medium text-white outline-none transition-all duration-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/40"
+              className="h-11 w-full rounded-xl border border-white/15 bg-white/5 px-3 text-sm font-medium text-white outline-none transition-all duration-200 focus:border-[rgba(255,190,11,0.52)] focus:ring-2 focus:ring-[rgba(255,212,59,0.18)]"
             />
           </div>
           <div className="space-y-1.5">
@@ -203,8 +203,8 @@ export const PromoForm: React.FC<Props> = ({
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className={`h-11 w-full rounded-xl border bg-white/5 px-3 text-sm font-medium text-white outline-none transition-all duration-200 focus:ring-2 focus:ring-indigo-400/40 ${
-                errors.endDate ? 'border-rose-400/60' : 'border-white/15 focus:border-indigo-400'
+              className={`h-11 w-full rounded-xl border bg-white/5 px-3 text-sm font-medium text-white outline-none transition-all duration-200 focus:ring-2 focus:ring-[rgba(255,212,59,0.18)] ${
+                errors.endDate ? 'border-rose-400/60' : 'border-white/15 focus:border-[rgba(255,190,11,0.52)]'
               }`}
             />
           </div>
@@ -217,7 +217,7 @@ export const PromoForm: React.FC<Props> = ({
             type="number"
             value={usageLimit || ''}
             onChange={(e) => setUsageLimit(parseInt(e.target.value) || 0)}
-            className="h-11 w-full rounded-xl border border-white/15 bg-white/5 px-3 text-sm font-medium text-white outline-none transition-all duration-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/40"
+            className="h-11 w-full rounded-xl border border-white/15 bg-white/5 px-3 text-sm font-medium text-white outline-none transition-all duration-200 focus:border-[rgba(255,190,11,0.52)] focus:ring-2 focus:ring-[rgba(255,212,59,0.18)]"
           />
         </div>
 
@@ -244,7 +244,7 @@ export const PromoForm: React.FC<Props> = ({
             <button
               type="button"
               onClick={() => setIsFirstOrderOnly(!isFirstOrderOnly)}
-              className={`relative h-7 w-12 rounded-full transition-all duration-200 ${isFirstOrderOnly ? 'bg-indigo-500/90 shadow-[0_0_14px_rgba(99,102,241,0.45)]' : 'bg-slate-600/70'}`}
+              className={`relative h-7 w-12 rounded-full transition-all duration-200 ${isFirstOrderOnly ? 'bg-[linear-gradient(135deg,var(--admin-pro-primary)_0%,var(--admin-pro-primary-strong)_100%)]/90 shadow-[0_0_14px_rgba(99,102,241,0.45)]' : 'bg-slate-600/70'}`}
             >
               <div className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-md transition-transform duration-200 ${isFirstOrderOnly ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
             </button>
@@ -252,7 +252,7 @@ export const PromoForm: React.FC<Props> = ({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-slate-900/55 p-4 backdrop-blur-xl shadow-[0_10px_28px_rgba(0,0,0,0.28)]">
+      <section className="rounded-2xl border border-white/10 bg-[#1b160f]/88 p-4 backdrop-blur-xl shadow-[0_10px_28px_rgba(0,0,0,0.28)]">
         <h3 className="mb-3 text-sm font-semibold text-white">Kengaytirilgan sozlamalar</h3>
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-slate-300">Mijoz ID (VIP promo, ixtiyoriy)</label>
@@ -261,7 +261,7 @@ export const PromoForm: React.FC<Props> = ({
             value={targetUserId}
             onChange={(e) => setTargetUserId(e.target.value.trim())}
             placeholder="UUID (bo'sh = hamma uchun)"
-            className="h-11 w-full rounded-xl border border-white/15 bg-white/5 px-3 font-mono text-sm text-white placeholder:text-slate-500 outline-none transition-all duration-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/40"
+            className="h-11 w-full rounded-xl border border-white/15 bg-white/5 px-3 font-mono text-sm text-white placeholder:text-slate-500 outline-none transition-all duration-200 focus:border-[rgba(255,190,11,0.52)] focus:ring-2 focus:ring-[rgba(255,212,59,0.18)]"
           />
           <p className="text-xs text-slate-400">To&apos;ldirilsa faqat shu foydalanuvchi ishlata oladi</p>
         </div>

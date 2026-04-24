@@ -16,8 +16,7 @@ import { useAdminCourierDirectory } from '../../hooks/queries/useCouriers';
 import { useOrdersStore } from '../../store/useOrdersStore';
 import { useAdminUnreadTotal } from '../../hooks/queries/useAdminChats';
 
-const cardClassName =
-  'admin-pro-card admin-motion-up rounded-[20px] border border-slate-200/80 bg-white/95 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.08)]';
+const cardClassName = 'admin-pro-card admin-motion-up p-5';
 
 function formatCompactMoney(value: number) {
   if (value >= 1_000_000) {
@@ -94,20 +93,20 @@ const StatCard: React.FC<{
     tone === 'success'
       ? 'bg-emerald-50 text-emerald-600'
       : tone === 'warning'
-        ? 'bg-amber-50 text-amber-600'
+        ? 'bg-[rgba(255,212,59,0.18)] text-[#8d6400]'
       : tone === 'danger'
           ? 'bg-rose-50 text-rose-600'
-          : 'bg-blue-50 text-blue-600';
+          : 'bg-[rgba(255,212,59,0.18)] text-[#7a5600]';
 
   return (
     <DashboardCard>
       <div className="flex flex-col gap-2.5">
         <div className="flex items-start justify-between gap-2">
-          <p className="text-[12px] font-semibold text-slate-500">{title}</p>
+          <p className="text-[12px] font-semibold text-[var(--admin-pro-text-muted)]">{title}</p>
           <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${toneClass}`}>{icon}</span>
         </div>
-        <p className="text-[30px] font-black leading-none text-slate-950">{value}</p>
-        <p className="text-xs font-medium text-slate-500">{hint}</p>
+        <p className="text-[30px] font-black leading-none text-[var(--admin-pro-text)]">{value}</p>
+        <p className="text-xs font-medium text-[var(--admin-pro-text-muted)]">{hint}</p>
       </div>
     </DashboardCard>
   );
@@ -130,9 +129,9 @@ const QuickActionCard: React.FC<{
         <button
           type="button"
           onClick={onClick}
-          className="flex h-[94px] w-full flex-col items-center justify-center gap-2 rounded-[20px] px-3 text-slate-700 hover:text-blue-600"
+          className="flex h-[94px] w-full flex-col items-center justify-center gap-2 rounded-[20px] px-3 text-[var(--admin-pro-text)] transition hover:text-[#7a5600]"
         >
-        <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-blue-600">
+        <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-[rgba(255,190,11,0.18)] bg-[rgba(255,212,59,0.18)] text-[#7a5600]">
           {icon}
         </span>
         <span className="text-[12px] font-semibold leading-tight">{label}</span>
@@ -228,12 +227,12 @@ const AdminDashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-[calc(env(safe-area-inset-bottom,0px)+96px)]">
-      <DashboardCard>
-        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">Umumiy holat</p>
-        <h2 className="mt-2 text-xl font-black tracking-tight text-slate-900">
+      <DashboardCard className="admin-hero-card">
+        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/55">Umumiy holat</p>
+        <h2 className="mt-2 text-xl font-black tracking-tight text-white">
           Bugungi admin ko'rsatkichlari
         </h2>
-        <p className="text-sm font-medium text-slate-500">Muhim raqamlar va tezkor o'tishlar bir sahifada</p>
+        <p className="text-sm font-medium text-white/70">Muhim raqamlar va tezkor o'tishlar bir sahifada</p>
       </DashboardCard>
 
       <div className="grid grid-cols-2 gap-3">
@@ -276,13 +275,18 @@ const AdminDashboardPage: React.FC = () => {
       </div>
 
       <DashboardCard>
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">Tezkor amallar</p>
-          <p className="mt-1 text-lg font-black tracking-tight text-slate-900">Bitta bosishda boshqarish</p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--admin-pro-text-muted)]">Tezkor amallar</p>
+            <p className="mt-1 text-lg font-black tracking-tight text-[var(--admin-pro-text)]">Bitta bosishda boshqarish</p>
+          </div>
+          <span className="rounded-full border border-[rgba(255,190,11,0.16)] bg-[rgba(255,212,59,0.16)] px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#7a5600]">
+            Admin flow
+          </span>
         </div>
         {isLoading && orders.length === 0 ? (
-          <div className="flex h-[228px] items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-500">
-            <div className="h-9 w-9 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
+          <div className="admin-pro-card-muted flex h-[228px] items-center justify-center rounded-2xl text-[var(--admin-pro-text-muted)]">
+            <div className="h-9 w-9 animate-spin rounded-full border-4 border-[rgba(255,212,59,0.26)] border-t-[#7a5600]" />
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -299,7 +303,7 @@ const AdminDashboardPage: React.FC = () => {
         )}
       </DashboardCard>
 
-      <p className="text-center text-xs font-medium text-slate-400">@turonkafebot</p>
+      <p className="text-center text-xs font-medium text-[var(--admin-pro-text-muted)]">@turonkafebot</p>
     </div>
   );
 };

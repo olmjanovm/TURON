@@ -201,7 +201,7 @@ function AdminRestaurantMap({ value, onChange }: { value: RestaurantSettings; on
         if (ymaps3.YMapDefaultFeaturesLayer) map.addChild(new ymaps3.YMapDefaultFeaturesLayer({}));
         
         const pinEl = document.createElement('div');
-        pinEl.style.cssText = 'width:20px;height:20px;border-radius:9999px;transform:translate(-50%,-50%);background:#C62020;border:4px solid #fff;box-shadow:0 10px 26px rgba(198,32,32,0.25);';
+        pinEl.style.cssText = 'width:20px;height:20px;border-radius:9999px;transform:translate(-50%,-50%);background:#FFD43B;border:4px solid #fffaf0;box-shadow:0 12px 28px rgba(255,190,11,0.32);';
         const marker = new ymaps3.YMapMarker({ coordinates: toLngLat(centerPin), zIndex: 200 }, pinEl);
         map.addChild(marker);
 
@@ -297,7 +297,7 @@ export default function RestaurantSettingsPage() {
   const effectiveOpen = openStatus?.isOpen ?? draft.isOpen;
 
   if (isLoading && !draft.name) {
-     return <div className="flex h-[300px] items-center justify-center text-slate-400">Yuklanmoqda...</div>;
+     return <div className="admin-pro-card admin-pro-card-muted flex h-[300px] items-center justify-center text-[var(--admin-pro-text-muted)]">Yuklanmoqda...</div>;
   }
 
   return (
@@ -432,7 +432,7 @@ function AddressTab({ draft, onChange }: { draft: RestaurantSettings; onChange: 
                 const m: any = await fetchAddressSuggestions(`${draft.addressText}, Toshkent`, 1, { lat: draft.latitude, lng: draft.longitude });
                 if (m[0]?.pin) onChange({ latitude: m[0].pin.lat, longitude: m[0].pin.lng, addressText: m[0].address || draft.addressText });
               } finally { setBusy(null); }
-          }} className="h-12 rounded-2xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg">
+          }} className="admin-pro-button-primary flex h-12 items-center justify-center gap-2 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg transition-all active:scale-95">
             {busy === 'search' ? <RefreshCw size={16} className="animate-spin" /> : <Search size={16} />}
             Xaritada topish
           </button>
@@ -447,7 +447,7 @@ function AddressTab({ draft, onChange }: { draft: RestaurantSettings; onChange: 
                     if (a) onChange({ addressText: a });
                     setBusy(null);
                 }, () => setBusy(null));
-          }} className="h-12 rounded-2xl bg-white border border-slate-200 text-slate-900 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all">
+          }} className="admin-pro-button-secondary flex h-12 items-center justify-center gap-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95">
             {busy === 'gps' ? <RefreshCw size={16} className="animate-spin" /> : <LocateFixed size={16} />}
             GPS
           </button>

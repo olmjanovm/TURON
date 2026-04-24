@@ -67,7 +67,7 @@ const AdminPromosPage: React.FC = () => {
             </button>
             <button
               onClick={() => navigate('/admin/promos/new')}
-              className="flex h-10 items-center justify-center gap-2 rounded-[10px] bg-[#2563EB] px-3.5 text-sm font-bold text-white shadow-[0_8px_18px_rgba(37,99,235,0.28)] transition-all hover:bg-[#1D4ED8] active:scale-[0.98]"
+              className="flex h-10 items-center justify-center gap-2 rounded-[10px] bg-[linear-gradient(135deg,var(--admin-pro-primary)_0%,var(--admin-pro-primary-strong)_100%)] px-3.5 text-sm font-bold text-white shadow-[0_14px_28px_rgba(255,190,11,0.24)] transition-all hover:brightness-95 active:scale-[0.98]"
             >
               <Plus size={16} />
               Qo&apos;shish

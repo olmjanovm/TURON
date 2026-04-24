@@ -115,7 +115,7 @@ const ProductCardAdmin: React.FC<Props> = ({
                 type="button"
                 onClick={onCancelDelete}
                 disabled={isDeleting}
-                className="flex h-11 items-center justify-center gap-2 rounded-[14px] border border-slate-200 bg-white text-[13px] font-bold text-slate-900 transition active:scale-[0.98] disabled:opacity-60"
+                className="flex h-11 items-center justify-center gap-2 rounded-[14px] border border-[var(--admin-pro-line)] bg-white/92 text-[13px] font-bold text-slate-900 transition active:scale-[0.98] disabled:opacity-60"
               >
                 <X size={15} />
                 Bekor qilish

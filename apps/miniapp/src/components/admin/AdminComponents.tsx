@@ -25,8 +25,8 @@ function getAdminOrderStatusMeta(status: OrderStatus) {
       };
     case OrderStatus.PREPARING:
       return {
-        iconClass: 'bg-blue-100 text-blue-600',
-        badgeClass: 'bg-blue-50 text-blue-600',
+        iconClass: 'bg-[rgba(255,212,59,0.18)] text-[#7a5600]',
+        badgeClass: 'bg-[rgba(255,212,59,0.18)] text-[#7a5600]',
         label: 'Tayyorlov',
       };
     case OrderStatus.READY_FOR_PICKUP:
@@ -37,8 +37,8 @@ function getAdminOrderStatusMeta(status: OrderStatus) {
       };
     case OrderStatus.DELIVERING:
       return {
-        iconClass: 'bg-violet-100 text-violet-600',
-        badgeClass: 'bg-violet-50 text-violet-600',
+        iconClass: 'bg-[#1f1a12] text-[#ffe39b]',
+        badgeClass: 'bg-[#fff4cc] text-[#7a5600]',
         label: 'Yo\'lda',
       };
     case OrderStatus.DELIVERED:
@@ -74,29 +74,29 @@ export const PaymentVerificationCard: React.FC<{
   const paymentMethodLabel = 'Manual transfer';
 
   return (
-    <div className="bg-amber-50 rounded-[32px] p-6 border border-amber-100 shadow-xl shadow-amber-200/20 overflow-hidden relative group animate-in zoom-in duration-300">
-      <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+    <div className="admin-pro-card relative overflow-hidden rounded-[32px] border-[rgba(255,190,11,0.18)] bg-[linear-gradient(135deg,rgba(255,212,59,0.16)_0%,rgba(255,250,238,0.96)_100%)] p-6 shadow-[0_18px_36px_rgba(255,190,11,0.12)] group animate-in zoom-in duration-300">
+      <div className="absolute right-0 top-0 p-4 opacity-10 transition-opacity group-hover:opacity-20">
         <ShieldCheck size={80} />
       </div>
       
       <div className="relative z-10 space-y-4">
-        <div className="flex items-center gap-2 text-amber-600 font-black uppercase tracking-widest text-[10px]">
+        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#7a5600]">
           <AlertCircle size={14} />
           <span>To'lov Tasdiqlanishi Kutilmoqda</span>
         </div>
         
         <div className="space-y-2">
            <div className="flex justify-between items-center text-xs">
-              <span className="text-amber-700 font-bold uppercase">To'lov usuli:</span>
-              <span className="font-black text-amber-900 italic uppercase">{paymentMethodLabel}</span>
+              <span className="font-bold uppercase text-[#8a6a20]">To'lov usuli:</span>
+              <span className="font-black italic uppercase text-[var(--admin-pro-text)]">{paymentMethodLabel}</span>
            </div>
            <div className="flex justify-between items-center text-xs">
-              <span className="text-amber-700 font-bold uppercase">Reference:</span>
-              <span className="font-black text-amber-900 uppercase tracking-tighter">{order.paymentReference || 'N/A'}</span>
+              <span className="font-bold uppercase text-[#8a6a20]">Reference:</span>
+              <span className="font-black uppercase tracking-tighter text-[var(--admin-pro-text)]">{order.paymentReference || 'N/A'}</span>
            </div>
            <div className="flex justify-between items-center text-xs">
-              <span className="text-amber-700 font-bold uppercase">Summa:</span>
-              <span className="font-black text-amber-900 text-sm italic">{order.total.toLocaleString()} so'm</span>
+              <span className="font-bold uppercase text-[#8a6a20]">Summa:</span>
+              <span className="text-sm font-black italic text-[var(--admin-pro-text)]">{order.total.toLocaleString()} so'm</span>
            </div>
         </div>
 
@@ -104,7 +104,7 @@ export const PaymentVerificationCard: React.FC<{
           <button 
             onClick={onReject}
             disabled={isPending}
-            className="h-12 bg-white text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-red-100 shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
+            className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-red-100 bg-white text-[10px] font-black uppercase tracking-widest text-red-600 shadow-sm transition-all active:scale-95"
           >
             <XCircle size={16} />
             <span>{isPending ? 'Kutilmoqda' : 'Rad etish'}</span>
@@ -112,7 +112,7 @@ export const PaymentVerificationCard: React.FC<{
           <button 
             onClick={onApprove}
             disabled={isPending}
-            className="h-12 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-200 active:scale-95 transition-all flex items-center justify-center gap-2"
+            className="admin-pro-button-primary flex h-12 items-center justify-center gap-2 rounded-2xl text-[10px] font-black uppercase tracking-widest active:scale-95"
           >
             <CheckCircle size={16} />
             <span>{isPending ? 'Kutilmoqda' : 'Tasdiqlash'}</span>
@@ -148,7 +148,7 @@ export const StatusActionButtons: React.FC<{
       <button 
         onClick={onCancel}
         disabled={isPending}
-        className="w-10 h-10 rounded-xl bg-white border border-red-100 text-red-500 flex items-center justify-center active:scale-90 transition-transform"
+        className="admin-pro-button-secondary flex h-10 w-10 items-center justify-center rounded-xl border-red-100 text-red-500 active:scale-90"
       >
         <XCircle size={20} />
       </button>
@@ -156,7 +156,7 @@ export const StatusActionButtons: React.FC<{
         <button 
           onClick={() => onUpdate(current.next)}
           disabled={isPending}
-          className="h-10 px-4 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 active:scale-95 transition-transform disabled:opacity-60"
+          className="admin-pro-button-primary flex h-10 items-center gap-2 rounded-xl px-4 text-[10px] font-black uppercase tracking-widest transition-transform active:scale-95 disabled:opacity-60"
         >
           <span>{current.label}</span>
           <ArrowRight size={14} />
@@ -191,10 +191,10 @@ export const CourierAssignModal: React.FC<{
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center animate-in fade-in duration-300">
-      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full bg-white rounded-t-[40px] p-8 pb-12 shadow-2xl animate-in slide-in-from-bottom duration-500">
-        <div className="w-12 h-1.5 bg-slate-100 rounded-full mx-auto mb-8" />
-        <h3 className="text-xl font-black text-slate-900 uppercase italic tracking-tighter italic mb-6">Kuryerni tanlang</h3>
+      <div className="absolute inset-0 bg-[rgba(21,17,11,0.36)] backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full rounded-t-[40px] border border-[rgba(118,90,35,0.16)] bg-[rgba(255,250,239,0.98)] p-8 pb-12 shadow-2xl animate-in slide-in-from-bottom duration-500">
+        <div className="mx-auto mb-8 h-1.5 w-12 rounded-full bg-[rgba(255,190,11,0.28)]" />
+        <h3 className="mb-6 text-xl font-black uppercase italic tracking-tighter text-[var(--admin-pro-text)]">Kuryerni tanlang</h3>
         
         <div className="space-y-3">
           {isLoading ? (
@@ -272,7 +272,7 @@ export const CourierAssignModal: React.FC<{
                   disabled={isAssigning || isBusy}
                   className={`w-full p-5 rounded-[24px] border flex items-center justify-between transition-all disabled:opacity-60 ${
                     currentCourierId === courier.id
-                      ? 'bg-indigo-50 border-indigo-200'
+                      ? 'bg-[rgba(255,212,59,0.18)] border-[rgba(255,190,11,0.22)]'
                       : isBusy
                         ? 'bg-amber-50 border-amber-100'
                       : 'bg-slate-50 border-slate-100 active:scale-[0.98]'
@@ -281,7 +281,7 @@ export const CourierAssignModal: React.FC<{
                   <div className="flex items-center gap-4 text-left">
                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
                       currentCourierId === courier.id
-                        ? 'bg-indigo-500 text-white'
+                        ? 'bg-[var(--admin-pro-primary)] text-[var(--admin-pro-primary-contrast)]'
                         : 'bg-white text-slate-400 border border-slate-100'
                     }`}>
                       <User size={24} />
@@ -303,7 +303,7 @@ export const CourierAssignModal: React.FC<{
                   {isAssigning ? (
                     <Loader2 size={20} className="text-slate-400 animate-spin" />
                   ) : currentCourierId === courier.id ? (
-                    <CheckCircle size={20} className="text-indigo-500" />
+                    <CheckCircle size={20} className="text-[#7a5600]" />
                   ) : isBusy ? (
                     <span className="rounded-full bg-amber-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-amber-700">
                       Band

@@ -177,10 +177,10 @@ const AdminLayout: React.FC = () => {
         : 'Oflayn';
 
   const syncBadgeClass = isConnected
-    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    ? 'admin-pro-sync-good'
     : connectionState === 'reconnecting' || connectionState === 'connecting'
-      ? 'border-amber-200 bg-amber-50 text-amber-700'
-      : 'border-slate-200 bg-slate-100 text-slate-500';
+      ? 'admin-pro-sync-warn'
+      : 'admin-pro-sync-idle';
 
   const syncDotClass = isConnected
     ? 'bg-emerald-500'
@@ -200,11 +200,8 @@ const AdminLayout: React.FC = () => {
       <button
         type="button"
         onClick={() => navigate(path)}
-        className={`relative flex h-[60px] min-w-0 flex-col items-center justify-center gap-1 rounded-[22px] transition-all duration-300 ${
-          isActive
-            ? 'bg-rose-50 text-[#C62020] shadow-[inset_0_0_0_1px_rgba(198,32,32,0.1)] scale-105'
-            : 'text-slate-400 hover:text-slate-600'
-        }`}
+        data-active={isActive}
+        className="admin-pro-nav-item relative flex h-[60px] min-w-0 flex-col items-center justify-center gap-1 rounded-[22px]"
       >
         <div className="relative transition-transform duration-300">
           {React.cloneElement(icon as React.ReactElement, { 
@@ -212,11 +209,11 @@ const AdminLayout: React.FC = () => {
             size: 22
           })}
         </div>
-        <span className={`text-[9px] font-black uppercase tracking-widest ${isActive ? 'text-[#C62020]' : 'text-slate-400'}`}>
+        <span className="text-[9px] font-black uppercase tracking-widest">
           {label}
         </span>
         {badge !== undefined && badge > 0 ? (
-          <span className="absolute right-1.5 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">
+          <span className="admin-pro-nav-badge absolute right-1.5 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-black">
             {badge}
           </span>
         ) : null}
@@ -226,28 +223,28 @@ const AdminLayout: React.FC = () => {
 
   return (
     <div
-      className="admin-pro-shell min-h-screen font-sans text-slate-950"
+      className="admin-pro-shell min-h-screen font-sans text-[var(--admin-pro-text)]"
       style={layoutVars}
     >
       <header
         className="sticky top-0 z-[70] px-3 pb-3 admin-motion-up"
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 14px)' }}
       >
-        <div className="admin-pro-card mx-auto flex w-full max-w-[430px] items-center justify-between gap-3 rounded-[20px] border border-white/80 bg-white/92 px-4 py-3 shadow-[0_14px_34px_rgba(15,23,42,0.18)] backdrop-blur-xl">
+        <div className="admin-pro-card admin-pro-topbar mx-auto flex w-full max-w-[430px] items-center justify-between gap-3 rounded-[20px] px-4 py-3">
           <div className="flex min-w-0 items-center gap-2">
             {!isHomePage ? (
               <button
                 type="button"
                 onClick={handleBack}
                 aria-label="Orqaga qaytish"
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition active:scale-95"
+                className="admin-pro-button-secondary inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
               >
                 <ChevronLeft size={20} />
               </button>
             ) : null}
             {pageHeaderTitle ? (
               <div className="min-w-0">
-                <h1 className="truncate text-lg font-black tracking-tight text-slate-900 [text-shadow:0_1px_0_rgba(255,255,255,0.65)]">
+                <h1 className="truncate text-lg font-black tracking-tight text-[var(--admin-pro-text)]">
                   {pageHeaderTitle}
                 </h1>
                 <div className={`mt-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] ${syncBadgeClass}`}>
@@ -264,10 +261,10 @@ const AdminLayout: React.FC = () => {
               type="button"
               onClick={() => navigate('/admin/restaurant')}
               aria-label="Restoran sozlamalari"
-              className={`relative flex h-11 items-center justify-center gap-2 rounded-full border px-3 shadow-[0_18px_40px_rgba(15,23,42,0.12)] backdrop-blur-md transition-transform active:scale-95 ${
+              className={`relative flex h-11 items-center justify-center gap-2 rounded-full px-3 transition-transform ${
                 location.pathname.startsWith('/admin/restaurant')
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                  : 'border-slate-200 bg-white/90 text-slate-600'
+                  ? 'admin-pro-button-primary'
+                  : 'admin-pro-button-secondary'
               }`}
             >
               <Store size={19} />
@@ -277,7 +274,7 @@ const AdminLayout: React.FC = () => {
               type="button"
               onClick={() => navigate('/admin/notifications')}
               aria-label="Bildirishnomalar"
-              className="relative flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-[0_18px_40px_rgba(15,23,42,0.12)] backdrop-blur-md transition-transform active:scale-95"
+              className="admin-pro-button-secondary relative flex h-11 w-11 items-center justify-center rounded-full transition-transform"
             >
               <Bell size={20} />
               <NotificationBadge role={UserRoleEnum.ADMIN} />
@@ -302,7 +299,7 @@ const AdminLayout: React.FC = () => {
         className={`fixed inset-x-0 bottom-0 z-50 px-3 transition-all duration-200 ${hideBottomNav ? 'pointer-events-none translate-y-[130%] opacity-0' : 'translate-y-0 opacity-100'}`}
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 10px)' }}
       >
-        <div className="admin-pro-card mx-auto grid h-[78px] w-full max-w-[430px] grid-cols-5 items-center gap-1 rounded-[30px] border border-white/80 bg-white/96 px-2 shadow-[0_20px_50px_rgba(15,23,42,0.18)] backdrop-blur-xl">
+        <div className="admin-pro-card admin-pro-topbar mx-auto grid h-[78px] w-full max-w-[430px] grid-cols-5 items-center gap-1 rounded-[30px] px-2">
           <NavItem
             path="/admin/dashboard"
             icon={<LayoutDashboard size={21} />}

@@ -26,11 +26,11 @@ const FILTERS: Array<{ value: OrderFilter; label: string }> = [
 const STATUS_META: Record<OrderStatus, { label: string; className: string }> = {
   [OrderStatus.PENDING]: {
     label: 'Yangi',
-    className: 'bg-blue-50 text-blue-600',
+    className: 'bg-[rgba(255,212,59,0.18)] text-[#7a5600]',
   },
   [OrderStatus.PREPARING]: {
     label: 'Tayyorlanyotgan',
-    className: 'bg-amber-50 text-amber-600',
+    className: 'bg-[#1f1a12] text-[#ffe39b]',
   },
   [OrderStatus.READY_FOR_PICKUP]: {
     label: 'Tayyor',
@@ -38,7 +38,7 @@ const STATUS_META: Record<OrderStatus, { label: string; className: string }> = {
   },
   [OrderStatus.DELIVERING]: {
     label: 'Yolda',
-    className: 'bg-emerald-50 text-emerald-600',
+    className: 'bg-[rgba(255,212,59,0.16)] text-[#8d6400]',
   },
   [OrderStatus.DELIVERED]: {
     label: 'Tugallangan',
@@ -158,30 +158,30 @@ const OrderListCard: React.FC<OrderListCardProps> = ({
   const actionLabel = primaryActionLabel || ACTION_LABELS[order.orderStatus] || "Ko'rish";
 
   return (
-    <article className="rounded-[18px] bg-white px-4 py-4 shadow-[0_14px_32px_rgba(15,23,42,0.06)]">
+    <article className="admin-pro-card rounded-[18px] px-4 py-4">
       <div className="flex items-start justify-between gap-3">
         <button type="button" onClick={onOpen} className="min-w-0 text-left">
           <div className="flex items-center gap-2">
-            <p className="text-base font-black leading-none text-slate-950">#{order.orderNumber}</p>
+            <p className="text-base font-black leading-none text-[var(--admin-pro-text)]">#{order.orderNumber}</p>
             <span className={`rounded-full px-2.5 py-1 text-[11px] font-black ${meta.className}`}>
               {meta.label}
             </span>
           </div>
-          <p className="mt-3 truncate text-sm font-semibold text-slate-500">
+          <p className="mt-3 truncate text-sm font-semibold text-[var(--admin-pro-text-muted)]">
             {order.customerName || 'Mijoz'}
           </p>
         </button>
 
         <div className="shrink-0 text-right">
-          <p className="text-base font-black leading-none text-slate-950">
-            {order.total.toLocaleString()} UZS
-          </p>
-          <p className="mt-3 text-xs font-semibold text-slate-500">{formatOrderTime(order.createdAt)}</p>
+            <p className="text-base font-black leading-none text-[var(--admin-pro-text)]">
+              {order.total.toLocaleString()} UZS
+            </p>
+          <p className="mt-3 text-xs font-semibold text-[var(--admin-pro-text-muted)]">{formatOrderTime(order.createdAt)}</p>
         </div>
       </div>
 
       <div className="mt-6 flex items-center justify-between gap-3">
-        <p className="text-sm font-semibold text-slate-500">
+        <p className="text-sm font-semibold text-[var(--admin-pro-text-muted)]">
           {order.items.length} ta mahsulot
         </p>
         <div className="flex items-center gap-2">
@@ -190,7 +190,7 @@ const OrderListCard: React.FC<OrderListCardProps> = ({
               type="button"
               onClick={onSecondaryAction}
               disabled={isMutating}
-              className="flex h-10 min-w-[92px] items-center justify-center rounded-full border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 active:scale-[0.98] disabled:opacity-60"
+              className="admin-pro-button-secondary flex h-10 min-w-[92px] items-center justify-center rounded-full px-4 text-sm font-black disabled:opacity-60"
             >
               {secondaryActionLabel}
             </button>
@@ -199,7 +199,7 @@ const OrderListCard: React.FC<OrderListCardProps> = ({
             type="button"
             onClick={onPrimaryAction}
             disabled={isMutating}
-            className="flex h-10 min-w-[70px] items-center justify-center rounded-full bg-blue-600 px-5 text-sm font-black text-white active:scale-[0.98] disabled:opacity-60"
+            className="admin-pro-button-primary flex h-10 min-w-[70px] items-center justify-center rounded-full px-5 text-sm font-black disabled:opacity-60"
           >
             {isMutating ? <Loader2 size={16} className="animate-spin" /> : actionLabel}
           </button>
@@ -281,14 +281,14 @@ const AdminOrdersPage: React.FC = () => {
 
   if (isError && !useFallbackOrders) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-center space-y-4">
-        <AlertCircle size={48} className="text-red-500" />
-        <h3 className="font-bold text-slate-900">Buyurtmalar yuklanmadi</h3>
-        <p className="text-sm text-slate-500">{(error as Error).message}</p>
+        <div className="flex flex-col items-center justify-center space-y-4 p-12 text-center">
+          <AlertCircle size={48} className="text-red-500" />
+        <h3 className="font-bold text-[var(--admin-pro-text)]">Buyurtmalar yuklanmadi</h3>
+        <p className="text-sm text-[var(--admin-pro-text-muted)]">{(error as Error).message}</p>
         <button
           type="button"
           onClick={() => refetch()}
-          className="rounded-full bg-blue-600 px-6 py-2 text-sm font-bold text-white"
+          className="admin-pro-button-primary rounded-full px-6 py-2 text-sm font-bold"
         >
           Yangilash
         </button>
@@ -298,15 +298,15 @@ const AdminOrdersPage: React.FC = () => {
 
   return (
     <div className="space-y-4 pb-6">
-      <section className="sticky top-0 z-40" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)', paddingBottom: '12px', backgroundColor: 'rgb(248, 250, 252)', margin: '6px -16px 16px -16px', paddingLeft: '16px', paddingRight: '16px' }}>
-        <div className="rounded-[20px] border border-slate-200 bg-white px-4 py-3">
+      <section className="sticky top-0 z-40" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)', paddingBottom: '12px', backgroundColor: 'var(--admin-pro-bg)', margin: '6px -16px 16px -16px', paddingLeft: '16px', paddingRight: '16px' }}>
+        <div className="admin-pro-card rounded-[20px] px-4 py-3">
           <label className="flex items-center gap-3">
-            <Search size={19} className="text-slate-400" />
+            <Search size={19} className="text-[var(--admin-pro-text-muted)]" />
             <input
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Buyurtma ID yoki nomi bo'yicha qidiring..."
-              className="w-full bg-transparent text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-400"
+              className="w-full bg-transparent text-sm font-semibold text-[var(--admin-pro-text)] outline-none placeholder:text-[var(--admin-pro-text-muted)]"
             />
           </label>
         </div>
@@ -323,8 +323,8 @@ const AdminOrdersPage: React.FC = () => {
               onClick={() => setActiveFilter(filter.value)}
               className={`h-9 shrink-0 rounded-full px-4 text-sm font-bold transition-colors ${
                 isActive
-                  ? 'bg-blue-600 text-white shadow-[0_10px_18px_rgba(37,99,235,0.22)]'
-                  : 'border border-slate-200 bg-transparent text-slate-500'
+                  ? 'admin-pro-button-primary text-[var(--admin-pro-primary-contrast)] shadow-[0_10px_18px_rgba(255,190,11,0.22)]'
+                  : 'border border-[var(--admin-pro-line)] bg-transparent text-[var(--admin-pro-text-muted)]'
               }`}
             >
               {filter.label}
@@ -355,21 +355,21 @@ const AdminOrdersPage: React.FC = () => {
       ) : null}
 
       <div className="flex items-center justify-between">
-        <p className="text-sm font-bold text-slate-500">
+        <p className="text-sm font-bold text-[var(--admin-pro-text-muted)]">
           {filteredOrders.length} buyurtma
         </p>
         {isFetching ? (
-          <Loader2 size={16} className="animate-spin text-slate-400" />
+          <Loader2 size={16} className="animate-spin text-[var(--admin-pro-text-muted)]" />
         ) : null}
       </div>
 
       {filteredOrders.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-[18px] bg-white py-16 text-center shadow-[0_14px_32px_rgba(15,23,42,0.06)]">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-50 text-slate-300">
+        <div className="admin-pro-card flex flex-col items-center justify-center rounded-[18px] py-16 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[rgba(255,212,59,0.14)] text-[#d7b44d]">
             <ShoppingBag size={28} />
           </div>
-          <h3 className="mt-4 text-base font-black text-slate-900">Buyurtma topilmadi</h3>
-          <p className="mt-1 text-xs font-semibold text-slate-500">Qidiruv yoki filterni o'zgartiring.</p>
+          <h3 className="mt-4 text-base font-black text-[var(--admin-pro-text)]">Buyurtma topilmadi</h3>
+          <p className="mt-1 text-xs font-semibold text-[var(--admin-pro-text-muted)]">Qidiruv yoki filterni o'zgartiring.</p>
         </div>
       ) : (
         <section className="space-y-3">

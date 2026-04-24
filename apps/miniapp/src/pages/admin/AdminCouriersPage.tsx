@@ -216,7 +216,7 @@ const AdminCouriersPage: React.FC = () => {
           onClick={() => {
             void refetch();
           }}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200/90 bg-white text-slate-500 shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition active:scale-95"
+          className="admin-pro-button-secondary inline-flex h-11 w-11 items-center justify-center rounded-2xl transition active:scale-95"
           aria-label="Yangilash"
         >
           <RefreshCw size={17} className={isFetching ? 'animate-spin' : ''} />
@@ -224,13 +224,13 @@ const AdminCouriersPage: React.FC = () => {
       </div>
 
       {feedback ? (
-        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-[0_8px_22px_rgba(15,23,42,0.06)]">
+        <div className="admin-pro-card admin-pro-card-muted rounded-2xl px-4 py-3 text-sm font-semibold text-[var(--admin-pro-text)]">
           {feedback}
         </div>
       ) : null}
 
       {couriers.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-6 text-center shadow-[0_10px_26px_rgba(15,23,42,0.05)]">
+        <div className="admin-pro-card rounded-3xl border-dashed p-6 text-center">
           <p className="text-sm font-black text-slate-900">Kuryer topilmadi</p>
           <p className="mt-2 text-xs font-semibold text-slate-500">Yangi kuryer qo'shish uchun pastdagi + tugmasini bosing.</p>
         </div>
@@ -250,12 +250,12 @@ const AdminCouriersPage: React.FC = () => {
           return (
             <article
               key={courier.id}
-              className="rounded-3xl border border-slate-200/90 bg-white p-5 shadow-[0_16px_36px_rgba(15,23,42,0.07)] transition hover:shadow-[0_18px_42px_rgba(37,99,235,0.14)]"
+              className="admin-pro-card rounded-3xl p-5"
             >
               {/* Top row */}
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-slate-100 font-black text-blue-700">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[rgba(255,190,11,0.18)] bg-[linear-gradient(135deg,rgba(255,212,59,0.18)_0%,rgba(255,248,223,0.9)_100%)] font-black text-[#7a5600]">
                     {initials}
                   </div>
                   <div className="min-w-0">
@@ -284,7 +284,7 @@ const AdminCouriersPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => startEditing(courier)}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-500 px-3 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(37,99,235,0.3)] transition active:scale-95"
+                  className="admin-pro-button-primary inline-flex h-11 items-center justify-center gap-2 rounded-2xl px-3 text-sm font-semibold transition active:scale-95"
                 >
                   <Pencil size={15} />
                   <span>Tahrirlash</span>
@@ -329,7 +329,7 @@ const AdminCouriersPage: React.FC = () => {
           setFeedback(null);
           setActiveModal({ type: 'create' });
         }}
-        className="fixed right-5 z-40 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-[0_20px_42px_rgba(15,23,42,0.28)] transition active:scale-95"
+        className="admin-pro-button-primary fixed right-5 z-40 flex h-14 w-14 items-center justify-center rounded-2xl transition active:scale-95"
         style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 82px)' }}
         aria-label="Kuryer qo'shish"
       >
@@ -403,7 +403,7 @@ const AdminCouriersPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setActiveModal(null)}
-                  className="inline-flex h-12 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 active:scale-[0.99]"
+                  className="admin-pro-button-secondary inline-flex h-12 items-center justify-center rounded-2xl px-4 text-sm font-semibold active:scale-[0.99]"
                 >
                   Bekor qilish
                 </button>
@@ -411,7 +411,7 @@ const AdminCouriersPage: React.FC = () => {
                   type="button"
                   onClick={() => handleEditSave(courier.id)}
                   disabled={isSaving}
-                  className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(37,99,235,0.24)] active:scale-[0.99] disabled:opacity-60"
+                  className="admin-pro-button-primary inline-flex h-12 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-semibold active:scale-[0.99] disabled:opacity-60"
                 >
                   {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                   <span>Saqlash</span>
@@ -426,7 +426,7 @@ const AdminCouriersPage: React.FC = () => {
 
             if (!courier || !draft) {
               return (
-                <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-600">
+                <div className="admin-pro-card admin-pro-card-muted rounded-[18px] p-4 text-sm font-semibold text-[var(--admin-pro-text-muted)]">
                   Ma'lumot tayyorlanmadi. Qayta urinib ko'ring.
                 </div>
               );
@@ -517,7 +517,7 @@ const InputField: React.FC<{
       value={value}
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
-      className="mt-2 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-[15px] font-medium text-slate-900 outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+      className="mt-2 h-12 w-full rounded-2xl border border-[var(--admin-pro-line)] bg-white/92 px-4 text-[15px] font-medium text-[var(--admin-pro-text)] outline-none transition focus:border-[rgba(255,190,11,0.52)] focus:ring-2 focus:ring-[rgba(255,212,59,0.18)]"
     />
   </label>
 );
@@ -527,7 +527,7 @@ const ToggleField: React.FC<{
   checked: boolean;
   onChange: (value: boolean) => void;
 }> = ({ label, checked, onChange }) => (
-  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+  <div className="admin-pro-card admin-pro-card-muted rounded-2xl px-4 py-3">
     <div className="flex items-center justify-between gap-3">
       <div className="min-w-0">
         <p className="text-sm font-semibold text-slate-800">{label}</p>
@@ -590,25 +590,25 @@ const BottomSheet: React.FC<{
     <div className="fixed inset-0 z-[90] flex items-end justify-center animate-in fade-in duration-200">
       <button
         type="button"
-        className="absolute inset-0 bg-slate-950/35 backdrop-blur-[3px]"
+        className="absolute inset-0 bg-[rgba(21,17,11,0.34)] backdrop-blur-[4px]"
         onClick={onClose}
         aria-label="Yopish"
       />
       <div
-        className="relative flex w-full max-w-[430px] flex-col rounded-t-[30px] border border-slate-200/80 bg-slate-50 shadow-[0_-20px_48px_rgba(15,23,42,0.18)]"
+        className="relative flex w-full max-w-[430px] flex-col rounded-t-[30px] border border-[rgba(118,90,35,0.16)] bg-[rgba(255,250,239,0.96)] shadow-[0_-22px_52px_rgba(74,56,16,0.18)]"
         style={{ height: sheetHeight, maxHeight: '92dvh' }}
       >
         <div className="px-5 pb-3 pt-3">
-          <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-slate-300" />
+          <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-[rgba(255,190,11,0.3)]" />
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-lg font-black text-slate-950">{title}</p>
-              {subtitle ? <p className="mt-1 text-xs font-medium text-slate-500">{subtitle}</p> : null}
+              <p className="text-lg font-black text-[var(--admin-pro-text)]">{title}</p>
+              {subtitle ? <p className="mt-1 text-xs font-medium text-[var(--admin-pro-text-muted)]">{subtitle}</p> : null}
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 active:scale-95"
+              className="admin-pro-button-secondary inline-flex h-11 w-11 items-center justify-center rounded-full active:scale-95"
               aria-label="Yopish"
             >
               <X size={20} />
@@ -618,7 +618,7 @@ const BottomSheet: React.FC<{
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">{children}</div>
         {footer ? (
           <div
-            className="border-t border-slate-200 bg-white/95 px-5 py-3 backdrop-blur"
+            className="border-t border-[rgba(118,90,35,0.14)] bg-[rgba(255,250,239,0.96)] px-5 py-3 backdrop-blur"
             style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}
           >
             {footer}

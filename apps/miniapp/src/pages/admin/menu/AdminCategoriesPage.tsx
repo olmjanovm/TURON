@@ -89,7 +89,7 @@ const AdminCategoriesPage: React.FC = () => {
         <button
           type="button"
           onClick={() => navigate('/admin/menu/categories/new')}
-          className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white shadow-lg shadow-blue-200 transition-transform active:scale-95 sm:w-auto"
+          className="admin-pro-button-primary flex h-11 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold transition-transform active:scale-95 sm:w-auto"
         >
           <Plus size={18} />
           Qo'shish
@@ -129,8 +129,8 @@ const AdminCategoriesPage: React.FC = () => {
           ))}
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-3xl mb-4">📁</div>
+        <div className="admin-pro-card flex flex-col items-center justify-center py-20 text-center">
+          <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-[rgba(255,212,59,0.14)] text-3xl">📁</div>
           <h3 className="font-bold text-slate-600 text-lg">Kategoriyalar topilmadi</h3>
           <p className="text-sm text-slate-400 mt-1">Yangi kategoriya qo'shish uchun tugmani bosing</p>
         </div>

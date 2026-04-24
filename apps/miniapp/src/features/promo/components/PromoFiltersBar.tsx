@@ -19,7 +19,7 @@ export const PromoFiltersBar: React.FC<Props> = ({ filters, onChange }) => {
           value={filters.searchQuery}
           onChange={(e) => onChange({ ...filters, searchQuery: e.target.value })}
           placeholder="Promokod yoki sarlavhani qidiring..."
-          className="h-10 w-full rounded-[10px] border border-[#E5E7EB] bg-[#FFFFFF] pl-10 pr-3 text-sm font-medium text-[#111827] placeholder:text-[#9CA3AF] outline-none transition-colors focus:border-[#2563EB]"
+          className="h-10 w-full rounded-[10px] border border-[#E5E7EB] bg-[#FFFFFF] pl-10 pr-3 text-sm font-medium text-[#111827] placeholder:text-[#9CA3AF] outline-none transition-colors focus:border-[rgba(255,190,11,0.52)]"
         />
       </div>
     </div>

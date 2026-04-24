@@ -58,7 +58,7 @@ export const PromoCodeCard: React.FC<Props> = ({ promo, index = 0 }) => {
       className="group flex items-center justify-between gap-3 rounded-[12px] border border-[#E5E7EB] bg-[#FFFFFF] p-3.5 shadow-[0_6px_16px_rgba(17,24,39,0.05)] transition-all hover:-translate-y-0.5 hover:shadow-[0_10px_22px_rgba(17,24,39,0.08)]"
       style={{ transitionDelay: `${Math.min(index, 8) * 30}ms` }}
     >
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-blue-50 text-[#2563EB]">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-[rgba(255,212,59,0.18)] text-[#7a5600]">
         <Tag size={18} />
       </div>
 
@@ -70,7 +70,7 @@ export const PromoCodeCard: React.FC<Props> = ({ promo, index = 0 }) => {
         <div className="flex flex-col gap-0.5">
           <p className="line-clamp-1 text-[12px] font-semibold text-[#6B7280]">{promo.title || 'Sarlavhasiz'}</p>
           <div className="mt-0.5 flex items-center gap-2 text-[11px] font-medium text-[#9CA3AF]">
-            <span className="rounded-md border border-[#E5E7EB] bg-[#F9FAFB] px-2 py-0.5 text-[#2563EB]">
+            <span className="rounded-md border border-[#E5E7EB] bg-[#F9FAFB] px-2 py-0.5 text-[#7a5600]">
               Chegirma: {discountText}
             </span>
             <span>Ishlatilgan: {promo.timesUsed}{promo.usageLimit ? ` / ${promo.usageLimit}` : ''}</span>
@@ -81,7 +81,7 @@ export const PromoCodeCard: React.FC<Props> = ({ promo, index = 0 }) => {
       <div className="flex shrink-0 items-center gap-1.5">
         <button
           onClick={() => navigate(`/admin/promos/${promo.id}/edit`)}
-          className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-[#E5E7EB] text-[#6B7280] transition-colors active:scale-90 hover:bg-blue-50 hover:text-[#2563EB]"
+          className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-[#E5E7EB] text-[#6B7280] transition-colors active:scale-90 hover:bg-[rgba(255,212,59,0.18)] hover:text-[#7a5600]"
         >
           <Edit2 size={16} />
         </button>

@@ -47,6 +47,7 @@ const NotificationList: React.FC<NotificationListProps> = ({ role }) => {
   const markAsRead = useMarkNotificationAsRead(role);
   const markAllAsRead = useMarkAllNotificationsAsRead(role);
   const isCourier = role === UserRoleEnum.COURIER;
+  const isAdmin = role === UserRoleEnum.ADMIN;
   const copy =
     language === 'ru'
       ? {
@@ -117,15 +118,33 @@ const NotificationList: React.FC<NotificationListProps> = ({ role }) => {
         className={
           isCourier
             ? 'courier-accent-pill mb-4 flex h-20 w-20 items-center justify-center rounded-full'
+            : isAdmin
+              ? 'admin-pro-card mb-4 flex h-20 w-20 items-center justify-center rounded-full border-[rgba(255,190,11,0.18)] bg-[rgba(255,212,59,0.16)] text-[#7a5600] shadow-[0_16px_34px_rgba(255,190,11,0.14)]'
             : 'mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-slate-100'
         }
       >
         {icon}
       </div>
-      <h3 className={isCourier ? 'text-lg font-black text-[var(--courier-text)]' : 'text-lg font-bold text-slate-800'}>
+      <h3
+        className={
+          isCourier
+            ? 'text-lg font-black text-[var(--courier-text)]'
+            : isAdmin
+              ? 'text-lg font-black text-[var(--admin-pro-text)]'
+              : 'text-lg font-bold text-slate-800'
+        }
+      >
         {title}
       </h3>
-      <p className={isCourier ? 'mt-1 text-sm text-[var(--courier-muted)]' : 'text-sm text-slate-500'}>
+      <p
+        className={
+          isCourier
+            ? 'mt-1 text-sm text-[var(--courier-muted)]'
+            : isAdmin
+              ? 'mt-1 text-sm text-[var(--admin-pro-text-muted)]'
+              : 'text-sm text-slate-500'
+        }
+      >
         {subtitle}
       </p>
     </div>
@@ -157,11 +176,13 @@ const NotificationList: React.FC<NotificationListProps> = ({ role }) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center px-1 mb-2">
+      <div className="mb-2 flex items-center justify-between px-1">
         <span
           className={
             isCourier
               ? 'text-[11px] font-black uppercase tracking-[0.18em] text-[var(--courier-muted)]'
+              : isAdmin
+                ? 'text-[11px] font-black uppercase tracking-[0.18em] text-[var(--admin-pro-text-muted)]'
               : 'text-[11px] font-black uppercase tracking-widest text-slate-400'
           }
         >
@@ -172,6 +193,8 @@ const NotificationList: React.FC<NotificationListProps> = ({ role }) => {
           className={
             isCourier
               ? 'rounded-full bg-[var(--courier-accent-soft)] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-[#7d5e00] active:scale-[0.98] dark:text-[var(--courier-accent)]'
+              : isAdmin
+                ? 'rounded-full border border-[rgba(255,190,11,0.18)] bg-[rgba(255,212,59,0.18)] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-[#7a5600] active:scale-[0.98]'
               : 'text-[11px] font-black uppercase tracking-widest text-amber-600 active:text-amber-700'
           }
           disabled={markAllAsRead.isPending}
@@ -191,6 +214,10 @@ const NotificationList: React.FC<NotificationListProps> = ({ role }) => {
                 ? notification.isRead
                   ? 'courier-card border border-[var(--courier-line)] bg-[var(--courier-surface)] opacity-85'
                   : 'courier-card-strong border border-[rgba(255,216,76,0.26)] bg-[var(--courier-surface-strong)] shadow-[0_18px_42px_rgba(17,17,17,0.08)]'
+                : isAdmin
+                  ? notification.isRead
+                    ? 'admin-pro-card border-[rgba(118,90,35,0.12)] bg-[rgba(255,251,242,0.88)] opacity-85'
+                    : 'admin-pro-card border-[rgba(255,190,11,0.18)] bg-[rgba(255,250,238,0.96)] shadow-[0_20px_42px_rgba(255,190,11,0.12)]'
                 : notification.isRead 
                   ? 'border-2 border-slate-50 bg-white opacity-80' 
                   : 'border-2 border-amber-100 bg-white shadow-lg shadow-amber-50'
@@ -198,7 +225,11 @@ const NotificationList: React.FC<NotificationListProps> = ({ role }) => {
             `}
           >
             {!notification.isRead && (
-              <div className={`absolute top-4 right-4 h-2 w-2 rounded-full ${isCourier ? 'bg-[var(--courier-accent)]' : 'bg-amber-500'}`} />
+              <div
+                className={`absolute top-4 right-4 h-2 w-2 rounded-full ${
+                  isCourier ? 'bg-[var(--courier-accent)]' : isAdmin ? 'bg-[var(--admin-pro-primary-strong)]' : 'bg-amber-500'
+                }`}
+              />
             )}
             
             <div className="flex gap-4">
@@ -208,6 +239,10 @@ const NotificationList: React.FC<NotificationListProps> = ({ role }) => {
                   ? notification.isRead
                     ? 'bg-black/5 dark:bg-white/6'
                     : 'bg-[var(--courier-accent-soft)]'
+                  : isAdmin
+                    ? notification.isRead
+                      ? 'bg-[rgba(255,244,213,0.7)]'
+                      : 'bg-[rgba(255,212,59,0.18)]'
                   : notification.isRead
                     ? 'bg-slate-50'
                     : 'bg-amber-50'}
@@ -223,6 +258,10 @@ const NotificationList: React.FC<NotificationListProps> = ({ role }) => {
                         ? notification.isRead
                           ? 'text-[var(--courier-text)]/72'
                           : 'text-[var(--courier-text)]'
+                        : isAdmin
+                          ? notification.isRead
+                            ? 'text-[var(--admin-pro-text)]/72'
+                            : 'text-[var(--admin-pro-text)]'
                         : notification.isRead
                           ? 'text-slate-600'
                           : 'text-slate-900'
@@ -232,7 +271,11 @@ const NotificationList: React.FC<NotificationListProps> = ({ role }) => {
                   </h4>
                   <span
                     className={`ml-2 whitespace-nowrap text-[10px] ${
-                      isCourier ? 'text-[var(--courier-muted)]' : 'text-slate-400'
+                      isCourier
+                        ? 'text-[var(--courier-muted)]'
+                        : isAdmin
+                          ? 'text-[var(--admin-pro-text-muted)]'
+                          : 'text-slate-400'
                     }`}
                   >
                     {formatTimeAgo(notification.createdAt, language)}
@@ -244,6 +287,10 @@ const NotificationList: React.FC<NotificationListProps> = ({ role }) => {
                       ? notification.isRead
                         ? 'text-[var(--courier-muted)]'
                         : 'text-[var(--courier-text)]/78'
+                      : isAdmin
+                        ? notification.isRead
+                          ? 'text-[var(--admin-pro-text-muted)]'
+                          : 'text-[color:rgba(28,22,12,0.78)]'
                       : notification.isRead
                         ? 'text-slate-500'
                         : 'text-slate-700'
@@ -255,7 +302,11 @@ const NotificationList: React.FC<NotificationListProps> = ({ role }) => {
                 {notification.actionRoute && (
                   <div
                     className={`mt-3 flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.16em] ${
-                      isCourier ? 'text-[var(--courier-accent-strong)]' : 'text-amber-600'
+                      isCourier
+                        ? 'text-[var(--courier-accent-strong)]'
+                        : isAdmin
+                          ? 'text-[#7a5600]'
+                          : 'text-amber-600'
                     }`}
                   >
                     <span>{copy.details}</span>

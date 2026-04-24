@@ -21,11 +21,11 @@ export const PromoSummaryCards: React.FC<{
         onClick={() => onSelectFilter('all')}
         className={`rounded-[14px] border bg-[#FFFFFF] p-3 text-left shadow-[0_6px_16px_rgba(17,24,39,0.06)] transition-all duration-200 active:scale-[0.96] ${
           selectedFilter === 'all'
-            ? 'border-blue-200 ring-2 ring-blue-100 shadow-[0_12px_24px_rgba(37,99,235,0.22)]'
+            ? 'border-[rgba(255,190,11,0.22)] ring-2 ring-[rgba(255,212,59,0.18)] shadow-[0_12px_24px_rgba(255,190,11,0.18)]'
             : 'border-[#E5E7EB]'
         }`}
       >
-        <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-[#2563EB]">
+        <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[rgba(255,212,59,0.18)] text-[#7a5600]">
           <Tag size={16} />
         </div>
         <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#6B7280]">Jami</p>

@@ -24,6 +24,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
+import { UserRoleEnum } from '@turon/shared';
 import { useTelegram } from '../../hooks/useTelegram';
 import { useAuthStore } from '../../store/useAuthStore';
 import { normalizeRole, resolveRoleEntryRedirect } from '../../features/auth/roleRouting';
@@ -279,6 +280,14 @@ export const AppBootstrapGate: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, [ready, error, isAuthenticated, user, location.pathname, navigate]);
 
+  const splashTone =
+    location.pathname.startsWith('/admin') ||
+    location.pathname.startsWith('/courier') ||
+    normalizeRole(user?.role) === UserRoleEnum.ADMIN ||
+    normalizeRole(user?.role) === UserRoleEnum.COURIER
+      ? 'ops-yellow'
+      : 'customer';
+
   if (error) {
     return (
       <div
@@ -301,7 +310,7 @@ export const AppBootstrapGate: React.FC<{ children: React.ReactNode }> = ({ chil
     );
   }
 
-  if (!ready) return <LoadingScreen />;
+  if (!ready) return <LoadingScreen tone={splashTone} />;
 
   return <>{children}</>;
 };

@@ -53,10 +53,10 @@ const MenuSummaryCards: React.FC<Props> = ({ categories, products }) => {
         <button
           type="button"
           onClick={() => navigate('/admin/menu/categories/new')}
-          className="w-full flex min-h-16 items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-4 text-left shadow-[0_10px_22px_rgba(15,23,42,0.06)] transition hover:border-blue-200 hover:shadow-[0_14px_28px_rgba(37,99,235,0.14)] active:scale-[0.99]"
+          className="w-full flex min-h-16 items-center justify-between rounded-2xl border border-[var(--admin-pro-line)] bg-white/92 px-4 py-4 text-left shadow-[0_10px_22px_rgba(15,23,42,0.06)] transition hover:border-[rgba(255,190,11,0.18)] hover:shadow-[0_14px_28px_rgba(255,190,11,0.14)] active:scale-[0.99]"
         >
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-blue-600">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[rgba(255,190,11,0.18)] bg-[rgba(255,212,59,0.18)] text-[#7a5600]">
               <Plus size={20} />
             </div>
             <div>
@@ -69,10 +69,10 @@ const MenuSummaryCards: React.FC<Props> = ({ categories, products }) => {
         <button
           type="button"
           onClick={() => navigate('/admin/menu/products/new')}
-          className="w-full flex min-h-16 items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-4 text-left shadow-[0_10px_22px_rgba(15,23,42,0.06)] transition hover:border-emerald-200 hover:shadow-[0_14px_28px_rgba(16,185,129,0.14)] active:scale-[0.99]"
+          className="w-full flex min-h-16 items-center justify-between rounded-2xl border border-[var(--admin-pro-line)] bg-white/92 px-4 py-4 text-left shadow-[0_10px_22px_rgba(15,23,42,0.06)] transition hover:border-[rgba(255,190,11,0.18)] hover:shadow-[0_14px_28px_rgba(255,190,11,0.14)] active:scale-[0.99]"
         >
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-100 bg-emerald-50 text-emerald-600">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[rgba(255,190,11,0.18)] bg-[rgba(255,212,59,0.18)] text-[#7a5600]">
               <Plus size={20} />
             </div>
             <div>
@@ -104,14 +104,14 @@ const MenuSummaryCards: React.FC<Props> = ({ categories, products }) => {
                   ? 'bg-rose-500'
                   : card.tone === 'inactive'
                     ? 'bg-slate-400'
-                    : 'bg-blue-500';
+                    : 'bg-[var(--admin-pro-primary-strong)]';
 
             return (
               <button
                 key={card.label}
                 type="button"
                 onClick={card.onClick}
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left shadow-[0_8px_18px_rgba(15,23,42,0.05)] transition hover:border-blue-200 hover:shadow-[0_12px_24px_rgba(37,99,235,0.12)] active:scale-[0.99]"
+                className="rounded-2xl border border-[var(--admin-pro-line)] bg-white/92 px-4 py-3 text-left shadow-[0_8px_18px_rgba(15,23,42,0.05)] transition hover:border-[rgba(255,190,11,0.18)] hover:shadow-[0_12px_24px_rgba(255,190,11,0.12)] active:scale-[0.99]"
               >
                 <div className="flex items-center justify-between">
                   <p className="text-[12px] font-semibold text-slate-500">{card.label}</p>
@@ -129,10 +129,10 @@ const MenuSummaryCards: React.FC<Props> = ({ categories, products }) => {
         <button
           type="button"
           onClick={() => navigate('/admin/menu/categories')}
-          className="w-full flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_18px_rgba(15,23,42,0.05)] transition hover:shadow-[0_12px_24px_rgba(15,23,42,0.09)] active:scale-[0.99]"
+          className="w-full flex items-center justify-between rounded-2xl border border-[var(--admin-pro-line)] bg-white/92 p-4 shadow-[0_8px_18px_rgba(15,23,42,0.05)] transition hover:shadow-[0_12px_24px_rgba(15,23,42,0.09)] active:scale-[0.99]"
         >
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-indigo-100 bg-indigo-50 text-indigo-600">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[rgba(255,190,11,0.18)] bg-[rgba(255,212,59,0.18)] text-[#7a5600]">
               <Layers size={20} />
             </div>
             <div className="text-left">
@@ -145,7 +145,7 @@ const MenuSummaryCards: React.FC<Props> = ({ categories, products }) => {
         <button
           type="button"
           onClick={() => navigate('/admin/menu/products')}
-          className="w-full flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_18px_rgba(15,23,42,0.05)] transition hover:shadow-[0_12px_24px_rgba(15,23,42,0.09)] active:scale-[0.99]"
+          className="w-full flex items-center justify-between rounded-2xl border border-[var(--admin-pro-line)] bg-white/92 p-4 shadow-[0_8px_18px_rgba(15,23,42,0.05)] transition hover:shadow-[0_12px_24px_rgba(15,23,42,0.09)] active:scale-[0.99]"
         >
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-100 bg-amber-50 text-amber-600">
