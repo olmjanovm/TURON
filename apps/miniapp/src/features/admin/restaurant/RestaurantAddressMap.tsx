@@ -9,34 +9,14 @@ interface Props {
   onLocationChange: (payload: { latitude: number; longitude: number; addressText?: string }) => void;
 }
 
-interface YandexPlacemarkController extends ymaps.Placemark {
-  geometry: {
-    getCoordinates: () => [number, number];
-    setCoordinates: (coords: [number, number]) => void;
-  };
-}
-
-interface YandexWithTemplateFactory {
-  templateLayoutFactory: {
-    createClass: (markup: string) => unknown;
-  };
-}
-
-const PIN_MARKUP = `
-  <div class="adminx-pin-bounce" style="transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;">
-    <div style="width:24px;height:24px;border-radius:999px;background:#F5A623;border:2px solid #ffffff;box-shadow:0 10px 22px rgba(245,166,35,0.34);"></div>
-    <div style="width:2px;height:20px;background:#1C1207;border-radius:999px;margin-top:-1px;"></div>
-    <div style="width:10px;height:4px;border-radius:999px;background:rgba(28,18,7,0.18);margin-top:-1px;"></div>
-  </div>
-`;
-
 export function RestaurantAddressMap({ latitude, longitude, addressText, onLocationChange }: Props) {
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const mapRef = React.useRef<ymaps.Map | null>(null);
-  const markerRef = React.useRef<YandexPlacemarkController | null>(null);
   const locationChangeRef = React.useRef(onLocationChange);
   const addressRef = React.useRef(addressText);
+  const lastCenterRef = React.useRef<[number, number]>([latitude, longitude]);
   const [status, setStatus] = React.useState<'loading' | 'ready' | 'error'>('loading');
+  const [isDragging, setIsDragging] = React.useState(false);
 
   React.useEffect(() => {
     locationChangeRef.current = onLocationChange;
@@ -51,17 +31,35 @@ export function RestaurantAddressMap({ latitude, longitude, addressText, onLocat
       try {
         const maps = await loadYandexMaps();
         if (destroyed || !containerRef.current) return;
-        const withTemplate = maps as typeof maps & YandexWithTemplateFactory;
-        const center: [number, number] = [latitude, longitude];
-        const map = new maps.Map(containerRef.current, { center, zoom: 16, controls: ['zoomControl'] });
-        const placemark = new maps.Placemark(center, {}, {
-          draggable: true,
-          iconLayout: withTemplate.templateLayoutFactory.createClass(PIN_MARKUP),
-          iconShape: { type: 'Circle', coordinates: [12, 12], radius: 14 },
-        }) as unknown as YandexPlacemarkController;
 
-        placemark.events.add('dragend', async () => {
-          const [lat, lng] = placemark.geometry.getCoordinates();
+        const center: [number, number] = [latitude, longitude];
+        lastCenterRef.current = center;
+
+        const map = new maps.Map(containerRef.current, {
+          center,
+          zoom: 17,
+          type: 'yandex#map',
+          controls: ['zoomControl'],
+        });
+
+        map.events.add('actionbegin', () => {
+          if (!destroyed) setIsDragging(true);
+        });
+
+        map.events.add('actionend', async () => {
+          if (destroyed) return;
+          setIsDragging(false);
+
+          const rawCenter = map.getCenter() as number[];
+          const lat = rawCenter[0] as number;
+          const lng = rawCenter[1] as number;
+
+          // Skip geocoding if center hasn't moved meaningfully
+          const prev = lastCenterRef.current;
+          const moved = Math.hypot(lat - prev[0], lng - prev[1]);
+          if (moved < 0.000_01) return;
+
+          lastCenterRef.current = [lat, lng];
           const resolvedAddress = await reverseGeocodeCoordinates({ lat, lng });
           locationChangeRef.current({
             latitude: lat,
@@ -70,9 +68,7 @@ export function RestaurantAddressMap({ latitude, longitude, addressText, onLocat
           });
         });
 
-        map.geoObjects.add(placemark);
         mapRef.current = map;
-        markerRef.current = placemark;
         setStatus('ready');
       } catch {
         if (!destroyed) setStatus('error');
@@ -84,14 +80,15 @@ export function RestaurantAddressMap({ latitude, longitude, addressText, onLocat
       destroyed = true;
       mapRef.current?.destroy();
       mapRef.current = null;
-      markerRef.current = null;
     };
   }, []);
 
+  // Sync external coordinate changes (e.g. from address search) to map center
   React.useEffect(() => {
+    if (!mapRef.current) return;
     const nextCenter: [number, number] = [latitude, longitude];
-    markerRef.current?.geometry.setCoordinates(nextCenter);
-    void mapRef.current?.setCenter(nextCenter, 16, { duration: 240, flying: true });
+    lastCenterRef.current = nextCenter;
+    void (mapRef.current as any).setCenter(nextCenter, 17, { duration: 280, flying: true });
   }, [latitude, longitude]);
 
   return (
@@ -101,12 +98,34 @@ export function RestaurantAddressMap({ latitude, longitude, addressText, onLocat
           <Loader2 size={22} className="animate-spin text-[var(--adminx-color-primary-dark)]" />
         </div>
       ) : null}
+
       {status === 'error' ? (
         <div className="flex h-[288px] items-center justify-center gap-3 text-[var(--adminx-color-muted)]">
           <TriangleAlert size={18} />
           <span className="text-sm font-bold">Xarita yuklanmadi</span>
         </div>
-      ) : <div ref={containerRef} className="adminx-map-canvas adminx-restaurant-map-canvas" />}
+      ) : (
+        <>
+          <div ref={containerRef} className="adminx-map-canvas adminx-restaurant-map-canvas" />
+
+          {/* Fixed center-pin overlay — never moves with the map */}
+          <div className="pointer-events-none absolute inset-0 z-10" aria-hidden>
+            {/* Ground shadow stays at the anchor point, expands when lifted */}
+            <div className="absolute left-1/2 top-1/2">
+              <div className={`adminx-pin-ground-shadow${isDragging ? ' adminx-pin-ground-shadow--active' : ''}`} />
+            </div>
+
+            {/* Pin head + stem — tip points at anchor point, lifts on drag */}
+            <div className="absolute left-1/2 top-1/2">
+              <div className={`adminx-center-pin${isDragging ? ' adminx-center-pin--lifted' : ''}`}>
+                <div className="adminx-center-pin-head" />
+                <div className="adminx-center-pin-stem" />
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       <div className="adminx-map-floating adminx-restaurant-map-floating">
         <div className="adminx-map-note adminx-restaurant-map-note">
           <div className="flex items-center gap-2 text-[var(--adminx-color-primary-dark)]">
