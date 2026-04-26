@@ -1,0 +1,17 @@
+[
+  { "name": "orchestrator", "path": "skills/architecture/orchestrator" },
+  { "name": "software-architect", "path": "skills/architecture/software-architect" },
+  { "name": "ai-agent-engineer", "path": "skills/ai/ai-agent-engineer" },
+  { "name": "n8n-automation-engineer", "path": "skills/automation/n8n-automation-engineer" },
+  { "name": "ui-ux-designer", "path": "skills/design/ui-ux-designer" },
+  { "name": "backend-architect", "path": "skills/engineering/backend-architect" },
+  { "name": "database-optimizer", "path": "skills/engineering/database-optimizer" },
+  { "name": "frontend-developer", "path": "skills/engineering/frontend-developer" },
+  { "name": "devops-automator", "path": "skills/operations/devops-automator" },
+  { "name": "security-engineer", "path": "skills/security/security-engineer" },
+  { "name": "api-tester", "path": "skills/testing/api-tester" },
+  { "name": "performance-tester", "path": "skills/testing/performance-tester" },
+  { "name": "security-tester", "path": "skills/testing/security-tester" },
+  { "name": "test-orchestrator", "path": "skills/testing/test-orchestrator" },
+  { "name": "ui-tester", "path": "skills/testing/ui-tester" }
+]

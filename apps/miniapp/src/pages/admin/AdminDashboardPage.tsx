@@ -64,56 +64,59 @@ function useLiveClock(): string {
 
 const DashboardLoadingState: React.FC = () => (
   <div className="space-y-4 pb-[calc(env(safe-area-inset-bottom,0px)+96px)]">
+    {/* Hero skeleton — amber shimmer */}
     <div className="admin-pro-card admin-hero-card p-6">
       <div className="animate-pulse">
         <div className="flex items-center justify-between mb-4">
-          <div className="h-3 w-24 rounded-full bg-white/20" />
-          <div className="h-6 w-16 rounded-full bg-white/15" />
+          <div className="h-3 w-24 rounded-full bg-black/10" />
+          <div className="h-6 w-16 rounded-full bg-black/8" />
         </div>
-        <div className="h-3 w-20 rounded-full bg-white/20 mb-2" />
-        <div className="h-6 w-44 rounded-2xl bg-white/25 mb-1.5" />
-        <div className="h-3 w-32 rounded-full bg-white/15" />
-        <div className="flex items-center gap-4 mt-5 pt-4 border-t border-white/10">
+        <div className="h-3 w-20 rounded-full bg-black/10 mb-2" />
+        <div className="h-7 w-44 rounded-2xl bg-black/12 mb-1.5" />
+        <div className="h-3 w-32 rounded-full bg-black/8" />
+        <div className="flex items-center gap-4 mt-5 pt-4 border-t border-black/10">
           <div className="flex-1 space-y-2">
-            <div className="h-2.5 w-20 rounded-full bg-white/15" />
-            <div className="h-7 w-10 rounded-xl bg-white/20" />
+            <div className="h-2.5 w-20 rounded-full bg-black/8" />
+            <div className="h-7 w-10 rounded-xl bg-black/12" />
           </div>
-          <div className="w-px h-10 bg-white/10" />
+          <div className="w-px h-10 bg-black/10" />
           <div className="flex-1 space-y-2 flex flex-col items-end">
-            <div className="h-2.5 w-16 rounded-full bg-white/15" />
-            <div className="h-7 w-14 rounded-xl bg-white/20" />
+            <div className="h-2.5 w-16 rounded-full bg-black/8" />
+            <div className="h-7 w-14 rounded-xl bg-black/12" />
           </div>
         </div>
       </div>
     </div>
 
+    {/* Stats skeleton — dark cards */}
     <div className="grid grid-cols-2 gap-3">
       {Array.from({ length: 4 }).map((_, i) => (
         <div key={i} className="admin-pro-card p-4">
           <div className="animate-pulse space-y-3">
             <div className="flex items-start justify-between">
-              <div className="h-2.5 w-20 rounded-full bg-slate-200" />
-              <div className="h-9 w-9 rounded-xl bg-slate-100" />
+              <div className="h-2.5 w-20 rounded-full bg-white/8" />
+              <div className="h-9 w-9 rounded-xl bg-white/6" />
             </div>
-            <div className="h-8 w-14 rounded-xl bg-slate-200" />
-            <div className="h-2.5 w-24 rounded-full bg-slate-100" />
+            <div className="h-8 w-14 rounded-xl bg-white/10" />
+            <div className="h-2.5 w-24 rounded-full bg-white/6" />
           </div>
         </div>
       ))}
     </div>
 
+    {/* Actions skeleton */}
     <div className="admin-pro-card p-5">
       <div className="animate-pulse">
         <div className="flex items-start justify-between mb-4">
           <div className="space-y-2">
-            <div className="h-2.5 w-24 rounded-full bg-slate-200" />
-            <div className="h-5 w-44 rounded-xl bg-slate-200" />
+            <div className="h-2.5 w-24 rounded-full bg-white/8" />
+            <div className="h-5 w-44 rounded-xl bg-white/10" />
           </div>
-          <div className="h-7 w-20 rounded-full bg-slate-100" />
+          <div className="h-7 w-20 rounded-full bg-white/6" />
         </div>
         <div className="grid grid-cols-2 gap-3">
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="h-[88px] rounded-[20px] bg-slate-50" />
+            <div key={i} className="h-[88px] rounded-[20px] bg-white/4" />
           ))}
         </div>
       </div>
@@ -137,6 +140,33 @@ const AlertBanner: React.FC<{ count: number; onClick: () => void }> = ({ count, 
 
 type StatTone = 'neutral' | 'success' | 'warning' | 'danger';
 
+const STAT_TONE_STYLES: Record<StatTone, { iconBg: string; iconColor: string; valueColor: string; toneClass: string }> = {
+  neutral: {
+    iconBg: 'bg-[rgba(245,166,35,0.14)]',
+    iconColor: 'text-[#F5A623]',
+    valueColor: 'text-[#F0EBE0]',
+    toneClass: '',
+  },
+  success: {
+    iconBg: 'bg-[rgba(74,222,128,0.12)]',
+    iconColor: 'text-emerald-400',
+    valueColor: 'text-emerald-400',
+    toneClass: 'admin-stat-success',
+  },
+  warning: {
+    iconBg: 'bg-[rgba(245,166,35,0.14)]',
+    iconColor: 'text-amber-400',
+    valueColor: 'text-amber-400',
+    toneClass: 'admin-stat-warning',
+  },
+  danger: {
+    iconBg: 'bg-[rgba(239,68,68,0.12)]',
+    iconColor: 'text-red-400',
+    valueColor: 'text-red-400',
+    toneClass: 'admin-stat-danger',
+  },
+};
+
 const StatCard: React.FC<{
   title: string;
   value: string;
@@ -145,37 +175,22 @@ const StatCard: React.FC<{
   tone?: StatTone;
   delay?: number;
 }> = ({ title, value, hint, icon, tone = 'neutral', delay = 0 }) => {
-  const iconClass =
-    tone === 'success' ? 'bg-emerald-50 text-emerald-600' :
-    tone === 'warning' ? 'bg-[rgba(255,212,59,0.22)] text-[#7a5600]' :
-    tone === 'danger'  ? 'bg-rose-50 text-rose-500' :
-                         'bg-[rgba(255,212,59,0.18)] text-[#7a5600]';
-
-  const valueClass =
-    tone === 'success' ? 'text-emerald-700' :
-    tone === 'warning' ? 'text-[#5a3b00]' :
-    tone === 'danger'  ? 'text-rose-600' :
-                          'text-[var(--admin-pro-text)]';
-
-  const toneClass =
-    tone === 'success' ? 'admin-stat-success' :
-    tone === 'warning' ? 'admin-stat-warning' :
-    tone === 'danger'  ? 'admin-stat-danger' : '';
+  const s = STAT_TONE_STYLES[tone];
 
   return (
     <div
-      className={`admin-pro-card ${toneClass} admin-motion-stagger p-4`}
+      className={`admin-pro-card ${s.toneClass} admin-motion-stagger p-4`}
       style={{ animationDelay: `${delay}ms` }}
     >
       <div className="flex items-start justify-between gap-2 mb-3">
         <p className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-[var(--admin-pro-text-muted)] leading-tight pr-1">
           {title}
         </p>
-        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${iconClass}`}>
+        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${s.iconBg} ${s.iconColor}`}>
           {icon}
         </span>
       </div>
-      <p className={`text-[32px] font-black leading-none tracking-tight ${valueClass}`}>{value}</p>
+      <p className={`text-[32px] font-black leading-none tracking-tight ${s.valueColor}`}>{value}</p>
       <p className="mt-2 text-[11px] font-semibold text-[var(--admin-pro-text-muted)] leading-snug">{hint}</p>
     </div>
   );
@@ -196,23 +211,23 @@ const QuickActionCard: React.FC<{
     style={{ animationDelay: `${delay}ms` }}
   >
     {badge ? (
-      <span className="absolute -right-1.5 -top-1.5 z-10 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-black text-white shadow">
+      <span className="absolute -right-1.5 -top-1.5 z-10 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-black text-white shadow-lg">
         {badge > 99 ? '99+' : badge}
       </span>
     ) : null}
     <button
       type="button"
       onClick={onClick}
-      className={`admin-pro-card ${urgent ? 'admin-quick-action-urgent' : ''} flex w-full flex-col items-center justify-center gap-2 rounded-[20px] px-3 py-5 text-[var(--admin-pro-text)] active:scale-[0.97] transition-transform cursor-pointer`}
+      className={`admin-pro-card ${urgent ? 'admin-quick-action-urgent' : ''} flex w-full flex-col items-center justify-center gap-2 rounded-[20px] px-3 py-5 active:scale-[0.96] transition-transform cursor-pointer`}
     >
       <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${
         urgent
-          ? 'bg-[var(--admin-pro-primary)] text-[var(--admin-pro-primary-contrast)] shadow-[0_8px_20px_rgba(255,190,11,0.3)]'
-          : 'bg-[rgba(255,212,59,0.18)] text-[#7a5600] border border-[rgba(255,190,11,0.16)]'
+          ? 'bg-[var(--admin-pro-primary)] text-[var(--admin-pro-primary-contrast)] shadow-[0_6px_16px_rgba(245,166,35,0.36)]'
+          : 'bg-[rgba(245,166,35,0.1)] text-[#F5A623] border border-[rgba(245,166,35,0.18)]'
       }`}>
         {icon}
       </span>
-      <span className="text-[12px] font-bold leading-tight text-center">{label}</span>
+      <span className="text-[12px] font-bold leading-tight text-center text-[var(--admin-pro-text)]">{label}</span>
     </button>
   </div>
 );
@@ -236,8 +251,9 @@ const AdminDashboardPage: React.FC = () => {
       o.orderStatus === OrderStatusEnum.PENDING ||
       o.paymentStatus === PaymentStatusEnum.PENDING,
   );
-  const deliveredOrders = orders.filter((o) => o.orderStatus === OrderStatusEnum.DELIVERED);
-  const deliveredRevenue = deliveredOrders.reduce((sum, o) => sum + o.total, 0);
+  const deliveredRevenue = orders
+    .filter((o) => o.orderStatus === OrderStatusEnum.DELIVERED)
+    .reduce((sum, o) => sum + o.total, 0);
   const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);
   const onlineCouriers = couriers.filter((c) => c.isOnline).length;
   const busyCouriers = couriers.filter((c) => c.activeAssignments > 0).length;
@@ -314,13 +330,13 @@ const AdminDashboardPage: React.FC = () => {
   return (
     <div className="space-y-4 pb-[calc(env(safe-area-inset-bottom,0px)+96px)]">
 
-      {/* ── Hero Card ─────────────────────────────────────────────────────────── */}
+      {/* ── Hero Card (amber gradient) ────────────────────────────────────────── */}
       <section className="admin-pro-card admin-hero-card admin-motion-up p-6">
-        {/* Top row: branding + clock */}
-        <div className="flex items-center justify-between mb-4">
+        {/* Branding row */}
+        <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
-            <span className="text-base leading-none select-none">🍜</span>
-            <span className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-white/65">
+            <span className="text-lg leading-none select-none">🍜</span>
+            <span className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[rgba(30,16,0,0.6)]">
               Turon Kafe
             </span>
           </div>
@@ -331,39 +347,39 @@ const AdminDashboardPage: React.FC = () => {
         </div>
 
         {/* Status + headline */}
-        <div className="flex items-center gap-2 mb-1.5">
+        <div className="flex items-center gap-2 mb-2">
           <span className="admin-status-dot active" />
-          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/50">
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[rgba(30,16,0,0.5)]">
             Umumiy holat
           </p>
         </div>
-        <h2 className="text-[20px] font-black tracking-tight text-white leading-snug">
+        <h2 className="text-[22px] font-black tracking-tight text-[#18100A] leading-snug">
           {"Bugungi ko'rsatkichlar"}
         </h2>
-        <p className="text-[13px] font-semibold text-white/55 mt-0.5">{todayLabel}</p>
+        <p className="text-[13px] font-semibold text-[rgba(30,16,0,0.55)] mt-0.5">{todayLabel}</p>
 
         {/* Summary strip */}
-        <div className="flex items-stretch gap-4 mt-5 pt-4 border-t border-white/[0.1]">
+        <div className="flex items-stretch gap-4 mt-5 pt-4 border-t border-[rgba(0,0,0,0.12)]">
           <div className="flex-1">
-            <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-white/45 mb-1">
+            <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-[rgba(30,16,0,0.45)] mb-1">
               Jami buyurtmalar
             </p>
-            <p className="text-[26px] font-black text-white leading-none">{orders.length}</p>
+            <p className="text-[28px] font-black text-[#18100A] leading-none">{orders.length}</p>
           </div>
-          <div className="w-px bg-white/[0.12] self-stretch" />
+          <div className="w-px bg-[rgba(0,0,0,0.12)] self-stretch" />
           <div className="flex-1 text-right">
-            <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-white/45 mb-1">
+            <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-[rgba(30,16,0,0.45)] mb-1">
               Daromad
             </p>
-            <p className="text-[26px] font-black text-white leading-none">
+            <p className="text-[28px] font-black text-[#18100A] leading-none">
               {formatCompactMoney(deliveredRevenue || totalRevenue)}
-              <span className="text-[13px] font-semibold text-white/50 ml-1">so'm</span>
+              <span className="text-[13px] font-semibold text-[rgba(30,16,0,0.5)] ml-1">so'm</span>
             </p>
           </div>
         </div>
       </section>
 
-      {/* ── Alert Banner (conditional) ────────────────────────────────────────── */}
+      {/* ── Alert Banner ─────────────────────────────────────────────────────── */}
       {pendingOrders.length > 0 && (
         <AlertBanner count={pendingOrders.length} onClick={() => navigate('/admin/orders')} />
       )}
@@ -418,7 +434,7 @@ const AdminDashboardPage: React.FC = () => {
               Bitta bosishda boshqarish
             </p>
           </div>
-          <span className="flex shrink-0 items-center gap-1.5 rounded-full border border-[rgba(255,190,11,0.22)] bg-[rgba(255,212,59,0.14)] px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.1em] text-[#7a5600]">
+          <span className="flex shrink-0 items-center gap-1.5 rounded-full border border-[rgba(245,166,35,0.3)] bg-[rgba(245,166,35,0.1)] px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.1em] text-[#F5A623]">
             <Zap size={10} />
             Admin
           </span>
@@ -439,7 +455,7 @@ const AdminDashboardPage: React.FC = () => {
         </div>
       </section>
 
-      <p className="pb-1 text-center text-[11px] font-semibold text-[var(--admin-pro-text-muted)] opacity-50">
+      <p className="pb-1 text-center text-[11px] font-semibold text-[var(--admin-pro-text-muted)] opacity-40">
         @turonkafebot · Admin Panel
       </p>
 

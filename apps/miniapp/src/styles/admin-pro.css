@@ -1,27 +1,47 @@
+/* ============================================================
+   ADMIN PRO — Dark Amber Theme
+   ============================================================ */
+
 :root {
-  --admin-pro-primary: #ffd43b;
-  --admin-pro-primary-strong: #ffbe0b;
-  --admin-pro-primary-soft: rgba(255, 212, 59, 0.2);
-  --admin-pro-primary-contrast: #18120a;
-  --admin-pro-bg: #fbf6e8;
-  --admin-pro-bg-soft: #f7efd2;
-  --admin-pro-card-bg: rgba(255, 251, 242, 0.9);
-  --admin-pro-card-strong: rgba(30, 24, 15, 0.92);
-  --admin-pro-text: #1c160c;
-  --admin-pro-text-muted: #7d6a4c;
-  --admin-pro-line: rgba(118, 90, 35, 0.16);
-  --admin-pro-radius-lg: 28px;
-  --admin-pro-radius-md: 20px;
-  --admin-pro-shadow: 0 18px 44px rgba(74, 56, 16, 0.12);
-  --admin-pro-soft-shadow: 0 12px 28px rgba(74, 56, 16, 0.08);
+  /* Brand */
+  --admin-pro-primary: #F5A623;
+  --admin-pro-primary-strong: #E8900D;
+  --admin-pro-primary-soft: rgba(245, 166, 35, 0.16);
+  --admin-pro-primary-contrast: #18100A;
+
+  /* Backgrounds */
+  --admin-pro-bg: #111118;
+  --admin-pro-bg-soft: #0E0E16;
+  --admin-pro-card-bg: #1C1C2A;
+  --admin-pro-card-strong: rgba(255, 255, 255, 0.06);
+
+  /* Typography */
+  --admin-pro-text: #F0EBE0;
+  --admin-pro-text-muted: #8A7B6D;
+
+  /* Borders */
+  --admin-pro-line: rgba(255, 255, 255, 0.08);
+
+  /* Shape */
+  --admin-pro-radius-lg: 24px;
+  --admin-pro-radius-md: 18px;
+
+  /* Shadows */
+  --admin-pro-shadow: 0 8px 32px rgba(0, 0, 0, 0.36);
+  --admin-pro-soft-shadow: 0 4px 16px rgba(0, 0, 0, 0.24);
 }
 
+/* ── Shell ────────────────────────────────────────────────── */
+
 .admin-pro-shell {
-  background:
-    radial-gradient(circle at top left, rgba(255, 212, 59, 0.22) 0%, transparent 24%),
-    radial-gradient(circle at top right, rgba(255, 190, 11, 0.18) 0%, transparent 20%),
-    linear-gradient(180deg, var(--admin-pro-bg-soft) 0%, var(--admin-pro-bg) 34%, #fffdf8 100%);
+  background-color: #111118;
+  background-image:
+    radial-gradient(rgba(245, 166, 35, 0.035) 1px, transparent 1px);
+  background-size: 24px 24px;
+  min-height: 100vh;
 }
+
+/* ── Cards ────────────────────────────────────────────────── */
 
 .admin-pro-card {
   background: var(--admin-pro-card-bg);
@@ -39,28 +59,33 @@
 
 .admin-pro-card:hover {
   transform: translateY(-1px);
-  box-shadow: 0 22px 48px rgba(74, 56, 16, 0.14);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.44);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .admin-pro-card-muted {
-  background: rgba(255, 246, 223, 0.72);
-  border: 1px solid rgba(190, 150, 58, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   box-shadow: var(--admin-pro-soft-shadow);
 }
 
+/* ── Topbar (header + bottom nav) ────────────────────────── */
+
 .admin-pro-topbar {
-  background: rgba(255, 249, 233, 0.88);
-  border: 1px solid rgba(118, 90, 35, 0.14);
-  box-shadow: 0 16px 38px rgba(74, 56, 16, 0.12);
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
+  background: rgba(14, 14, 22, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.36);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
 }
+
+/* ── Hero card ────────────────────────────────────────────── */
 
 .admin-hero-card {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(140deg, #15110b 0%, #241b10 52%, #33260f 100%);
-  color: #fff8e9;
+  background: linear-gradient(135deg, #F5A623 0%, #E8900D 55%, #C97800 100%);
+  color: #18100A;
 }
 
 .admin-hero-card::before,
@@ -72,30 +97,32 @@
 }
 
 .admin-hero-card::before {
-  top: -28px;
-  right: -32px;
-  width: 200px;
-  height: 200px;
-  background: radial-gradient(circle, rgba(255, 212, 59, 0.3) 0%, transparent 70%);
-  filter: blur(20px);
+  top: -48px;
+  right: -48px;
+  width: 240px;
+  height: 240px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.28) 0%, transparent 70%);
+  filter: blur(28px);
 }
 
 .admin-hero-card::after {
-  left: 14%;
-  bottom: -100px;
-  width: 180px;
-  height: 180px;
-  background: radial-gradient(circle, rgba(255, 246, 206, 0.16) 0%, transparent 70%);
-  filter: blur(28px);
+  left: -24px;
+  bottom: -80px;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(180, 90, 0, 0.45) 0%, transparent 70%);
+  filter: blur(36px);
 }
+
+/* ── Pill tabs ────────────────────────────────────────────── */
 
 .admin-pill-tabs {
   display: flex;
   gap: 4px;
   padding: 4px;
   border-radius: 22px;
-  background: rgba(88, 66, 16, 0.08);
-  border: 1px solid rgba(118, 90, 35, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .admin-pill-tab {
@@ -117,8 +144,10 @@
 .admin-pill-tab.active {
   background: linear-gradient(135deg, var(--admin-pro-primary) 0%, var(--admin-pro-primary-strong) 100%);
   color: var(--admin-pro-primary-contrast);
-  box-shadow: 0 14px 28px rgba(255, 190, 11, 0.24);
+  box-shadow: 0 8px 20px rgba(245, 166, 35, 0.28);
 }
+
+/* ── Form inputs ──────────────────────────────────────────── */
 
 .admin-input-group {
   margin-bottom: 20px;
@@ -128,7 +157,7 @@
   display: block;
   margin-bottom: 8px;
   padding-left: 12px;
-  color: color-mix(in srgb, var(--admin-pro-text-muted) 88%, white 12%);
+  color: var(--admin-pro-text-muted);
   font-size: 10px;
   font-weight: 900;
   text-transform: uppercase;
@@ -139,29 +168,35 @@
   width: 100%;
   border-radius: 18px;
   border: 1px solid var(--admin-pro-line);
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 4px 12px rgba(74, 56, 16, 0.04);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
   color: var(--admin-pro-text);
   font-size: 15px;
   font-weight: 700;
   padding: 14px 18px;
   transition:
     border-color 0.18s ease,
-    box-shadow 0.18s ease,
-    transform 0.18s ease;
+    box-shadow 0.18s ease;
 }
 
 .admin-input:focus {
   outline: none;
-  border-color: rgba(255, 190, 11, 0.66);
-  box-shadow: 0 0 0 4px rgba(255, 212, 59, 0.18);
+  border-color: rgba(245, 166, 35, 0.6);
+  box-shadow: 0 0 0 4px rgba(245, 166, 35, 0.12);
 }
+
+.admin-input::placeholder {
+  color: var(--admin-pro-text-muted);
+  font-weight: 500;
+}
+
+/* ── Buttons ──────────────────────────────────────────────── */
 
 .admin-pro-button-primary,
 .admin-btn-save {
   background: linear-gradient(135deg, var(--admin-pro-primary) 0%, var(--admin-pro-primary-strong) 100%);
   color: var(--admin-pro-primary-contrast);
-  box-shadow: 0 18px 36px rgba(255, 190, 11, 0.24);
+  box-shadow: 0 12px 28px rgba(245, 166, 35, 0.28);
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease,
@@ -171,8 +206,7 @@
 .admin-pro-button-primary:hover,
 .admin-btn-save:hover {
   transform: translateY(-1px);
-  box-shadow: 0 20px 40px rgba(255, 190, 11, 0.28);
-  filter: saturate(1.03);
+  box-shadow: 0 16px 36px rgba(245, 166, 35, 0.36);
 }
 
 .admin-pro-button-primary:active,
@@ -181,24 +215,25 @@
 }
 
 .admin-pro-button-secondary {
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid var(--admin-pro-line);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--admin-pro-text);
-  box-shadow: var(--admin-pro-soft-shadow);
+  box-shadow: none;
   transition:
     transform 0.18s ease,
-    background 0.18s ease,
-    box-shadow 0.18s ease;
+    background 0.18s ease;
 }
 
 .admin-pro-button-secondary:hover {
   transform: translateY(-1px);
-  background: rgba(255, 252, 244, 0.98);
+  background: rgba(255, 255, 255, 0.13);
 }
 
 .admin-pro-button-secondary:active {
   transform: scale(0.97);
 }
+
+/* ── Bottom nav items ─────────────────────────────────────── */
 
 .admin-pro-nav-item {
   color: var(--admin-pro-text-muted);
@@ -211,42 +246,61 @@
 
 .admin-pro-nav-item:hover {
   transform: translateY(-1px);
+  color: var(--admin-pro-text);
 }
 
 .admin-pro-nav-item[data-active='true'] {
   color: var(--admin-pro-primary-contrast);
   background: linear-gradient(135deg, var(--admin-pro-primary) 0%, var(--admin-pro-primary-strong) 100%);
-  box-shadow: 0 12px 26px rgba(255, 190, 11, 0.24);
+  box-shadow: 0 8px 20px rgba(245, 166, 35, 0.28);
 }
 
 .admin-pro-nav-badge {
-  background: #e24b4b;
+  background: #EF4444;
   color: white;
-  box-shadow: 0 10px 20px rgba(226, 75, 75, 0.24);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.36);
 }
 
+/* ── Sync badges ──────────────────────────────────────────── */
+
 .admin-pro-sync-good {
-  border-color: rgba(34, 197, 94, 0.2);
-  background: rgba(34, 197, 94, 0.12);
-  color: #137042;
+  border-color: rgba(74, 222, 128, 0.22);
+  background: rgba(74, 222, 128, 0.1);
+  color: #4ade80;
 }
 
 .admin-pro-sync-warn {
-  border-color: rgba(245, 158, 11, 0.2);
-  background: rgba(245, 158, 11, 0.12);
-  color: #8d5d00;
+  border-color: rgba(251, 191, 36, 0.22);
+  background: rgba(251, 191, 36, 0.1);
+  color: #fbbf24;
 }
 
 .admin-pro-sync-idle {
-  border-color: rgba(120, 90, 35, 0.12);
-  background: rgba(120, 90, 35, 0.08);
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--admin-pro-text-muted);
 }
+
+/* ── Status dot ───────────────────────────────────────────── */
+
+.admin-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.admin-status-dot.active {
+  background: #4ade80;
+  box-shadow: 0 0 8px rgba(74, 222, 128, 0.7);
+}
+
+/* ── Animations ───────────────────────────────────────────── */
 
 @keyframes admin-fade-up {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -255,8 +309,14 @@
 }
 
 .admin-motion-up {
-  animation: admin-fade-up 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  animation: admin-fade-up 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
+
+.admin-motion-stagger {
+  animation: admin-fade-up 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* ── Misc badges ──────────────────────────────────────────── */
 
 .admin-badge-sync {
   display: inline-flex;
@@ -270,16 +330,7 @@
   letter-spacing: 0.05em;
 }
 
-.admin-status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-
-.admin-status-dot.active {
-  background: #38c172;
-  box-shadow: 0 0 10px rgba(56, 193, 114, 0.88);
-}
+/* ── Save bar ─────────────────────────────────────────────── */
 
 .admin-save-bar {
   position: fixed;
@@ -307,11 +358,11 @@
 }
 
 .admin-btn-save.loading {
-  opacity: 0.8;
+  opacity: 0.7;
   pointer-events: none;
 }
 
-/* ─── Hero clock ──────────────────────────────────────────────────────────────── */
+/* ── Hero clock ───────────────────────────────────────────── */
 
 .admin-hero-clock {
   display: inline-flex;
@@ -319,17 +370,15 @@
   gap: 5px;
   padding: 5px 10px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.16);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   font-size: 12px;
   font-weight: 800;
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(28, 16, 0, 0.72);
   letter-spacing: 0.04em;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
 }
 
-/* ─── Alert banner ────────────────────────────────────────────────────────────── */
+/* ── Alert banner ─────────────────────────────────────────── */
 
 .admin-alert-banner {
   display: flex;
@@ -337,26 +386,21 @@
   gap: 12px;
   padding: 14px 18px;
   border-radius: var(--admin-pro-radius-md);
-  background: linear-gradient(135deg, rgba(255, 242, 242, 0.97) 0%, rgba(254, 226, 226, 0.93) 100%);
-  border: 1px solid rgba(239, 68, 68, 0.22);
-  box-shadow:
-    0 8px 24px rgba(239, 68, 68, 0.1),
-    0 2px 6px rgba(239, 68, 68, 0.06);
-  color: #b91c1c;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  color: #fca5a5;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition:
     transform 0.18s ease,
-    box-shadow 0.18s ease;
+    background 0.18s ease;
   animation: admin-fade-up 0.36s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .admin-alert-banner:hover {
   transform: translateY(-1px);
-  box-shadow:
-    0 10px 28px rgba(239, 68, 68, 0.14),
-    0 4px 8px rgba(239, 68, 68, 0.08);
+  background: rgba(239, 68, 68, 0.15);
 }
 
 .admin-alert-banner:active {
@@ -368,43 +412,34 @@
   height: 8px;
   border-radius: 50%;
   background: #ef4444;
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.22);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.28);
   flex-shrink: 0;
   animation: admin-alert-pulse 1.6s ease-in-out infinite;
 }
 
 @keyframes admin-alert-pulse {
-  0%, 100% { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.22); }
-  50% { box-shadow: 0 0 0 7px rgba(239, 68, 68, 0.07); }
+  0%, 100% { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.28); }
+  50% { box-shadow: 0 0 0 7px rgba(239, 68, 68, 0.08); }
 }
 
-/* ─── Stat card tones ─────────────────────────────────────────────────────────── */
+/* ── Stat card tones ──────────────────────────────────────── */
 
 .admin-pro-card.admin-stat-success {
-  background: rgba(236, 253, 245, 0.88);
-  border-color: rgba(52, 211, 153, 0.22);
+  border-color: rgba(74, 222, 128, 0.2);
 }
 
 .admin-pro-card.admin-stat-warning {
-  background: rgba(255, 247, 220, 0.92);
-  border-color: rgba(255, 190, 11, 0.26);
+  border-color: rgba(245, 166, 35, 0.24);
 }
 
 .admin-pro-card.admin-stat-danger {
-  background: rgba(255, 241, 242, 0.92);
-  border-color: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.24);
 }
 
-/* ─── Urgent quick action ─────────────────────────────────────────────────────── */
+/* ── Urgent quick action ──────────────────────────────────── */
 
 .admin-pro-card.admin-quick-action-urgent {
-  background: linear-gradient(145deg, rgba(255, 249, 215, 0.96) 0%, rgba(255, 241, 172, 0.92) 100%);
-  border-color: rgba(255, 190, 11, 0.32);
-  box-shadow: 0 14px 32px rgba(255, 190, 11, 0.18);
-}
-
-/* ─── Stagger animation (fill: both keeps element invisible during delay) ─────── */
-
-.admin-motion-stagger {
-  animation: admin-fade-up 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  background: rgba(245, 166, 35, 0.1);
+  border-color: rgba(245, 166, 35, 0.3);
+  box-shadow: 0 8px 24px rgba(245, 166, 35, 0.12);
 }

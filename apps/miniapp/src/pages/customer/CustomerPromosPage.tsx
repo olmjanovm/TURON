@@ -60,6 +60,7 @@ const CustomerPromosPage: React.FC = () => {
           paddingTop: 'env(safe-area-inset-top, 0px)',
         }}
       >
+
         <button
           type="button"
           onClick={() => navigate(-1)}
