@@ -89,32 +89,58 @@ function TelegramBackButtonManager() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const getFallbackRoute = React.useCallback((pathname: string) => {
+    if (pathname.startsWith('/admin')) {
+      return '/admin/dashboard';
+    }
+
+    if (pathname.startsWith('/courier')) {
+      return '/courier';
+    }
+
+    if (pathname.startsWith('/customer')) {
+      return '/customer';
+    }
+
+    return '/';
+  }, []);
+
   // 1. Orqaga tugmasi bosilganda marshrutni 1 qadam ortga qaytarish
   React.useEffect(() => {
     const twa = (window as any).Telegram?.WebApp;
     if (!twa) return;
 
     const handleBack = () => {
-      navigate(-1);
+      const historyIndex = typeof window.history.state?.idx === 'number'
+        ? window.history.state.idx
+        : 0;
+
+      if (historyIndex > 0) {
+        navigate(-1);
+        return;
+      }
+
+      navigate(getFallbackRoute(location.pathname), { replace: true });
     };
 
     twa.BackButton.onClick(handleBack);
     return () => {
       twa.BackButton.offClick(handleBack);
     };
-  }, [navigate]);
+  }, [getFallbackRoute, location.pathname, navigate]);
 
   // 2. Sahifa o'zgarganda Back tugmasini ko'rsatish yoki yashirish
   React.useEffect(() => {
     const twa = (window as any).Telegram?.WebApp;
     if (!twa) return;
 
-    // Asosiy menyular (Tab) ro'yxati. Bu sahifalarda Back button yashiriladi va default yopish (X) chiqadi.
+    // Faqat haqiqiy bosh sahifalarda default yopish (X) turadi.
     const rootPaths = [
       '/',
-      '/customer', '/customer/menu', '/customer/search', '/customer/cart', '/customer/orders', '/customer/profile', '/customer/favorites', '/customer/promos', '/customer/support', '/customer/notifications',
-      '/admin', '/admin/dashboard', '/admin/orders', '/admin/menu', '/admin/promos', '/admin/couriers', '/admin/reports', '/admin/chats', '/admin/restaurant', '/admin/notifications',
-      '/courier', '/courier/orders', '/courier/history', '/courier/profile', '/courier/notifications'
+      '/customer',
+      '/admin',
+      '/admin/dashboard',
+      '/courier',
     ];
 
     const currentPath = location.pathname.replace(/\/$/, '') || '/';
