@@ -244,7 +244,7 @@ const AdminLayout: React.FC = () => {
             ) : null}
             {pageHeaderTitle ? (
               <div className="min-w-0">
-                <h1 className="truncate text-lg font-black tracking-tight text-[var(--admin-pro-text)]">
+                <h1 className="truncate text-lg font-black tracking-tight text-white">
                   {pageHeaderTitle}
                 </h1>
                 <div

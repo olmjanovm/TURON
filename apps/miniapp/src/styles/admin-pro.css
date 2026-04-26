@@ -1,42 +1,51 @@
 /* ============================================================
-   ADMIN PRO — Dark Amber Theme
+   ADMIN — Warm Amber Theme (Light)
    ============================================================ */
 
 :root {
   /* Brand */
   --admin-pro-primary: #F5A623;
-  --admin-pro-primary-strong: #E8900D;
-  --admin-pro-primary-soft: rgba(245, 166, 35, 0.16);
+  --admin-pro-primary-strong: #D4891A;
+  --admin-pro-primary-soft: rgba(245, 166, 35, 0.12);
   --admin-pro-primary-contrast: #18100A;
 
-  /* Backgrounds */
-  --admin-pro-bg: #111118;
-  --admin-pro-bg-soft: #0E0E16;
-  --admin-pro-card-bg: #1C1C2A;
-  --admin-pro-card-strong: rgba(255, 255, 255, 0.06);
+  /* Page */
+  --admin-pro-bg: #F5F3EE;
+  --admin-pro-bg-soft: #EDEAE2;
+  --admin-pro-card-bg: #FFFFFF;
 
-  /* Typography */
-  --admin-pro-text: #F0EBE0;
-  --admin-pro-text-muted: #8A7B6D;
+  /* Typography (on light bg) */
+  --admin-pro-text: #1C1207;
+  --admin-pro-text-secondary: #6B5E4E;
+  --admin-pro-text-muted: #A89880;
 
-  /* Borders */
-  --admin-pro-line: rgba(255, 255, 255, 0.08);
+  /* Borders (on light bg) */
+  --admin-pro-line: rgba(0, 0, 0, 0.07);
+  --admin-pro-line-medium: rgba(0, 0, 0, 0.11);
+
+  /* Semantic */
+  --admin-danger: #C53030;
+  --admin-danger-soft: rgba(197, 48, 48, 0.08);
+  --admin-danger-border: rgba(197, 48, 48, 0.2);
+  --admin-success: #276749;
+  --admin-success-soft: rgba(39, 103, 73, 0.08);
+  --admin-info: #2B6CB0;
+  --admin-info-soft: rgba(43, 108, 176, 0.08);
 
   /* Shape */
   --admin-pro-radius-lg: 24px;
-  --admin-pro-radius-md: 18px;
+  --admin-pro-radius-md: 20px;
 
-  /* Shadows */
-  --admin-pro-shadow: 0 8px 32px rgba(0, 0, 0, 0.36);
-  --admin-pro-soft-shadow: 0 4px 16px rgba(0, 0, 0, 0.24);
+  /* Shadows (light) */
+  --admin-pro-shadow: 0 1px 4px rgba(0, 0, 0, 0.05), 0 4px 16px rgba(0, 0, 0, 0.06);
+  --admin-pro-soft-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 /* ── Shell ────────────────────────────────────────────────── */
 
 .admin-pro-shell {
-  background-color: #111118;
-  background-image:
-    radial-gradient(rgba(245, 166, 35, 0.035) 1px, transparent 1px);
+  background-color: var(--admin-pro-bg);
+  background-image: radial-gradient(rgba(245, 166, 35, 0.08) 1px, transparent 1px);
   background-size: 24px 24px;
   min-height: 100vh;
 }
@@ -48,38 +57,49 @@
   border: 1px solid var(--admin-pro-line);
   box-shadow: var(--admin-pro-shadow);
   border-radius: var(--admin-pro-radius-lg);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  transition:
-    transform 0.24s ease,
-    box-shadow 0.24s ease,
-    border-color 0.24s ease,
-    background 0.24s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .admin-pro-card:hover {
   transform: translateY(-1px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.44);
-  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  border-color: rgba(0, 0, 0, 0.11);
 }
 
 .admin-pro-card-muted {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: var(--admin-pro-soft-shadow);
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: none;
 }
 
-/* ── Topbar (header + bottom nav) ────────────────────────── */
+/* ── Topbar (header + bottom nav) — stays dark ───────────── */
 
 .admin-pro-topbar {
-  background: rgba(14, 14, 22, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.36);
+  background: rgba(14, 14, 22, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.28);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
 }
 
-/* ── Hero card ────────────────────────────────────────────── */
+/* Force correct contrast for elements inside dark topbar */
+.admin-pro-topbar .admin-pro-nav-item {
+  color: rgba(255, 255, 255, 0.42);
+}
+.admin-pro-topbar .admin-pro-nav-item:hover {
+  color: rgba(255, 255, 255, 0.82);
+}
+.admin-pro-topbar .admin-pro-button-secondary {
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.09);
+}
+.admin-pro-topbar .admin-pro-button-secondary:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.13);
+}
+
+/* ── Hero card (amber gradient) ──────────────────────────── */
 
 .admin-hero-card {
   position: relative;
@@ -101,7 +121,7 @@
   right: -48px;
   width: 240px;
   height: 240px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.28) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.22) 0%, transparent 70%);
   filter: blur(28px);
 }
 
@@ -110,7 +130,7 @@
   bottom: -80px;
   width: 200px;
   height: 200px;
-  background: radial-gradient(circle, rgba(180, 90, 0, 0.45) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(180, 90, 0, 0.4) 0%, transparent 70%);
   filter: blur(36px);
 }
 
@@ -121,8 +141,8 @@
   gap: 4px;
   padding: 4px;
   border-radius: 22px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .admin-pill-tab {
@@ -144,7 +164,7 @@
 .admin-pill-tab.active {
   background: linear-gradient(135deg, var(--admin-pro-primary) 0%, var(--admin-pro-primary-strong) 100%);
   color: var(--admin-pro-primary-contrast);
-  box-shadow: 0 8px 20px rgba(245, 166, 35, 0.28);
+  box-shadow: 0 4px 16px rgba(245, 166, 35, 0.28);
 }
 
 /* ── Form inputs ──────────────────────────────────────────── */
@@ -156,38 +176,35 @@
 .admin-label {
   display: block;
   margin-bottom: 8px;
-  padding-left: 12px;
-  color: var(--admin-pro-text-muted);
-  font-size: 10px;
-  font-weight: 900;
+  padding-left: 2px;
+  color: var(--admin-pro-text-secondary);
+  font-size: 11px;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.12em;
 }
 
 .admin-input {
   width: 100%;
-  border-radius: 18px;
-  border: 1px solid var(--admin-pro-line);
-  background: rgba(255, 255, 255, 0.06);
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+  border-radius: 14px;
+  border: 1.5px solid var(--admin-pro-line-medium);
+  background: #FDFCFB;
   color: var(--admin-pro-text);
   font-size: 15px;
-  font-weight: 700;
-  padding: 14px 18px;
-  transition:
-    border-color 0.18s ease,
-    box-shadow 0.18s ease;
+  font-weight: 600;
+  padding: 14px 16px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .admin-input:focus {
   outline: none;
   border-color: rgba(245, 166, 35, 0.6);
-  box-shadow: 0 0 0 4px rgba(245, 166, 35, 0.12);
+  box-shadow: 0 0 0 3px rgba(245, 166, 35, 0.1);
 }
 
 .admin-input::placeholder {
   color: var(--admin-pro-text-muted);
-  font-weight: 500;
+  font-weight: 400;
 }
 
 /* ── Buttons ──────────────────────────────────────────────── */
@@ -196,17 +213,14 @@
 .admin-btn-save {
   background: linear-gradient(135deg, var(--admin-pro-primary) 0%, var(--admin-pro-primary-strong) 100%);
   color: var(--admin-pro-primary-contrast);
-  box-shadow: 0 12px 28px rgba(245, 166, 35, 0.28);
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease,
-    filter 0.2s ease;
+  box-shadow: 0 8px 24px rgba(245, 166, 35, 0.28);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .admin-pro-button-primary:hover,
 .admin-btn-save:hover {
   transform: translateY(-1px);
-  box-shadow: 0 16px 36px rgba(245, 166, 35, 0.36);
+  box-shadow: 0 12px 32px rgba(245, 166, 35, 0.36);
 }
 
 .admin-pro-button-primary:active,
@@ -215,18 +229,15 @@
 }
 
 .admin-pro-button-secondary {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.09);
   color: var(--admin-pro-text);
-  box-shadow: none;
-  transition:
-    transform 0.18s ease,
-    background 0.18s ease;
+  transition: transform 0.18s ease, background 0.18s ease;
 }
 
 .admin-pro-button-secondary:hover {
   transform: translateY(-1px);
-  background: rgba(255, 255, 255, 0.13);
+  background: rgba(0, 0, 0, 0.08);
 }
 
 .admin-pro-button-secondary:active {
@@ -264,20 +275,20 @@
 /* ── Sync badges ──────────────────────────────────────────── */
 
 .admin-pro-sync-good {
-  border-color: rgba(74, 222, 128, 0.22);
-  background: rgba(74, 222, 128, 0.1);
-  color: #4ade80;
+  border-color: rgba(39, 103, 73, 0.22);
+  background: rgba(39, 103, 73, 0.08);
+  color: #276749;
 }
 
 .admin-pro-sync-warn {
-  border-color: rgba(251, 191, 36, 0.22);
-  background: rgba(251, 191, 36, 0.1);
-  color: #fbbf24;
+  border-color: rgba(245, 166, 35, 0.24);
+  background: rgba(245, 166, 35, 0.1);
+  color: #C97800;
 }
 
 .admin-pro-sync-idle {
-  border-color: rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.04);
   color: var(--admin-pro-text-muted);
 }
 
@@ -291,29 +302,59 @@
 }
 
 .admin-status-dot.active {
-  background: #4ade80;
-  box-shadow: 0 0 8px rgba(74, 222, 128, 0.7);
+  background: #276749;
+  box-shadow: 0 0 8px rgba(39, 103, 73, 0.7);
 }
 
 /* ── Animations ───────────────────────────────────────────── */
 
-@keyframes admin-fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+@keyframes admin-slide-down {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: none; }
 }
 
+@keyframes admin-fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes admin-scale-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Zone entrance animations (with CSS --i stagger) */
+.zone-alert {
+  animation: admin-slide-down 0.2s ease 0.0s both;
+}
+
+.zone-greeting {
+  animation: admin-fade-up 0.25s ease 0.05s both;
+}
+
+.zone-hero {
+  animation: admin-fade-up 0.3s ease 0.1s both;
+}
+
+.stat-card {
+  animation: admin-fade-up 0.3s ease calc(0.2s + var(--i, 0) * 0.06s) both;
+}
+
+.order-row {
+  animation: admin-fade-up 0.3s ease calc(0.4s + var(--i, 0) * 0.05s) both;
+}
+
+.quick-action {
+  animation: admin-scale-in 0.22s ease calc(0.5s + var(--i, 0) * 0.05s) both;
+}
+
+/* Legacy compat */
 .admin-motion-up {
-  animation: admin-fade-up 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  animation: admin-fade-up 0.36s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 
 .admin-motion-stagger {
-  animation: admin-fade-up 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: admin-fade-up 0.36s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 /* ── Misc badges ──────────────────────────────────────────── */
@@ -370,11 +411,11 @@
   gap: 5px;
   padding: 5px 10px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.16);
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   font-size: 12px;
   font-weight: 800;
-  color: rgba(28, 16, 0, 0.72);
+  color: rgba(28, 16, 0, 0.65);
   letter-spacing: 0.04em;
 }
 
@@ -385,22 +426,19 @@
   align-items: center;
   gap: 12px;
   padding: 14px 18px;
-  border-radius: var(--admin-pro-radius-md);
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.28);
-  color: #fca5a5;
+  border-radius: 18px;
+  background: rgba(197, 48, 48, 0.07);
+  border: 1.5px solid rgba(197, 48, 48, 0.18);
+  color: #C53030;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition:
-    transform 0.18s ease,
-    background 0.18s ease;
-  animation: admin-fade-up 0.36s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  transition: transform 0.18s ease, background 0.18s ease;
 }
 
 .admin-alert-banner:hover {
   transform: translateY(-1px);
-  background: rgba(239, 68, 68, 0.15);
+  background: rgba(197, 48, 48, 0.11);
 }
 
 .admin-alert-banner:active {
@@ -411,37 +449,37 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #ef4444;
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.28);
+  background: #C53030;
+  box-shadow: 0 0 0 3px rgba(197, 48, 48, 0.2);
   flex-shrink: 0;
   animation: admin-alert-pulse 1.6s ease-in-out infinite;
 }
 
 @keyframes admin-alert-pulse {
-  0%, 100% { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.28); }
-  50% { box-shadow: 0 0 0 7px rgba(239, 68, 68, 0.08); }
+  0%, 100% { box-shadow: 0 0 0 3px rgba(197, 48, 48, 0.2); }
+  50%       { box-shadow: 0 0 0 7px rgba(197, 48, 48, 0.06); }
 }
 
 /* ── Stat card tones ──────────────────────────────────────── */
 
 .admin-pro-card.admin-stat-success {
-  border-color: rgba(74, 222, 128, 0.2);
+  border-color: rgba(39, 103, 73, 0.18);
 }
 
 .admin-pro-card.admin-stat-warning {
-  border-color: rgba(245, 166, 35, 0.24);
+  border-color: rgba(245, 166, 35, 0.22);
 }
 
 .admin-pro-card.admin-stat-danger {
-  border-color: rgba(239, 68, 68, 0.24);
+  border-color: rgba(197, 48, 48, 0.2);
 }
 
 /* ── Urgent quick action ──────────────────────────────────── */
 
 .admin-pro-card.admin-quick-action-urgent {
-  background: rgba(245, 166, 35, 0.1);
-  border-color: rgba(245, 166, 35, 0.3);
-  box-shadow: 0 8px 24px rgba(245, 166, 35, 0.12);
+  background: rgba(245, 166, 35, 0.07);
+  border-color: rgba(245, 166, 35, 0.24);
+  box-shadow: 0 4px 16px rgba(245, 166, 35, 0.1);
 }
 
 /* ── Map lollipop pin bounce ──────────────────────────────── */
