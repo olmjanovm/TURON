@@ -1,135 +1,150 @@
-import React, { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { AlertCircle, Loader2, Plus, RefreshCw } from 'lucide-react';
+import React from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { AlertCircle } from 'lucide-react';
+import '../../../styles/admin-overhaul.css';
+import { DiscountTypeEnum } from '../../../features/promo/types';
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { useAdminPromos } from '../../../hooks/queries/usePromos';
-import { getPromoStatus } from '../../../features/promo/discountEngine';
-import { PromoFilterState } from '../../../features/promo/types';
-import { PromoSummaryCards } from '../../../features/promo/components/PromoSummaryCards';
-import { PromoFiltersBar } from '../../../features/promo/components/PromoFiltersBar';
-import { PromoCodeCard } from '../../../features/promo/components/PromoCodeCard';
+import { AdminPromoRow } from '../../../features/admin/promos/AdminPromoRow';
+import { AdminPromosSkeleton } from '../../../features/admin/promos/AdminPromosSkeleton';
+import { AdminPromosToolbar } from '../../../features/admin/promos/AdminPromosToolbar';
+import {
+  buildPromoSummary,
+  matchesPromoDiscount,
+  matchesPromoSearch,
+  matchesPromoStatus,
+  resolvePromoDiscountFilter,
+  resolvePromoStatusFilter,
+  sortPromosForAdmin,
+  type AdminPromoDiscountFilter,
+  type AdminPromoStatusFilter,
+} from '../../../features/admin/promos/adminPromos.utils';
 
-const AdminPromosPage: React.FC = () => {
+export default function AdminPromosPage() {
   const navigate = useNavigate();
-  const {
-    data: promos = [],
-    isLoading,
-    isError,
-    error,
-    isFetching,
-    refetch,
-  } = useAdminPromos();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchInput, setSearchInput] = React.useState(() => searchParams.get('q') ?? '');
+  const [statusFilter, setStatusFilter] = React.useState<AdminPromoStatusFilter>(() =>
+    resolvePromoStatusFilter(searchParams.get('status')),
+  );
+  const [discountFilter, setDiscountFilter] = React.useState<AdminPromoDiscountFilter>(() =>
+    resolvePromoDiscountFilter(searchParams.get('discountType')),
+  );
 
-  const [filters, setFilters] = useState<PromoFilterState>({
-    statusFilter: 'all',
-    discountTypeFilter: 'all',
-    searchQuery: '',
-  });
+  const debouncedQuery = useDebouncedValue(searchInput, 220);
+  const { data: promos = [], isLoading, isError, error, isFetching, refetch } = useAdminPromos();
 
-  const filteredPromos = useMemo(() => {
-    const normalizedQuery = filters.searchQuery.trim().toLowerCase();
+  React.useEffect(() => {
+    const urlQuery = searchParams.get('q') ?? '';
+    const urlStatus = resolvePromoStatusFilter(searchParams.get('status'));
+    const urlDiscount = resolvePromoDiscountFilter(searchParams.get('discountType'));
 
-    return promos.filter((promo) => {
-      const status = getPromoStatus(promo);
-      const matchesStatus =
-        filters.statusFilter === 'all' ||
-        (filters.statusFilter === 'active' && status === 'ACTIVE') ||
-        (filters.statusFilter === 'inactive' && status === 'INACTIVE') ||
-        (filters.statusFilter === 'expired' && status === 'EXPIRED');
-      const matchesDiscountType =
-        filters.discountTypeFilter === 'all' || promo.discountType === filters.discountTypeFilter;
-      const matchesSearch =
-        !normalizedQuery ||
-        promo.code.toLowerCase().includes(normalizedQuery) ||
-        promo.title?.toLowerCase().includes(normalizedQuery);
+    setSearchInput((current) => (current === urlQuery ? current : urlQuery));
+    setStatusFilter((current) => (current === urlStatus ? current : urlStatus));
+    setDiscountFilter((current) => (current === urlDiscount ? current : urlDiscount));
+  }, [searchParams]);
 
-      return matchesStatus && matchesDiscountType && matchesSearch;
-    });
-  }, [filters, promos]);
+  React.useEffect(() => {
+    const nextParams = new URLSearchParams(searchParams);
+
+    if (debouncedQuery.trim()) nextParams.set('q', debouncedQuery.trim());
+    else nextParams.delete('q');
+
+    if (statusFilter !== 'all') nextParams.set('status', statusFilter);
+    else nextParams.delete('status');
+
+    if (discountFilter !== 'all') nextParams.set('discountType', discountFilter);
+    else nextParams.delete('discountType');
+
+    if (nextParams.toString() !== searchParams.toString()) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [debouncedQuery, statusFilter, discountFilter, searchParams, setSearchParams]);
+
+  const sortedPromos = React.useMemo(() => sortPromosForAdmin(promos), [promos]);
+  const filteredPromos = React.useMemo(
+    () =>
+      sortedPromos.filter(
+        (promo) =>
+          matchesPromoStatus(promo, statusFilter) &&
+          matchesPromoDiscount(promo, discountFilter) &&
+          matchesPromoSearch(promo, debouncedQuery),
+      ),
+    [sortedPromos, statusFilter, discountFilter, debouncedQuery],
+  );
+  const summary = React.useMemo(() => buildPromoSummary(sortedPromos), [sortedPromos]);
+
+  if (isLoading) {
+    return <AdminPromosSkeleton />;
+  }
+
+  if (isError) {
+    return (
+      <div className="adminx-page pb-[calc(env(safe-area-inset-bottom,0px)+108px)]">
+        <div className="adminx-surface flex min-h-[340px] flex-col items-center justify-center rounded-[24px] px-6 py-10 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-[20px] bg-[rgba(255,244,242,0.95)] text-[var(--adminx-color-danger)]">
+            <AlertCircle size={28} />
+          </div>
+          <h2 className="mt-5 text-xl font-black tracking-[-0.04em] text-[var(--adminx-color-ink)]">Promokodlar ochilmadi</h2>
+          <p className="mt-2 max-w-[260px] text-sm font-semibold text-[var(--adminx-color-muted)]">
+            {error instanceof Error ? error.message : 'Server bilan aloqa tiklanmadi'}
+          </p>
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            className="mt-6 inline-flex min-h-12 items-center justify-center rounded-[16px] bg-[linear-gradient(135deg,var(--adminx-color-primary)_0%,var(--adminx-color-primary-dark)_100%)] px-5 text-sm font-black text-[var(--adminx-color-dark)] shadow-[var(--adminx-shadow-glow)]"
+          >
+            Qayta urinish
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-300 pb-10 pt-2">
-      <section className="rounded-[16px] border border-[#E5E7EB] bg-[#FFFFFF] p-3 shadow-[0_8px_20px_rgba(17,24,39,0.06)]">
-        <div className="flex items-center justify-between gap-2">
-          <div>
-            <h2 className="text-[17px] font-black tracking-tight text-[#111827]">Promokodlar boshqaruvi</h2>
-            <p className="text-[12px] font-medium text-[#6B7280]">Kodlar, holatlar va ishlatilish statistikasi</p>
-          </div>
-          <div className="flex items-center gap-2">
+    <div className="adminx-page space-y-3 pb-[calc(env(safe-area-inset-bottom,0px)+108px)]">
+      <AdminPromosToolbar
+        searchValue={searchInput}
+        onSearchChange={setSearchInput}
+        onSearchClear={() => setSearchInput('')}
+        statusFilter={statusFilter}
+        onStatusFilterChange={(next) => {
+          setStatusFilter(next);
+          window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light');
+        }}
+        discountFilter={discountFilter}
+        onDiscountFilterChange={(next) => setDiscountFilter(next)}
+        summary={summary}
+        onRefresh={() => void refetch()}
+        onCreate={() => navigate('/admin/promos/new')}
+        isFetching={isFetching}
+      />
+
+      {filteredPromos.length === 0 ? (
+        <div className="adminx-surface flex flex-col items-center justify-center rounded-[24px] px-6 py-16 text-center">
+          <h3 className="text-lg font-black tracking-[-0.03em] text-[var(--adminx-color-ink)]">Promokod topilmadi</h3>
+          <p className="mt-2 text-sm font-semibold text-[var(--adminx-color-muted)]">Qidiruv yoki filtrni o'zgartiring</p>
+          {(debouncedQuery.trim() || statusFilter !== 'all' || discountFilter !== 'all') ? (
             <button
               type="button"
               onClick={() => {
-                void refetch();
+                setSearchInput('');
+                setStatusFilter('all');
+                setDiscountFilter('all');
               }}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-[#E5E7EB] bg-[#FFFFFF] text-[#6B7280] shadow-sm transition-transform active:scale-95"
-              aria-label="Promokodlarni yangilash"
+              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-[16px] border border-[rgba(28,18,7,0.08)] bg-white px-5 text-sm font-black text-[var(--adminx-color-ink)]"
             >
-              {isFetching ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} />}
+              Tozalash
             </button>
-            <button
-              onClick={() => navigate('/admin/promos/new')}
-              className="flex h-10 items-center justify-center gap-2 rounded-[10px] bg-[linear-gradient(135deg,var(--admin-pro-primary)_0%,var(--admin-pro-primary-strong)_100%)] px-3.5 text-sm font-bold text-white shadow-[0_14px_28px_rgba(255,190,11,0.24)] transition-all hover:brightness-95 active:scale-[0.98]"
-            >
-              <Plus size={16} />
-              Qo&apos;shish
-            </button>
-          </div>
+          ) : null}
         </div>
-      </section>
-
-      <PromoSummaryCards
-        promos={promos}
-        selectedFilter={filters.statusFilter === 'active' || filters.statusFilter === 'expired' ? filters.statusFilter : 'all'}
-        onSelectFilter={(next) => {
-          setFilters((current) => ({
-            ...current,
-            statusFilter: next,
-          }));
-          window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light');
-        }}
-      />
-
-      <div className="rounded-[16px] border border-[#E5E7EB] bg-[#FFFFFF] p-3 shadow-[0_8px_20px_rgba(17,24,39,0.05)]">
-        <PromoFiltersBar filters={filters} onChange={setFilters} />
-      </div>
-
-      {isLoading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <div key={index} className="h-[96px] rounded-[14px] border border-[#E5E7EB] bg-[#FFFFFF] animate-pulse" />
-          ))}
-        </div>
-      ) : null}
-
-      {isError ? (
-        <div className="flex items-start gap-3 rounded-[14px] border border-rose-200 bg-rose-50 p-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-600">
-            <AlertCircle size={20} />
-          </div>
-          <div>
-            <p className="text-sm font-black text-rose-900">Promokodlar yuklanmadi</p>
-            <p className="mt-1 text-xs font-semibold leading-relaxed text-rose-700">
-              {(error as Error).message}
-            </p>
-          </div>
-        </div>
-      ) : null}
-
-      {!isLoading && !isError && filteredPromos.length > 0 ? (
-        <div className="space-y-3">
+      ) : (
+        <section className="space-y-2.5">
           {filteredPromos.map((promo, index) => (
-            <PromoCodeCard key={promo.id} promo={promo} index={index} />
+            <AdminPromoRow key={promo.id} promo={promo} index={index} />
           ))}
-        </div>
-      ) : null}
-
-      {!isLoading && !isError && filteredPromos.length === 0 ? (
-        <div className="rounded-[14px] border border-dashed border-[#E5E7EB] bg-[#FFFFFF] px-5 py-12 text-center">
-          <p className="text-base font-black text-[#111827]">Promokod topilmadi</p>
-          <p className="mt-2 text-sm font-medium text-[#6B7280]">Filtr yoki qidiruvni o&apos;zgartiring</p>
-        </div>
-      ) : null}
+        </section>
+      )}
     </div>
   );
-};
-
-export default AdminPromosPage;
+}
