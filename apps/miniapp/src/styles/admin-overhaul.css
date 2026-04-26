@@ -1412,23 +1412,122 @@
   color: var(--adminx-color-ink);
 }
 
-/* ── Home Dashboard — Stat Cards ────────────────────────────── */
+/* ── Home Dashboard — Revenue Hero ──────────────────────────── */
 
-.adminx-home-stat-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+.adminx-revenue-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 22px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: linear-gradient(135deg, #f5a623 0%, #e8900d 55%, #c97800 100%);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 24px 48px rgba(245, 166, 35, 0.3);
 }
 
-@media (min-width: 720px) {
-  .adminx-home-stat-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
+.adminx-revenue-hero::before {
+  content: '';
+  position: absolute;
+  top: -60px;
+  right: -60px;
+  width: 240px;
+  height: 240px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.24) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.adminx-revenue-hero::after {
+  content: '';
+  position: absolute;
+  bottom: -80px;
+  left: -40px;
+  width: 200px;
+  height: 200px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(180, 90, 0, 0.32) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.adminx-revenue-amount {
+  font-size: 48px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  color: #1c1207;
+}
+
+.adminx-hero-mini-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.adminx-hero-mini-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.09);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.adminx-hero-mini-stat:hover {
+  background: rgba(0, 0, 0, 0.14);
+}
+
+.adminx-hero-mini-stat:active {
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.adminx-hero-mini-stat span {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(28, 18, 7, 0.55);
+}
+
+.adminx-hero-mini-stat strong {
+  font-size: 26px;
+  font-weight: 900;
+  line-height: 1;
+  color: #1c1207;
+}
+
+.adminx-hero-mini-stat[data-tone='danger'] {
+  background: rgba(180, 30, 30, 0.14);
+  border-color: rgba(180, 30, 30, 0.2);
+}
+
+.adminx-hero-mini-stat[data-tone='danger'] strong {
+  color: #7b1c1c;
+}
+
+/* ── Home Dashboard — Stat Cards (horizontal scroll) ────────── */
+
+.adminx-home-stat-grid {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+
+.adminx-home-stat-grid::-webkit-scrollbar {
+  display: none;
 }
 
 .adminx-home-stat-card {
+  flex: 0 0 auto;
+  width: 148px;
+  min-height: 116px;
+  scroll-snap-align: start;
   position: relative;
-  padding: 18px;
+  padding: 16px;
   border-radius: 22px;
   border: 1px solid rgba(28, 18, 7, 0.08);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 244, 0.95) 100%);

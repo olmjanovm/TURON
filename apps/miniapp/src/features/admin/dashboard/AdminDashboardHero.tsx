@@ -1,6 +1,5 @@
 import React from 'react';
-import { AlertCircle, ArrowUpRight, Clock3, TrendingUp } from 'lucide-react';
-import { formatFullMoney } from './dashboardUtils';
+import { ArrowUpRight, Clock3 } from 'lucide-react';
 
 interface Props {
   currentTime: string;
@@ -17,7 +16,6 @@ interface Props {
 export function AdminDashboardHero({
   currentTime,
   pendingCount,
-  pendingValue,
   todayRevenue,
   activeCouriers,
   activeOrdersCount,
@@ -26,91 +24,49 @@ export function AdminDashboardHero({
   onOpenReports,
 }: Props) {
   return (
-    <section className="adminx-zone-hero adminx-panel adminx-home-hero p-4 md:p-5">
-      <div className="adminx-home-hero-top flex items-center justify-between gap-3">
-        <div>
-          <p className="adminx-kicker text-[rgba(255,250,240,0.58)]">Admin nazorat</p>
-          <h2 className="mt-1 text-[28px] font-black leading-none tracking-[-0.05em] text-white">
-            Bugungi holat
-          </h2>
-        </div>
-        <div className="adminx-chip border-white/10 bg-white/8 text-white/82">
-          <Clock3 size={14} />
-          {currentTime}
-        </div>
-      </div>
-
-      <div className="adminx-home-hero-grid mt-4">
-        <button type="button" onClick={onOpenOrders} className="adminx-home-pending-card text-left">
-          <div className="flex items-center justify-between gap-3">
-            <span className="adminx-chip" data-tone="danger">
-              <AlertCircle size={14} />
-              Kutmoqda
-            </span>
-            <ArrowUpRight size={18} className="text-[var(--adminx-color-danger)]" />
-          </div>
-
-          <div className="mt-5 flex items-end justify-between gap-3">
-            <div>
-              <div className="adminx-home-pending-count">
-                {pendingCount > 99 ? '99+' : pendingCount}
-              </div>
-              <p className="mt-2 text-[19px] font-black leading-tight tracking-[-0.05em] text-[var(--adminx-color-ink)]">
-                Tasdiq kerak
-              </p>
-            </div>
-            <div
-              className="rounded-[18px] px-3 py-2 text-right text-[var(--adminx-color-danger)]"
-              style={{ background: 'rgba(214, 69, 69, 0.1)' }}
-            >
-              <p className="text-[11px] font-black uppercase tracking-[0.16em]">Qiymat</p>
-              <p className="mt-1 text-sm font-extrabold">{formatFullMoney(pendingValue)}</p>
-            </div>
-          </div>
-        </button>
-
-        <div className="adminx-home-kpi-stack">
-          <button type="button" onClick={onOpenReports} className="adminx-home-kpi-card text-left text-[var(--adminx-color-dark)]" data-tone="revenue">
-            <div className="flex items-center justify-between gap-3">
-              <span className="adminx-chip border-black/6 bg-black/6 text-[var(--adminx-color-dark)]">
-                <TrendingUp size={14} />
-                Tushum
-              </span>
-              <ArrowUpRight size={16} className="text-[rgba(28,18,7,0.46)]" />
-            </div>
-            <p className="mt-4 text-[11px] font-black uppercase tracking-[0.18em] text-[rgba(28,18,7,0.58)]">
-              Bugungi daromad
-            </p>
-            <div className="mt-2 text-[28px] font-black leading-none tracking-[-0.06em] text-[var(--adminx-color-dark)]">
+    <section className="adminx-zone-hero adminx-revenue-hero">
+      <button type="button" onClick={onOpenReports} className="w-full text-left">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="adminx-kicker text-[rgba(28,18,7,0.55)]">Bugungi daromad</p>
+            <div className="adminx-revenue-amount mt-2">
               {todayRevenue.toLocaleString('uz-UZ')}
             </div>
-            <p className="mt-2 text-[12px] font-bold text-[rgba(28,18,7,0.7)]">So'm</p>
-          </button>
-
-          <button type="button" onClick={onOpenOrders} className="adminx-home-kpi-card text-left" data-tone="ops">
-            <div className="flex items-center justify-between gap-3">
-              <span className="adminx-chip border-black/5 bg-white/80 text-[var(--adminx-color-ink)]">
-                <Clock3 size={14} />
-                Operatsiya
-              </span>
-              <ArrowUpRight size={16} className="text-[var(--adminx-color-faint)]" />
+            <p className="mt-1.5 text-[13px] font-semibold text-[rgba(28,18,7,0.52)]">
+              So'm &nbsp;·&nbsp; {deliveredTodayCount} ta yetkazildi
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-2">
+            <div className="adminx-chip border-black/8 bg-black/8 text-[rgba(28,18,7,0.65)]">
+              <Clock3 size={14} />
+              {currentTime}
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <div className="adminx-home-mini-metric">
-                <span>Faol</span>
-                <strong>{activeOrdersCount}</strong>
-              </div>
-              <div className="adminx-home-mini-metric">
-                <span>Kuryer</span>
-                <strong>{activeCouriers}</strong>
-              </div>
+            <div className="flex items-center gap-1 rounded-full border border-black/8 bg-black/8 px-2.5 py-1 text-[10px] font-black tracking-[0.1em] text-[rgba(28,18,7,0.52)]">
+              <ArrowUpRight size={12} />
+              Hisobot
             </div>
-            <div className="mt-2 flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--adminx-color-muted)]">
-              <span>Yetkazildi</span>
-              <span>{deliveredTodayCount}</span>
-            </div>
-          </button>
+          </div>
         </div>
+      </button>
+
+      <div className="adminx-hero-mini-stats mt-5">
+        <button type="button" onClick={onOpenOrders} className="adminx-hero-mini-stat text-left">
+          <span>Faol</span>
+          <strong>{activeOrdersCount}</strong>
+        </button>
+        <button
+          type="button"
+          onClick={onOpenOrders}
+          className="adminx-hero-mini-stat text-left"
+          data-tone={pendingCount > 0 ? 'danger' : undefined}
+        >
+          <span>Kutmoqda</span>
+          <strong>{pendingCount}</strong>
+        </button>
+        <button type="button" className="adminx-hero-mini-stat text-left">
+          <span>Kuryer</span>
+          <strong>{activeCouriers}</strong>
+        </button>
       </div>
     </section>
   );
