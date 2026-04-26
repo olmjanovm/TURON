@@ -195,6 +195,9 @@ export const RestaurantSettingsPatchSchema = z
       .optional(),
     isOpen: z.boolean().optional(),
     autoSchedule: z.boolean().optional(),
+    logoUrl: z.string().trim().url().nullable().optional().or(z.literal('').optional()),
+    closeReason: z.enum(['lunch_break', 'maintenance', 'holiday', 'manual']).nullable().optional(),
+    autoReopenAt: z.string().datetime().nullable().optional().or(z.literal('').optional()),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: 'Kamida bitta restoran sozlamasi yuborilishi kerak',

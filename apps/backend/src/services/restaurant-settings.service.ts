@@ -26,6 +26,9 @@ export interface RestaurantSettings {
   workingHours: WorkingHours;
   isOpen: boolean;
   autoSchedule: boolean;
+  logoUrl?: string | null;
+  closeReason?: 'lunch_break' | 'maintenance' | 'holiday' | 'manual' | null;
+  autoReopenAt?: string | null;
 }
 
 export interface RestaurantOpenStatus {
@@ -34,6 +37,8 @@ export interface RestaurantOpenStatus {
   dayKey: keyof WorkingHours;
   today: WorkingHoursDay;
   nextChange: string | null;
+  closeReason?: 'lunch_break' | 'maintenance' | 'holiday' | 'manual' | null;
+  autoReopenAt?: string | null;
 }
 
 const DEFAULT_WORKING_HOURS: WorkingHours = {
@@ -55,6 +60,9 @@ const DEFAULTS: RestaurantSettings = {
   workingHours: DEFAULT_WORKING_HOURS,
   isOpen: true,
   autoSchedule: true,
+  logoUrl: null,
+  closeReason: null,
+  autoReopenAt: null,
 };
 
 let storageReadyPromise: Promise<void> | null = null;
@@ -122,7 +130,19 @@ function normalizePhone(phone: string) {
 }
 
 export async function getRestaurantSettings(): Promise<RestaurantSettings> {
-  const [name, phone, addressText, longitude, latitude, workingHoursRaw, isOpenRaw, autoScheduleRaw] =
+  const [
+    name,
+    phone,
+    addressText,
+    longitude,
+    latitude,
+    workingHoursRaw,
+    isOpenRaw,
+    autoScheduleRaw,
+    logoUrl,
+    closeReason,
+    autoReopenAt,
+  ] =
     await Promise.all([
       getSetting('name'),
       getSetting('phone'),
@@ -132,6 +152,9 @@ export async function getRestaurantSettings(): Promise<RestaurantSettings> {
       getSetting('working_hours'),
       getSetting('is_open'),
       getSetting('auto_schedule'),
+      getSetting('logo_url'),
+      getSetting('close_reason'),
+      getSetting('auto_reopen_at'),
     ]);
 
   let workingHours = DEFAULTS.workingHours;
@@ -148,6 +171,15 @@ export async function getRestaurantSettings(): Promise<RestaurantSettings> {
     workingHours,
     isOpen: isOpenRaw !== null ? isOpenRaw === 'true' : DEFAULTS.isOpen,
     autoSchedule: autoScheduleRaw !== null ? autoScheduleRaw === 'true' : DEFAULTS.autoSchedule,
+    logoUrl: logoUrl && logoUrl.trim().length > 0 ? logoUrl : DEFAULTS.logoUrl,
+    closeReason:
+      closeReason === 'lunch_break' ||
+      closeReason === 'maintenance' ||
+      closeReason === 'holiday' ||
+      closeReason === 'manual'
+        ? closeReason
+        : DEFAULTS.closeReason,
+    autoReopenAt: autoReopenAt && autoReopenAt.trim().length > 0 ? autoReopenAt : DEFAULTS.autoReopenAt,
   };
 }
 
@@ -160,6 +192,9 @@ export interface PatchRestaurantSettings {
   workingHours?: WorkingHours;
   isOpen?: boolean;
   autoSchedule?: boolean;
+  logoUrl?: string | null;
+  closeReason?: 'lunch_break' | 'maintenance' | 'holiday' | 'manual' | null;
+  autoReopenAt?: string | null;
 }
 
 export async function patchRestaurantSettings(
@@ -184,6 +219,12 @@ export async function patchRestaurantSettings(
     tasks.push(setSetting('is_open', String(patch.isOpen), 'boolean', updatedById));
   if (patch.autoSchedule !== undefined)
     tasks.push(setSetting('auto_schedule', String(patch.autoSchedule), 'boolean', updatedById));
+  if (patch.logoUrl !== undefined)
+    tasks.push(setSetting('logo_url', patch.logoUrl ?? '', 'string', updatedById));
+  if (patch.closeReason !== undefined)
+    tasks.push(setSetting('close_reason', patch.closeReason ?? '', 'string', updatedById));
+  if (patch.autoReopenAt !== undefined)
+    tasks.push(setSetting('auto_reopen_at', patch.autoReopenAt ?? '', 'string', updatedById));
 
   await Promise.all(tasks);
   return getRestaurantSettings();
@@ -219,12 +260,33 @@ export async function getRestaurantOpenStatus(): Promise<RestaurantOpenStatus> {
   const dayHours = settings.workingHours[dayKey];
 
   if (!settings.autoSchedule) {
+    if (!settings.isOpen && settings.autoReopenAt) {
+      const reopenAt = new Date(settings.autoReopenAt);
+      if (!Number.isNaN(reopenAt.getTime()) && reopenAt.getTime() <= Date.now()) {
+        await patchRestaurantSettings(
+          { isOpen: true, autoReopenAt: null, closeReason: null },
+          undefined,
+        );
+        return {
+          isOpen: true,
+          reason: 'manual',
+          dayKey,
+          today: dayHours,
+          nextChange: null,
+          closeReason: null,
+          autoReopenAt: null,
+        };
+      }
+    }
+
     return {
       isOpen: settings.isOpen,
       reason: 'manual',
       dayKey,
       today: dayHours,
-      nextChange: null,
+      nextChange: settings.autoReopenAt ?? null,
+      closeReason: settings.closeReason,
+      autoReopenAt: settings.autoReopenAt,
     };
   }
 
@@ -235,6 +297,8 @@ export async function getRestaurantOpenStatus(): Promise<RestaurantOpenStatus> {
       dayKey,
       today: dayHours,
       nextChange: null,
+      closeReason: settings.closeReason,
+      autoReopenAt: settings.autoReopenAt,
     };
   }
 
@@ -249,6 +313,8 @@ export async function getRestaurantOpenStatus(): Promise<RestaurantOpenStatus> {
     dayKey,
     today: dayHours,
     nextChange: isOpen ? dayHours.close : dayHours.open,
+    closeReason: settings.closeReason,
+    autoReopenAt: settings.autoReopenAt,
   };
 }
 

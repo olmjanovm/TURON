@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { UserRoleEnum } from '@turon/shared';
-import { getSettings, updateSettings, getOpenStatus } from './restaurant.controller.js';
+import { getSettings, updateSettings, getOpenStatus, uploadLogo } from './restaurant.controller.js';
 import { RestaurantSettingsPatchSchema } from '../../utils/schemas.js';
 
 export default async function restaurantRoutes(fastify: FastifyInstance) {
@@ -13,5 +13,6 @@ export default async function restaurantRoutes(fastify: FastifyInstance) {
       body: RestaurantSettingsPatchSchema,
     },
   }, updateSettings);
+  fastify.post('/logo', uploadLogo);
   fastify.get('/open-status', getOpenStatus);
 }
