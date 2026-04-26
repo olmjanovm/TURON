@@ -95,26 +95,26 @@ export function RestaurantAddressMap({ latitude, longitude, addressText, onLocat
   }, [latitude, longitude]);
 
   return (
-    <div className="adminx-map-shell">
+    <div className="adminx-map-shell adminx-restaurant-map-shell">
       {status === 'loading' ? (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 backdrop-blur-sm">
           <Loader2 size={22} className="animate-spin text-[var(--adminx-color-primary-dark)]" />
         </div>
       ) : null}
       {status === 'error' ? (
-        <div className="flex h-[320px] items-center justify-center gap-3 text-[var(--adminx-color-muted)]">
+        <div className="flex h-[288px] items-center justify-center gap-3 text-[var(--adminx-color-muted)]">
           <TriangleAlert size={18} />
           <span className="text-sm font-bold">Xarita yuklanmadi</span>
         </div>
-      ) : <div ref={containerRef} className="adminx-map-canvas" />}
-      <div className="adminx-map-floating">
-        <div className="adminx-map-note">
+      ) : <div ref={containerRef} className="adminx-map-canvas adminx-restaurant-map-canvas" />}
+      <div className="adminx-map-floating adminx-restaurant-map-floating">
+        <div className="adminx-map-note adminx-restaurant-map-note">
           <div className="flex items-center gap-2 text-[var(--adminx-color-primary-dark)]">
-            <MapPinned size={15} />
+            <MapPinned size={14} />
             <span className="adminx-kicker">Tanlangan manzil</span>
           </div>
-          <p className="mt-2 text-sm font-semibold text-[var(--adminx-color-ink)]">{addressText}</p>
-          <p className="mt-2 text-xs font-semibold text-[var(--adminx-color-faint)]">
+          <p className="mt-1.5 text-[13px] font-semibold leading-5 text-[var(--adminx-color-ink)]">{addressText}</p>
+          <p className="mt-1 text-[11px] font-semibold text-[var(--adminx-color-faint)]">
             {latitude.toFixed(6)}, {longitude.toFixed(6)}
           </p>
         </div>

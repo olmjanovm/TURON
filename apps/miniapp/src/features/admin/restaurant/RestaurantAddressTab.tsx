@@ -50,9 +50,9 @@ export function RestaurantAddressTab({ draft, onChange }: Props) {
   };
 
   return (
-    <section className="adminx-tab-panel space-y-4">
-      <div className="adminx-form-card p-5">
-        <div className="adminx-search-shell">
+    <section className="adminx-tab-panel space-y-3">
+      <div className="adminx-form-card adminx-restaurant-card p-4">
+        <div className="adminx-search-shell adminx-restaurant-search-shell">
           {busy === 'search' ? <Loader2 size={18} className="animate-spin text-[var(--adminx-color-primary-dark)]" /> : <Search size={18} className="text-[var(--adminx-color-faint)]" />}
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Manzil yozing" />
           <button
@@ -72,7 +72,7 @@ export function RestaurantAddressTab({ draft, onChange }: Props) {
                 { enableHighAccuracy: true, timeout: 10_000 },
               );
             }}
-            className="adminx-chip border-[rgba(245,166,35,0.18)] bg-[var(--adminx-color-primary-soft)] text-[var(--adminx-color-primary-dark)]"
+            className="adminx-chip adminx-restaurant-gps-chip border-[rgba(245,166,35,0.18)] bg-[var(--adminx-color-primary-soft)] text-[var(--adminx-color-primary-dark)]"
           >
             {busy === 'gps' ? <Loader2 size={14} className="animate-spin" /> : <Crosshair size={14} />}
             GPS
@@ -80,11 +80,11 @@ export function RestaurantAddressTab({ draft, onChange }: Props) {
         </div>
 
         {suggestions.length > 0 ? (
-          <div className="adminx-suggestion-list mt-3">
+          <div className="adminx-suggestion-list mt-2.5">
             {suggestions.map((candidate) => (
               <button key={candidate.id} type="button" onClick={() => void applyCandidate(candidate)} className="adminx-suggestion-button">
                 <p className="text-sm font-black text-[var(--adminx-color-ink)]">{candidate.title}</p>
-                <p className="mt-1 text-sm font-semibold text-[var(--adminx-color-muted)]">{candidate.address}</p>
+                <p className="mt-0.5 text-xs font-semibold text-[var(--adminx-color-muted)]">{candidate.address}</p>
               </button>
             ))}
           </div>

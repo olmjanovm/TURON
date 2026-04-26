@@ -469,6 +469,120 @@
   box-shadow: var(--adminx-shadow-card);
 }
 
+.adminx-restaurant-page {
+  --adminx-restaurant-gap: 12px;
+}
+
+.adminx-restaurant-hero {
+  border-radius: 22px;
+}
+
+.adminx-restaurant-card {
+  border-radius: 22px;
+}
+
+.adminx-restaurant-tab-rail {
+  gap: 6px;
+}
+
+.adminx-restaurant-tab-button {
+  min-height: 42px;
+  min-width: 92px;
+  padding: 0 14px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+}
+
+.adminx-restaurant-field {
+  gap: 6px;
+}
+
+.adminx-restaurant-field .adminx-floating-label {
+  top: 16px;
+  font-size: 12px;
+}
+
+.adminx-restaurant-field[data-filled='true'] .adminx-floating-label,
+.adminx-restaurant-field:focus-within .adminx-floating-label {
+  transform: translateY(-10px);
+  font-size: 10px;
+}
+
+.adminx-restaurant-input,
+.adminx-restaurant-time {
+  min-height: 50px;
+  padding: 19px 14px 10px;
+  font-size: 14px;
+}
+
+.adminx-restaurant-logo {
+  border-radius: 20px;
+}
+
+.adminx-restaurant-search-shell {
+  min-height: 50px;
+  gap: 10px;
+  border-radius: 16px;
+  padding: 0 12px;
+}
+
+.adminx-restaurant-search-shell input {
+  font-size: 14px;
+}
+
+.adminx-restaurant-gps-chip {
+  min-height: 34px;
+  gap: 6px;
+  padding: 0 10px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+
+.adminx-restaurant-map-shell {
+  min-height: 288px;
+  border-radius: 22px;
+}
+
+.adminx-restaurant-map-canvas {
+  height: 288px;
+}
+
+.adminx-restaurant-map-floating {
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+}
+
+.adminx-restaurant-map-note {
+  padding: 10px 12px;
+  border-radius: 16px;
+}
+
+.adminx-restaurant-hours-list {
+  gap: 10px;
+}
+
+.adminx-restaurant-hour-row {
+  gap: 12px;
+  padding: 14px;
+  border-radius: 18px;
+}
+
+.adminx-restaurant-status-hero {
+  padding: 22px;
+  border-radius: 22px;
+}
+
+.adminx-restaurant-save-shell {
+  padding: 10px;
+}
+
+.adminx-restaurant-save-button {
+  min-height: 50px;
+  border-radius: 16px;
+  font-size: 12px;
+}
+
 .adminx-hours-list {
   display: grid;
   gap: 12px;

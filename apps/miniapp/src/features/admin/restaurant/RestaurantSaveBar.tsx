@@ -17,8 +17,8 @@ export function RestaurantSaveBar({ visible, disabled, isSaving, isSaved, label,
 
   return (
     <div className="adminx-save-bar">
-      <div className="adminx-save-shell">
-        <button type="button" disabled={disabled || isSaving} onClick={onClick} className="adminx-save-button">
+      <div className="adminx-save-shell adminx-restaurant-save-shell">
+        <button type="button" disabled={disabled || isSaving} onClick={onClick} className="adminx-save-button adminx-restaurant-save-button">
           {isSaving ? <Loader2 size={18} className="animate-spin" /> : isSaved ? <Check size={18} /> : <Save size={18} />}
           {isSaving ? 'Saqlanmoqda' : isSaved ? 'Saqlandi' : label}
         </button>

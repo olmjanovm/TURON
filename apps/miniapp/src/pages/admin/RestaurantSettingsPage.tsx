@@ -22,10 +22,10 @@ import {
 
 function RestaurantSettingsSkeleton() {
   return (
-    <div className="space-y-4 pb-[calc(env(safe-area-inset-bottom,0px)+104px)] animate-pulse">
-      <div className="adminx-panel min-h-[220px] p-6" />
-      <div className="h-14 rounded-full border border-[rgba(28,18,7,0.06)] bg-white/90" />
-      <div className="adminx-form-card min-h-[320px] p-6" />
+    <div className="space-y-3 pb-[calc(env(safe-area-inset-bottom,0px)+104px)] animate-pulse">
+      <div className="adminx-panel min-h-[196px] p-5" />
+      <div className="h-12 rounded-full border border-[rgba(28,18,7,0.06)] bg-white/90" />
+      <div className="adminx-form-card min-h-[280px] p-5" />
     </div>
   );
 }
@@ -63,7 +63,7 @@ export default function RestaurantSettingsPage() {
   if (isLoading && !data) return <RestaurantSettingsSkeleton />;
 
   return (
-    <div className="adminx-page space-y-4 pb-[calc(env(safe-area-inset-bottom,0px)+112px)]">
+    <div className="adminx-page adminx-restaurant-page space-y-3 pb-[calc(env(safe-area-inset-bottom,0px)+108px)]">
       <RestaurantSettingsHero settings={draft} status={openStatus} />
       <RestaurantTabRail activeTab={tab} onChange={setTab} />
 

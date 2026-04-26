@@ -34,20 +34,20 @@ export function RestaurantLogoUploader({ logoUrl, onChange }: Props) {
     <button
       type="button"
       onClick={() => fileInputRef.current?.click()}
-      className="flex min-h-[176px] w-full flex-col items-center justify-center gap-3 rounded-[24px] border border-dashed border-[rgba(245,166,35,0.32)] bg-[linear-gradient(180deg,rgba(255,248,230,0.96)_0%,rgba(255,241,205,0.92)_100%)] px-5 py-6 shadow-[0_2px_8px_rgba(0,0,0,0.08),0_14px_32px_rgba(245,166,35,0.14)]"
+      className="adminx-restaurant-logo flex min-h-[148px] w-full flex-col items-center justify-center gap-2.5 rounded-[20px] border border-dashed border-[rgba(245,166,35,0.32)] bg-[linear-gradient(180deg,rgba(255,248,230,0.96)_0%,rgba(255,241,205,0.92)_100%)] px-4 py-5 shadow-[0_2px_8px_rgba(0,0,0,0.08),0_14px_32px_rgba(245,166,35,0.14)]"
     >
-      <div className="grid h-20 w-20 place-items-center overflow-hidden rounded-[24px] border border-white/50 bg-white/88 shadow-[0_12px_24px_rgba(28,18,7,0.08)]">
+      <div className="grid h-16 w-16 place-items-center overflow-hidden rounded-[20px] border border-white/50 bg-white/88 shadow-[0_12px_24px_rgba(28,18,7,0.08)]">
         {previewUrl || logoUrl ? (
           <img src={previewUrl || logoUrl || ''} alt="Logo" className="h-full w-full object-cover" />
         ) : (
-          <ImagePlus size={30} className="text-[var(--adminx-color-primary-dark)]" />
+          <ImagePlus size={26} className="text-[var(--adminx-color-primary-dark)]" />
         )}
       </div>
       <div>
-        <p className="text-[16px] font-black text-[var(--adminx-color-ink)]">Logo yuklash</p>
-        <p className="mt-2 text-sm font-semibold text-[var(--adminx-color-muted)]">PNG yoki JPG, bir bosishda yangilanadi</p>
+        <p className="text-[15px] font-black text-[var(--adminx-color-ink)]">Logo yuklash</p>
+        <p className="mt-1.5 text-xs font-semibold text-[var(--adminx-color-muted)]">PNG yoki JPG, bir bosishda yangilanadi</p>
       </div>
-      <span className="adminx-chip border-[rgba(245,166,35,0.22)] bg-white/76 text-[var(--adminx-color-primary-dark)]">
+      <span className="adminx-chip min-h-8 border-[rgba(245,166,35,0.22)] bg-white/76 px-3 text-[10px] text-[var(--adminx-color-primary-dark)]">
         {uploadLogo.isPending ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />}
         {uploadLogo.isPending ? 'Yuklanmoqda' : 'Fayl tanlash'}
       </span>
