@@ -13,6 +13,7 @@ import {
   formatUzbekPhone,
   getRestaurantValidation,
   normalizeRestaurantSettings,
+  normalizeUzbekPhone,
 } from '../../features/admin/restaurant/restaurantSettings.utils';
 import {
   useRestaurantOpenStatus,
@@ -38,6 +39,7 @@ export default function RestaurantSettingsPage() {
   const [draft, setDraft] = React.useState<RestaurantSettingsModel>(normalizeRestaurantSettings(null));
   const [dirty, setDirty] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (data && !dirty) setDraft(normalizeRestaurantSettings(data));
@@ -53,11 +55,18 @@ export default function RestaurantSettingsPage() {
 
   const handleSave = async () => {
     if (!validation.ok) return;
-    const updated = await updateSettings.mutateAsync(draft);
-    setDraft(normalizeRestaurantSettings(updated));
-    setDirty(false);
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 1800);
+    setSaveError(null);
+    try {
+      // Normalize phone before sending: "+998 90 123 45 67" → "+998901234567"
+      const payload = { ...draft, phone: normalizeUzbekPhone(draft.phone) };
+      const updated = await updateSettings.mutateAsync(payload);
+      setDraft(normalizeRestaurantSettings(updated));
+      setDirty(false);
+      setSaved(true);
+      window.setTimeout(() => setSaved(false), 1800);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Saqlab bo\'lmadi');
+    }
   };
 
   if (isLoading && !data) return <RestaurantSettingsSkeleton />;
@@ -76,6 +85,13 @@ export default function RestaurantSettingsPage() {
         <div className="adminx-surface flex items-center gap-3 rounded-[22px] px-4 py-4 text-sm font-semibold text-[var(--adminx-color-muted)]">
           <RefreshCw size={16} className="text-[var(--adminx-color-primary-dark)]" />
           {validation.message}
+        </div>
+      ) : null}
+
+      {saveError ? (
+        <div className="adminx-surface flex items-center gap-3 rounded-[22px] border border-[rgba(214,69,69,0.18)] px-4 py-4 text-sm font-semibold text-[var(--adminx-color-danger)]">
+          <RefreshCw size={16} />
+          {saveError}
         </div>
       ) : null}
 

@@ -337,7 +337,7 @@ export async function getCourierOrders(request: FastifyRequest, reply: FastifyRe
       total: serialized.total,
       deliveryFee: serialized.deliveryFee,
       paymentMethod: serialized.paymentMethod,
-      restaurantName: RESTAURANT_COORDINATES.name,
+      restaurantName: serialized.restaurantName ?? RESTAURANT_COORDINATES.name,
       distanceToRestaurantMeters:
         typeof relevantAssignment?.distanceMeters === 'number' ? relevantAssignment.distanceMeters : null,
       etaToRestaurantMinutes:
@@ -855,7 +855,7 @@ export async function getNextAvailableOrder(
       total: serialized.total,
       deliveryFee: serialized.deliveryFee,
       paymentMethod: serialized.paymentMethod,
-      restaurantName: RESTAURANT_COORDINATES.name,
+      restaurantName: serialized.restaurantName ?? RESTAURANT_COORDINATES.name,
       distanceToRestaurantMeters:
         typeof ra?.distanceMeters === 'number' ? ra.distanceMeters : null,
       etaToRestaurantMinutes:

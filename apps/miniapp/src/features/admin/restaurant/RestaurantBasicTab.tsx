@@ -1,7 +1,6 @@
 import React from 'react';
 import type { RestaurantSettingsModel } from './restaurantSettings.types';
 import { RestaurantField } from './RestaurantField';
-import { RestaurantLogoUploader } from './RestaurantLogoUploader';
 import { formatUzbekPhone } from './restaurantSettings.utils';
 
 interface Props {
@@ -13,14 +12,9 @@ export function RestaurantBasicTab({ draft, onChange }: Props) {
   return (
     <section className="adminx-tab-panel space-y-3">
       <div className="adminx-form-card adminx-restaurant-card p-4">
-        <p className="adminx-kicker text-[var(--adminx-color-faint)]">Brend ko'rinishi</p>
-        <h3 className="mt-1.5 text-[22px] font-black tracking-[-0.04em] text-[var(--adminx-color-ink)]">Asosiy ma'lumotlar</h3>
-        <div className="mt-4">
-          <RestaurantLogoUploader logoUrl={draft.logoUrl} onChange={(logoUrl) => onChange({ logoUrl })} />
-        </div>
-      </div>
-
-      <div className="adminx-form-card adminx-restaurant-card grid gap-3 p-4">
+        <p className="adminx-kicker text-[var(--adminx-color-faint)]">Ma'lumotlar</p>
+        <h3 className="mb-4 mt-1.5 text-[22px] font-black tracking-[-0.04em] text-[var(--adminx-color-ink)]">Asosiy</h3>
+        <div className="grid gap-3">
         <RestaurantField label="Restoran nomi" filled={draft.name.trim().length > 0} compact>
           <input
             value={draft.name}
@@ -44,6 +38,7 @@ export function RestaurantBasicTab({ draft, onChange }: Props) {
             placeholder=" "
           />
         </RestaurantField>
+        </div>
       </div>
     </section>
   );

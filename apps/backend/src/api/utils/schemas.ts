@@ -176,8 +176,8 @@ export const RestaurantSettingsPatchSchema = z
     phone: z
       .string()
       .trim()
-      .regex(/^\+998\d{9}$/)
-      .or(z.literal(''))
+      .transform((v) => v.replace(/[\s\-]/g, ''))
+      .pipe(z.string().regex(/^\+998\d{9}$/).or(z.literal('')))
       .optional(),
     addressText: z.string().trim().min(5).max(240).optional(),
     longitude: z.number().min(55).max(75).optional(),
