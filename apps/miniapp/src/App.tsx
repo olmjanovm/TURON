@@ -10,17 +10,18 @@ import { PullToRefreshIndicator } from './components/customer/PullToRefreshIndic
 import { AppErrorBoundary } from './components/ui/AppErrorBoundary';
 import { NotFoundPage } from './components/ui/FeedbackStates';
 
-const AdminLayout = React.lazy(() => import('./components/layout/AdminLayout'));
-const CourierLayout = React.lazy(() => import('./components/layout/CourierLayout'));
-const CustomerLayout = React.lazy(() => import('./components/layout/CustomerLayout'));
-
-// 🚀 PERFORMANCE FIX: Asosiy menyu sahifalari (Bottom Tabs) to'g'ridan-to'g'ri yuklanadi.
-// Bu navigatsiyani 0ms ga tushiradi va oq ekranda (Suspense fallback) qotib qolishning oldini oladi.
+// CustomerLayout + main customer tab pages are imported directly (not lazy)
+// so the customer section never blocks on a Suspense spinner.
+// Each page shows its own skeleton while data fetches.
+import CustomerLayout from './components/layout/CustomerLayout';
 import HomePage from './pages/customer/HomePage';
 import MenuPage from './pages/customer/MenuPage';
 import CartPage from './pages/customer/CartPage';
 import OrdersPage from './pages/customer/OrdersPage';
 import ProfilePage from './pages/customer/ProfilePage';
+
+const AdminLayout = React.lazy(() => import('./components/layout/AdminLayout'));
+const CourierLayout = React.lazy(() => import('./components/layout/CourierLayout'));
 
 const AdminDashboardPage = React.lazy(() => import('./pages/admin/AdminDashboardPage'));
 const AdminOrdersPage = React.lazy(() => import('./pages/admin/AdminOrdersPage'));
@@ -74,15 +75,9 @@ const queryClient = new QueryClient({
   },
 });
 
+// No spinner — each page renders its own skeleton while loading.
 function RouteFallback() {
-  return (
-    <div className="flex min-h-screen items-center justify-center px-6 bg-[#f6f6f7]">
-      <div className="flex items-center gap-3 rounded-[18px] border border-slate-200 bg-white px-5 py-4 text-sm font-bold text-slate-700 shadow-sm">
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-black" />
-        Sahifa yuklanmoqda...
-      </div>
-    </div>
-  );
+  return null;
 }
 
 function TelegramBackButtonManager() {
