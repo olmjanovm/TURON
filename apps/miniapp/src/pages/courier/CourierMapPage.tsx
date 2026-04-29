@@ -680,6 +680,24 @@ const CourierMapPage: React.FC = () => {
     currentState !== 'ACCEPTED' &&
     currentState !== 'ARRIVED';
 
+  // ── Reroute handling ───────────────────────────────────────────────────────
+  const [rerouteRequestedAt, setRerouteRequestedAt] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (isOffRoute && (!rerouteRequestedAt || Date.now() - rerouteRequestedAt > 12000)) {
+      setRerouteRequestedAt(Date.now());
+      // Trigger reroute logic here
+      if (liveCourierPos && routeInfo?.destination) {
+        updateLocationMutation.mutate({
+          orderId,
+          location: liveCourierPos,
+        });
+        setStoreRouteInfo(null); // Clear stale route info
+        setStoreRouteSteps([]); // Clear stale steps
+      }
+    }
+  }, [isOffRoute, rerouteRequestedAt, liveCourierPos, routeInfo, orderId, updateLocationMutation, setStoreRouteInfo, setStoreRouteSteps]);
+
   // ── Render ─────────────────────────────────────────────────────────────────
   
   return (

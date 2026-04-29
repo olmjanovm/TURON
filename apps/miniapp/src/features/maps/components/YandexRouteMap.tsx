@@ -210,181 +210,49 @@ export default function YandexRouteMap({
   }
 
   // ── Init map ─────────────────────────────────────────────────────────────
+  const onMapReadyRef = useRef(onMapReady);
   useEffect(() => {
-    if (!ymaps3Expected) {
+    onMapReadyRef.current = onMapReady;
+  }, [onMapReady]);
+
+  useEffect(() => {
+    if (!ymaps3Expected || !mapContainerRef.current) {
       setHasFallback(true);
       setIsLoading(false);
       return;
     }
 
-    let disposed = false;
-
-    async function initMap() {
-      try {
-        const ymaps3 = await loadYandexMaps3();
-        if (disposed || !mapContainerRef.current) return;
+    let cleanup: (() => void) | null = null;
+    loadYandexMaps3()
+      .then((ymaps3) => {
         ymaps3Ref.current = ymaps3;
-
-        // ── Create map ───────────────────────────────────────────────────────
-        // mode: 'vector' MAJBURIY — faqat vector modeda tilt (3D perspektiva) ishlaydi.
-        // tilt + azimuth constructor da berilishi shart — post-init update() ba'zan
-        // ignore qilinishi mumkin.
         const map = new ymaps3.YMap(mapContainerRef.current, {
-          location: { center: toLngLat(pickup), zoom: 14 },
-          // tilt va azimuth constructor da berilishi shart (ba'zi versiyalarda
-          // keyingi update() da ignore qilinadi)
-          camera: { tilt: DEFAULT_NAV_TILT, azimuth: 0 },
-          // vector mode — 3D tilt, bino modellari va azimuth rotation uchun majburiy
-          mode: 'vector',
-          behaviors: [
-            'drag',
-            'pinchZoom',
-            'pinchRotate',
-            'oneFingerZoom',
-            'dblClick',
-            'scrollZoom',
-            'mouseRotate',
-            'mouseTilt',
-          ],
+          location: {
+            center: toLngLat(pickup || { lat: 0, lng: 0 }),
+            zoom: NAV_ZOOM,
+            tilt: DEFAULT_NAV_TILT,
+          },
         });
-        cameraAzimuthRef.current = 0;
-        cameraTiltRef.current = DEFAULT_NAV_TILT;
-
-        // Dark scheme layer — vector theme bilan (raster da tilt ishlamas)
-        map.addChild(new ymaps3.YMapDefaultSchemeLayer({ theme: 'dark' }));
-
-        // Features layer — YMapFeature (route polyline) render uchun kerak
-        if (ymaps3.YMapDefaultFeaturesLayer) {
-          map.addChild(new ymaps3.YMapDefaultFeaturesLayer({}));
-        }
-
-        // Zoom control
-        try {
-          if (ymaps3.YMapControls && ymaps3.YMapZoomControl) {
-            const controls = new ymaps3.YMapControls({ position: 'right' });
-            controls.addChild(new ymaps3.YMapZoomControl({}));
-            map.addChild(controls);
-          }
-        } catch { /* optional */ }
-
-        // Camera listener (sync rotation state)
-        try {
-          const mapListener = new ymaps3.YMapListener({
-            onUpdate: ({ camera }: { camera?: { azimuth?: number; tilt?: number } }) => {
-              cameraAzimuthRef.current = camera?.azimuth ?? map.azimuth ?? cameraAzimuthRef.current;
-              cameraTiltRef.current = camera?.tilt ?? cameraTiltRef.current;
-              syncCourierRotation();
-            },
-          });
-          map.addChild(mapListener);
-          mapListenerRef.current = mapListener;
-        } catch {
-          mapListenerRef.current = null;
-        }
-
-        // Snap-back after manual pan: 3 s of no touch → resume follow mode
-        const el = mapContainerRef.current;
-        const onDown = () => {
-          isManualRef.current = true;
-          if (snapTimerRef.current) window.clearTimeout(snapTimerRef.current);
-          onMapInteraction?.();
-        };
-        const onUp = () => {
-          if (snapTimerRef.current) window.clearTimeout(snapTimerRef.current);
-          snapTimerRef.current = window.setTimeout(() => {
-            isManualRef.current = false;
-            const p = courierPosRef.current;
-            if (followModeRef.current && p) updateCamera(p);
-          }, 3000);
-        };
-        el.addEventListener('pointerdown', onDown, { passive: true });
-        el.addEventListener('pointerup',    onUp,  { passive: true });
-        el.addEventListener('pointercancel', onUp, { passive: true });
-        cleanupRef.current = () => {
-          el.removeEventListener('pointerdown', onDown);
-          el.removeEventListener('pointerup',    onUp);
-          el.removeEventListener('pointercancel', onUp);
-        };
-
-        // ── Markers ──────────────────────────────────────────────────────────
-        try {
-          const pEl = createPickupElement();
-          const pMarker = new ymaps3.YMapMarker({ coordinates: toLngLat(pickup), zIndex: 100 }, pEl);
-          map.addChild(pMarker);
-          pickupMarkerRef.current = pMarker;
-        } catch { /* skip */ }
-
-        try {
-          const dEl = createDestinationElement();
-          const dMarker = new ymaps3.YMapMarker({ coordinates: toLngLat(destination), zIndex: 100 }, dEl);
-          map.addChild(dMarker);
-          destMarkerRef.current = dMarker;
-        } catch { /* skip */ }
-
-        if (courierPos) {
-          try {
-            const cEl = createCourierElement(0);
-            courierElRef.current = cEl;
-            const cMarker = new ymaps3.YMapMarker({ coordinates: toLngLat(courierPos), zIndex: 200 }, cEl);
-            map.addChild(cMarker);
-            courierMarkerRef.current = cMarker;
-            syncCourierRotation(smoothedHeading, cameraAzimuthRef.current);
-          } catch { /* skip */ }
-        }
-
         mapRef.current = map;
+        onMapReadyRef.current?.(map);
 
-        // ── Live route tracker ───────────────────────────────────────────────
-        // ymaps2.1 multiRouter (pedestrian mode) → ymaps3 polyline renderer.
-        // GPS updates call tracker.updateOrigin() which calls setReferencePoints()
-        // on the existing model — no map reinit, no flicker.
-        const tracker = new LiveMultiRouteTracker((info, polyline) => {
-          if (disposed) return;
-          const coords = polyline.map((p) => toLngLat(p));
-          // Store snapped polyline so GPS effect can move the head instantly
-          lastPolylineCoordsRef.current = coords;
-          updateRoutePolyline(coords);
-          // Snap courier marker to road — polyline[0] is the multiRouter start
-          // point snapped to the nearest road/path, not raw GPS
-          if (polyline[0]) {
-            try { courierMarkerRef.current?.update({ coordinates: coords[0] }); } catch { /* skip */ }
-          }
-          emitRouteInfo(info);
-          onNextStepRef.current?.(info.steps?.[0] ?? null);
-        });
-        trackerRef.current = tracker;
-        void tracker.init(activeFrom, activeTo);
-
-        onMapReady?.(map);
-      } catch (err) {
-        console.error('[YandexRouteMap] initMap failed:', err);
-        if (!disposed) setHasFallback(true);
-      } finally {
-        if (!disposed) setIsLoading(false);
-      }
-    }
-
-    void initMap();
+        cleanup = () => {
+          map.destroy();
+          mapRef.current = null;
+          ymaps3Ref.current = null;
+        };
+      })
+      .catch(() => {
+        setHasFallback(true);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
 
     return () => {
-      disposed = true;
-      if (snapTimerRef.current) window.clearTimeout(snapTimerRef.current);
-      cleanupRef.current?.();
-      trackerRef.current?.destroy();
-      trackerRef.current = null;
-      try { mapRef.current?.destroy(); } catch { /* skip */ }
-      mapRef.current         = null;
-      ymaps3Ref.current      = null;
-      mapListenerRef.current = null;
-      routeFeatureRef.current  = null;
-      pickupMarkerRef.current  = null;
-      destMarkerRef.current    = null;
-      courierMarkerRef.current = null;
-      courierElRef.current     = null;
-      hasNavZoomedRef.current  = false;
+      cleanup?.();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onMapReady, ymaps3Expected]);
+  }, [pickup, destination]);
 
   // ── Re-route when pickup / destination change ────────────────────────────
   useEffect(() => {

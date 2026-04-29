@@ -71,6 +71,14 @@ function DirectionArrow({
   );
 }
 
+const parseDistance = (distanceText) => {
+  if (!distanceText) return null;
+  if (distanceText.includes('km')) {
+    return parseFloat(distanceText.replace('km', '').trim()) * 1000; // Convert km to meters
+  }
+  return parseInt(distanceText.replace('m', '').trim(), 10); // Treat as meters
+};
+
 const CourierNavigationPanel: React.FC<CourierNavigationPanelProps> = ({
   routes = [],
   selectedRouteId,
@@ -82,8 +90,8 @@ const CourierNavigationPanel: React.FC<CourierNavigationPanelProps> = ({
 }) => {
   if (!currentStep) return null;
 
-  const distanceNum = currentStep.distanceText?.match(/\d+/)?.[0] || '';
-  const shouldShowNavigation = !distanceNum || parseInt(distanceNum, 10) >= 5;
+  const distanceMeters = parseDistance(currentStep.distanceText);
+  const shouldShowNavigation = distanceMeters === null || distanceMeters >= 5;
   if (!shouldShowNavigation) return null;
 
   const derivedIndex =
@@ -100,8 +108,8 @@ const CourierNavigationPanel: React.FC<CourierNavigationPanelProps> = ({
     .slice(Math.max(derivedIndex + 1, 0))
     .find((step) => step.action && step.action !== 'straight');
   const nextTurnDistance = nextStep?.distanceText || '';
-  const nextDistanceNum = nextTurnDistance.match(/\d+/)?.[0] || '';
-  const shouldShowNextTurn = Boolean(nextStep) && parseInt(nextDistanceNum || '0', 10) >= 5;
+  const nextDistanceMeters = parseDistance(nextTurnDistance);
+  const shouldShowNextTurn = Boolean(nextStep) && (nextDistanceMeters === null || nextDistanceMeters >= 5);
 
   const selectedRoute = routes.find((route) => route.id === selectedRouteId) ?? routes[0] ?? null;
 
@@ -112,11 +120,11 @@ const CourierNavigationPanel: React.FC<CourierNavigationPanelProps> = ({
           <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/42">Navigatsiya</span>
           {selectedRoute ? (
             <span className="rounded-full bg-white/8 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--courier-accent)]">
-              {selectedRoute.distance} · {selectedRoute.eta}
+              {selectedRoute.distance} â€¢ {selectedRoute.eta}
             </span>
           ) : distance || eta ? (
             <span className="rounded-full bg-white/8 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--courier-accent)]">
-              {[distance, eta].filter(Boolean).join(' · ')}
+              {[distance, eta].filter(Boolean).join(' â€¢ ')}
             </span>
           ) : null}
         </div>
