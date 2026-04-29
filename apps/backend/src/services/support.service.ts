@@ -173,13 +173,21 @@ export class SupportService {
       telegramMessageId: number;
     },
   ) {
-    await prisma.$executeRaw(Prisma.sql`
+    // Use BigInt for both Telegram-id columns so the values stored match
+    // exactly when looked up later by the bot's reply handler.
+    const updated = await prisma.$executeRaw(Prisma.sql`
       update public.support_messages
       set
         telegram_chat_id = ${BigInt(params.telegramChatId)},
-        telegram_message_id = ${params.telegramMessageId}
+        telegram_message_id = ${BigInt(params.telegramMessageId)}
       where id = ${supportMessageId}::uuid
     `);
+    console.log('[SupportService] attachTelegramMetadata', {
+      supportMessageId,
+      telegramChatId: params.telegramChatId,
+      telegramMessageId: params.telegramMessageId,
+      updatedRows: updated,
+    });
   }
 
   /**
@@ -374,20 +382,31 @@ export class SupportService {
     text: string;
   }) {
     return prisma.$transaction(async (tx) => {
+      // Use BigInt for both columns so the comparison is type-stable on
+      // Postgres bigint columns (avoids implicit cast surprises).
       const sourceRows = await tx.$queryRaw<Array<{ thread_id: string; user_id: string; order_id: string | null }>>(Prisma.sql`
         select st.id as thread_id, st.user_id, st.order_id
         from public.support_messages sm
         join public.support_threads st on st.id = sm.thread_id
         where sm.telegram_chat_id = ${BigInt(input.adminChatId)}
-          and sm.telegram_message_id = ${input.replyToTelegramMessageId}
+          and sm.telegram_message_id = ${BigInt(input.replyToTelegramMessageId)}
         order by sm.created_at desc
         limit 1
       `);
 
       const source = sourceRows[0];
       if (!source) {
+        console.warn('[SupportService] createAdminReplyFromTelegram: no source row', {
+          adminChatId: input.adminChatId,
+          replyToTelegramMessageId: input.replyToTelegramMessageId,
+        });
         return null;
       }
+      console.log('[SupportService] createAdminReplyFromTelegram: matched source', {
+        threadId: source.thread_id,
+        userId: source.user_id,
+        orderId: source.order_id,
+      });
 
       await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
         insert into public.support_messages (

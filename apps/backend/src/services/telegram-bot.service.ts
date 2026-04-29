@@ -348,26 +348,40 @@ async function handleAdminSupportReply(message: AdminReplyMessage) {
     validAdminIds.push(primaryAdminChatId);
   }
 
-  if (validAdminIds.length === 0) return;
-  if (!validAdminIds.includes(String(message.chat.id))) return;
+  if (validAdminIds.length === 0) {
+    console.log('[Bot/Reply] no admin ids configured — skip');
+    return;
+  }
+  if (!validAdminIds.includes(String(message.chat.id))) {
+    console.log('[Bot/Reply] chat.id not in admin allowlist — skip', {
+      chatId: String(message.chat.id),
+      validAdminIds,
+    });
+    return;
+  }
   if (!message.text?.trim()) return;
 
   const replyToMessageId = message.reply_to_message?.message_id;
-  if (!replyToMessageId) return;
+  if (!replyToMessageId) {
+    console.log('[Bot/Reply] no reply_to_message — skip');
+    return;
+  }
+
+  console.log('[Bot/Reply] received reply', {
+    chatId: String(message.chat.id),
+    replyToMessageId,
+    text: message.text.slice(0, 80),
+    fromId: message.from?.id,
+  });
 
   // ── Try to route as an order chat reply first ─────────────────────────────
-  // If the replied-to message was a fallback from AdminChatFallbackService,
-  // its Telegram message_id will be stored in OrderChatMessage.telegramMessageId.
   try {
     const { OrderChatService } = await import('./order-chat.service.js');
     const linked = await OrderChatService.findByTelegramMessageId(BigInt(replyToMessageId));
+    console.log('[Bot/Reply] order-chat lookup', { matched: Boolean(linked), linked });
 
     if (linked) {
-      // Resolve admin user from their Telegram ID
       let adminUserId = await resolveTelegramAdminUserId(message.from?.id ? Number(message.from.id) : undefined);
-
-      // Telegram account not linked in DB → fall back to any active admin user so
-      // the reply still reaches the customer via SSE.
       if (!adminUserId) {
         const fallbackAdmin = await prisma.user.findFirst({
           where: { role: UserRoleEnum.ADMIN, isActive: true },
@@ -386,21 +400,42 @@ async function handleAdminSupportReply(message: AdminReplyMessage) {
             targetRole: linked.senderRole === 'ADMIN' ? null : linked.senderRole,
           },
         );
-        return; // handled — do NOT fall through to support service
+        console.log('[Bot/Reply] persisted as order-chat admin reply', {
+          orderId: linked.orderId,
+          adminUserId,
+        });
+        return;
       }
+      console.warn('[Bot/Reply] order-chat matched but no admin user resolved');
     }
   } catch (err) {
-    console.error('[Bot] Order chat reply routing failed:', err);
+    console.error('[Bot/Reply] order-chat routing failed:', err);
   }
 
-  // ── Fallback: legacy support message reply ────────────────────────────────
-  await SupportService.createAdminReplyFromTelegram({
-    adminChatId: String(message.chat.id),
-    telegramMessageId: message.message_id,
-    replyToTelegramMessageId: replyToMessageId,
-    senderLabel: getAdminSenderLabel(message),
-    text: message.text.trim(),
-  });
+  // ── Fallback: support thread reply ────────────────────────────────────────
+  try {
+    const result = await SupportService.createAdminReplyFromTelegram({
+      adminChatId: String(message.chat.id),
+      telegramMessageId: message.message_id,
+      replyToTelegramMessageId: replyToMessageId,
+      senderLabel: getAdminSenderLabel(message),
+      text: message.text.trim(),
+    });
+
+    if (result) {
+      console.log('[Bot/Reply] persisted as support thread admin reply', {
+        threadId: result.id,
+        orderId: result.orderId,
+      });
+    } else {
+      console.warn('[Bot/Reply] support-thread lookup returned no source row', {
+        adminChatId: String(message.chat.id),
+        replyToMessageId,
+      });
+    }
+  } catch (err) {
+    console.error('[Bot/Reply] support-thread routing failed:', err);
+  }
 }
 
 // ─── Menu Button setup ────────────────────────────────────────────────────────
