@@ -13,8 +13,8 @@ export function useSupportThread(orderId?: string | null) {
       (await api.get('/support/thread', {
         params: orderId ? { orderId } : undefined,
       })) as SupportThread,
-    refetchInterval: 2500,
-    staleTime: 1000,
+    refetchInterval: 1500,
+    staleTime: 750,
   });
 }
 

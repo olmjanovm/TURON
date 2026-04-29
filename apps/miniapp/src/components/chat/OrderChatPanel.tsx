@@ -1,172 +1,82 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Check, CheckCheck, Loader2, MessageCircle, Phone, Send, X } from 'lucide-react';
-import { useOrderChat, type ChatMessage } from '../../hooks/queries/useOrderChat';
+import { Loader2, Phone, X } from 'lucide-react';
+import { useOrderChat } from '../../hooks/queries/useOrderChat';
 import { useAuthStore } from '../../store/useAuthStore';
 import { initiateCall } from '../../lib/callUtils';
+import { ChatBubble, type ChatBubbleStatus } from './ChatBubble';
+import { ChatInput } from './ChatInput';
+import { ChatEmpty } from './ChatEmpty';
+import { QuickReplyChips } from './QuickReplyChips';
 
-// ── Quick reply chips ─────────────────────────────────────────────────────────
 const COURIER_QUICK = [
   "Yo'ldaman",
-  "5 daqiqada yetaman",
+  '5 daqiqada yetaman',
   "Manzilni to'g'rilang",
-  "Qayerda kutasiz?",
-  "Restoranda kutmoqdaman",
-];
+  'Qayerda kutasiz?',
+  'Restoranda kutmoqdaman',
+] as const;
 
 const CUSTOMER_QUICK = [
-  "OK, kutaman",
+  'OK, kutaman',
   "Eshik oldida bo'laman",
   "Qo'ng'iroq qiling",
-  "10 daqiqa kuting",
-  "Tayyor",
-];
+  '10 daqiqa kuting',
+  'Tayyor',
+] as const;
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
 }
 
-// ── Read receipt ──────────────────────────────────────────────────────────────
-function ReadReceipt({ isRead, isDark }: { isRead: boolean; isDark: boolean }) {
-  const cls = `inline-flex items-center ml-1 ${
-    isRead
-      ? 'text-indigo-300'
-      : isDark
-        ? 'text-white/35'
-        : 'text-slate-300'
-  }`;
-  return (
-    <span className={cls}>
-      {isRead ? <CheckCheck size={12} /> : <Check size={12} />}
-    </span>
-  );
+function authorLabelOf(role: 'COURIER' | 'CUSTOMER' | 'ADMIN') {
+  if (role === 'COURIER') return 'Kuryer';
+  if (role === 'ADMIN') return 'Operator';
+  return 'Mijoz';
 }
 
-// ── Message bubble ────────────────────────────────────────────────────────────
-const MessageBubble = React.memo(function MessageBubble({
-  msg,
-  isMine,
-  theme,
-}: {
-  msg: ChatMessage;
-  isMine: boolean;
-  theme: 'light' | 'dark';
-}) {
-  const isDark = theme === 'dark';
-  const isSending = msg._status === 'sending';
-
-  return (
-    <div className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-      <div
-        className={`max-w-[75%] rounded-[18px] px-3.5 py-2.5 transition-opacity ${
-          isSending ? 'opacity-60' : 'opacity-100'
-        } ${
-          isMine
-            ? isDark
-              ? 'rounded-br-[6px] bg-indigo-500 text-white'
-              : 'rounded-br-[6px] bg-indigo-600 text-white'
-            : isDark
-              ? 'rounded-bl-[6px] bg-white/[0.09] text-white/90'
-              : 'rounded-bl-[6px] bg-slate-100 text-slate-900'
-        }`}
-      >
-        {!isMine && (
-          <p
-            className={`mb-1 text-[10px] font-black uppercase tracking-wide ${
-              isDark ? 'text-white/45' : 'text-slate-400'
-            }`}
-          >
-            {msg.senderRole === 'COURIER' ? 'Kuryer' : msg.senderRole === 'ADMIN' ? 'Operator' : 'Mijoz'}
-          </p>
-        )}
-        <p className="text-[13px] font-semibold leading-snug">{msg.content}</p>
-        <div className="mt-1 flex items-center justify-end gap-0.5">
-          <p
-            className={`text-[10px] ${
-              isMine ? 'text-white/60' : isDark ? 'text-white/35' : 'text-slate-400'
-            }`}
-          >
-            {isSending ? '...' : formatTime(msg.createdAt)}
-          </p>
-          {isMine && (
-            isSending
-              ? <Loader2 size={10} className="ml-1 animate-spin text-white/50" />
-              : <ReadReceipt isRead={msg.isRead} isDark={isDark} />
-          )}
-        </div>
-      </div>
-    </div>
-  );
-});
-
-// ── Unread reminder banner ────────────────────────────────────────────────────
 function UnreadReminderBanner({
   phoneNumber,
-  isDark,
   onDismiss,
 }: {
   phoneNumber?: string | null;
-  isDark: boolean;
   onDismiss: () => void;
 }) {
-  const [show, setShow] = useState(false);
-
-  useEffect(() => {
-    // Animate in after a tick
-    const t = setTimeout(() => setShow(true), 50);
-    return () => clearTimeout(t);
-  }, []);
-
   const handleCall = () => initiateCall(phoneNumber);
 
   return (
-    <div
-      style={{
-        transition: 'transform 0.35s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s',
-        transform: show ? 'translateY(0)' : 'translateY(-20px)',
-        opacity: show ? 1 : 0,
-      }}
-      className={`mx-3 mb-2 flex items-center gap-3 rounded-[14px] p-3 ${
-        isDark ? 'bg-amber-500/15 border border-amber-400/20' : 'bg-amber-50 border border-amber-200'
-      }`}
-    >
-      {/* Pulsing phone icon */}
+    <div className="mx-3 mb-2 flex items-center gap-3 rounded-[14px] border border-amber-200 bg-amber-50 p-3 dark:border-amber-400/25 dark:bg-amber-500/15">
       <div className="relative shrink-0">
-        <div className="absolute inset-0 animate-ping rounded-full bg-amber-400 opacity-40" />
-        <div className={`relative flex h-9 w-9 items-center justify-center rounded-full ${
-          isDark ? 'bg-amber-400/20' : 'bg-amber-100'
-        }`}>
-          <Phone size={16} className="text-amber-500" />
+        <div className="absolute inset-0 animate-ping rounded-full bg-amber-400/40" />
+        <div className="relative flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-400/20">
+          <Phone size={16} className="text-amber-600 dark:text-amber-300" />
         </div>
       </div>
 
-      <div className="flex-1 min-w-0">
-        <p className={`text-[12px] font-black ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
+      <div className="min-w-0 flex-1">
+        <p className="text-[12px] font-black text-amber-800 dark:text-amber-200">
           Xabar o'qilmadi
         </p>
-        <p className={`text-[11px] font-medium truncate ${isDark ? 'text-amber-300/70' : 'text-amber-700'}`}>
+        <p className="truncate text-[11px] font-medium text-amber-700 dark:text-amber-300/80">
           Qo'ng'iroq qilib ko'rasizmi?
         </p>
       </div>
 
       <div className="flex shrink-0 gap-2">
-        {phoneNumber && (
+        {phoneNumber ? (
           <button
+            type="button"
             onClick={handleCall}
-            className={`flex h-8 items-center gap-1.5 rounded-full px-3 text-[11px] font-black transition-all active:scale-95 ${
-              isDark
-                ? 'bg-amber-400/20 text-amber-300 hover:bg-amber-400/30'
-                : 'bg-amber-500 text-white hover:bg-amber-600'
-            }`}
+            className="flex h-8 items-center gap-1.5 rounded-full bg-amber-500 px-3 text-[11px] font-black text-white transition-all active:scale-95 dark:bg-amber-400/25 dark:text-amber-200"
           >
             <Phone size={11} />
             Qo'ng'iroq
           </button>
-        )}
+        ) : null}
         <button
+          type="button"
           onClick={onDismiss}
-          className={`flex h-8 w-8 items-center justify-center rounded-full transition-all active:scale-95 ${
-            isDark ? 'bg-white/8 text-white/50' : 'bg-slate-100 text-slate-400'
-          }`}
+          aria-label="Yopish"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-all active:scale-95 dark:bg-white/10 dark:text-white/60"
         >
           <X size={13} />
         </button>
@@ -175,16 +85,15 @@ function UnreadReminderBanner({
   );
 }
 
-// ── Main panel ────────────────────────────────────────────────────────────────
-
 interface OrderChatPanelProps {
   orderId: string;
   role: 'courier' | 'customer';
-  /** Phone number of the OTHER party (customer → courier phone; courier → customer phone) */
+  /** Phone number of the OTHER party */
   otherPartyPhone?: string | null;
   onClose?: () => void;
+  /** Soft override: forces a wrapper class so dark: variants activate */
   theme?: 'light' | 'dark';
-  /** If true renders inline (no overlay/backdrop) */
+  /** Renders inline (no overlay/backdrop) */
   inline?: boolean;
 }
 
@@ -193,15 +102,14 @@ export const OrderChatPanel: React.FC<OrderChatPanelProps> = ({
   role,
   otherPartyPhone,
   onClose,
-  theme = 'light',
+  theme,
   inline = false,
 }) => {
   const userId = useAuthStore((s) => s.user?.id ?? '');
   const [showReminder, setShowReminder] = useState(false);
   const [draft, setDraft] = useState('');
   const bottomRef = useRef<HTMLDivElement | null>(null);
-  const inputRef = useRef<HTMLTextAreaElement | null>(null);
-  const isDark = theme === 'dark';
+  const listRef = useRef<HTMLDivElement | null>(null);
 
   const { messages, isLoading, sendMessage, isSending, connected } = useOrderChat(
     orderId,
@@ -212,20 +120,17 @@ export const OrderChatPanel: React.FC<OrderChatPanelProps> = ({
   );
 
   const quickReplies = role === 'courier' ? COURIER_QUICK : CUSTOMER_QUICK;
-  const listRef = useRef<HTMLDivElement | null>(null);
 
-  // Initial scroll to bottom when messages first load
   const didInitialScrollRef = useRef(false);
   useEffect(() => {
     if (!isLoading && messages.length > 0 && !didInitialScrollRef.current) {
       didInitialScrollRef.current = true;
-      bottomRef.current?.scrollIntoView({ behavior: 'instant' });
+      bottomRef.current?.scrollIntoView({ behavior: 'instant' as ScrollBehavior });
     }
   }, [isLoading, messages.length]);
 
-  // Smart scroll: only auto-scroll when user is already near the bottom
   useEffect(() => {
-    if (!didInitialScrollRef.current) return; // wait for initial scroll first
+    if (!didInitialScrollRef.current) return;
     const list = listRef.current;
     if (!list) return;
     const isNearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 120;
@@ -238,186 +143,117 @@ export const OrderChatPanel: React.FC<OrderChatPanelProps> = ({
     const text = draft.trim();
     if (!text || isSending) return;
     setDraft('');
-    setShowReminder(false); // hide reminder when user is actively sending
+    setShowReminder(false);
     try {
       await sendMessage(text);
     } catch {
-      setDraft(text); // restore on error
+      setDraft(text);
     }
   };
 
-  const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      void handleSend();
-    }
-  };
-
-  const handleCall = () => {
-    initiateCall(otherPartyPhone);
-  };
+  const wrapperCls = theme === 'dark' ? 'dark' : theme === 'light' ? '' : '';
 
   const content = (
     <div
-      className={`flex h-full flex-col ${
-        isDark ? 'bg-slate-950 text-white' : 'bg-white text-slate-900'
-      }`}
+      className={`${wrapperCls} flex h-full flex-col bg-[var(--app-bg)] text-[var(--app-text)]`}
     >
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div
-        className={`flex shrink-0 items-center justify-between px-4 py-3 ${
-          isDark ? 'border-b border-white/8' : 'border-b border-slate-100'
-        }`}
-      >
-        <div className="flex items-center gap-2.5">
-          <MessageCircle size={18} className={isDark ? 'text-indigo-300' : 'text-indigo-500'} />
-          <p className="text-[15px] font-black">
-            {role === 'courier' ? 'Mijoz bilan yozishuv' : 'Kuryer bilan yozishuv'}
+      <header className="flex h-14 shrink-0 items-center gap-2 border-b border-[var(--app-line)] bg-[var(--app-surface)] px-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="truncate text-[15px] font-black leading-tight text-[var(--app-text)]">
+              {role === 'courier' ? 'Mijoz bilan yozishuv' : 'Kuryer bilan yozishuv'}
+            </p>
+            <span
+              className={`h-2 w-2 shrink-0 rounded-full ${
+                connected ? 'bg-emerald-500' : 'bg-[var(--app-muted)] opacity-60'
+              }`}
+            />
+          </div>
+          <p className="truncate text-[11px] font-semibold text-[var(--app-muted)]">
+            {connected ? 'Onlayn' : 'Ulanish kutilmoqda'}
           </p>
-          {/* Live indicator */}
-          <span
-            className={`h-2 w-2 rounded-full ${
-              connected ? 'bg-emerald-400' : 'bg-slate-400 animate-pulse'
-            }`}
-          />
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* ── Call button (only shown when we have the other party's phone) ── */}
-          {otherPartyPhone && (
-            <button
-              type="button"
-              onClick={handleCall}
-              title={`${otherPartyPhone} ga qo'ng'iroq`}
-              className={`flex h-9 w-9 items-center justify-center rounded-full transition-all active:scale-90 ${
-                isDark
-                  ? 'bg-emerald-400/15 text-emerald-300 hover:bg-emerald-400/25'
-                  : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
-              }`}
-            >
-              <Phone size={16} />
-            </button>
-          )}
+        {otherPartyPhone ? (
+          <button
+            type="button"
+            onClick={() => initiateCall(otherPartyPhone)}
+            aria-label="Qo'ng'iroq"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/12 text-emerald-600 transition-all active:scale-95"
+          >
+            <Phone size={16} />
+          </button>
+        ) : null}
 
-          {onClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors active:scale-95 ${
-                isDark ? 'bg-white/8 text-white/60' : 'bg-slate-100 text-slate-500'
-              }`}
-            >
-              <X size={16} />
-            </button>
-          )}
-        </div>
-      </div>
+        {onClose ? (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Yopish"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--app-muted)] transition-colors active:scale-95 hover:bg-[var(--app-soft)]"
+          >
+            <X size={18} />
+          </button>
+        ) : null}
+      </header>
 
-      {/* ── Unread reminder (appears 60 s after unread message) ──────────── */}
-      {showReminder && (
+      {showReminder ? (
         <UnreadReminderBanner
           phoneNumber={otherPartyPhone}
-          isDark={isDark}
           onDismiss={() => setShowReminder(false)}
         />
-      )}
+      ) : null}
 
-      {/* ── Messages list ─────────────────────────────────────────────────── */}
-      <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3">
+      <div ref={listRef} className="flex-1 overflow-y-auto px-3 py-3">
         {isLoading ? (
           <div className="flex h-full items-center justify-center">
-            <Loader2 size={22} className="animate-spin text-slate-400" />
+            <Loader2 size={22} className="animate-spin text-[var(--app-muted)]" />
           </div>
         ) : messages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-            <div
-              className={`flex h-14 w-14 items-center justify-center rounded-full ${
-                isDark ? 'bg-white/8' : 'bg-slate-100'
-              }`}
-            >
-              <MessageCircle size={24} className={isDark ? 'text-white/30' : 'text-slate-300'} />
-            </div>
-            <p className={`text-[13px] font-bold ${isDark ? 'text-white/40' : 'text-slate-400'}`}>
-              Xabarlar yo'q
-            </p>
-            <p className={`text-[11px] ${isDark ? 'text-white/25' : 'text-slate-300'}`}>
-              Birinchi xabarni yuboring
-            </p>
-          </div>
+          <ChatEmpty />
         ) : (
-          <div className="space-y-2">
-            {messages.map((msg) => (
-              <MessageBubble
-                key={msg.id}
-                msg={msg}
-                isMine={msg.senderId === userId}
-                theme={theme}
-              />
-            ))}
+          <div className="space-y-1.5">
+            {messages.map((msg) => {
+              const isOwn = msg.senderId === userId;
+              const status: ChatBubbleStatus =
+                msg._status === 'sending'
+                  ? 'sending'
+                  : msg._status === 'error'
+                    ? 'failed'
+                    : msg.isRead
+                      ? 'read'
+                      : 'sent';
+
+              return (
+                <ChatBubble
+                  key={msg.id}
+                  side={isOwn ? 'own' : 'other'}
+                  text={msg.content}
+                  time={formatTime(msg.createdAt)}
+                  authorLabel={isOwn ? undefined : authorLabelOf(msg.senderRole)}
+                  status={isOwn ? status : undefined}
+                />
+              );
+            })}
             <div ref={bottomRef} />
           </div>
         )}
       </div>
 
-      {/* ── Quick reply chips ─────────────────────────────────────────────── */}
-      <div
-        className={`shrink-0 overflow-x-auto px-4 py-2 ${
-          isDark ? 'border-t border-white/8' : 'border-t border-slate-100'
-        }`}
-      >
-        <div className="flex gap-2">
-          {quickReplies.map((q) => (
-            <button
-              key={q}
-              type="button"
-              onClick={() => setDraft(q)}
-              className={`shrink-0 rounded-full px-3.5 py-1.5 text-[11px] font-black transition-colors active:scale-95 ${
-                isDark
-                  ? 'bg-white/8 text-white/70 hover:bg-white/14'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              {q}
-            </button>
-          ))}
-        </div>
+      <div className="shrink-0 border-t border-[var(--app-line)] bg-[var(--app-surface)] px-3 py-2">
+        <QuickReplyChips items={quickReplies} onPick={(value) => setDraft(value)} />
       </div>
 
-      {/* ── Input row ─────────────────────────────────────────────────────── */}
       <div
-        className={`shrink-0 px-3 py-3 ${
-          isDark ? 'border-t border-white/8' : 'border-t border-slate-100'
-        }`}
+        className="shrink-0 px-3 py-3"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}
       >
-        <div
-          className={`flex items-end gap-2 rounded-[22px] border px-3 py-2 ${
-            isDark ? 'border-white/10 bg-white/[0.06]' : 'border-slate-200 bg-slate-50'
-          }`}
-        >
-          <textarea
-            ref={inputRef}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={handleKey}
-            placeholder="Xabar yozing..."
-            rows={1}
-            maxLength={500}
-            className={`flex-1 resize-none bg-transparent text-[13px] font-semibold outline-none placeholder:font-normal ${
-              isDark ? 'text-white placeholder:text-white/30' : 'text-slate-900 placeholder:text-slate-400'
-            }`}
-            style={{ maxHeight: '96px', overflowY: 'auto' }}
-          />
-          <button
-            type="button"
-            onClick={() => void handleSend()}
-            disabled={!draft.trim() || isSending}
-            className={`mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all active:scale-95 disabled:opacity-40 ${
-              isDark ? 'bg-indigo-500 text-white' : 'bg-indigo-600 text-white'
-            }`}
-          >
-            {isSending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
-          </button>
-        </div>
+        <ChatInput
+          value={draft}
+          onChange={setDraft}
+          onSend={() => void handleSend()}
+          isSending={isSending}
+        />
       </div>
     </div>
   );
@@ -427,9 +263,9 @@ export const OrderChatPanel: React.FC<OrderChatPanelProps> = ({
   return (
     <div
       className="fixed inset-0 z-[300] flex flex-col"
-      style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)' }}
+      style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}
     >
-      <div className="mt-auto max-h-[70vh] w-full overflow-hidden rounded-t-[28px] shadow-2xl">
+      <div className="mt-auto max-h-[78vh] w-full overflow-hidden rounded-t-[24px] shadow-2xl">
         {content}
       </div>
     </div>

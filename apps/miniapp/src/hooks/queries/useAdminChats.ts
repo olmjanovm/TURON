@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -37,12 +37,41 @@ function chatKey(orderId: string) {
 
 /** Fetch admin inbox (orders with unread messages from couriers/customers) */
 export function useAdminInbox() {
-  return useQuery({
+  const queryClient = useQueryClient();
+  const query = useQuery({
     queryKey: ['admin-inbox'],
     queryFn: () => api.get('/orders/chats') as Promise<AdminInbox>,
-    refetchInterval: 15_000,
-    staleTime: 5_000,
+    refetchInterval: 30_000,
+    staleTime: 2_000,
   });
+
+  // ── Real-time refresh: piggyback on global SSE custom DOM events ──────────
+  // useOrdersRealtimeSync (mounted in AdminLayout) dispatches `turon:chat-message`
+  // and `turon:chat-read` whenever the SSE stream delivers a chat event.
+  // We invalidate the inbox query so unread counts update in <2s instead of 30s.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const invalidate = () => {
+      if (timer) return;
+      timer = setTimeout(() => {
+        timer = null;
+        queryClient.invalidateQueries({ queryKey: ['admin-inbox'] });
+      }, 120);
+    };
+
+    window.addEventListener('turon:chat-message', invalidate);
+    window.addEventListener('turon:chat-read', invalidate);
+    window.addEventListener('turon:support-message', invalidate);
+    return () => {
+      window.removeEventListener('turon:chat-message', invalidate);
+      window.removeEventListener('turon:chat-read', invalidate);
+      window.removeEventListener('turon:support-message', invalidate);
+      if (timer) clearTimeout(timer);
+    };
+  }, [queryClient]);
+
+  return query;
 }
 
 /**

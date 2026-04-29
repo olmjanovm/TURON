@@ -685,7 +685,6 @@ const OrderDetailPage: React.FC = () => {
         <OrderChatPanel
           orderId={order.id}
           role="customer"
-          theme="dark"
           onClose={() => setIsChatOpen(false)}
         />
       )}
