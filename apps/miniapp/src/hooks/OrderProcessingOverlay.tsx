@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { Headphones, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -12,19 +13,45 @@ export function OrderProcessingOverlay({ isVisible }: Props) {
   const navigate = useNavigate();
   const [elapsedSec, setElapsedSec] = React.useState(0);
 
-  // Lock body scroll while the overlay is visible so the page behind doesn't
-  // bleed into the screen on small heights.
+  // Lock both <html> and <body> scroll so the page behind the overlay can't
+  // scroll on any device (Telegram WebApp uses different scroll containers
+  // depending on platform). Restore previous values on unmount.
   React.useEffect(() => {
     if (!isVisible) return;
     setElapsedSec(0);
     const id = window.setInterval(() => {
       setElapsedSec((s) => s + 1);
     }, 1000);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+
+    const html = document.documentElement;
+    const body = document.body;
+    const prev = {
+      htmlOverflow: html.style.overflow,
+      bodyOverflow: body.style.overflow,
+      htmlPosition: html.style.position,
+      bodyPosition: body.style.position,
+      bodyTop: body.style.top,
+      bodyWidth: body.style.width,
+      scrollY: window.scrollY,
+    };
+
+    // Freeze the page beneath the overlay. Using `position: fixed` on body
+    // is the only reliable way to stop iOS Safari + Telegram WebApp scroll.
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    body.style.position = 'fixed';
+    body.style.top = `-${prev.scrollY}px`;
+    body.style.width = '100%';
+
     return () => {
       window.clearInterval(id);
-      document.body.style.overflow = prevOverflow;
+      html.style.overflow = prev.htmlOverflow;
+      body.style.overflow = prev.bodyOverflow;
+      body.style.position = prev.bodyPosition;
+      body.style.top = prev.bodyTop;
+      body.style.width = prev.bodyWidth;
+      // Restore scroll position so the underlying page doesn't jump.
+      window.scrollTo(0, prev.scrollY);
     };
   }, [isVisible]);
 
@@ -32,25 +59,37 @@ export function OrderProcessingOverlay({ isVisible }: Props) {
   const ss = String(elapsedSec % 60).padStart(2, '0');
   const isSlow = elapsedSec >= 18;
 
-  // Bug fix: clicking Support from the queue overlay used to push /customer/support
-  // on top of /customer/checkout. After replying to support, the user pressed back
-  // and ended up on the now-stale checkout/confirmation page. We replace checkout
-  // with /customer/orders first so back from support lands on the orders list.
+  // Bug fix: clicking Support from the queue overlay used to push
+  // /customer/support on top of the in-flight checkout. Replacing checkout
+  // with /customer/orders first means back from Support lands on the orders
+  // list instead of the stale confirmation screen.
   const goToSupport = () => {
     navigate('/customer/orders', { replace: true });
     navigate('/customer/support?topic=other');
   };
 
-  return (
+  // Render via portal so the overlay escapes any ancestor that creates a
+  // containing block (transform/filter/animate-in on CheckoutPage etc.).
+  const overlay = (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center px-4 animate-in fade-in duration-200"
+      className="animate-in fade-in duration-200"
       style={{
+        position: 'fixed',
+        inset: 0,
+        height: '100dvh',
+        width: '100vw',
+        zIndex: 99999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '0 16px',
         background: 'rgba(2,6,23,0.62)',
         backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
       }}
     >
       <div
-        className="w-full max-w-[360px] rounded-[24px] bg-[var(--app-surface)] text-[var(--app-text)] animate-in zoom-in-95 duration-300"
+        className="w-full max-w-[340px] rounded-[24px] bg-[var(--app-surface)] text-[var(--app-text)] animate-in zoom-in-95 duration-300"
         style={{ boxShadow: 'var(--app-card-shadow)' }}
       >
         <div className="flex flex-col items-center gap-4 px-6 py-7 text-center">
@@ -63,9 +102,7 @@ export function OrderProcessingOverlay({ isVisible }: Props) {
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--app-muted)]">
               Buyurtma navbatda
             </p>
-            <h3 className="mt-2 text-[20px] font-black tracking-tight">
-              Bir oz kuting…
-            </h3>
+            <h3 className="mt-2 text-[20px] font-black tracking-tight">Bir oz kuting…</h3>
             <p className="mt-2 text-[12px] font-semibold leading-5 text-[var(--app-muted)]">
               {isSlow
                 ? "Internet sekin bo'lishi mumkin, jarayon davom etyapti."
@@ -92,4 +129,9 @@ export function OrderProcessingOverlay({ isVisible }: Props) {
       </div>
     </div>
   );
+
+  // Mount on document.body so it sits at the top of the DOM tree,
+  // unaffected by parent transforms/filters or layout containers.
+  if (typeof document === 'undefined') return overlay;
+  return createPortal(overlay, document.body);
 }

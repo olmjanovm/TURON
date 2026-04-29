@@ -16,6 +16,7 @@ const NO_HEADER_PATHS = [
   /^\/customer$/,
   /^\/customer\/search$/,
   /^\/customer\/orders\/[^/]+$/, // order detail owns its full-bleed hero
+  /^\/customer\/support/, // chat surface owns its own ChatHeader
 ];
 
 const HIDE_BOTTOM_NAV_PATHS = [

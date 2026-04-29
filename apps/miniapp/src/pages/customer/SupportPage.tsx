@@ -97,9 +97,14 @@ const SupportPage: React.FC = () => {
     ? `#${order.orderNumber} · ${formatText(order.customerAddress?.addressText || "Manzil ko'rsatilmagan")}`
     : 'Umumiy savol';
 
+  // Pin the chat surface to the viewport so the input always stays at the
+  // bottom of 100dvh and the page never scrolls. Messages list scrolls inside.
   return (
     <div
-      className="flex h-[100dvh] flex-col bg-[var(--app-bg)] text-[var(--app-text)]"
+      className="fixed inset-0 z-40 flex flex-col bg-[var(--app-bg)] text-[var(--app-text)]"
+      style={{
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+      }}
     >
       <ChatHeader
         title="Operator bilan yozishuv"
@@ -113,7 +118,7 @@ const SupportPage: React.FC = () => {
         }}
       />
 
-      <div className="flex-1 overflow-y-auto px-3 py-3">
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
         {isLoading ? (
           <div className="flex h-full items-center justify-center">
             <Loader2 size={22} className="animate-spin text-[var(--app-muted)]" />
@@ -154,7 +159,7 @@ const SupportPage: React.FC = () => {
       </div>
 
       <div
-        className="shrink-0 px-3 py-3"
+        className="shrink-0 bg-[var(--app-bg)] px-3 py-3"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}
       >
         <ChatInput
