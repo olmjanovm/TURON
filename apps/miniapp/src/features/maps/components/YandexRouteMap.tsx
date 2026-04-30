@@ -6,16 +6,46 @@ import MockMapComponent from './MockMapComponent';
 import { useCourierStore } from '../../../store/courierStore';
 import {
   arrowSpotsAlongPolyline,
+  haversineMeters,
   projectOntoPolyline,
   type LngLat,
 } from '../../../lib/routeGeometry';
 
 const FALLBACK_MESSAGE = 'Demo xarita ishlatilmoqda. Yandex uchun `VITE_MAP_API_KEY` ni sozlang.';
-const NAV_ZOOM = 17;
-const DEFAULT_NAV_TILT = 50; // degrees: 0 = flat overhead, 50 = 3D like Yandex Maps app
+
+// Navigation camera tuning — these values drive the "real navigator" feel.
+// They were chosen to match Yandex Navigator / Uber Driver:
+//   - close zoom (lane-level)
+//   - strong tilt (3D road perspective)
+//   - center pushed ~85m ahead of the courier so the arrow sits in the
+//     lower third of the screen and the route ahead fills the rest.
+const NAV_ZOOM = 17.6;
+const DEFAULT_NAV_TILT = 55;
+const FORWARD_OFFSET_DEGREES = 0.00075; // ≈ 85m at Tashkent latitude
+const CAMERA_PAN_DURATION_MS = 800;
+const CAMERA_AZIMUTH_DURATION_MS = 320;
+const MIN_PAN_METERS = 1.6;
+const MIN_PAN_INTERVAL_MS = 350;
 
 function normalizeDegrees(value: number) {
   return ((value % 360) + 360) % 360;
+}
+
+/**
+ * Push the camera target ~85m forward from the courier in the heading
+ * direction. The result drops the courier marker into the lower third of
+ * the viewport so the road ahead fills most of the screen — Yandex
+ * Navigator's classic camera framing.
+ */
+function forwardOffset(
+  pos: { lat: number; lng: number },
+  headingDeg: number,
+): { lat: number; lng: number } {
+  const rad = (headingDeg * Math.PI) / 180;
+  return {
+    lng: pos.lng + Math.sin(rad) * FORWARD_OFFSET_DEGREES,
+    lat: pos.lat + Math.cos(rad) * FORWARD_OFFSET_DEGREES,
+  };
 }
 
 // ── DOM marker factories ──────────────────────────────────────────────────────
@@ -202,30 +232,55 @@ export default function YandexRouteMap({
     onRouteInfoRef.current?.(info);
   }
 
+  // Throttle / dedupe state for the navigation camera.
+  const lastPanCenterRef = useRef<{ lat: number; lng: number } | null>(null);
+  const lastPanTickRef   = useRef<number>(0);
+
   // ── Camera update (rotation + tilt + pan) ───────────────────────────────
-  function updateCamera(pos: { lat: number; lng: number }, zoom?: number) {
+  // Always pass `zoom` and `tilt` explicitly — some ymaps3 builds reset them
+  // when the property is omitted from a subsequent location.update(). This
+  // is the fix for the "goh zoom 17, goh 19, goh 16" jumping observed on
+  // device.
+  function updateCamera(pos: { lat: number; lng: number }, opts?: { force?: boolean }) {
     const map = mapRef.current;
     if (!map) return;
 
-    cameraAzimuthRef.current = headingRef.current;
+    // Dead-zone + throttle: skip nano-moves and back-to-back updates so the
+    // camera doesn't jitter when GPS reports identical coords twice or only
+    // wobbles by a meter or two due to multipath.
+    const now = Date.now();
+    const last = lastPanCenterRef.current;
+    if (!opts?.force && last) {
+      const moved = haversineMeters([last.lng, last.lat], [pos.lng, pos.lat]);
+      const sinceLast = now - lastPanTickRef.current;
+      if (moved < MIN_PAN_METERS && sinceLast < 4000) return;
+      if (sinceLast < MIN_PAN_INTERVAL_MS) return;
+    }
+
+    const heading = headingRef.current;
+    cameraAzimuthRef.current = heading;
     cameraTiltRef.current = tiltRef.current;
-    syncCourierRotation(headingRef.current, cameraAzimuthRef.current);
+    syncCourierRotation(heading, cameraAzimuthRef.current);
+
+    // Forward-bias: drop the courier into the lower third of the viewport.
+    const target = forwardOffset(pos, heading);
 
     try {
       map.update({
         location: {
-          center: toLngLat(pos),
-          ...(zoom !== undefined ? { zoom } : {}),
-          duration: 600,
-        },
-        camera: {
-          azimuth: cameraAzimuthRef.current,
+          center: toLngLat(target),
+          zoom: NAV_ZOOM,
+          azimuth: heading,
           tilt: cameraTiltRef.current,
+          duration: CAMERA_PAN_DURATION_MS,
         },
       });
     } catch {
-      try { map.setLocation?.({ center: toLngLat(pos), duration: 600 }); } catch { /* skip */ }
+      try { map.setLocation?.({ center: toLngLat(target), duration: CAMERA_PAN_DURATION_MS }); } catch { /* skip */ }
     }
+
+    lastPanCenterRef.current = { lat: pos.lat, lng: pos.lng };
+    lastPanTickRef.current = now;
   }
 
   // ── Route polyline update ────────────────────────────────────────────────
@@ -425,6 +480,15 @@ export default function YandexRouteMap({
   }, []);
 
   // ── Re-route when pickup / destination change ────────────────────────────
+  // CRITICAL: deps must NOT include the courier's position (`activeFrom` /
+  // `pickup`). Otherwise every GPS tick destroys the multiRoute model and
+  // recreates it, which wipes the polyline and resets the camera — exactly
+  // the "tinmay o'zgarmoqda" behaviour reported on device.
+  //
+  // Position updates flow through `tracker.updateOrigin()` in the GPS
+  // effect below. This effect only fires when the pickup or destination
+  // *target* changes (e.g. stage transition: PICKED_UP → DELIVERING swaps
+  // the `currentTarget` from restaurant to customer).
   useEffect(() => {
     const tracker = trackerRef.current;
     if (!tracker) return;
@@ -432,16 +496,14 @@ export default function YandexRouteMap({
     try { pickupMarkerRef.current?.update({ coordinates: toLngLat(pickup) }); }     catch { /* skip */ }
     try { destMarkerRef.current?.update({ coordinates: toLngLat(destination) }); } catch { /* skip */ }
 
-    // Clear cached polyline so GPS effect doesn't splice stale coords
     lastPolylineCoordsRef.current = [];
-    // Re-init the multiRoute model with new endpoints (old model is cleanly destroyed inside)
     void tracker.init(activeFrom, activeTo);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     pickup.lat, pickup.lng,
     destination.lat, destination.lng,
-    activeFrom.lat, activeFrom.lng,
-    activeTo.lat,   activeTo.lng,
+    activeTo.lat, activeTo.lng,
+    // activeFrom intentionally OMITTED — we don't want a tick-by-tick re-init.
   ]);
 
   // ── GPS position update: move marker + camera + update route origin ──────
@@ -493,13 +555,14 @@ export default function YandexRouteMap({
       try { courierMarkerRef.current.update({ coordinates: displayCoord }); } catch { /* skip */ }
     }
 
-    // Follow mode camera
+    // Follow mode camera. First fix is forced (skips throttle so the
+    // courier sees a "snap-to-me" zoom-in even if the GPS was stationary).
     if (followModeRef.current && !isManualRef.current) {
       if (!hasNavZoomedRef.current) {
         hasNavZoomedRef.current = true;
-        updateCamera(courierPos, NAV_ZOOM); // first fix: zoom to street level
+        updateCamera(courierPos, { force: true });
       } else {
-        updateCamera(courierPos);           // subsequent: smooth pan only
+        updateCamera(courierPos);
       }
     }
 
@@ -533,29 +596,32 @@ export default function YandexRouteMap({
   // qat'i nazar. Faqat camera pan (markaz siljishi) followMode ga bog'liq.
   // location: { azimuth, tilt } ishlatiladi — ba'zi ymaps3 versiyalarida
   // camera: {} obyekti bilan update() tilt ni reset qilishi kuzatilgan.
+  // Track the last azimuth we pushed so we can skip sub-degree micro-updates.
+  const lastAzimuthRef = useRef<number>(0);
   useEffect(() => {
     if (!mapRef.current) return;
 
-    // 1. Marker relativ aylanishini sinxronlashtirish
     cameraAzimuthRef.current = smoothedHeading;
     cameraTiltRef.current = tiltRef.current;
     syncCourierRotation(smoothedHeading, cameraAzimuthRef.current);
     if (courierElRef.current) {
-      // Azimuth = heading bo'lganda relativ = 0 (marker doim "oldinga" qaradi)
       courierElRef.current.style.transform = `translate(-50%,-50%) rotate(0deg)`;
     }
 
-    // 2. Kamera azimutini yangilash — followMode yoki isManual ga bog'liq EMAS
-    //    (kompas doim jonli bo'lishi kerak; faqat camera.center followMode da o'zgaradi)
+    // Skip imperceptible rotations to keep the map from twitching with sensor
+    // noise. 1.5° matches the human "did the road turn?" threshold.
+    const delta = Math.abs(((smoothedHeading - lastAzimuthRef.current + 540) % 360) - 180);
+    if (delta < 1.5) return;
+    lastAzimuthRef.current = smoothedHeading;
+
     try {
       mapRef.current.update({
         location: {
           azimuth: smoothedHeading,
-          tilt: tiltRef.current,   // tilt ni ham berish — update da reset bo'lmasligi uchun
-          duration: 150,
+          tilt: tiltRef.current,
+          duration: CAMERA_AZIMUTH_DURATION_MS,
         },
       });
-      console.log('[CourierMap] azimuth update:', smoothedHeading.toFixed(1), '°');
     } catch { /* skip if map not ready */ }
   }, [smoothedHeading, tilt]);
 
