@@ -1372,15 +1372,55 @@ function bindHandlers(bot: Telegraf) {
     }
   });
 
-  // Handle admin support replies
+  // ── Admin support replies ────────────────────────────────────────────────
+  //
+  // Telegraf splits incoming updates by chat type:
+  //   - Private DM, group, supergroup → `message` / `edited_message`
+  //   - Broadcast channel              → `channel_post` / `edited_channel_post`
+  //
+  // The order-forward chat is a CHANNEL on this deployment, so listening only
+  // for `message` meant admin replies in the order channel were never seen by
+  // our reply handler — `handleAdminSupportReply` was only being invoked for
+  // private/group replies. Bot was effectively deaf in the channel where
+  // admins actually post replies. Wire all four update types through the
+  // same handler so a reply lands in `support_messages` regardless of where
+  // the admin typed it.
+  const handleIncoming = async (
+    msg: any,
+    source: 'message' | 'channel_post' | 'edited_message' | 'edited_channel_post',
+  ) => {
+    if (!msg) return;
+    if ('contact' in msg && msg.contact) {
+      // Private contact share — only reachable from a `message` event but
+      // safe to early-out elsewhere.
+      try { await syncSharedTelegramContact(msg); } catch { /* ignore */ }
+    }
+    if ('text' in msg && typeof msg.text === 'string') {
+      try {
+        await handleAdminSupportReply(msg);
+      } catch (err) {
+        console.warn(`[Bot] reply routing failed (source=${source}):`, err);
+      }
+    }
+  };
+
   bot.on('message', async (ctx, next) => {
-    const message = ctx.message;
-    if ('contact' in message && message.contact) {
-      await syncSharedTelegramContact(message);
-    }
-    if ('text' in message) {
-      await handleAdminSupportReply(message);
-    }
+    await handleIncoming(ctx.message, 'message');
+    return next();
+  });
+
+  bot.on('channel_post', async (ctx, next) => {
+    await handleIncoming((ctx as any).channelPost, 'channel_post');
+    return next();
+  });
+
+  bot.on('edited_message', async (ctx, next) => {
+    await handleIncoming((ctx as any).editedMessage, 'edited_message');
+    return next();
+  });
+
+  bot.on('edited_channel_post', async (ctx, next) => {
+    await handleIncoming((ctx as any).editedChannelPost, 'edited_channel_post');
     return next();
   });
 

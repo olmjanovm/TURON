@@ -7,6 +7,7 @@ import { ShoppingCart } from 'lucide-react';
 import { ToastContainer } from '../ui/ToastContainer';
 import { playSound } from '../../utils/soundEffects';
 import { useMenuStream } from '../../hooks/queries/useMenu';
+import { prefetchCustomerRoutes } from '../../lib/prefetchRoutes';
 
 const RED = '#C62020';
 const HOME_PATH = '/customer';
@@ -84,6 +85,13 @@ const CustomerLayout: React.FC = () => {
   // useCartStore.syncWithProducts so cart items stay accurate when admin
   // changes prices / availability mid-session.
   useMenuStream();
+
+  // Warm the customer's secondary route chunks during browser idle time so
+  // navigation feels instant (no Suspense round-trip on tap). Idempotent —
+  // only runs once per session even though the layout may remount.
+  React.useEffect(() => {
+    prefetchCustomerRoutes();
+  }, []);
   const isTypingElement = (element: Element | null) => {
     if (!element) return false;
     const tag = element.tagName;
