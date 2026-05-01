@@ -1,7 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, API_BASE_URL } from '../../lib/api';
 import type { CategoryFormData, MenuCategory, MenuProduct, ProductFormData } from '../../features/menu/types';
+import { useCartStore } from '../../store/useCartStore';
+import { useToastStore } from '../../store/useToastStore';
 
 const menuKeys = {
   all: ['menu'] as const,
@@ -173,15 +175,91 @@ export const useDeleteProduct = () => {
   });
 };
 
-/** Subscribes to live menu updates via SSE. Call this in MenuPage. */
+/**
+ * Subscribes to live menu updates via SSE.
+ *
+ * Mount this once at the customer layout level — every menu mutation on
+ * the admin side fires `menu.updated` over the `/menu/stream` SSE channel,
+ * which we react to by:
+ *
+ *   1. Invalidating every cached menu query (`menuKeys.all` catches the
+ *      products list, categories list, individual product detail
+ *      (`useProductById`), and the admin lists).
+ *   2. Refetching the public products list and replaying it through the
+ *      cart store's `syncWithProducts()` so any item the customer is
+ *      already holding gets its price/availability snapshot refreshed.
+ *      If a price actually changed we surface a toast in Uzbek so the
+ *      customer notices before they hit checkout.
+ */
 export const useMenuStream = () => {
   const queryClient = useQueryClient();
+  const reconnectTimerRef = useRef<number | null>(null);
+
   useEffect(() => {
-    const es = new EventSource(`${API_BASE_URL}/menu/stream`);
-    es.onmessage = () => {
-      void queryClient.invalidateQueries({ queryKey: menuKeys.products });
-      void queryClient.invalidateQueries({ queryKey: menuKeys.categories });
+    let closed = false;
+    let es: EventSource | null = null;
+
+    const handleUpdate = async () => {
+      // Invalidate every menu-related query in one shot.
+      void queryClient.invalidateQueries({ queryKey: menuKeys.all });
+
+      // Pull a fresh products list and replay into the cart so prices /
+      // availability stay in sync across every customer page.
+      try {
+        const fresh = (await api.get('/menu/products')) as MenuProduct[];
+        const beforeItems = useCartStore.getState().items;
+        if (beforeItems.length === 0) return;
+
+        const freshById = new Map(fresh.map((p) => [p.id, p]));
+        const priceChanges = beforeItems
+          .map((item) => {
+            const product = freshById.get(item.menuItemId ?? item.id);
+            if (!product) return null;
+            if (Number(product.price) === Number(item.price)) return null;
+            return { name: item.name, oldPrice: item.price, newPrice: product.price };
+          })
+          .filter((change): change is NonNullable<typeof change> => change !== null);
+
+        useCartStore.getState().syncWithProducts(fresh);
+
+        if (priceChanges.length > 0) {
+          const first = priceChanges[0];
+          const more = priceChanges.length > 1 ? ` (+${priceChanges.length - 1})` : '';
+          useToastStore
+            .getState()
+            .addToast(
+              `Narx yangilandi: ${first.name} — ${first.newPrice.toLocaleString()} so'm${more}`,
+              'info',
+              3500,
+            );
+        }
+      } catch {
+        // Non-critical — UI will refetch on the next React Query window
+      }
     };
-    return () => es.close();
+
+    const connect = () => {
+      if (closed) return;
+      es = new EventSource(`${API_BASE_URL}/menu/stream`);
+      es.onmessage = () => {
+        void handleUpdate();
+      };
+      es.onerror = () => {
+        // EventSource auto-reconnects, but reset the source on persistent
+        // failures so we don't hold a dead handle.
+        if (closed) return;
+        try { es?.close(); } catch { /* ignore */ }
+        if (reconnectTimerRef.current) window.clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = window.setTimeout(connect, 3000);
+      };
+    };
+
+    connect();
+
+    return () => {
+      closed = true;
+      if (reconnectTimerRef.current) window.clearTimeout(reconnectTimerRef.current);
+      try { es?.close(); } catch { /* ignore */ }
+    };
   }, [queryClient]);
 };

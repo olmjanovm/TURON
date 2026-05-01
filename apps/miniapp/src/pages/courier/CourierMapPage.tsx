@@ -31,6 +31,7 @@ import {
 import { DEFAULT_RESTAURANT_LOCATION } from '../../features/maps/restaurant';
 import { useGPS } from '../../hooks/useGPS';
 import { useCompass } from '../../hooks/useCompass';
+import { useGeofence } from '../../hooks/useGeofence';
 import { useCourierNavigation } from '../../hooks/useCourierNavigation';
 import { useCourierStore } from '../../store/courierStore';
 import { api } from '../../lib/api';
@@ -155,6 +156,16 @@ const CourierMapPage: React.FC = () => {
   // ── New hooks: GPS + Compass → courierStore ───────────────────────────────
   const { error: geolocationError } = useGPS();
   const { requestPermission: requestCompassPermission, compassPermission } = useCompass();
+
+  // Auto-stage transitions:
+  //   - 50m around restaurant → POST /courier/order/:id/arrived-restaurant
+  //   - 500m around customer  → POST /courier/order/:id/approaching
+  //   - 50m around customer   → POST /courier/order/:id/arrive-destination
+  // Geofence reads coords + restaurantCoords + customerCoords from
+  // courierStore (populated below by setStoreOrderInfo). It hooks at the
+  // top of the component so the rules-of-hooks are respected even when
+  // the order is still loading.
+  useGeofence();
 
   // ── Zustand store reads ────────────────────────────────────────────────────
   const storeCoords     = useCourierStore((s) => s.coords);

@@ -6,6 +6,7 @@ import { useCartStore } from '../../store/useCartStore';
 import { ShoppingCart } from 'lucide-react';
 import { ToastContainer } from '../ui/ToastContainer';
 import { playSound } from '../../utils/soundEffects';
+import { useMenuStream } from '../../hooks/queries/useMenu';
 
 const RED = '#C62020';
 const HOME_PATH = '/customer';
@@ -77,6 +78,12 @@ const CustomerLayout: React.FC = () => {
   const navigate = useNavigate();
   const cartCount = useCartStore((s) => s.getTotalItems());
   const [isKeyboardOpen, setIsKeyboardOpen] = React.useState(false);
+
+  // Single shared SSE connection for live menu updates. Invalidates every
+  // menu query, refetches the public products list, and replays it through
+  // useCartStore.syncWithProducts so cart items stay accurate when admin
+  // changes prices / availability mid-session.
+  useMenuStream();
   const isTypingElement = (element: Element | null) => {
     if (!element) return false;
     const tag = element.tagName;

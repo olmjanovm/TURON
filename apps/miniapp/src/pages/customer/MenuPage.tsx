@@ -8,7 +8,7 @@ import {
 } from '../../components/customer/CustomerComponents';
 import { useCustomerLanguage } from '../../features/i18n/customerLocale';
 import { getCustomerCategoryLabel, sortCustomerCategories } from '../../features/menu/customerCatalog';
-import { useCategories, useProducts, useMenuStream } from '../../hooks/queries/useMenu';
+import { useCategories, useProducts } from '../../hooks/queries/useMenu';
 import { ProductAvailabilityEnum } from '@turon/shared';
 
 function getCategoryIcon(label: string) {
@@ -24,7 +24,8 @@ const MenuPage: React.FC = () => {
   const navigate = useNavigate();
   const { data: categories = [], isLoading: isCategoriesLoading } = useCategories();
   const { data: products = [], isLoading: isProductsLoading } = useProducts();
-  useMenuStream();
+  // useMenuStream() is mounted at CustomerLayout — covers every menu screen
+  // (menu, product detail, cart, checkout) with one SSE connection.
   const { formatText } = useCustomerLanguage();
   const [searchQuery, setSearchQuery] = useState('');
   
