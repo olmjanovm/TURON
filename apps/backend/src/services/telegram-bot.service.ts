@@ -717,7 +717,14 @@ function buildAdminOrderNotificationText(order: {
     '',
     `<b>To'lov</b>`,
     `Usul: ${escapeHtml(paymentLabel)}`,
-    order.hasReceipt ? `Chek: yuborilgan` : null,
+    // Receipt is optional. If the customer didn't attach one, surface a clear
+    // hint so admin knows to expect it via Telegram DM rather than treating
+    // its absence as a failure.
+    order.hasReceipt
+      ? `Chek: yuborilgan ✅`
+      : (order.paymentMethod === PaymentMethodEnum.MANUAL_TRANSFER
+          ? `Chek: ⚠️ alohida yuboriladi (mijoz Telegram orqali)`
+          : null),
     `Mahsulotlar: ${formatMoney(order.subtotal)} so'm`,
     `Yetkazib berish: ${formatMoney(order.deliveryFee)} so'm`,
     `<b>Jami: ${formatMoney(order.total)} so'm</b>`,

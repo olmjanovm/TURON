@@ -377,11 +377,12 @@ const CheckoutPage: React.FC = () => {
       return;
     }
 
-    // Require receipt image when paying by card
-    if (paymentMethod === 'MANUAL_TRANSFER' && !receiptImage) {
-      showToast("Iltimos, to'lov chekini (screenshot) yuklang.", 'warning');
-      return;
-    }
+    // Receipt image is OPTIONAL for MANUAL_TRANSFER. Admin can review the
+    // payment proof either from the upload (if present) or from Telegram
+    // (customer sends it separately). Blocking confirm on the upload caused
+    // failed checkouts whenever the photo was too large or the network
+    // dropped mid-upload — bug reproduced in production. Treat the receipt
+    // as a "nice to have", not a gate.
 
     if (isProductsLoading) {
       showToast("Savat yangilanmoqda. Bir ozdan so'ng urinib ko'ring.", 'warning');
@@ -627,8 +628,8 @@ const CheckoutPage: React.FC = () => {
               createOrderMutation.isPending ||
               isProductsLoading ||
               orderQuoteQuery.isLoading ||
-              !orderQuote ||
-              (paymentMethod === 'MANUAL_TRANSFER' && !receiptImage)
+              !orderQuote
+              // Receipt image is OPTIONAL — see handleConfirmOrder note.
             }
             className="flex h-14 w-full items-center justify-center gap-2 rounded-[18px] bg-[#C62020] text-[15px] font-black text-white shadow-md transition-transform active:scale-[0.97] disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none"
           >

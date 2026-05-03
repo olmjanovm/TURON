@@ -85,11 +85,19 @@ const PaymentMethodSelector: React.FC = () => {
     }
   };
 
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isPreparing, setIsPreparing] = useState(false);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) return;
+    if (!file.type.startsWith('image/')) {
+      setUploadError("Faqat rasm fayllarini yuklang");
+      return;
+    }
 
+    setUploadError(null);
+    setIsPreparing(true);
     void prepareReceiptImage(file)
       .then((dataUrl) => {
         setReceiptPreview(dataUrl);
@@ -98,6 +106,15 @@ const PaymentMethodSelector: React.FC = () => {
       .catch(() => {
         setReceiptPreview(null);
         setReceiptImage(null);
+        // Receipt upload is optional — don't block confirm, but tell the
+        // user what happened so they can either retry or proceed without
+        // the upload (admin will see the receipt via Telegram).
+        setUploadError(
+          "Rasmni yuklab bo'lmadi. Boshqa rasm tanlang yoki adminga Telegram orqali yuboring.",
+        );
+      })
+      .finally(() => {
+        setIsPreparing(false);
       });
   };
 
@@ -165,7 +182,7 @@ const PaymentMethodSelector: React.FC = () => {
               Kartaga o'tkazmani amalga oshiring
             </p>
             <p className="mt-1.5 text-[11px] font-semibold text-slate-500">
-              Chekni yuklang — admin tasdiqlaydi
+              Chekni yuklang yoki Telegram orqali yuboring — admin tasdiqlaydi
             </p>
           </div>
           {paymentMethod === PaymentMethod.MANUAL_TRANSFER && (
@@ -210,11 +227,17 @@ const PaymentMethodSelector: React.FC = () => {
               )}
             </div>
 
-            {/* Check upload */}
+            {/* Check upload — OPTIONAL. Customer can either upload here or
+                send the screenshot to admin via Telegram after confirming. */}
             <div>
-              <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
-                To'lov cheki (screenshot yoki rasm)
-              </p>
+              <div className="mb-1.5 flex items-center justify-between">
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+                  To'lov cheki (rasm)
+                </p>
+                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-emerald-700">
+                  Ixtiyoriy
+                </span>
+              </div>
               {receiptPreview ? (
                 <div className="relative">
                   <img
@@ -244,9 +267,9 @@ const PaymentMethodSelector: React.FC = () => {
                     <Camera size={20} />
                   </div>
                   <div className="text-center">
-                    <p className="text-[13px] font-black text-slate-900">Chekni yuklang</p>
+                    <p className="text-[13px] font-black text-slate-900">Chekni yuklang (xohlasangiz)</p>
                     <p className="mt-1 text-[11px] text-slate-600">
-                      Galereyadan screenshot yoki rasm tanlang
+                      Aks holda chekni admin Telegram orqali ko'radi
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-black text-slate-700">
@@ -262,6 +285,16 @@ const PaymentMethodSelector: React.FC = () => {
                 className="hidden"
                 onChange={handleFileChange}
               />
+              {isPreparing ? (
+                <p className="mt-1.5 text-[11px] font-semibold text-slate-500">
+                  Rasm tayyorlanmoqda...
+                </p>
+              ) : null}
+              {uploadError ? (
+                <p className="mt-1.5 text-[11px] font-semibold text-amber-700">
+                  {uploadError}
+                </p>
+              ) : null}
             </div>
           </div>
         )}
