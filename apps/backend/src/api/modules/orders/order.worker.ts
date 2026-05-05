@@ -60,22 +60,27 @@ export const orderWorker = new Worker<OrderJobPayload>(
       return JSON.parse(existingKey.responseJson); // Eski natijani qaytarish
     }
 
-    // Katta rasmni Supabase ga yuklash — BEST-EFFORT.
-    // Order'ni storage upload xatosi tufayli rad etmaslik kerak: chek
-    // baribir admin Telegram'iga inline yuboriladi (sendOrderNotification…
-    // funksiyasi base64'ni qabul qiladi). Storage muvaffaqiyatsiz bo'lsa
-    // faqat admin paneldagi thumbnail yo'qoladi, lekin buyurtma o'tib ketadi.
-    let uploadedReceiptUrl = receiptImageUrl;
+    // Katta rasmni Supabase ga yuklash — BEST-EFFORT, DB FALLBACK.
+    //   1. Try Supabase Storage so admin panel renders a fast URL.
+    //   2. If Supabase fails, persist the raw base64 in DB. The admin panel's
+    //      <img src> handles `data:image/...;base64,...` URIs identically, so
+    //      the chek shows up either way.
+    //
+    // Order creation never aborts because of a receipt — chek also goes to the
+    // admin Telegram channel inline.
+    let uploadedReceiptUrl: string | null = receiptImageUrl ?? null;
     if (paymentMethod === 'MANUAL_TRANSFER' && !receiptImageUrl && receiptImageBase64) {
       try {
         const uploadedUrl = await StorageService.uploadBase64(receiptImageBase64, 'receipts');
         if (uploadedUrl) {
           uploadedReceiptUrl = uploadedUrl;
         } else {
-          console.warn('[OrderWorker] Receipt storage upload returned null — continuing without panel thumbnail.');
+          console.warn('[OrderWorker] Receipt storage upload returned null — falling back to inline base64 in DB.');
+          uploadedReceiptUrl = receiptImageBase64;
         }
       } catch (err) {
-        console.warn('[OrderWorker] Receipt storage upload threw — continuing without panel thumbnail.', err);
+        console.warn('[OrderWorker] Receipt storage upload threw — falling back to inline base64 in DB.', err);
+        uploadedReceiptUrl = receiptImageBase64;
       }
     }
 

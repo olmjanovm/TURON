@@ -697,17 +697,28 @@ export async function handleCreateOrder(
   //   - If it fails, log + continue. Order persists with `receiptImageBase64 = null`.
   //   - The receipt still reaches admin via Telegram (sendOrderNotificationToAdmin
   //     receives the raw base64 below), so they're not flying blind.
-  let uploadedReceiptUrl = receiptImageUrl;
+  // Receipt storage strategy (best-effort + DB fallback):
+  //   1. Try Supabase Storage — admin panel <img> renders the URL fast.
+  //   2. If Supabase fails (env missing / quota / network), persist the raw
+  //      base64 in `payment.receipt_image_base64` instead. The admin panel
+  //      <img src="..."> works equally for `data:image/...;base64,...` URIs,
+  //      so chek displays inline regardless of Supabase health.
+  //
+  //   Order creation NEVER fails because of receipt issues — chek is also
+  //   sent to the admin Telegram channel inline by sendOrderNotificationToAdmin.
+  let uploadedReceiptUrl: string | null = receiptImageUrl ?? null;
   if (paymentMethod === PaymentMethodEnum.MANUAL_TRANSFER && !receiptImageUrl && receiptImageBase64) {
     try {
       const uploadedUrl = await StorageService.uploadBase64(receiptImageBase64, 'receipts');
       if (uploadedUrl) {
         uploadedReceiptUrl = uploadedUrl;
       } else {
-        console.warn('[Orders] Receipt storage upload returned null — proceeding without panel thumbnail.');
+        console.warn('[Orders] Receipt storage upload returned null — falling back to inline base64 in DB.');
+        uploadedReceiptUrl = receiptImageBase64;
       }
     } catch (err) {
-      console.warn('[Orders] Receipt storage upload threw — proceeding without panel thumbnail.', err);
+      console.warn('[Orders] Receipt storage upload threw — falling back to inline base64 in DB.', err);
+      uploadedReceiptUrl = receiptImageBase64;
     }
   }
 

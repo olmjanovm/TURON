@@ -1,12 +1,15 @@
 import type { Order } from '../data/types';
 
-// Industry reference: Yandex Eats 15min PENDING, Uber Eats 10-15min, Uzum 30min
-// This app uses manual admin flow, so thresholds are longer:
-//   PENDING  → 2h  (no admin accepted it)
-//   Active statuses → 8h (stuck in pipeline)
-export const STALE_PENDING_MS = 2 * 60 * 60 * 1000;
-export const STALE_ACTIVE_MS = 8 * 60 * 60 * 1000;
-export const STALE_NOTIFICATION_MS = 2 * 60 * 60 * 1000;
+// Industry reference: Yandex Eats 15min PENDING, Uber Eats 10-15min, Uzum 30min.
+// This app uses a manual admin flow, so the threshold is longer.
+//
+// Per product feedback: orders older than 3 hours regardless of status (other
+// than DELIVERED / CANCELLED) drop into the "Eskirgan" bucket at the bottom
+// of the admin list so fresh work stays at the top.
+export const STALE_HOURS = 3;
+export const STALE_PENDING_MS = STALE_HOURS * 60 * 60 * 1000;
+export const STALE_ACTIVE_MS = STALE_HOURS * 60 * 60 * 1000;
+export const STALE_NOTIFICATION_MS = STALE_HOURS * 60 * 60 * 1000;
 
 const STALE_THRESHOLD_BY_STATUS: Partial<Record<string, number>> = {
   PENDING: STALE_PENDING_MS,
