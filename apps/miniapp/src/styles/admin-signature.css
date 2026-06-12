@@ -1,0 +1,227 @@
+/* ============================================================
+   ADMIN — SIGNATURE LAYER  (premium, jonli, o'ziga xos identitet)
+   ------------------------------------------------------------
+   Additiv qatlam: mavjud .admin-pro-* / .adminx-* klasslarni
+   SINDIRMAYDI — faqat ustiga premium ko'rinish va animatsiya qo'shadi.
+   Qoidalar:
+   - Faqat transform / opacity / filter animatsiyalari (GPU-friendly).
+   - prefers-reduced-motion va past quvvatli qurilmalarda o'chadi.
+   - admin-pro.css'dan KEYIN import qilinadi (tartib bo'yicha ustun).
+   ============================================================ */
+
+/* ── 1. Jonli aurora fon (tandir issiqligi emas — operatsion nur) ── */
+.admin-pro-shell {
+  position: relative;
+  isolation: isolate;
+}
+
+.admin-pro-shell::before {
+  content: '';
+  position: fixed;
+  inset: -25% -15% auto -15%;
+  height: 78vh;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(46% 42% at 18% 12%, rgba(14, 165, 233, 0.22), transparent 70%),
+    radial-gradient(42% 38% at 86% 4%, rgba(99, 102, 241, 0.18), transparent 72%),
+    radial-gradient(38% 34% at 62% 30%, rgba(139, 92, 246, 0.14), transparent 72%);
+  filter: blur(28px) saturate(1.1);
+  will-change: transform, opacity;
+  animation: admin-sig-aurora 26s ease-in-out infinite alternate;
+}
+
+.admin-pro-shell > * {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes admin-sig-aurora {
+  0%   { transform: translate3d(0, 0, 0) scale(1);       opacity: 0.85; }
+  50%  { transform: translate3d(-3%, 2%, 0) scale(1.09); opacity: 1;    }
+  100% { transform: translate3d(3%, -1%, 0) scale(1.05); opacity: 0.8;  }
+}
+
+/* ── 2. Sahifa kirishi — staggered "rise" ── */
+.adminx-page > *,
+.admin-pro-page-enter > * {
+  animation: admin-sig-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.adminx-page > *:nth-child(1) { animation-delay: 0.02s; }
+.adminx-page > *:nth-child(2) { animation-delay: 0.07s; }
+.adminx-page > *:nth-child(3) { animation-delay: 0.12s; }
+.adminx-page > *:nth-child(4) { animation-delay: 0.17s; }
+.adminx-page > *:nth-child(5) { animation-delay: 0.22s; }
+.adminx-page > *:nth-child(n + 6) { animation-delay: 0.27s; }
+
+@keyframes admin-sig-rise {
+  from { opacity: 0; transform: translate3d(0, 16px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ── 3. Premium kartalar — hover lift + nozik tepa sheen ── */
+.admin-pro-card {
+  position: relative;
+  transition:
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.18s ease,
+    box-shadow 0.22s ease;
+}
+.admin-pro-card::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+  opacity: 0.6;
+  pointer-events: none;
+}
+@media (hover: hover) {
+  .admin-pro-card:hover {
+    transform: translateY(-2px);
+  }
+}
+
+/* ── 4. Navigatsiya — gradient + glow + spring pop + indikator ── */
+.admin-pro-topbar .admin-pro-nav-item {
+  transition: color 0.2s ease, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.admin-pro-topbar .admin-pro-nav-item:active {
+  transform: scale(0.92);
+}
+.admin-pro-topbar .admin-pro-nav-item[data-active='true'] {
+  background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 55%, #6366f1 120%);
+  box-shadow:
+    0 6px 18px rgba(37, 99, 235, 0.5),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  animation: admin-sig-pop 0.34s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.admin-pro-topbar .admin-pro-nav-item[data-active='true']::after {
+  content: '';
+  position: absolute;
+  bottom: 5px;
+  left: 50%;
+  width: 16px;
+  height: 3px;
+  border-radius: 99px;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.7);
+}
+
+@keyframes admin-sig-pop {
+  0%   { transform: scale(0.88); }
+  60%  { transform: scale(1.07); }
+  100% { transform: scale(1); }
+}
+
+/* ── 5. Birlamchi tugma — gradient + sheen sweep ── */
+.admin-pro-button-primary,
+.admin-btn-save {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 58%, #6366f1 135%);
+  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.3);
+}
+.admin-pro-button-primary::after,
+.admin-btn-save::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -120%;
+  width: 60%;
+  height: 100%;
+  transform: skewX(-20deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  pointer-events: none;
+}
+@media (hover: hover) {
+  .admin-pro-button-primary:hover::after,
+  .admin-btn-save:hover::after {
+    animation: admin-sig-sheen 0.7s ease;
+  }
+}
+
+@keyframes admin-sig-sheen {
+  to { left: 130%; }
+}
+
+/* ── 6. Topbar — yengil jonli yuqori chiziq (premium hairline) ── */
+.admin-pro-topbar {
+  position: relative;
+  overflow: hidden;
+}
+.admin-pro-topbar::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1.5px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(14, 165, 233, 0.9),
+    rgba(99, 102, 241, 0.9),
+    transparent
+  );
+  background-size: 200% 100%;
+  will-change: background-position;
+  animation: admin-sig-flow 6s linear infinite;
+}
+
+@keyframes admin-sig-flow {
+  to { background-position: 200% 0; }
+}
+
+/* ── 7. "Jonli" sync nuqtasi — pulsatsiya halqasi ── */
+.admin-pro-sync-good {
+  position: relative;
+}
+.admin-pro-sync-good::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(16, 185, 129, 0.45);
+  animation: admin-sig-ring 1.8s ease-out infinite;
+}
+
+@keyframes admin-sig-ring {
+  0%   { transform: scale(0.7); opacity: 0.8; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+/* ── 8. Pending alert — nafas oluvchi urg'u ── */
+.adminx-home-alert {
+  position: relative;
+  overflow: hidden;
+}
+.adminx-home-alert::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(60% 120% at 100% 0%, rgba(239, 68, 68, 0.12), transparent 70%);
+  animation: admin-sig-breathe 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes admin-sig-breathe {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 1; }
+}
+
+/* ── 9. Past quvvat / reduced-motion — barcha bezak animatsiyalar o'chadi ── */
+@media (prefers-reduced-motion: reduce) {
+  .admin-pro-shell::before,
+  .adminx-page > *,
+  .admin-pro-page-enter > *,
+  .admin-pro-topbar::after,
+  .admin-pro-sync-good::before,
+  .adminx-home-alert::after,
+  .admin-pro-nav-item[data-active='true'] {
+    animation: none !important;
+  }
+  .admin-pro-card {
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+}

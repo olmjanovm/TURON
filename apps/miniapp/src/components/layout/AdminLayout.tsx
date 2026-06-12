@@ -7,6 +7,7 @@ import NotificationBadge from '../../features/notifications/components/Notificat
 import { useAdminOrders, useOrdersRealtimeSync } from '../../hooks/queries/useOrders';
 import { useOrdersStore } from '../../store/useOrdersStore';
 import '../../styles/admin-pro.css';
+import '../../styles/admin-signature.css';
 
 function playNewOrderBeep() {
   try {
