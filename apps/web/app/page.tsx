@@ -1,4 +1,5 @@
 import { UserRoleEnum } from '@turon/shared';
+import { AuthStatusBadge } from '@/components/auth-status-badge';
 
 // FAZA A1 — Next.js skelet sog'lik tekshiruvi.
 // @turon/shared import qilinishi workspace ulanishi ishlayotganini tasdiqlaydi.
@@ -14,8 +15,10 @@ export default function Page() {
 
       <p className="text-white/70 max-w-md leading-relaxed">
         Next.js 15 skelet ishga tushdi. Bu <span className="text-spark font-semibold">apps/web</span> —
-        migratsiyaning yangi poydevori. FAZA A1 ✅
+        migratsiyaning yangi poydevori. FAZA A1 + A2 ✅
       </p>
+
+      <AuthStatusBadge />
 
       <div className="flex flex-wrap justify-center gap-2">
         {ROLES.map((role) => (

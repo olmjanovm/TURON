@@ -1,7 +1,5 @@
 import type { NextConfig } from 'next';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL?.trim() || 'https://turonkafe.duckdns.org';
-
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   // Allow @turon/shared (workspace TS source) to be transpiled by Next.
@@ -18,17 +16,9 @@ const nextConfig: NextConfig = {
     };
     return config;
   },
-
-  // FAZA A1: barcha /api/* so'rovlar hozircha eski Fastify backendga proxy qilinadi.
-  // FAZA J'da bu route handlerlar bilan almashtiriladi.
-  async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${API_URL}/api/:path*`,
-      },
-    ];
-  },
+  // FAZA A1/A2: /api/* so'rovlar app/api/[...path] route handler orqali
+  // eski Fastify backendga proxy qilinadi (cookie -> Bearer). FAZA J'da
+  // route handlerlar to'g'ridan-to'g'ri packages/core'ni chaqiradi.
 };
 
 export default nextConfig;
