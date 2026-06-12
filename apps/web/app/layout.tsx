@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import { AppProviders } from '@/providers/app-providers';
+import { TIER_INIT_SCRIPT } from '@/lib/device-tier';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -25,6 +26,8 @@ export default function RootLayout({
   return (
     <html lang="uz">
       <head>
+        {/* Device tier'ni paint'dan OLDIN o'rnatadi (flash yo'q) */}
+        <script dangerouslySetInnerHTML={{ __html: TIER_INIT_SCRIPT }} />
         {/* Telegram WebApp SDK — interaktivlikdan oldin yuklanadi */}
         <Script
           src="https://telegram.org/js/telegram-web-app.js"

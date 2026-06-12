@@ -31,13 +31,39 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Device tier — FAZA A5'da JS bilan data-tier qo'yiladi.
-   lite tier'da og'ir animatsiyalar o'chadi. */
+/* ──────────────────────────────────────────────────────────────────────────
+   FAZA A5 — Device Tier.
+   <html data-tier="full|balanced|lite"> paint'dan oldin o'rnatiladi.
+   lite tier zaif qurilma uchun: og'ir bezak animatsiyalari to'liq o'chadi,
+   ammo layout/ranglar saqlanadi — UI "buzilgan" emas, "tinch" ko'rinadi.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* lite: faqat bezak (decorative) animatsiyalarni o'chiradi.
+   .tier-decor klassi qo'yilgan elementlar lite'da statik bo'ladi. */
+[data-tier='lite'] .tier-decor,
+[data-tier='lite'] .tier-decor::before,
+[data-tier='lite'] .tier-decor::after {
+  animation: none !important;
+}
+
+/* lite: parallax/3D effektlarni o'chiradi */
+[data-tier='lite'] .tier-3d {
+  transform: none !important;
+  perspective: none !important;
+}
+
+/* balanced: animatsiyalarni biroz tezlashtiradi (yengilroq) */
+[data-tier='balanced'] .tier-decor {
+  animation-duration: 0.6s !important;
+}
+
+/* prefers-reduced-motion — har qanday tier'dan ustun, hamma narsani tinchlantiradi */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
 }
