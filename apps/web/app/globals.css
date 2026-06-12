@@ -1,0 +1,43 @@
+@import 'tailwindcss';
+
+/* ──────────────────────────────────────────────────────────────────────────
+   TURON — Fire Design Tokens (FAZA A6 poydevori)
+   Hozirgi miniapp dizayni 1:1 token sifatida kodlangan.
+   ────────────────────────────────────────────────────────────────────────── */
+@theme {
+  /* Ember (cho'g') — tizimning yuragi */
+  --color-ember: #c62020;
+  --color-ember-dark: #9a1414;
+  /* Spark (olov uchquni) — CTA */
+  --color-spark: #c2ff00;
+  /* Tandir ichi — chuqur qora fon */
+  --color-tandir: #0b1220;
+
+  --radius-card: 30px;
+}
+
+:root {
+  color-scheme: light;
+  /* Telegram safe-area (FAZA A2'da to'ldiriladi) */
+  --tg-safe-top: 0px;
+  --tg-safe-bottom: 0px;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Device tier — FAZA A5'da JS bilan data-tier qo'yiladi.
+   lite tier'da og'ir animatsiyalar o'chadi. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
