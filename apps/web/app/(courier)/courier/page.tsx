@@ -9,6 +9,7 @@ import {
   useCourierOrders,
   useUpdateCourierStatus,
 } from '@/hooks/use-courier';
+import { useCourierSocket } from '@/hooks/use-courier-socket';
 
 function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: () => void; disabled?: boolean }) {
   return (
@@ -39,6 +40,7 @@ export default function CourierStatusPage() {
   const { data: stats } = useCourierStats();
   const { data: orders } = useCourierOrders();
   const updateStatus = useUpdateCourierStatus();
+  const { isConnected } = useCourierSocket();
 
   if (isLoading) {
     return (
@@ -99,7 +101,13 @@ export default function CourierStatusPage() {
           />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-base font-black text-slate-900">{user?.fullName ?? 'Kuryer'}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="truncate text-base font-black text-slate-900">{user?.fullName ?? 'Kuryer'}</p>
+            <span
+              className={`h-1.5 w-1.5 shrink-0 rounded-full ${isConnected ? 'bg-emerald-500' : 'bg-slate-300'}`}
+              title={isConnected ? 'Realtime ulangan' : 'Realtime uzilgan — REST yangilanadi'}
+            />
+          </div>
           <p className="text-xs font-medium text-slate-500">
             {isOnline ? (isAccepting ? 'Faol — buyurtma qabul qiladi' : 'Onlayn, qabul yopiq') : 'Offline'}
           </p>
