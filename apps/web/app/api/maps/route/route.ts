@@ -32,6 +32,8 @@ interface NormalizedSegment {
   street?: string;
   durationSec?: number;
   distanceMeters?: number;
+  /** Yo'l tezligi chegarasi km/h */
+  speedLimitKmh?: number | null;
 }
 
 interface NormalizedManeuver {
@@ -194,7 +196,19 @@ function normalize(raw: unknown): Omit<NormalizedRoute, 'ok' | 'source'> | null 
         (step.name as string | undefined) ??
         ((step.metadata as { street?: string } | undefined)?.street);
 
-      segments.push({ coords, traffic, street, durationSec: durationVal, distanceMeters: distanceVal });
+      // Speed limit — har xil joylarda bo'lishi mumkin
+      let speedLimitKmh: number | null = null;
+      const speedLimitRaw =
+        (step.speed_limit as number | undefined) ??
+        (step.speedLimit as number | undefined) ??
+        ((step.metadata as { speed_limit?: number } | undefined)?.speed_limit) ??
+        ((step.attributes as { speed_limit?: number } | undefined)?.speed_limit);
+      if (typeof speedLimitRaw === 'number' && speedLimitRaw > 0) {
+        // Yandex ba'zan m/s qaytaradi → km/h ga konvertatsiya
+        speedLimitKmh = speedLimitRaw < 50 ? Math.round(speedLimitRaw * 3.6) : Math.round(speedLimitRaw);
+      }
+
+      segments.push({ coords, traffic, street, durationSec: durationVal, distanceMeters: distanceVal, speedLimitKmh });
 
       // Maneuver
       const maneuverRaw = step.maneuver ?? (step.metadata as { maneuver?: unknown } | undefined)?.maneuver;

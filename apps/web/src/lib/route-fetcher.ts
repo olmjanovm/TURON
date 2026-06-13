@@ -8,6 +8,8 @@ export interface RouteSegment {
   /** 0 (free) → 1 (heavy traffic). null = unknown. */
   traffic: number | null;
   street?: string;
+  /** km/soat — Yandex API'dan yoki yo'l turidan default */
+  speedLimitKmh?: number | null;
 }
 
 export interface RouteManeuver {
@@ -148,7 +150,15 @@ function fetchFromMultiRouter(
               typeof jam?.severity === 'number'
                 ? Math.min(1, Math.max(0, jam.severity / 10))
                 : null;
-            segments.push({ coords, traffic, street });
+            // Speed limit — Yandex multiRouter properties
+            const speedRaw = seg.properties?.get?.('speedLimit') as number | undefined;
+            const speedLimitKmh =
+              typeof speedRaw === 'number'
+                ? speedRaw < 50
+                  ? Math.round(speedRaw * 3.6)
+                  : Math.round(speedRaw)
+                : null;
+            segments.push({ coords, traffic, street, speedLimitKmh });
           }
 
           // Maneuvers — har segment'da

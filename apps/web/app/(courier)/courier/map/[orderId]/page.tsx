@@ -14,8 +14,6 @@ import {
   type CourierVehicle,
 } from '@/hooks/use-courier';
 import { useCourierSocket } from '@/hooks/use-courier-socket';
-import { SwipeConfirm } from '@/components/courier/map/swipe-confirm';
-import { OrderSheet } from '@/components/courier/map/order-sheet';
 import { RESTAURANT_DEFAULT } from '@/lib/yandex-maps';
 
 // DeliveryNavigator faqat client'da — Yandex Maps SSR'da ishlamaydi
@@ -124,7 +122,6 @@ function MapView({
   const routeTo = goingToPickup ? pickup : destination;
 
   const next = getNextStageAction(stage);
-  const isLastAction = next?.next === 'DELIVERED';
 
   return (
     <div className="fixed inset-0 z-50 bg-[#0d0d0f] text-white" data-no-ptr="true">
@@ -137,6 +134,9 @@ function MapView({
         orderNumber={order.orderNumber}
         onClose={onBack}
         stageLabel={STAGE_LABELS[stage] ?? stage}
+        confirmLabel={!isDelivered && next ? next.label : undefined}
+        onConfirm={!isDelivered && next ? () => onAdvance(next.next) : undefined}
+        confirmBusy={advancing}
       />
 
       {/* Stage progress overlay (top) */}
@@ -158,30 +158,6 @@ function MapView({
           );
         })}
       </div>
-
-      {/* OrderSheet — pastdagi bosqich nazorati */}
-      <OrderSheet
-        order={order}
-        stageLabel={STAGE_LABELS[stage] ?? stage}
-        routeMeta={isDelivered ? 'Buyurtma yakunlandi' : goingToPickup ? 'Restoranga' : 'Mijozga'}
-      >
-        {isDelivered ? (
-          <button
-            type="button"
-            onClick={onBack}
-            className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-white/10 text-base font-black text-white active:scale-95"
-          >
-            Yakunlandi · Yopish
-          </button>
-        ) : next ? (
-          <SwipeConfirm
-            label={next.label}
-            busy={advancing}
-            onConfirm={() => onAdvance(next.next)}
-            tone={isLastAction ? 'success' : 'primary'}
-          />
-        ) : null}
-      </OrderSheet>
     </div>
   );
 }
