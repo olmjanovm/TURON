@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { ArrowLeft, Loader2, LocateFixed, MapPin, Save } from 'lucide-react';
+import { ArrowLeft, Loader2, LocateFixed, Map, MapPin, Save } from 'lucide-react';
 import {
   useCreateAddress,
   useUpdateAddress,
@@ -12,6 +13,12 @@ import {
 import { useT } from '@/lib/i18n/locale-context';
 import { getCurrentLocation, reverseGeocode } from '@/lib/yandex-maps';
 import { useKeyboard, focusScrollIntoView } from '@/hooks/use-keyboard';
+
+// Map picker faqat client'da
+const AddressMapPicker = dynamic(
+  () => import('./address-map-picker').then((m) => m.AddressMapPicker),
+  { ssr: false },
+);
 
 export function AddressForm({ initial }: { initial?: Address }) {
   const t = useT();
@@ -28,6 +35,7 @@ export function AddressForm({ initial }: { initial?: Address }) {
       : null,
   );
   const [detecting, setDetecting] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const { isOpen: kbOpen, height: kbHeight } = useKeyboard();
 
   const handleDetect = async () => {
@@ -98,30 +106,54 @@ export function AddressForm({ initial }: { initial?: Address }) {
         <div className="w-10" />
       </div>
 
-      {/* Auto-detect geolocation */}
-      <button
-        type="button"
-        onClick={handleDetect}
-        disabled={detecting}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#c62020]/30 bg-[#c62020]/5 px-4 py-3.5 text-sm font-black text-[#c62020] transition active:scale-[0.98] disabled:opacity-60 dark:border-[#c62020]/40 dark:bg-[#c62020]/10"
-      >
-        {detecting ? (
-          <>
-            <Loader2 size={16} className="animate-spin" />
-            {t('address.detecting')}
-          </>
-        ) : (
-          <>
-            <LocateFixed size={16} />
-            {t('address.detect')}
-          </>
-        )}
-      </button>
+      {/* Manzil tanlash — 2 ta tugma yonma-yon */}
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={handleDetect}
+          disabled={detecting}
+          className="flex items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-[#c62020]/30 bg-[#c62020]/5 px-3 py-3.5 text-xs font-black text-[#c62020] transition active:scale-[0.98] disabled:opacity-60 dark:border-[#c62020]/40 dark:bg-[#c62020]/10"
+        >
+          {detecting ? (
+            <>
+              <Loader2 size={14} className="animate-spin" />
+              {t('address.detecting')}
+            </>
+          ) : (
+            <>
+              <LocateFixed size={14} />
+              GPS
+            </>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
+          className="flex items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-br from-[#c62020] to-[#f97316] px-3 py-3.5 text-xs font-black text-white shadow-[0_8px_18px_-6px_rgba(198,32,32,0.45)] transition active:scale-[0.98]"
+        >
+          <Map size={14} />
+          Xaritadan
+        </button>
+      </div>
 
       {coords && (
-        <p className="-mt-2 text-center text-[11px] text-emerald-600 dark:text-emerald-400">
-          ✓ {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
-        </p>
+        <div className="-mt-2 flex items-center justify-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400">
+          <span>✓</span>
+          <span className="tabular-nums">{coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}</span>
+        </div>
+      )}
+
+      {pickerOpen && (
+        <AddressMapPicker
+          initial={coords ?? null}
+          onClose={() => setPickerOpen(false)}
+          onConfirm={({ lat, lng, address }) => {
+            setCoords({ lat, lng });
+            setAddressText(address);
+            setError(null);
+            setPickerOpen(false);
+          }}
+        />
       )}
 
       <Field label={t('address.label')}>
