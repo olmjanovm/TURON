@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Store, Bell } from 'lucide-react';
 import { AdminBottomNav } from '@/components/admin/admin-bottom-nav';
 import { AdminRoleGuard } from '@/components/admin/admin-role-guard';
@@ -30,13 +31,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <h1 className="text-lg font-black tracking-tight text-slate-900">TURON</h1>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              type="button"
+            <Link
+              href="/admin/restaurant"
               className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition active:scale-95"
               aria-label="Restoran"
             >
               <Store size={18} />
-            </button>
+            </Link>
             <button
               type="button"
               className="relative flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition active:scale-95"

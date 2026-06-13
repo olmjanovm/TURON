@@ -15,9 +15,9 @@ const NAV = [
 export function AdminBottomNav() {
   const pathname = usePathname();
 
-  // Form sahifalarida (yaratish/tahrirlash) nav yashiriladi — pastki save bar
-  // o'rnini egallaydi, ustma-ust tushmaydi.
-  const isFormRoute = /\/(new|edit)$/.test(pathname);
+  // Form/sozlama sahifalarida (yaratish/tahrirlash/restoran) nav yashiriladi —
+  // pastki save bar o'rnini egallaydi, ustma-ust tushmaydi.
+  const isFormRoute = /\/(new|edit|restaurant)$/.test(pathname);
   if (isFormRoute) return null;
 
   return (
