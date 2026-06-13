@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Store, Power } from 'lucide-react';
+import { ChevronLeft, Store, Power, MapPin } from 'lucide-react';
 import {
   useRestaurantSettings,
   useSaveRestaurant,
@@ -12,6 +12,7 @@ import {
   type DayKey,
 } from '@/hooks/use-admin-restaurant';
 import { TextField, Toggle, ImageField, SaveBar } from '@/components/admin/form-fields';
+import { MapLocationPicker } from '@/components/admin/map-location-picker';
 import { Skeleton, SkeletonRow } from '@/components/ui/skeleton';
 
 function normalizePhone(raw: string): string {
@@ -26,6 +27,7 @@ export default function AdminRestaurantPage() {
 
   const [form, setForm] = useState<RestaurantSettings | null>(null);
   const [error, setError] = useState('');
+  const [showMap, setShowMap] = useState(false);
 
   useEffect(() => {
     if (data && !form) setForm(data);
@@ -104,14 +106,35 @@ export default function AdminRestaurantPage() {
         <TextField label="Telefon (+998...)" value={form.phone} onChange={(v) => set('phone', v)} placeholder="+998901234567" />
       </div>
 
-      {/* Manzil */}
+      {/* Manzil — xaritadan koordinata bo'yicha */}
       <div className="admin-card space-y-3 p-4">
         <TextField label="Manzil" value={form.addressText} onChange={(v) => set('addressText', v)} placeholder="Ko'cha, uy" />
-        <div className="grid grid-cols-2 gap-3">
-          <TextField label="Kenglik (lat)" value={String(form.latitude ?? '')} onChange={(v) => set('latitude', Number(v.replace(/[^0-9.]/g, '')) || 0)} placeholder="41.3" />
-          <TextField label="Uzunlik (lng)" value={String(form.longitude ?? '')} onChange={(v) => set('longitude', Number(v.replace(/[^0-9.]/g, '')) || 0)} placeholder="69.2" />
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowMap(true)}
+          className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left active:scale-[0.99]"
+        >
+          <span className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <MapPin size={16} className="text-ember" /> Xaritadan belgilash
+          </span>
+          <span className="admin-num text-[11px] text-slate-400">
+            {Number(form.latitude).toFixed(4)}, {Number(form.longitude).toFixed(4)}
+          </span>
+        </button>
       </div>
+
+      {showMap && (
+        <MapLocationPicker
+          initial={{ lat: Number(form.latitude) || 41.311, lng: Number(form.longitude) || 69.279 }}
+          onCancel={() => setShowMap(false)}
+          onConfirm={(lat, lng, addr) => {
+            set('latitude', lat);
+            set('longitude', lng);
+            if (addr) set('addressText', addr);
+            setShowMap(false);
+          }}
+        />
+      )}
 
       {/* Logo */}
       <div className="admin-card p-4">

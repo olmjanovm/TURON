@@ -1,31 +1,30 @@
 'use client';
 
-import { getSupabase, SUPABASE_BUCKET } from './supabase';
+import { apiFetch } from './api-client';
 
-/** Rasmni Supabase Storage'ga yuklab, public URL qaytaradi (eski app kabi). */
-export async function uploadProductImage(file: File): Promise<string> {
-  if (!file.type.startsWith('image/')) {
-    throw new Error('Faqat rasm fayllarini yuklang');
-  }
-  if (file.size > 5 * 1024 * 1024) {
-    throw new Error('Rasm hajmi 5MB dan oshmasin');
-  }
-
-  const supabase = getSupabase();
-  if (!supabase) {
-    throw new Error('Rasm yuklash sozlanmagan (Supabase env yo\'q)');
-  }
-
-  const ext = file.name.split('.').pop();
-  const fileName = `${Math.random().toString(36).slice(2, 15)}_${Date.now()}.${ext}`;
-  const filePath = `products/${fileName}`;
-
-  const { error } = await supabase.storage.from(SUPABASE_BUCKET).upload(filePath, file, {
-    cacheControl: '3600',
-    upsert: false,
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error('Faylni o\'qib bo\'lmadi'));
+    reader.readAsDataURL(file);
   });
-  if (error) throw new Error(`Rasm yuklashda xatolik: ${error.message}`);
+}
 
-  const { data } = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(filePath);
-  return data.publicUrl;
+/**
+ * Rasmni SERVER orqali yuklaydi (base64 -> /admin/restaurant/logo -> Supabase).
+ * Client-side Supabase env TALAB QILINMAYDI — backend StorageService ishlatadi.
+ * Public URL qaytaradi (mahsulot/kategoriya/logo uchun universal).
+ */
+export async function uploadProductImage(file: File): Promise<string> {
+  if (!file.type.startsWith('image/')) throw new Error('Faqat rasm fayllarini yuklang');
+  if (file.size > 5 * 1024 * 1024) throw new Error('Rasm hajmi 5MB dan oshmasin');
+
+  const dataUrl = await fileToDataUrl(file);
+  const res = await apiFetch<{ url: string }>('/api/admin/restaurant/logo', {
+    method: 'POST',
+    body: JSON.stringify({ imageBase64: dataUrl }),
+  });
+  if (!res?.url) throw new Error('Rasm yuklab bo\'lmadi');
+  return res.url;
 }

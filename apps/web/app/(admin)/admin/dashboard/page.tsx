@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
-import { Wallet, Activity, CheckCircle2, Package, ChevronRight, TrendingUp } from 'lucide-react';
+import { Wallet, Activity, CheckCircle2, Package, ChevronRight, TrendingUp, MessageCircle } from 'lucide-react';
 import { OrderStatusEnum } from '@turon/shared';
 import { useAdminOrders } from '@/hooks/use-admin-orders';
 import { SkeletonStatTile, SkeletonRow } from '@/components/ui/skeleton';
@@ -90,17 +90,23 @@ export default function AdminDashboardPage() {
         />
       </div>
 
-      {/* Hisobotlar linki */}
-      <Link href="/admin/reports" className="admin-card admin-card-interactive flex items-center gap-3 p-4">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
-          <TrendingUp size={18} />
-        </div>
-        <div className="flex-1">
-          <p className="text-sm font-bold text-slate-900">Hisobotlar</p>
-          <p className="text-xs text-slate-400">Statistika va Excel eksport</p>
-        </div>
-        <ChevronRight size={16} className="text-slate-300" />
-      </Link>
+      {/* Hisobot + Suhbat linklari */}
+      <div className="grid grid-cols-2 gap-3">
+        <Link href="/admin/reports" className="admin-card admin-card-interactive flex flex-col gap-2 p-4">
+          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+            <TrendingUp size={18} />
+          </span>
+          <span className="text-sm font-bold text-slate-900">Hisobotlar</span>
+          <span className="text-[11px] text-slate-400">Statistika · Excel</span>
+        </Link>
+        <Link href="/admin/chats" className="admin-card admin-card-interactive flex flex-col gap-2 p-4">
+          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-ember/10 text-ember">
+            <MessageCircle size={18} />
+          </span>
+          <span className="text-sm font-bold text-slate-900">Suhbatlar</span>
+          <span className="text-[11px] text-slate-400">Mijoz · Kuryer</span>
+        </Link>
+      </div>
 
       {/* Status breakdown */}
       <section className="admin-card admin-card-accent p-4 pt-5">

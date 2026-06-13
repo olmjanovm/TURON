@@ -6,7 +6,6 @@ import { ChevronLeft, ImagePlus, Loader2, Trash2, Check } from 'lucide-react';
 import { useAdminCategories, useSaveProduct, useDeleteProduct, type ProductPayload } from '@/hooks/use-admin-catalog';
 import type { MenuProduct } from '@/hooks/use-menu';
 import { uploadProductImage } from '@/lib/image-upload';
-import { isSupabaseConfigured } from '@/lib/supabase';
 
 export function ProductForm({ initial }: { initial?: MenuProduct }) {
   const router = useRouter();
@@ -88,7 +87,7 @@ export function ProductForm({ initial }: { initial?: MenuProduct }) {
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
-          disabled={uploading || !isSupabaseConfigured}
+          disabled={uploading}
           className="relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 text-slate-400"
         >
           {imageUrl ? (
@@ -108,9 +107,6 @@ export function ProductForm({ initial }: { initial?: MenuProduct }) {
             </span>
           )}
         </button>
-        {!isSupabaseConfigured && (
-          <p className="mt-2 text-[11px] text-amber-600">Rasm yuklash uchun NEXT_PUBLIC_SUPABASE_* env kerak.</p>
-        )}
         {discountPct > 0 && (
           <p className="mt-2 inline-flex rounded-full bg-ember/10 px-2.5 py-1 text-xs font-bold text-ember">
             −{discountPct}% chegirma

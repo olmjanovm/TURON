@@ -3,7 +3,6 @@
 import { useRef, useState } from 'react';
 import { ImagePlus, Loader2 } from 'lucide-react';
 import { uploadProductImage } from '@/lib/image-upload';
-import { isSupabaseConfigured } from '@/lib/supabase';
 
 export function TextField({ label, value, onChange, placeholder, numeric }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; numeric?: boolean }) {
   return (
@@ -89,7 +88,7 @@ export function ImageField({ imageUrl, onChange }: { imageUrl: string; onChange:
       <button
         type="button"
         onClick={() => fileRef.current?.click()}
-        disabled={uploading || !isSupabaseConfigured}
+        disabled={uploading}
         className="relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 text-slate-400"
       >
         {imageUrl ? (
@@ -109,7 +108,6 @@ export function ImageField({ imageUrl, onChange }: { imageUrl: string; onChange:
           </span>
         )}
       </button>
-      {!isSupabaseConfigured && <p className="mt-2 text-[11px] text-amber-600">Rasm uchun NEXT_PUBLIC_SUPABASE_* env kerak.</p>}
       {error && <p className="mt-2 text-[11px] text-rose-600">{error}</p>}
     </div>
   );
