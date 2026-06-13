@@ -6,12 +6,14 @@ import { Home, Heart, ShoppingBag, ClipboardList, User } from 'lucide-react';
 import { useT } from '@/lib/i18n/locale-context';
 import { useCustomerPrefs } from '@/stores/customer-prefs-store';
 import { useCartStore } from '@/stores/cart-store';
+import { useKeyboard } from '@/hooks/use-keyboard';
 
 export function CustomerBottomNav() {
   const pathname = usePathname() ?? '/';
   const t = useT();
   const favCount = useCustomerPrefs((s) => s.favorites.length);
   const cartCount = useCartStore((s) => s.items.reduce((n, i) => n + i.quantity, 0));
+  const { isOpen: kbOpen } = useKeyboard();
 
   const ITEMS = [
     { href: '/',           label: t('nav.home'),      icon: Home,          match: (p: string) => p === '/' || p.startsWith('/product/') || p.startsWith('/menu/') },
@@ -23,7 +25,9 @@ export function CustomerBottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-1/2 z-40 w-full max-w-[480px] -translate-x-1/2 border-t border-slate-100 bg-white/85 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/85"
+      className={`fixed bottom-0 left-1/2 z-40 w-full max-w-[480px] border-t border-slate-100 bg-white/85 backdrop-blur-xl transition-transform duration-200 dark:border-slate-800 dark:bg-slate-950/85 ${
+        kbOpen ? 'pointer-events-none -translate-x-1/2 translate-y-full' : '-translate-x-1/2 translate-y-0'
+      }`}
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
       <div className="grid grid-cols-5 px-1">

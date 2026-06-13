@@ -14,6 +14,7 @@ import {
   getNextStageAction,
 } from '@/hooks/use-courier';
 import { StageTracker } from '@/components/courier/stage-tracker';
+import { focusScrollIntoView } from '@/hooks/use-keyboard';
 
 const PAYMENT_LABEL: Record<string, string> = {
   CASH: 'Naqd',
@@ -326,6 +327,7 @@ export default function CourierOrderDetailPage({ params }: { params: Promise<{ o
                 type="text"
                 value={problemText}
                 onChange={(e) => setProblemText(e.target.value)}
+                onFocus={focusScrollIntoView}
                 placeholder="Muammoni yozing..."
                 className="flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#c62020]"
               />

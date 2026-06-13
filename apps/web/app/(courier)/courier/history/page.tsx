@@ -5,6 +5,7 @@ import { ArrowLeft, CheckCircle2, Clock3, MapPin, Package, Search, XCircle } fro
 import Link from 'next/link';
 import { useCourierHistory, type CourierHistoryItem } from '@/hooks/use-courier';
 import { Skeleton } from '@/components/ui/skeleton';
+import { focusScrollIntoView } from '@/hooks/use-keyboard';
 
 type Filter = 'ALL' | 'DELIVERED' | 'CANCELLED';
 
@@ -99,6 +100,7 @@ export default function CourierHistoryPage() {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          onFocus={focusScrollIntoView}
           placeholder="Buyurtma raqami, manzil…"
           className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm outline-none focus:border-[#c62020]"
         />

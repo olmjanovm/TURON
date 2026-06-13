@@ -9,6 +9,7 @@ import { useLocale } from '@/lib/i18n/locale-context';
 import { LOCALES, LOCALE_META, type Locale } from '@/lib/i18n/translations';
 import { useT } from '@/lib/i18n/locale-context';
 import { useRestaurantIdentity } from '@/hooks/use-restaurant-identity';
+import { focusScrollIntoView } from '@/hooks/use-keyboard';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -95,6 +96,7 @@ export default function ProfilePage() {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              onFocus={focusScrollIntoView}
               className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#c62020] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
             />
           </div>
@@ -106,6 +108,7 @@ export default function ProfilePage() {
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
+              onFocus={focusScrollIntoView}
               placeholder="+998 90 123 45 67"
               className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#c62020] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
             />

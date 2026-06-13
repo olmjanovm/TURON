@@ -7,6 +7,7 @@ import { ShoppingBag } from 'lucide-react';
 import { useCartStore } from '@/stores/cart-store';
 import { useCartTargetRegister } from './fly-to-cart';
 import { useT } from '@/lib/i18n/locale-context';
+import { useKeyboard } from '@/hooks/use-keyboard';
 
 /**
  * Floating Cart Button — pastki bottom nav'dan 20px tepada, o'ngdan 10px.
@@ -22,6 +23,7 @@ export function CartFab() {
 
   const register = useCartTargetRegister();
   const fabRef = useRef<HTMLAnchorElement | null>(null);
+  const { isOpen: kbOpen } = useKeyboard();
 
   useEffect(() => {
     register(fabRef.current);
@@ -29,7 +31,8 @@ export function CartFab() {
   }, [register, count]);
 
   // /cart yoki /checkout sahifalarida ko'rsatish kerak emas (sahifa o'zi savat)
-  const hideOnPages = pathname.startsWith('/cart') || pathname.startsWith('/checkout');
+  // Klaviatura ochilganda ham yashirinadi (input ko'rinmasin uchun joy beradi)
+  const hideOnPages = pathname.startsWith('/cart') || pathname.startsWith('/checkout') || kbOpen;
 
   return (
     <Link

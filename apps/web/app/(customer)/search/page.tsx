@@ -6,6 +6,7 @@ import { useProducts } from '@/hooks/use-menu';
 import { useCustomerPrefs } from '@/stores/customer-prefs-store';
 import { ProductCard } from '@/components/customer/product-card';
 import { useT } from '@/lib/i18n/locale-context';
+import { focusScrollIntoView } from '@/hooks/use-keyboard';
 
 export default function SearchPage() {
   const t = useT();
@@ -43,6 +44,7 @@ export default function SearchPage() {
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onFocus={focusScrollIntoView}
           placeholder={t('search.placeholder')}
           className="w-full rounded-2xl border border-slate-200 bg-white py-3.5 pl-11 pr-12 text-sm font-medium text-slate-900 outline-none focus:border-[#c62020] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
         />

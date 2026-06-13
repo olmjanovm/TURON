@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, List, History, CircleUserRound } from 'lucide-react';
+import { useKeyboard } from '@/hooks/use-keyboard';
 
 const TABS = [
   { href: '/courier',               label: 'Asosiy',     icon: Home,             match: (p: string) => p === '/courier' },
@@ -13,10 +14,13 @@ const TABS = [
 
 export function CourierBottomNav() {
   const pathname = usePathname() ?? '/courier';
+  const { isOpen: kbOpen } = useKeyboard();
 
   return (
     <nav
-      className="fixed bottom-0 left-1/2 z-40 w-full max-w-[480px] -translate-x-1/2 border-t border-slate-100 bg-white/80 backdrop-blur-xl"
+      className={`fixed bottom-0 left-1/2 z-40 w-full max-w-[480px] border-t border-slate-100 bg-white/80 backdrop-blur-xl transition-transform duration-200 ${
+        kbOpen ? 'pointer-events-none -translate-x-1/2 translate-y-full' : '-translate-x-1/2 translate-y-0'
+      }`}
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
       <div className="grid grid-cols-4 px-2">

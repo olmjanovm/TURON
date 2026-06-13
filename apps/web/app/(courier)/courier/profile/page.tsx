@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowLeft, CheckCircle2, Loader2, Save, User, Phone } from 'lucide-react';
 import { useCourierProfile, useUpdateProfile } from '@/hooks/use-courier';
 import { Skeleton } from '@/components/ui/skeleton';
+import { focusScrollIntoView } from '@/hooks/use-keyboard';
 
 export default function CourierProfilePage() {
   const { data: profile, isLoading, error } = useCourierProfile();
@@ -117,6 +118,7 @@ export default function CourierProfilePage() {
               type="text"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
+              onFocus={focusScrollIntoView}
               className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-sm text-slate-900 outline-none focus:border-[#c62020]"
             />
           </div>
@@ -130,6 +132,7 @@ export default function CourierProfilePage() {
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
+              onFocus={focusScrollIntoView}
               placeholder="+998 90 123 45 67"
               className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-sm text-slate-900 outline-none focus:border-[#c62020]"
             />

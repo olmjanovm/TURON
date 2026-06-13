@@ -8,6 +8,7 @@ import { useCartStore } from '@/stores/cart-store';
 import { useCustomerPrefs } from '@/stores/customer-prefs-store';
 import { useAddresses, useCreateOrder, useQuoteOrder, type QuoteResult } from '@/hooks/use-customer';
 import { useT } from '@/lib/i18n/locale-context';
+import { useKeyboard, focusScrollIntoView } from '@/hooks/use-keyboard';
 
 type PaymentMethod = 'CASH' | 'MANUAL_TRANSFER';
 // CASH = naqd, MANUAL_TRANSFER = bank o'tkazmasi (backend nomi)
@@ -36,6 +37,7 @@ function CheckoutInner() {
   const [error, setError] = useState<string | null>(null);
   const [quote, setQuote] = useState<QuoteResult | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
+  const { isOpen: kbOpen, height: kbHeight } = useKeyboard();
 
   const quoteMutation = useQuoteOrder();
   const createMutation = useCreateOrder();
@@ -198,6 +200,7 @@ function CheckoutInner() {
           rows={2}
           value={note}
           onChange={(e) => setNote(e.target.value)}
+          onFocus={focusScrollIntoView}
           placeholder={t('checkout.note.placeholder')}
           className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-[#c62020] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
         />
@@ -227,8 +230,11 @@ function CheckoutInner() {
       )}
 
       <div
-        className="fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[480px] border-t border-slate-100 bg-white/95 px-4 pb-3 pt-3 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 86px)' }}
+        className="fixed inset-x-0 z-50 mx-auto w-full max-w-[480px] border-t border-slate-100 bg-white/95 px-4 pb-3 pt-3 backdrop-blur-xl transition-[bottom] duration-200 dark:border-slate-800 dark:bg-slate-950/95"
+        style={{
+          bottom: kbOpen ? kbHeight : 0,
+          paddingBottom: kbOpen ? 12 : 'calc(env(safe-area-inset-bottom, 0px) + 86px)',
+        }}
       >
         <button
           type="button"

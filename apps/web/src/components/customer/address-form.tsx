@@ -11,6 +11,7 @@ import {
 } from '@/hooks/use-customer';
 import { useT } from '@/lib/i18n/locale-context';
 import { getCurrentLocation, reverseGeocode } from '@/lib/yandex-maps';
+import { useKeyboard, focusScrollIntoView } from '@/hooks/use-keyboard';
 
 export function AddressForm({ initial }: { initial?: Address }) {
   const t = useT();
@@ -27,6 +28,7 @@ export function AddressForm({ initial }: { initial?: Address }) {
       : null,
   );
   const [detecting, setDetecting] = useState(false);
+  const { isOpen: kbOpen, height: kbHeight } = useKeyboard();
 
   const handleDetect = async () => {
     setError(null);
@@ -127,6 +129,7 @@ export function AddressForm({ initial }: { initial?: Address }) {
           type="text"
           value={label}
           onChange={(e) => setLabel(e.target.value)}
+          onFocus={focusScrollIntoView}
           placeholder={t('address.label.placeholder')}
           className="input"
         />
@@ -139,6 +142,7 @@ export function AddressForm({ initial }: { initial?: Address }) {
             rows={2}
             value={addressText}
             onChange={(e) => setAddressText(e.target.value)}
+            onFocus={focusScrollIntoView}
             placeholder={t('address.text.placeholder')}
             className="input pl-10 pt-3 leading-snug"
           />
@@ -150,6 +154,7 @@ export function AddressForm({ initial }: { initial?: Address }) {
           type="text"
           value={landmark}
           onChange={(e) => setLandmark(e.target.value)}
+          onFocus={focusScrollIntoView}
           placeholder={t('address.landmark.placeholder')}
           className="input"
         />
@@ -162,8 +167,11 @@ export function AddressForm({ initial }: { initial?: Address }) {
       )}
 
       <div
-        className="fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-[480px] border-t border-slate-100 bg-white/95 px-4 pb-3 pt-3 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 86px)' }}
+        className="fixed inset-x-0 z-50 mx-auto w-full max-w-[480px] border-t border-slate-100 bg-white/95 px-4 pb-3 pt-3 backdrop-blur-xl transition-[bottom] duration-200 dark:border-slate-800 dark:bg-slate-950/95"
+        style={{
+          bottom: kbOpen ? kbHeight : 0,
+          paddingBottom: kbOpen ? 12 : 'calc(env(safe-area-inset-bottom, 0px) + 86px)',
+        }}
       >
         <button
           type="submit"

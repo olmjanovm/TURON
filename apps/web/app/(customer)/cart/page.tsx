@@ -6,6 +6,7 @@ import { ArrowLeft, Check, Loader2, Minus, Plus, ShoppingBag, Trash2, X } from '
 import { useCartStore, type CartLine } from '@/stores/cart-store';
 import { useValidatePromo } from '@/hooks/use-customer';
 import { useT } from '@/lib/i18n/locale-context';
+import { useKeyboard, focusScrollIntoView } from '@/hooks/use-keyboard';
 
 interface AppliedPromo {
   code: string;
@@ -21,6 +22,7 @@ export default function CartPage() {
   const [promo, setPromo] = useState<AppliedPromo | null>(null);
   const [promoError, setPromoError] = useState<string | null>(null);
   const validate = useValidatePromo();
+  const { isOpen: kbOpen, height: kbHeight } = useKeyboard();
 
   const handleApplyPromo = () => {
     setPromoError(null);
@@ -133,6 +135,7 @@ export default function CartPage() {
                 type="text"
                 value={promoInput}
                 onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                onFocus={focusScrollIntoView}
                 placeholder={t('cart.promo.placeholder')}
                 className="flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold uppercase tracking-wider text-slate-900 outline-none focus:border-[#c62020] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
               />
@@ -160,10 +163,13 @@ export default function CartPage() {
         <SumRow label={t('cart.total')} value={grand} bold />
       </div>
 
-      {/* Sticky checkout CTA */}
+      {/* Sticky checkout CTA — klaviatura ochilganda uning ustiga ko'tariladi */}
       <div
-        className="fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-[480px] border-t border-slate-100 bg-white/95 px-4 pb-3 pt-3 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 86px)' }}
+        className="fixed inset-x-0 z-50 mx-auto w-full max-w-[480px] border-t border-slate-100 bg-white/95 px-4 pb-3 pt-3 backdrop-blur-xl transition-[bottom] duration-200 dark:border-slate-800 dark:bg-slate-950/95"
+        style={{
+          bottom: kbOpen ? kbHeight : 0,
+          paddingBottom: kbOpen ? 12 : 'calc(env(safe-area-inset-bottom, 0px) + 86px)',
+        }}
       >
         <Link
           href={promo ? `/checkout?promo=${encodeURIComponent(promo.code)}` : '/checkout'}
