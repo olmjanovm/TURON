@@ -20,6 +20,7 @@ import supportRoutes from './modules/support/support.routes.js';
 import reportsRoutes from './modules/reports/reports.routes.js';
 import usersRoutes from './modules/users/users.routes.js';
 import restaurantRoutes from './modules/restaurant/restaurant.routes.js';
+import restaurantPublicRoutes from './modules/restaurant/restaurant-public.routes.js';
 
 export default fp(async function (fastify: FastifyInstance, opts: FastifyPluginOptions) {
   // 1. Core Plugins
@@ -48,6 +49,7 @@ export default fp(async function (fastify: FastifyInstance, opts: FastifyPluginO
   api.register(authRoutes, { prefix: '/auth' });
   api.register(menuRoutes, { prefix: '/menu' });
   api.register(promoRoutes, { prefix: '/promos' });
+  api.register(restaurantPublicRoutes, { prefix: '/restaurant' });
   
   // Authenticated Protected Modules
   api.register(async (authenticated) => {

@@ -7,7 +7,9 @@ import { useCategories, useProducts } from '@/hooks/use-menu';
 import { useAuth } from '@/hooks/use-auth';
 import { isTelegramEnvironment } from '@/lib/telegram';
 import { ProductCard, ProductCardSkeleton } from '@/components/customer/product-card';
+import { RestaurantBrand } from '@/components/restaurant-brand';
 import { useT } from '@/lib/i18n/locale-context';
+import { useRestaurantDocumentTitle } from '@/hooks/use-restaurant-identity';
 
 export default function HomePage() {
   const { user, status } = useAuth();
@@ -37,12 +39,7 @@ export default function HomePage() {
 function Splash() {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-4">
-      <div
-        className="flex h-16 w-16 items-center justify-center rounded-3xl shadow-2xl"
-        style={{ background: 'linear-gradient(135deg, #c62020, #f97316)' }}
-      >
-        <span className="text-3xl font-black text-white">T</span>
-      </div>
+      <RestaurantBrand size={64} rounded="lg" />
       <div className="h-1 w-24 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
         <div className="h-full w-1/3 animate-pulse rounded-full bg-gradient-to-r from-[#c62020] to-[#f97316]" />
       </div>
@@ -63,6 +60,7 @@ function AuthError() {
 
 function CustomerHome() {
   const t = useT();
+  useRestaurantDocumentTitle();
   const { data: categories, isLoading: catLoading } = useCategories();
   const { data: products, isLoading: prodLoading } = useProducts();
   const [activeCat, setActiveCat] = useState<string>('ALL');

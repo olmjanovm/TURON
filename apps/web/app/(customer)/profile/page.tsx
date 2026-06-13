@@ -8,6 +8,7 @@ import { useUpdateMyProfile } from '@/hooks/use-customer';
 import { useLocale } from '@/lib/i18n/locale-context';
 import { LOCALES, LOCALE_META, type Locale } from '@/lib/i18n/translations';
 import { useT } from '@/lib/i18n/locale-context';
+import { useRestaurantIdentity } from '@/hooks/use-restaurant-identity';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -168,9 +169,7 @@ export default function ProfilePage() {
         <ProfileLink href="#" icon={Info} label={t('profile.about')} />
       </div>
 
-      <p className="pb-4 pt-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">
-        TURON · v1.0
-      </p>
+      <BrandFooter />
     </div>
   );
 }
@@ -220,4 +219,13 @@ function ProfileLink({ href, icon: Icon, label }: { href: string; icon: typeof B
 
 function Divider() {
   return <div className="ml-16 h-px bg-slate-100 dark:bg-slate-800" />;
+}
+
+function BrandFooter() {
+  const { name } = useRestaurantIdentity();
+  return (
+    <p className="pb-4 pt-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">
+      {name} · v1.0
+    </p>
+  );
 }
