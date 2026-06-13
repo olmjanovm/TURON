@@ -1,59 +1,60 @@
-import Link from 'next/link';
-import { LayoutDashboard, ShoppingBag, UtensilsCrossed, Truck, Tag } from 'lucide-react';
+import { Store, Bell } from 'lucide-react';
+import { AdminBottomNav } from '@/components/admin/admin-bottom-nav';
 
 /**
- * FAZA I — Admin layout (Next.js + TS, light/oq tema).
- * Eski React miniapp admin'i o'rniga. Operatsion, toza, oq fon.
+ * FAZA I — Admin layout (Next.js + TS). Premium light tema:
+ * yumshoq gradient fon, glass header, ekran tagida statik bottom nav.
  */
-
-const NAV = [
-  { href: '/admin/dashboard', label: 'Bosh', icon: LayoutDashboard },
-  { href: '/admin/orders', label: 'Buyurtma', icon: ShoppingBag },
-  { href: '/admin/menu', label: 'Menyu', icon: UtensilsCrossed },
-  { href: '/admin/couriers', label: 'Kuryer', icon: Truck },
-  { href: '/admin/promos', label: 'Promo', icon: Tag },
-];
-
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-dvh bg-slate-50 text-slate-900">
+    <div className="relative min-h-dvh bg-gradient-to-b from-slate-50 via-slate-50 to-slate-100 text-slate-900">
+      {/* nozik yuqori nur */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-x-0 top-0 h-40 opacity-60"
+        style={{
+          background:
+            'radial-gradient(60% 100% at 50% 0%, rgba(198,32,32,0.10), transparent 70%)',
+        }}
+      />
+
       <header
-        className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur"
+        className="sticky top-0 z-40 border-b border-white/40 bg-white/70 backdrop-blur-xl"
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
-        <div className="mx-auto flex h-14 w-full max-w-[480px] items-center justify-between px-4">
-          <span className="text-base font-bold tracking-tight">TURON Admin</span>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            Onlayn
-          </span>
+        <div className="mx-auto flex h-16 w-full max-w-[480px] items-center justify-between px-4">
+          <div>
+            <p className="text-[11px] font-medium text-slate-400">Boshqaruv paneli</p>
+            <h1 className="text-lg font-black tracking-tight text-slate-900">TURON</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition active:scale-95"
+              aria-label="Restoran"
+            >
+              <Store size={18} />
+            </button>
+            <button
+              type="button"
+              className="relative flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition active:scale-95"
+              aria-label="Bildirishnomalar"
+            >
+              <Bell size={18} />
+              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-ember ring-2 ring-white" />
+            </button>
+          </div>
         </div>
       </header>
 
       <main
-        className="mx-auto w-full max-w-[480px] px-4 pt-4"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 88px)' }}
+        className="relative mx-auto w-full max-w-[480px] px-4 pt-4"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 96px)' }}
       >
         {children}
       </main>
 
-      <nav
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
-      >
-        <div className="mx-auto grid w-full max-w-[480px] grid-cols-5">
-          {NAV.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className="flex flex-col items-center gap-1 py-2.5 text-slate-500 transition-colors hover:text-sky-600"
-            >
-              <Icon size={20} strokeWidth={2} />
-              <span className="text-[10px] font-semibold uppercase tracking-wide">{label}</span>
-            </Link>
-          ))}
-        </div>
-      </nav>
+      <AdminBottomNav />
     </div>
   );
 }

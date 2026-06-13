@@ -45,7 +45,7 @@ export function SkeletonText({
 /** Statistika katakchasi skeleti (oq karta). */
 export function SkeletonStatTile() {
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+    <div className="rounded-3xl border border-slate-200/80 bg-white p-4 shadow-sm">
       <Skeleton className="h-3 w-20" rounded="rounded-md" />
       <Skeleton className="mt-3 h-7 w-16" rounded="rounded-md" />
     </div>
@@ -55,7 +55,7 @@ export function SkeletonStatTile() {
 /** Ro'yxat qatori skeleti (oq karta). */
 export function SkeletonRow() {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+    <div className="flex items-center gap-3 rounded-3xl border border-slate-200/80 bg-white p-4 shadow-sm">
       <Skeleton className="h-10 w-10" rounded="rounded-xl" />
       <div className="flex-1">
         <Skeleton className="h-3.5 w-1/2" rounded="rounded-md" />

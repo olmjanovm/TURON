@@ -65,7 +65,7 @@ function OrderBody({
   return (
     <>
       {/* Sarlavha karta */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+      <div className="admin-card p-4">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-bold text-slate-900">
             #{order.orderNumber ?? order.id.slice(0, 6)}
@@ -84,7 +84,7 @@ function OrderBody({
 
       {/* Mijoz */}
       {(order.customerName || order.customerPhone) && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+        <div className="admin-card p-4">
           <div className="flex items-center gap-2 text-sm text-slate-700">
             <User size={16} className="text-slate-400" />
             <span className="font-medium">{order.customerName ?? 'Mijoz'}</span>
@@ -104,7 +104,7 @@ function OrderBody({
 
       {/* Mahsulotlar */}
       {order.items && order.items.length > 0 && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+        <div className="admin-card p-4">
           <h2 className="mb-2 text-sm font-semibold text-slate-900">Mahsulotlar</h2>
           <div className="space-y-2">
             {order.items.map((it, i) => (
@@ -123,7 +123,7 @@ function OrderBody({
       )}
 
       {/* Hisob-kitob */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+      <div className="admin-card p-4">
         <Row label="Mahsulotlar" value={order.subtotal} />
         {order.discount ? <Row label="Chegirma" value={-order.discount} /> : null}
         <Row label="Yetkazish" value={order.deliveryFee} />
@@ -149,7 +149,7 @@ function OrderBody({
               type="button"
               disabled={isUpdating}
               onClick={() => onAdvance(next.next)}
-              className="w-full rounded-2xl bg-sky-600 py-3.5 text-sm font-semibold text-white shadow-sm transition active:scale-[0.99] disabled:opacity-60"
+              className="w-full rounded-2xl bg-gradient-to-r from-ember to-orange-500 py-3.5 text-sm font-bold text-white shadow-lg shadow-ember/30 transition active:scale-[0.99] disabled:opacity-60"
             >
               {isUpdating ? 'Bajarilmoqda…' : next.label}
             </button>

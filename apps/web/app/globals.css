@@ -58,6 +58,84 @@ body {
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
+   ADMIN — premium dizayn tizimi (max daraja, no-standart).
+   Oq baza + qatlamli soya + ember accent. Faqat transform/opacity animatsiya.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* Premium karta: qatlamli soya + hairline border + yumshoq burchak */
+.admin-card {
+  position: relative;
+  border-radius: 24px;
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 20px 44px -24px rgba(15, 23, 42, 0.22);
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease;
+}
+@media (hover: hover) {
+  .admin-card-interactive:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 2px 4px rgba(15, 23, 42, 0.05),
+      0 28px 56px -24px rgba(15, 23, 42, 0.28);
+  }
+}
+.admin-card-interactive:active {
+  transform: scale(0.99);
+}
+
+/* Tepa gradient accent chizig'i (ember) */
+.admin-card-accent::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  border-radius: 24px 24px 0 0;
+  background: linear-gradient(90deg, var(--color-ember), #f97316);
+}
+
+/* KPI raqami uchun zich tabular shrift */
+.admin-num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Bottom nav — frosted, ko'tariluvchi active chip */
+.admin-nav {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border-top: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 -8px 32px -16px rgba(15, 23, 42, 0.2);
+}
+.admin-nav-chip {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease;
+}
+.admin-nav-item[data-active='true'] .admin-nav-chip {
+  transform: translateY(-14px);
+  background: linear-gradient(135deg, var(--color-ember), #f97316);
+  color: #fff;
+  box-shadow: 0 10px 22px -6px rgba(198, 32, 32, 0.55);
+  border: 4px solid #fff;
+}
+.admin-nav-item[data-active='true'] .admin-nav-label {
+  color: var(--color-ember);
+  font-weight: 800;
+}
+
+/* Status pill — yumshoq fon + nuqta */
+.admin-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
    Loading skeleton — OQ/NEYTRAL fon (rang-barang emas).
    slate-100 baza ustida nozik oq shimmer chizig'i suriladi.
    ────────────────────────────────────────────────────────────────────────── */

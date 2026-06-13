@@ -46,7 +46,7 @@ export default function AdminOrdersPage() {
               onClick={() => setFilter(f.value)}
               className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors ${
                 active
-                  ? 'border-sky-600 bg-sky-600 text-white'
+                  ? 'border-transparent bg-gradient-to-r from-ember to-orange-500 text-white shadow-sm shadow-ember/30'
                   : 'border-slate-200 bg-white text-slate-600'
               }`}
             >
@@ -82,10 +82,13 @@ export default function AdminOrdersPage() {
               <Link
                 key={o.id}
                 href={`/admin/orders/${o.id}`}
-                className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition-colors active:bg-slate-50"
+                className="admin-card admin-card-interactive flex items-center gap-3 p-4"
               >
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+                  <span className="text-xs font-black">#</span>
+                </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-slate-900">
+                  <p className="text-sm font-bold text-slate-900">
                     #{o.orderNumber ?? o.id.slice(0, 6)}
                   </p>
                   <span className={`mt-1 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium ${meta.chip}`}>
