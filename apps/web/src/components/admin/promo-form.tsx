@@ -33,7 +33,10 @@ export function PromoForm({ initial }: { initial?: AdminPromo }) {
       usageLimit: Number(usageLimit) || 0,
       isActive,
       isFirstOrderOnly,
-      startDate: initial ? undefined : new Date().toISOString(),
+      // startDate schema'da MAJBURIY (ISO datetime) — edit'da ham yuboriladi
+      startDate: initial?.startDate
+        ? new Date(initial.startDate).toISOString()
+        : new Date().toISOString(),
     };
     save.mutate(payload, { onSuccess: () => router.push('/admin/promos') });
   }

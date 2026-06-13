@@ -106,7 +106,8 @@ function useCategoryInvalidate() {
 
 export interface CategoryPayload {
   name: string;
-  imageUrl?: string;
+  // Backend CategorySchema 'iconUrl' kutadi (imageUrl emas) — read'da imageUrl qaytadi
+  iconUrl?: string;
   sortOrder?: number;
   isActive: boolean;
 }

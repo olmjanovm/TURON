@@ -63,7 +63,8 @@ export function ProductForm({ initial }: { initial?: MenuProduct }) {
       name: name.trim(),
       description: description.trim(),
       price: priceN,
-      oldPrice: oldPriceN > 0 ? oldPriceN : null,
+      // Schema oldPrice'ni .optional() kutadi (null EMAS) -> yo'q bo'lsa undefined
+      oldPrice: oldPriceN > 0 ? oldPriceN : undefined,
       imageUrl: imageUrl || undefined,
       isActive,
       stockQuantity: Number(stockQuantity) || 0,

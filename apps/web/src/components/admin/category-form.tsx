@@ -23,7 +23,7 @@ export function CategoryForm({ initial }: { initial?: MenuCategory }) {
     if (!name.trim()) return setError('Nom majburiy');
     const payload: CategoryPayload = {
       name: name.trim(),
-      imageUrl: imageUrl || undefined,
+      iconUrl: imageUrl || undefined, // backend iconUrl kutadi
       sortOrder: Number(sortOrder) || 0,
       isActive,
     };
