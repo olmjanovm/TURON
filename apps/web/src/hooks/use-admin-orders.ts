@@ -65,3 +65,62 @@ export function useUpdateOrderStatus(id: string) {
     },
   });
 }
+
+export interface CourierOption {
+  id: string;
+  fullName: string;
+  phoneNumber?: string;
+  activeAssignments: number;
+  isOnline?: boolean;
+  isFree?: boolean;
+  etaMinutes?: number | null;
+}
+
+/** GET /api/orders/courier-options -> dispatch uchun kuryerlar. */
+export function useCourierOptions(enabled: boolean) {
+  return useQuery<CourierOption[]>({
+    queryKey: ['admin', 'courier-options'],
+    queryFn: () => apiFetch<CourierOption[]>('/api/orders/courier-options'),
+    enabled,
+  });
+}
+
+function useOrderInvalidate(id: string) {
+  const qc = useQueryClient();
+  return () => {
+    qc.invalidateQueries({ queryKey: ['admin', 'order', id] });
+    qc.invalidateQueries({ queryKey: ['admin', 'orders'] });
+  };
+}
+
+/** POST /api/orders/:id/dispatch -> kuryer biriktirish. */
+export function useDispatchOrder(id: string) {
+  const invalidate = useOrderInvalidate(id);
+  return useMutation({
+    mutationFn: (courierId: string) =>
+      apiFetch<AdminOrder>(`/api/orders/${id}/dispatch`, {
+        method: 'POST',
+        body: JSON.stringify({ courierId }),
+      }),
+    onSuccess: invalidate,
+  });
+}
+
+/** PATCH /api/orders/:id/payment/approve | reject. */
+export function usePaymentAction(id: string) {
+  const invalidate = useOrderInvalidate(id);
+  const approve = useMutation({
+    mutationFn: () =>
+      apiFetch<AdminOrder>(`/api/orders/${id}/payment/approve`, { method: 'PATCH' }),
+    onSuccess: invalidate,
+  });
+  const reject = useMutation({
+    mutationFn: (reason?: string) =>
+      apiFetch<AdminOrder>(`/api/orders/${id}/payment/reject`, {
+        method: 'PATCH',
+        body: JSON.stringify(reason ? { reason } : {}),
+      }),
+    onSuccess: invalidate,
+  });
+  return { approve, reject };
+}

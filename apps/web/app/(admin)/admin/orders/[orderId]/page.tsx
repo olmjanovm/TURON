@@ -1,10 +1,16 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, Phone, User, Truck } from 'lucide-react';
+import { ChevronLeft, Phone, User, Truck, Loader2, Check, X, Bike } from 'lucide-react';
 import { OrderStatusEnum } from '@turon/shared';
-import { useAdminOrder, useUpdateOrderStatus } from '@/hooks/use-admin-orders';
+import {
+  useAdminOrder,
+  useUpdateOrderStatus,
+  useCourierOptions,
+  useDispatchOrder,
+  usePaymentAction,
+} from '@/hooks/use-admin-orders';
 import { statusMeta, orderMoney, NEXT_STATUS } from '@/lib/order-status';
 import { Skeleton, SkeletonRow } from '@/components/ui/skeleton';
 
@@ -37,11 +43,118 @@ export default function AdminOrderDetailPage({
           Buyurtma topilmadi yoki yuklashda xatolik.
         </div>
       ) : (
-        <OrderBody
-          order={order}
-          onAdvance={(s) => updateStatus.mutate(s)}
-          isUpdating={updateStatus.isPending}
-        />
+        <>
+          <PaymentActions orderId={orderId} order={order} />
+          <DispatchActions orderId={orderId} order={order} />
+          <OrderBody
+            order={order}
+            onAdvance={(s) => updateStatus.mutate(s)}
+            isUpdating={updateStatus.isPending}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
+type Order = NonNullable<ReturnType<typeof useAdminOrder>['data']>;
+
+/** To'lovni tasdiqlash / rad etish (MANUAL_TRANSFER va PENDING bo'lsa). */
+function PaymentActions({ orderId, order }: { orderId: string; order: Order }) {
+  const { approve, reject } = usePaymentAction(orderId);
+  const pending = (order.paymentStatus ?? '').toUpperCase() === 'PENDING';
+  const manual = (order.paymentMethod ?? '').toUpperCase().includes('TRANSFER');
+  if (!pending || !manual) return null;
+
+  return (
+    <div className="admin-card admin-card-accent p-4 pt-5">
+      <p className="text-sm font-bold text-slate-900">To'lovni tekshirish</p>
+      <p className="mt-0.5 text-xs text-slate-500">Bank o'tkazmasi tasdiqlanishi kutilmoqda</p>
+      <div className="mt-3 flex gap-2">
+        <button
+          type="button"
+          disabled={approve.isPending}
+          onClick={() => approve.mutate()}
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-2xl bg-emerald-600 py-3 text-sm font-bold text-white active:scale-[0.99] disabled:opacity-60"
+        >
+          {approve.isPending ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
+          Tasdiqlash
+        </button>
+        <button
+          type="button"
+          disabled={reject.isPending}
+          onClick={() => reject.mutate(undefined)}
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-2xl border border-rose-200 bg-white py-3 text-sm font-bold text-rose-600 active:scale-[0.99] disabled:opacity-60"
+        >
+          {reject.isPending ? <Loader2 size={15} className="animate-spin" /> : <X size={15} />}
+          Rad etish
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Kuryer biriktirish (kuryer yo'q va order faol bo'lsa). */
+function DispatchActions({ orderId, order }: { orderId: string; order: Order }) {
+  const [open, setOpen] = useState(false);
+  const dispatch = useDispatchOrder(orderId);
+  const { data: options, isLoading } = useCourierOptions(open);
+
+  const terminal =
+    order.orderStatus === OrderStatusEnum.DELIVERED ||
+    order.orderStatus === OrderStatusEnum.CANCELLED;
+  if (terminal) return null;
+  if (order.courierName) {
+    return (
+      <div className="admin-card flex items-center gap-3 p-4">
+        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-50 text-violet-600">
+          <Bike size={18} />
+        </div>
+        <div className="flex-1">
+          <p className="text-xs text-slate-400">Biriktirilgan kuryer</p>
+          <p className="text-sm font-bold text-slate-900">{order.courierName}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="admin-card admin-card-accent p-4 pt-5">
+      <p className="text-sm font-bold text-slate-900">Kuryer biriktirish</p>
+      {!open ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-ember to-orange-500 py-3 text-sm font-bold text-white shadow-lg shadow-ember/30 active:scale-[0.99]"
+        >
+          <Bike size={16} /> Kuryer tanlash
+        </button>
+      ) : isLoading ? (
+        <div className="mt-3 space-y-2"><SkeletonRow /><SkeletonRow /></div>
+      ) : (
+        <div className="mt-3 space-y-2">
+          {(options ?? []).length === 0 && (
+            <p className="py-3 text-center text-xs text-slate-400">Mavjud kuryer yo'q</p>
+          )}
+          {(options ?? []).map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              disabled={dispatch.isPending}
+              onClick={() => dispatch.mutate(c.id, { onSuccess: () => setOpen(false) })}
+              className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left active:scale-[0.99] disabled:opacity-60"
+            >
+              <span className={`h-2.5 w-2.5 rounded-full ${c.isOnline ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-bold text-slate-900">{c.fullName}</span>
+                <span className="block text-[11px] text-slate-500">
+                  {c.activeAssignments} faol{c.etaMinutes ? ` · ~${c.etaMinutes} daq` : ''}
+                </span>
+              </span>
+              {dispatch.isPending ? <Loader2 size={15} className="animate-spin text-ember" /> : null}
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );
