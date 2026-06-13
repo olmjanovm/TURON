@@ -1,13 +1,80 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Plus } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { UserRoleEnum } from '@turon/shared';
 import { useCategories, useProducts, type MenuProduct } from '@/hooks/use-menu';
 import { useCartStore } from '@/stores/cart-store';
-import { haptic } from '@/lib/telegram';
+import { useAuth } from '@/hooks/use-auth';
+import { haptic, isTelegramEnvironment } from '@/lib/telegram';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function HomePage() {
+  const { user, status } = useAuth();
+  const router = useRouter();
+  // null = not yet checked (SSR), true/false = client value
+  const [isTg, setIsTg] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    setIsTg(isTelegramEnvironment());
+  }, []);
+
+  // Redirect non-customer roles to their home
+  useEffect(() => {
+    if (status !== 'authenticated' || !user) return;
+    if (user.role === UserRoleEnum.ADMIN) {
+      router.replace('/admin/dashboard');
+    } else if (user.role === UserRoleEnum.COURIER) {
+      router.replace('/courier');
+    }
+  }, [status, user, router]);
+
+  // Show splash: initial SSR, Telegram env during auth, or while redirecting non-customer
+  const showSplash =
+    isTg === null || // SSR / before mount
+    (isTg && (status === 'idle' || status === 'authenticating')) || // loading in Telegram
+    (status === 'authenticated' && user?.role !== UserRoleEnum.CUSTOMER); // redirect in progress
+
+  if (showSplash) return <Splash />;
+
+  if (status === 'error') {
+    return (
+      <div className="flex min-h-dvh items-center justify-center px-6 text-center">
+        <div className="rounded-2xl border border-slate-100 bg-white p-8 shadow-sm">
+          <p className="text-sm font-semibold text-slate-700">Kirishda xatolik</p>
+          <p className="mt-1 text-xs text-slate-400">
+            Ilovani Telegram orqali oching va qayta urining
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return <CustomerHome />;
+}
+
+function Splash() {
+  return (
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-gradient-to-b from-slate-50 to-slate-100">
+      <div
+        className="h-14 w-14 rounded-3xl shadow-lg flex items-center justify-center"
+        style={{ background: 'linear-gradient(135deg, #c62020, #e53935)' }}
+      >
+        <span className="text-2xl font-black text-white">T</span>
+      </div>
+      <div className="h-1 w-24 overflow-hidden rounded-full bg-slate-200">
+        <div className="h-full w-full animate-[shimmer_1.2s_ease-in-out_infinite] bg-gradient-to-r from-slate-200 via-slate-400 to-slate-200" />
+      </div>
+    </div>
+  );
+}
+
+function CustomerHome() {
+  return <CustomerHomeContent />;
+}
+
+function CustomerHomeContent() {
   const { data: categories, isLoading: catLoading } = useCategories();
   const { data: products, isLoading: prodLoading } = useProducts();
   const [activeCat, setActiveCat] = useState<string>('ALL');

@@ -164,6 +164,11 @@ body {
   }
 }
 
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
 /* lite tier: shimmer o'chadi, statik oq-kulrang qoladi */
 [data-tier='lite'] .skeleton-shimmer::after {
   animation: none;
