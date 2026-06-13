@@ -19,6 +19,19 @@ const nextConfig: NextConfig = {
   // FAZA A1/A2: /api/* so'rovlar app/api/[...path] route handler orqali
   // eski Fastify backendga proxy qilinadi (cookie -> Bearer). FAZA J'da
   // route handlerlar to'g'ridan-to'g'ri packages/core'ni chaqiradi.
+
+  // Bot rolga qarab /customer, /courier, /admin/dashboard ochadi.
+  // Yangi Next.js'da customer "/" da, courier hali yo'q -> rewrite bilan
+  // ularni mavjud sahifalarga ulaymiz (URL o'zgarmaydi, query saqlanadi).
+  async rewrites() {
+    return [
+      { source: '/customer', destination: '/' },
+      { source: '/customer/:path*', destination: '/' },
+      // courier paneli hali ko'chmagan -> vaqtincha customer home
+      { source: '/courier', destination: '/' },
+      { source: '/courier/:path*', destination: '/' },
+    ];
+  },
 };
 
 export default nextConfig;
