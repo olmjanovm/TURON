@@ -151,41 +151,61 @@ function fetchFromMultiRouter(
             resolve(null);
             return;
           }
-          const path = paths.get(0);
-          const pathSegments = (path.getSegments?.() ?? []) as Array<
+          const path = paths.get(0) as YmapObject & {
+            properties?: { get?: (k: string) => unknown };
+            geometry?: { getCoordinates?: () => unknown };
+          };
+
+          const segments: RouteSegment[] = [];
+
+          // ASOSIY USUL: butun path geometry'dan to'liq coord olish (segment'dan emas)
+          // Yandex multiRouter segment'lar faqat maneuver atrofidagi qismni saqlaydi —
+          // butun polyline path.geometry.getCoordinates() orqali olinadi.
+          const fullPathCoords = path.geometry?.getCoordinates?.() as number[][] | undefined;
+          if (fullPathCoords && fullPathCoords.length >= 2) {
+            const coords: [number, number][] = fullPathCoords.map((p) => [p[1], p[0]]);
+            segments.push({ coords, traffic: null, speedLimitKmh: null });
+          } else {
+            // Fallback: segmentlardan yig'amiz (eski usul)
+            const pathSegments = (path.getSegments?.() ?? []) as Array<
+              YmapObject & {
+                properties?: { get?: (k: string) => unknown };
+                geometry?: { getCoordinates?: () => unknown };
+              }
+            >;
+            for (const seg of pathSegments) {
+              const c = seg.geometry?.getCoordinates?.() as number[][] | undefined;
+              if (!c || c.length === 0) continue;
+              const coords: [number, number][] = c.map((p) => [p[1], p[0]]);
+              const street = (seg.properties?.get?.('street') as string | undefined) ?? undefined;
+              const jam = seg.properties?.get?.('jams') as { severity?: number } | undefined;
+              const traffic =
+                typeof jam?.severity === 'number'
+                  ? Math.min(1, Math.max(0, jam.severity / 10))
+                  : null;
+              const speedRaw = seg.properties?.get?.('speedLimit') as number | undefined;
+              const speedLimitKmh =
+                typeof speedRaw === 'number'
+                  ? speedRaw < 50
+                    ? Math.round(speedRaw * 3.6)
+                    : Math.round(speedRaw)
+                  : null;
+              segments.push({ coords, traffic, street, speedLimitKmh });
+            }
+          }
+
+          // Maneuvers — har segment'da
+          // Maneuvers — har doim segmentlarni olamiz (faqat maneuver uchun)
+          const maneuverSegments = (path.getSegments?.() ?? []) as Array<
             YmapObject & {
               properties?: { get?: (k: string) => unknown };
               geometry?: { getCoordinates?: () => unknown };
             }
           >;
 
-          const segments: RouteSegment[] = [];
-          for (const seg of pathSegments) {
-            const c = seg.geometry?.getCoordinates?.() as number[][] | undefined;
-            if (!c || c.length === 0) continue;
-            // Yandex ymaps lat,lng — biz lng,lat saqlaymiz
-            const coords: [number, number][] = c.map((p) => [p[1], p[0]]);
-            const street = (seg.properties?.get?.('street') as string | undefined) ?? undefined;
-            const jam = seg.properties?.get?.('jams') as { severity?: number } | undefined;
-            const traffic =
-              typeof jam?.severity === 'number'
-                ? Math.min(1, Math.max(0, jam.severity / 10))
-                : null;
-            // Speed limit — Yandex multiRouter properties
-            const speedRaw = seg.properties?.get?.('speedLimit') as number | undefined;
-            const speedLimitKmh =
-              typeof speedRaw === 'number'
-                ? speedRaw < 50
-                  ? Math.round(speedRaw * 3.6)
-                  : Math.round(speedRaw)
-                : null;
-            segments.push({ coords, traffic, street, speedLimitKmh });
-          }
-
-          // Maneuvers — har segment'da
           const maneuvers: RouteManeuver[] = [];
           let cumDist = 0;
-          for (const seg of pathSegments) {
+          for (const seg of maneuverSegments) {
             const len = (seg.properties?.get?.('distance') as { value: number } | undefined)?.value ?? 0;
             const action = seg.properties?.get?.('action') as { type?: string; text?: string } | undefined;
             if (action?.type && action.type !== 'straight') {

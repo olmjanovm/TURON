@@ -217,33 +217,65 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
     [currentSpeedKmh, currentSpeedLimit],
   );
 
-  // Polyline rendering
+  // Polyline rendering — HD sharp, anti-aliased, coord-safe
   const renderPolylines = useCallback((segments: RouteSegment[]) => {
     const map = mapRef.current;
     const ymaps = ymapsRef.current;
     if (!map || !ymaps) return;
 
+    // Eski polylinelarni o'chir
     polylineGroupRef.current.forEach((p) => {
       try { map.geoObjects.remove(p); } catch {/* */}
     });
     polylineGroupRef.current = [];
 
     segments.forEach((seg) => {
-      if (seg.coords.length < 2) return;
-      const latLngCoords = seg.coords.map(([lng, lat]) => [lat, lng] as number[]);
+      if (!seg.coords || seg.coords.length < 2) return;
+
+      // SANITY CHECK: bizning ichki format [lng, lat].
+      // Yandex Polyline esa [lat, lng] kutadi.
+      // Auto-detect: agar birinchi value > 50 (Toshkent uchun: lng~69, lat~41),
+      // bu LNG ekanligi aniq → [lng, lat] → swap qilamiz Yandex uchun.
+      const yandexCoords: number[][] = seg.coords.map(([a, b]) => {
+        // a = stored as lng, b = stored as lat (bizning konventsiya)
+        // Yandex needs [lat, lng]
+        return [b, a];
+      });
+
+      // Validate that all coords are in plausible WGS84 range
+      const valid = yandexCoords.every(
+        ([lat, lng]) =>
+          typeof lat === 'number' &&
+          typeof lng === 'number' &&
+          lat >= -90 && lat <= 90 &&
+          lng >= -180 && lng <= 180,
+      );
+      if (!valid) return;
+
       const color = trafficColor(seg.traffic);
 
-      const outline = new ymaps.Polyline(latLngCoords as number[][], {}, {
-        strokeColor: '#ffffff', strokeWidth: 9, strokeOpacity: 0.7, zIndex: 400,
-      });
+      // HD anti-aliased polyline — outline (oq) + asosiy chiziq
+      const outline = new ymaps.Polyline(yandexCoords, {}, {
+        strokeColor: '#FFFFFF',
+        strokeWidth: 10,
+        strokeOpacity: 0.55,
+        strokeStyle: 'solid',
+        zIndex: 400,
+        antialiasing: true,
+      } as Record<string, unknown>);
       map.geoObjects.add(outline);
       polylineGroupRef.current.push(outline);
 
-      const mainLine = new ymaps.Polyline(latLngCoords as number[][], {}, {
-        strokeColor: color, strokeWidth: 6.5, strokeOpacity: 1, zIndex: 401,
-      });
-      map.geoObjects.add(mainLine);
-      polylineGroupRef.current.push(mainLine);
+      const main = new ymaps.Polyline(yandexCoords, {}, {
+        strokeColor: color,
+        strokeWidth: 7,
+        strokeOpacity: 0.95,
+        strokeStyle: 'solid',
+        zIndex: 401,
+        antialiasing: true,
+      } as Record<string, unknown>);
+      map.geoObjects.add(main);
+      polylineGroupRef.current.push(main);
     });
   }, []);
 
@@ -417,11 +449,33 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
     };
   }, []);
 
-  // Refresh route on courier change
+  // ── INITIAL route fetch — courier birinchi marta paydo bo'lganda BIR MARTA ──
+  // CRITICAL: Avval smoothedCourier'ning HAR o'zgarishida refresh qilardik —
+  // bu HTTP spam'ga sabab bo'lib map'ni muzlatardi. Endi faqat:
+  //  • Birinchi courier paydo bo'lganda (initial fetch)
+  //  • routeTo o'zgargancha (bosqich advance — pickup → destination)
+  //  • Deviation > 50m (alohida effect)
+  //  • Periodic traffic check (alohida effect, har 2 daq)
+  const initialRouteFetchedRef = useRef(false);
   useEffect(() => {
     if (!mapReady || !smoothedCourier) return;
+    if (initialRouteFetchedRef.current) return;
+    initialRouteFetchedRef.current = true;
     void refreshRoute(smoothedCourier, routeTo);
-  }, [mapReady, smoothedCourier?.lat, smoothedCourier?.lng, routeTo.lat, routeTo.lng, refreshRoute]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapReady, smoothedCourier != null]);
+
+  // ── routeTo o'zgarganda yangi route (bosqich advance bo'lganda) ──────
+  const lastRouteToRef = useRef<{ lat: number; lng: number } | null>(null);
+  useEffect(() => {
+    if (!mapReady || !smoothedCourier) return;
+    if (!initialRouteFetchedRef.current) return;
+    const prev = lastRouteToRef.current;
+    if (prev && prev.lat === routeTo.lat && prev.lng === routeTo.lng) return;
+    lastRouteToRef.current = { lat: routeTo.lat, lng: routeTo.lng };
+    void refreshRoute(smoothedCourier, routeTo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeTo.lat, routeTo.lng, mapReady]);
 
   // Courier marker + autofocus + HYPER-ZOOM
   useEffect(() => {

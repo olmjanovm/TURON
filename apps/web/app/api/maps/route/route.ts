@@ -73,6 +73,29 @@ function parseLatLng(raw: string | null): [number, number] | null {
   return [parts[0], parts[1]];
 }
 
+/**
+ * Coord sanity — ichkki konventsiyamiz [lng, lat].
+ * Yandex turli endpoint'lar har xil tartibda qaytarishi mumkin.
+ * O'zbekiston: lng ~58-73 (ko'p), lat ~37-45.
+ * Agar birinchi value >50 bo'lsa, u LNG. Aks holda LAT.
+ */
+function ensureLngLatOrder(coords: [number, number][]): [number, number][] {
+  if (coords.length === 0) return coords;
+  let lngFirst = 0;
+  let latFirst = 0;
+  for (let i = 0; i < Math.min(5, coords.length); i++) {
+    const [a, b] = coords[i];
+    // a > 50 — bu lng
+    if (Math.abs(a) > 50 && Math.abs(b) < 50) lngFirst++;
+    else if (Math.abs(a) < 50 && Math.abs(b) > 50) latFirst++;
+  }
+  if (latFirst > lngFirst) {
+    // [lat, lng] formatda kelgan — swap qilamiz [lng, lat]'ga
+    return coords.map(([lat, lng]) => [lng, lat]);
+  }
+  return coords;
+}
+
 /** Yandex polyline encoding — Google polyline'ga o'xshash. */
 function decodePolyline(encoded: string): [number, number][] {
   const points: [number, number][] = [];
@@ -171,6 +194,9 @@ function normalize(raw: unknown): Omit<NormalizedRoute, 'ok' | 'source'> | null 
       }
 
       if (coords.length === 0) continue;
+
+      // Coord tartibini majburiy [lng, lat]'ga normallashtirish
+      coords = ensureLngLatOrder(coords);
 
       if (!snappedStart) snappedStart = coords[0];
       snappedEnd = coords[coords.length - 1];
