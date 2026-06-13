@@ -4,7 +4,7 @@ import { use, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  AlertTriangle, ArrowLeft, Check, CheckCircle2, ChevronRight, Loader2, MapPin, Package, Phone, Send, X,
+  AlertTriangle, ArrowLeft, Check, CheckCircle2, ChevronRight, Loader2, Map, MapPin, Package, Phone, Send, X,
 } from 'lucide-react';
 import {
   useCourierOrder,
@@ -131,7 +131,17 @@ export default function CourierOrderDetailPage({ params }: { params: Promise<{ o
             <p className="truncate text-xs text-slate-500">{order.customerName}</p>
           )}
         </div>
-        <div className="w-10" />
+        {!isAssigned && !isDelivered ? (
+          <Link
+            href={`/courier/map/${order.id}`}
+            aria-label="Xarita"
+            className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-[#c62020] to-[#f97316] text-white shadow-[0_8px_18px_-6px_rgba(198,32,32,0.45)] active:scale-95"
+          >
+            <Map size={18} />
+          </Link>
+        ) : (
+          <div className="w-10" />
+        )}
       </div>
 
       {/* Stage tracker */}
