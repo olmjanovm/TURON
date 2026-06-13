@@ -96,6 +96,40 @@ export function useAdminProducts() {
   });
 }
 
+function useCategoryInvalidate() {
+  const qc = useQueryClient();
+  return () => {
+    qc.invalidateQueries({ queryKey: ['admin', 'categories'] });
+    qc.invalidateQueries({ queryKey: ['menu', 'categories'] });
+  };
+}
+
+export interface CategoryPayload {
+  name: string;
+  imageUrl?: string;
+  sortOrder?: number;
+  isActive: boolean;
+}
+
+export function useSaveCategory(id?: string) {
+  const invalidate = useCategoryInvalidate();
+  return useMutation({
+    mutationFn: (payload: CategoryPayload) =>
+      id
+        ? apiFetch<MenuCategory>(`/api/menu/categories/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
+        : apiFetch<MenuCategory>('/api/menu/categories', { method: 'POST', body: JSON.stringify(payload) }),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteCategory() {
+  const invalidate = useCategoryInvalidate();
+  return useMutation({
+    mutationFn: (id: string) => apiFetch(`/api/menu/categories/${id}`, { method: 'DELETE' }),
+    onSuccess: invalidate,
+  });
+}
+
 export interface AdminPromo {
   id: string;
   code: string;
@@ -116,5 +150,38 @@ export function useAdminPromos() {
   return useQuery<AdminPromo[]>({
     queryKey: ['admin', 'promos'],
     queryFn: () => apiFetch<AdminPromo[]>('/api/promos'),
+  });
+}
+
+export interface PromoPayload {
+  code: string;
+  title?: string;
+  description?: string;
+  discountType: string;
+  discountValue: number;
+  minOrderValue: number;
+  usageLimit?: number;
+  isActive: boolean;
+  isFirstOrderOnly: boolean;
+  startDate?: string;
+  endDate?: string | null;
+}
+
+export function useSavePromo(id?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: PromoPayload) =>
+      id
+        ? apiFetch<AdminPromo>(`/api/promos/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
+        : apiFetch<AdminPromo>('/api/promos', { method: 'POST', body: JSON.stringify(payload) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'promos'] }),
+  });
+}
+
+export function useDeletePromo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiFetch(`/api/promos/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'promos'] }),
   });
 }

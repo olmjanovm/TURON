@@ -1,6 +1,7 @@
 'use client';
 
-import { Tag } from 'lucide-react';
+import Link from 'next/link';
+import { Tag, Plus, ChevronRight } from 'lucide-react';
 import { useAdminPromos } from '@/hooks/use-admin-catalog';
 import { SkeletonRow } from '@/components/ui/skeleton';
 
@@ -9,9 +10,17 @@ export default function AdminPromosPage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="px-1 text-sm font-bold text-slate-900">
-        Promokodlar {promos ? `(${promos.length})` : ''}
-      </h2>
+      <div className="flex items-center justify-between px-1">
+        <h2 className="text-sm font-bold text-slate-900">
+          Promokodlar {promos ? `(${promos.length})` : ''}
+        </h2>
+        <Link
+          href="/admin/promos/new"
+          className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-ember to-orange-500 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm shadow-ember/30 active:scale-95"
+        >
+          <Plus size={14} /> Qo'shish
+        </Link>
+      </div>
 
       {isLoading ? (
         <div className="space-y-2"><SkeletonRow /><SkeletonRow /></div>
@@ -24,7 +33,7 @@ export default function AdminPromosPage() {
           {(promos ?? []).map((p) => {
             const isPct = p.discountType?.toUpperCase().includes('PERCENT');
             return (
-              <div key={p.id} className="admin-card flex items-center gap-3 p-4">
+              <Link key={p.id} href={`/admin/promos/${p.id}/edit`} className="admin-card admin-card-interactive flex items-center gap-3 p-4">
                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-ember/10 text-ember">
                   <Tag size={18} />
                 </div>
@@ -37,7 +46,8 @@ export default function AdminPromosPage() {
                 <span className={`admin-pill ${p.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
                   {p.isActive ? 'Faol' : 'Nofaol'}
                 </span>
-              </div>
+                <ChevronRight size={16} className="shrink-0 text-slate-300" />
+              </Link>
             );
           })}
         </div>

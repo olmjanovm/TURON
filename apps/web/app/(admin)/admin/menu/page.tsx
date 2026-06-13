@@ -90,8 +90,14 @@ export default function AdminMenuPage() {
         <div className="space-y-2"><SkeletonRow /><SkeletonRow /></div>
       ) : (
         <div className="space-y-2">
+          <Link
+            href="/admin/menu/categories/new"
+            className="flex items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-ember/30 bg-ember/5 py-3 text-sm font-bold text-ember active:scale-[0.99]"
+          >
+            <Plus size={16} /> Yangi kategoriya qo'shish
+          </Link>
           {(categories ?? []).map((c) => (
-            <div key={c.id} className="admin-card flex items-center gap-3 p-3">
+            <Link key={c.id} href={`/admin/menu/categories/${c.id}/edit`} className="admin-card admin-card-interactive flex items-center gap-3 p-3">
               <div className="h-11 w-11 shrink-0 overflow-hidden rounded-2xl bg-slate-100">
                 {c.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -102,7 +108,8 @@ export default function AdminMenuPage() {
               <span className={`admin-pill ${c.isActive !== false ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
                 {c.isActive !== false ? 'Faol' : 'Nofaol'}
               </span>
-            </div>
+              <ChevronRight size={16} className="shrink-0 text-slate-300" />
+            </Link>
           ))}
           {(categories ?? []).length === 0 && <p className="admin-card p-8 text-center text-sm text-slate-400">Kategoriya yo'q</p>}
         </div>
