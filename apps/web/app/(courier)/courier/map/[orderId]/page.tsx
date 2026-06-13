@@ -136,6 +136,7 @@ function MapView({
         vehicleMode={vehicleMode}
         orderNumber={order.orderNumber}
         onClose={onBack}
+        stageLabel={STAGE_LABELS[stage] ?? stage}
       />
 
       {/* Stage progress overlay (top) */}
