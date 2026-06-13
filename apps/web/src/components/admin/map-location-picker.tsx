@@ -4,7 +4,10 @@ import { useEffect, useRef, useState } from 'react';
 import { MapPin, X, Check, Loader2, Crosshair } from 'lucide-react';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-const API_KEY = process.env.NEXT_PUBLIC_MAP_API_KEY || '';
+// Yandex client kaliti — public (eski miniapp bundle'ida ham ochiq).
+// Env bo'lmasa default ishlatiladi, shu sabab Vercel sozlamasiz ham xarita ochiladi.
+const API_KEY =
+  process.env.NEXT_PUBLIC_MAP_API_KEY || 'c3e2b675-cbbf-4886-b77a-3ed4e0d4f3f8';
 const LANG = process.env.NEXT_PUBLIC_MAP_LANGUAGE || 'uz_UZ';
 
 function ym(): any {
