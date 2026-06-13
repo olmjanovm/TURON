@@ -25,12 +25,17 @@ export async function apiFetch<T = unknown>(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
 
+  // Content-Type faqat BODY mavjud bo'lsa qo'yiladi.
+  // Aks holda Fastify (Zod schema) bo'sh JSON tanasini parse qila olmay 400 qaytaradi.
+  const hasBody = init?.body != null;
+  const baseHeaders: Record<string, string> = hasBody ? { 'content-type': 'application/json' } : {};
+
   let res: Response;
   try {
     res = await fetch(url, {
       ...init,
       headers: {
-        'content-type': 'application/json',
+        ...baseHeaders,
         ...(init?.headers || {}),
       },
       credentials: 'same-origin',
