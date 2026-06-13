@@ -31,7 +31,7 @@ export default function RootLayout({
         {/* Theme — paint'dan OLDIN .dark klassini qo'yadi (flash yo'q). */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('turon-theme')||'system';var d=t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');}catch(e){}})();`,
+            __html: `(function(){try{var t=localStorage.getItem('turon-theme')||'light';var d=t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);}catch(e){}})();`,
           }}
         />
         {/* Telegram WebApp SDK — interaktivlikdan oldin yuklanadi */}

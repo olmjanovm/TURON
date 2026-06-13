@@ -3,13 +3,14 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Loader2, MapPin, Save } from 'lucide-react';
+import { ArrowLeft, Loader2, LocateFixed, MapPin, Save } from 'lucide-react';
 import {
   useCreateAddress,
   useUpdateAddress,
   type Address,
 } from '@/hooks/use-customer';
 import { useT } from '@/lib/i18n/locale-context';
+import { getCurrentLocation, reverseGeocode } from '@/lib/yandex-maps';
 
 export function AddressForm({ initial }: { initial?: Address }) {
   const t = useT();
@@ -21,6 +22,34 @@ export function AddressForm({ initial }: { initial?: Address }) {
   const [landmark, setLandmark] = useState(initial?.landmark ?? '');
   const [isDefault, setIsDefault] = useState(initial?.isDefault ?? false);
   const [error, setError] = useState<string | null>(null);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
+    initial?.latitude != null && initial?.longitude != null
+      ? { lat: initial.latitude, lng: initial.longitude }
+      : null,
+  );
+  const [detecting, setDetecting] = useState(false);
+
+  const handleDetect = async () => {
+    setError(null);
+    setDetecting(true);
+    try {
+      const pos = await getCurrentLocation();
+      setCoords(pos);
+      try {
+        const addr = await reverseGeocode(pos);
+        if (addr) setAddressText(addr);
+      } catch {/* ignore reverse-geocode errors */}
+      try {
+        const tg = (window as Window & { Telegram?: { WebApp?: { HapticFeedback?: { notificationOccurred?: (s: string) => void } } } })
+          .Telegram?.WebApp?.HapticFeedback;
+        tg?.notificationOccurred?.('success');
+      } catch {/* ignore */}
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('address.detect_error'));
+    } finally {
+      setDetecting(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,8 +63,8 @@ export function AddressForm({ initial }: { initial?: Address }) {
       addressText: addressText.trim(),
       landmark: landmark.trim() || null,
       isDefault,
-      latitude: initial?.latitude ?? null,
-      longitude: initial?.longitude ?? null,
+      latitude: coords?.lat ?? initial?.latitude ?? null,
+      longitude: coords?.lng ?? initial?.longitude ?? null,
     };
     const done = () => router.replace('/addresses');
     if (initial) {
@@ -61,6 +90,32 @@ export function AddressForm({ initial }: { initial?: Address }) {
         </h1>
         <div className="w-10" />
       </div>
+
+      {/* Auto-detect geolocation */}
+      <button
+        type="button"
+        onClick={handleDetect}
+        disabled={detecting}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#c62020]/30 bg-[#c62020]/5 px-4 py-3.5 text-sm font-black text-[#c62020] transition active:scale-[0.98] disabled:opacity-60 dark:border-[#c62020]/40 dark:bg-[#c62020]/10"
+      >
+        {detecting ? (
+          <>
+            <Loader2 size={16} className="animate-spin" />
+            {t('address.detecting')}
+          </>
+        ) : (
+          <>
+            <LocateFixed size={16} />
+            {t('address.detect')}
+          </>
+        )}
+      </button>
+
+      {coords && (
+        <p className="-mt-2 text-center text-[11px] text-emerald-600 dark:text-emerald-400">
+          ✓ {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
+        </p>
+      )}
 
       <Field label={t('address.label')}>
         <input

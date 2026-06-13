@@ -1,5 +1,10 @@
 @import 'tailwindcss';
 
+/* Tailwind v4: dark: variantni `.dark` klassiga bog'laymiz (media query emas).
+   Aks holda Telegram tizim qorong'i bo'lsa, foydalanuvchi "Light" tanlasa ham
+   dark variantlar ishlab turaveradi. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ──────────────────────────────────────────────────────────────────────────
    TURON — Fire Design Tokens (FAZA A6 poydevori)
    Hozirgi miniapp dizayni 1:1 token sifatida kodlangan.
@@ -21,6 +26,10 @@
   /* Telegram safe-area (FAZA A2'da to'ldiriladi) */
   --tg-safe-top: 0px;
   --tg-safe-bottom: 0px;
+}
+
+html.dark {
+  color-scheme: dark;
 }
 
 html,

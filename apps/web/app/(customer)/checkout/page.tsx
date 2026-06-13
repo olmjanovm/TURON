@@ -34,6 +34,7 @@ function CheckoutInner() {
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [quote, setQuote] = useState<QuoteResult | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const quoteMutation = useQuoteOrder();
   const createMutation = useCreateOrder();
@@ -93,12 +94,17 @@ function CheckoutInner() {
 
   const selectedAddress = addresses.find((a) => a.id === selectedAddressId);
 
-  const handleSubmit = () => {
+  const handleClickSubmit = () => {
     setError(null);
     if (!selectedAddressId) {
       setError(t('checkout.error.no_address'));
       return;
     }
+    setShowConfirm(true);
+  };
+
+  const handleConfirmSubmit = () => {
+    if (!selectedAddressId) return;
     createMutation.mutate(
       {
         items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
@@ -110,9 +116,11 @@ function CheckoutInner() {
       {
         onSuccess: (order) => {
           clearCart();
+          setShowConfirm(false);
           router.replace(`/checkout/success/${order.id}`);
         },
         onError: (err) => {
+          setShowConfirm(false);
           setError(err instanceof Error ? err.message : t('common.error'));
         },
       },
@@ -218,12 +226,12 @@ function CheckoutInner() {
       )}
 
       <div
-        className="fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-[480px] border-t border-slate-100 bg-white/95 px-4 pb-3 pt-3 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95"
+        className="fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[480px] border-t border-slate-100 bg-white/95 px-4 pb-3 pt-3 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 86px)' }}
       >
         <button
           type="button"
-          onClick={handleSubmit}
+          onClick={handleClickSubmit}
           disabled={createMutation.isPending}
           className="flex h-14 w-full items-center justify-between gap-2 rounded-2xl bg-gradient-to-br from-[#c62020] to-[#f97316] px-5 text-base font-black text-white shadow-[0_12px_24px_-8px_rgba(198,32,32,0.55)] active:scale-[0.98] disabled:opacity-50"
         >
@@ -239,6 +247,69 @@ function CheckoutInner() {
           )}
         </button>
       </div>
+
+      {/* Confirm sheet */}
+      {showConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 backdrop-blur-sm">
+          <div
+            className="w-full max-w-[480px] rounded-t-3xl bg-white p-5 shadow-2xl dark:bg-slate-900"
+            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 20px)' }}
+          >
+            <div className="mx-auto mb-4 h-1 w-12 rounded-full bg-slate-200 dark:bg-slate-700" />
+            <h2 className="text-lg font-black text-slate-900 dark:text-slate-50">
+              {t('checkout.confirm.title')}
+            </h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              {t('checkout.confirm.desc')}
+            </p>
+
+            <div className="mt-4 space-y-2 rounded-2xl bg-slate-50 p-3 dark:bg-slate-800">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-500">{t('common.address')}</span>
+                <span className="line-clamp-1 max-w-[60%] text-right font-bold text-slate-900 dark:text-slate-100">
+                  {selectedAddress?.addressText ?? '—'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-500">{t('orders.detail.payment')}</span>
+                <span className="font-bold text-slate-900 dark:text-slate-100">
+                  {paymentMethod === 'CASH' ? t('checkout.payment.cash') : t('checkout.payment.transfer')}
+                </span>
+              </div>
+              <div className="border-t border-slate-200 pt-2 dark:border-slate-700" />
+              <div className="flex items-center justify-between text-base font-black">
+                <span className="text-slate-900 dark:text-slate-50">{t('cart.total')}</span>
+                <span className="tabular-nums text-slate-900 dark:text-slate-50">
+                  {total.toLocaleString('uz-UZ')} {t('common.currency')}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setShowConfirm(false)}
+                disabled={createMutation.isPending}
+                className="flex h-13 items-center justify-center rounded-2xl border border-slate-200 bg-white py-3.5 text-sm font-black text-slate-700 active:scale-95 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              >
+                {t('checkout.confirm.no')}
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmSubmit}
+                disabled={createMutation.isPending}
+                className="flex h-13 items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 py-3.5 text-sm font-black text-white shadow-[0_8px_18px_-6px_rgba(16,185,129,0.55)] active:scale-95 disabled:opacity-60"
+              >
+                {createMutation.isPending ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  t('checkout.confirm.yes')
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

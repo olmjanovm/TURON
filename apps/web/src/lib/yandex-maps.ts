@@ -99,4 +99,57 @@ export function loadYandexMaps(): Promise<Ymaps> {
 
 export const RESTAURANT_DEFAULT: LatLng = { lat: 41.2995, lng: 69.2401 };
 
+/**
+ * Browser geolocation — Promise wrapper.
+ * Telegram WebApp ham xuddi shu API'ni ishlatadi (cross-platform).
+ */
+export function getCurrentLocation(): Promise<LatLng> {
+  return new Promise((resolve, reject) => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      reject(new Error('Brauzeringiz geolokatsiyani qo\'llab-quvvatlamaydi'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) {
+          reject(new Error('Joylashuv ruxsati berilmagan. Sozlamalardan ruxsat bering.'));
+        } else if (err.code === err.POSITION_UNAVAILABLE) {
+          reject(new Error('Joylashuvni aniqlab bo\'lmadi'));
+        } else if (err.code === err.TIMEOUT) {
+          reject(new Error('Joylashuv aniqlash vaqti tugadi'));
+        } else {
+          reject(new Error('Joylashuvni olishda xato'));
+        }
+      },
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 30_000 },
+    );
+  });
+}
+
+/**
+ * Reverse geocode — koordinatadan manzil matni.
+ * Yandex Maps APIga so'rov yuboradi, natija bo'lmasa null.
+ */
+export async function reverseGeocode(point: LatLng): Promise<string | null> {
+  try {
+    const ymaps = await loadYandexMaps();
+    const ymapsWithGeocode = ymaps as Ymaps & {
+      geocode?: (point: number[], opts?: Record<string, unknown>) => Promise<{
+        geoObjects: { get: (i: number) => { getAddressLine?: () => string; properties?: { get?: (k: string) => string } } | null };
+      }>;
+    };
+    if (!ymapsWithGeocode.geocode) return null;
+    const result = await ymapsWithGeocode.geocode([point.lat, point.lng], {
+      kind: 'house',
+      results: 1,
+    });
+    const obj = result.geoObjects.get(0);
+    if (!obj) return null;
+    return obj.getAddressLine?.() ?? obj.properties?.get?.('text') ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export type { Ymaps, YmapObject, YmapInstance };

@@ -14,8 +14,8 @@ type Theme = 'light' | 'dark' | 'system';
 const THEME_KEY = 'turon-theme';
 
 function readTheme(): Theme {
-  if (typeof window === 'undefined') return 'system';
-  return (window.localStorage.getItem(THEME_KEY) as Theme | null) ?? 'system';
+  if (typeof window === 'undefined') return 'light';
+  return (window.localStorage.getItem(THEME_KEY) as Theme | null) ?? 'light';
 }
 
 function applyTheme(theme: Theme) {
