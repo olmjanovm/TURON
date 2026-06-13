@@ -34,4 +34,8 @@ export const env = {
   // GPS persistence: how often we write live coords to DB (ms)
   GPS_DB_FLUSH_MS: Number(process.env.GPS_DB_FLUSH_MS ?? 20_000),
   GPS_REDIS_TTL_S: Number(process.env.GPS_REDIS_TTL_S ?? 60),
+
+  // Webhook secret — backend gateway'ga event emit qilganda yuboradi
+  // (X-Webhook-Secret header). Bo'sh bo'lsa webhook endpoints o'chiriladi.
+  WEBHOOK_SECRET: process.env.WEBHOOK_SECRET?.trim() ?? '',
 };

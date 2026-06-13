@@ -1,5 +1,15 @@
 import type { Redis as RedisClient } from 'ioredis';
+import jwt from 'jsonwebtoken';
 import { env } from './config.js';
+
+/**
+ * Backend REST'ga GPS yozish uchun service JWT — gateway JWT_SECRET bilan
+ * imzolaydi, courier rolida. Backend xuddi shu sekret bilan tekshiradi.
+ * Token kichik TTL (60s) — har flush uchun yangi imzolanadi.
+ */
+function signCourierToken(courierId: string): string {
+  return jwt.sign({ id: courierId, role: 'COURIER' }, env.JWT_SECRET, { expiresIn: '60s' });
+}
 
 /**
  * Location write buffer.
@@ -57,10 +67,14 @@ async function flushPendingToBackend(): Promise<void> {
   pendingDbWrite.clear();
 
   await Promise.allSettled(
-    batch.map((s) =>
-      fetch(`${env.BACKEND_URL}/courier/order/${s.orderId}/location`, {
+    batch.map((s) => {
+      const token = signCourierToken(s.courierId);
+      return fetch(`${env.BACKEND_URL}/courier/order/${s.orderId}/location`, {
         method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           latitude: s.lat,
           longitude: s.lng,
@@ -68,8 +82,8 @@ async function flushPendingToBackend(): Promise<void> {
           speed: s.speed,
           accuracy: s.accuracy,
         }),
-      }).catch(() => null),
-    ),
+      }).catch(() => null);
+    }),
   );
 }
 

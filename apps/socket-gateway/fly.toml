@@ -1,0 +1,46 @@
+# Fly.io deploy konfiguratsiyasi
+# Boshlash:
+#   1. fly auth login
+#   2. cd apps/socket-gateway
+#   3. fly launch --copy-config --no-deploy   (app nomi: turon-socket)
+#   4. fly secrets set JWT_SECRET=...  WEBHOOK_SECRET=...  REDIS_URL=...
+#   5. fly deploy
+
+app = "turon-socket"
+primary_region = "fra"        # Frankfurt — Yevropaga yaqin, Toshkentga ham yaxshi
+kill_signal = "SIGTERM"
+kill_timeout = 30             # graceful shutdown uchun
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "3030"
+  HOST = "0.0.0.0"
+  LOG_LEVEL = "info"
+  GPS_DB_FLUSH_MS = "20000"
+  GPS_REDIS_TTL_S = "60"
+
+[http_service]
+  internal_port = 3030
+  force_https = true
+  auto_stop_machines = false   # WS uchun "always on" — Fly aks holda uxlab qoladi
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "connections"
+    soft_limit = 200
+    hard_limit = 500
+
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/health"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256              # WebSocket gateway uchun yetarli
