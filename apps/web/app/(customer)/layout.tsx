@@ -3,6 +3,7 @@ import { CustomerHeader } from '@/components/customer/customer-header';
 import { CustomerBottomNav } from '@/components/customer/bottom-nav';
 import { CartFab } from '@/components/customer/cart-fab';
 import { FlyToCartProvider } from '@/components/customer/fly-to-cart';
+import { PullToRefresh } from '@/components/pull-to-refresh';
 
 /**
  * Customer layout — premium, theme-aware (rang tokenlari globals.css'da),
@@ -14,6 +15,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
     <LocaleProvider>
       <FlyToCartProvider>
         <div className="relative min-h-dvh bg-gradient-to-b from-slate-50 via-slate-50 to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50">
+          <PullToRefresh />
           <CustomerHeader />
           <main
             className="relative mx-auto w-full max-w-[480px]"

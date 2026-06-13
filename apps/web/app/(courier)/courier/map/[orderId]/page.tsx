@@ -122,7 +122,7 @@ function MapView({
   const isLastAction = next?.next === 'DELIVERED';
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#0d0d0f] text-white">
+    <div className="fixed inset-0 z-50 bg-[#0d0d0f] text-white" data-no-ptr="true">
       {/* Map */}
       <OrderMap pickup={pickup} destination={destination} courier={courier} routeTo={routeTo} />
 
