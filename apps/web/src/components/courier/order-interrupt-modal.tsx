@@ -2,17 +2,19 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { MapPin, Package } from 'lucide-react';
+import { AlertCircle, MapPin, Package } from 'lucide-react';
 import { useCourierInterrupt } from '@/stores/courier-interrupt-store';
 import { useAcceptOrder, useDeclineOrder } from '@/hooks/use-courier';
 import { DualSwipe } from './dual-swipe';
 
 /**
  * Yangi buyurtma interrupt sheet:
- * - Normal sahifalarda: 35% balandlik, 25s timer
- * - Xaritada (/courier/map/*): 20% balandlik, 15s timer (xalal bermasin)
- * - Ikki tomonlama swipe: o'ng→qabul, chap→rad
- * - Timeout: avtomatik yopiladi va seen deb belgilanadi
+ * - Normal sahifalar: 35% balandlik, 25s timer
+ * - Xaritada (/courier/map/*): 20% balandlik, 15s timer
+ * - O'ng swipe → qabul → /courier/map/[id] (navigation darhol boshlanadi)
+ * - Chap swipe → rad → dismiss
+ * - Backend xato bo'lsa user ko'radi (silent fail emas)
+ * - Timeout: seen deb belgilanadi (qayta interrupt qilmaydi, ASSIGNED qoladi)
  */
 export function OrderInterruptModal() {
   const pathname = usePathname() ?? '';
@@ -23,13 +25,17 @@ export function OrderInterruptModal() {
   const accept = useAcceptOrder();
   const decline = useDeclineOrder();
   const [timeLeft, setTimeLeft] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const startedAtRef = useRef<number | null>(null);
 
   const onMap = pathname.startsWith('/courier/map');
   const totalSec = onMap ? 15 : 25;
   const heightPct = onMap ? 20 : 35;
 
-  // Telegram haptic — paydo bo'lganda
+  useEffect(() => {
+    setError(null);
+  }, [current?.id]);
+
   useEffect(() => {
     if (!current) return;
     try {
@@ -39,7 +45,6 @@ export function OrderInterruptModal() {
     } catch {/* ignore */}
   }, [current?.id]);
 
-  // Timer
   useEffect(() => {
     if (!current) {
       startedAtRef.current = null;
@@ -66,21 +71,29 @@ export function OrderInterruptModal() {
   if (!current) return null;
 
   const handleAccept = () => {
+    setError(null);
     accept.mutate(current.id, {
       onSuccess: () => {
         markSeen(current.id);
         dismiss();
-        // Xaritada bo'lsa o'tkazmaymiz (faol marshrutni buzmaslik uchun)
-        if (!onMap) router.push(`/courier/order/${current.id}`);
+        // Qabul qilingach DARHOL xarita navigation boshlanadi
+        router.push(`/courier/map/${current.id}`);
+      },
+      onError: (err) => {
+        setError(err instanceof Error ? err.message : "Qabul qilib bo'lmadi. Qayta urinib ko'ring.");
       },
     });
   };
 
   const handleDecline = () => {
+    setError(null);
     decline.mutate(current.id, {
       onSuccess: () => {
         markSeen(current.id);
         dismiss();
+      },
+      onError: (err) => {
+        setError(err instanceof Error ? err.message : "Rad etib bo'lmadi. Qayta urinib ko'ring.");
       },
     });
   };
@@ -88,15 +101,14 @@ export function OrderInterruptModal() {
   const total = (current.total ?? 0) + (current.deliveryFee ?? 0);
   const address = current.customerAddress?.addressText ?? current.deliveryAddress;
   const progressPct = (timeLeft / totalSec) * 100;
+  const busy = accept.isPending || decline.isPending;
 
   return (
     <div className="pointer-events-none fixed inset-0 z-[60]">
-      {/* Backdrop — yumshoq, faqat normal holatda */}
       {!onMap && (
         <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px] transition-opacity" />
       )}
 
-      {/* Sheet */}
       <div
         className="pointer-events-auto absolute inset-x-0 bottom-0 mx-auto w-full max-w-[480px] rounded-t-3xl bg-white shadow-[0_-20px_50px_-8px_rgba(0,0,0,0.35)] dark:bg-slate-900"
         style={{
@@ -104,7 +116,6 @@ export function OrderInterruptModal() {
           paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)',
         }}
       >
-        {/* Timer progress bar (top) */}
         <div className="h-1 w-full overflow-hidden rounded-t-3xl bg-slate-100 dark:bg-slate-800">
           <div
             className="h-full bg-gradient-to-r from-amber-400 to-[#c62020] transition-[width] duration-200 ease-linear"
@@ -113,7 +124,6 @@ export function OrderInterruptModal() {
         </div>
 
         <div className="flex h-[calc(100%-4px)] flex-col px-4 pt-3">
-          {/* Header */}
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#c62020] to-[#f97316] text-white shadow-[0_8px_18px_-6px_rgba(198,32,32,0.55)]">
@@ -136,7 +146,6 @@ export function OrderInterruptModal() {
             </div>
           </div>
 
-          {/* Meta — kompakt, har ikki rejimda mos */}
           {!onMap && address && (
             <div className="mt-3 flex items-start gap-1.5">
               <MapPin size={12} className="mt-0.5 shrink-0 text-slate-400" />
@@ -150,17 +159,23 @@ export function OrderInterruptModal() {
             <p className="mt-1 text-xs font-medium text-slate-500">{current.customerName}</p>
           )}
 
-          {/* Spacer + Swipe */}
+          {error && (
+            <div className="mt-2 flex items-start gap-2 rounded-xl bg-red-50 px-3 py-2 dark:bg-red-500/15">
+              <AlertCircle size={14} className="mt-0.5 shrink-0 text-red-500" />
+              <p className="text-xs font-bold text-red-600 dark:text-red-300">{error}</p>
+            </div>
+          )}
+
           <div className="mt-auto pb-2">
             <DualSwipe
               acceptLabel="Qabul qilaman"
               declineLabel="Rad etish"
-              busy={accept.isPending || decline.isPending}
+              busy={busy}
               onAccept={handleAccept}
               onDecline={handleDecline}
             />
             <p className="mt-1.5 text-center text-[10px] font-medium text-slate-400">
-              {onMap ? '◀ Rad etish · O\'ng tomonga sursang qabul qilinadi ▶' : 'Chapga sursang rad · O\'ngga sursang qabul'}
+              {busy ? 'Yuborilmoqda...' : "Chapga sursang rad · O'ngga sursang qabul"}
             </p>
           </div>
         </div>

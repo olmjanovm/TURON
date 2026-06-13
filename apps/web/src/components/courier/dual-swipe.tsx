@@ -13,9 +13,15 @@ interface DualSwipeProps {
 }
 
 /**
- * Ikki tomonlama slider: knob markazda, o'ngga sursa qabul (emerald),
- * chapga sursa rad (qizil). 65%+ release → action. Aks holda markazga qaytadi.
- * Telegram haptic heavy — confirm.
+ * Ikki tomonlama slider — chap=rad, o'ng=qabul.
+ *
+ * Muhim texnik nuanslar (qaytib ulashmaslik uchun):
+ *   1. touch-action:none — brauzer swipe'ni page scroll deb tushunmasligi
+ *   2. progressRef — state stale o'qish bug'i (React render kechikishi)
+ *      eski versiyada `onEnd` `progress` state'ni o'qigan, lekin tezda
+ *      release qilsa, state hali yangilanib ulgurmagan bo'lishi mumkin
+ *   3. Butun TRACK sudraladi (faqat knob emas) — qulayroq
+ *   4. Pointer + Touch event hammasi qo'llab-quvvatlanadi
  */
 export function DualSwipe({
   acceptLabel,
@@ -26,7 +32,8 @@ export function DualSwipe({
   disabled,
 }: DualSwipeProps) {
   const trackRef = useRef<HTMLDivElement | null>(null);
-  const [progress, setProgress] = useState(0); // -1..+1 (- = decline yo'naltirish, + = accept)
+  const [progress, setProgress] = useState(0); // -1..+1
+  const progressRef = useRef(0); // state stale fix uchun mirror
   const draggingRef = useRef(false);
   const startXRef = useRef(0);
 
@@ -42,6 +49,11 @@ export function DualSwipe({
     } catch {/* ignore */}
   };
 
+  const updateProgress = (p: number) => {
+    progressRef.current = p;
+    setProgress(p);
+  };
+
   const onStart = (clientX: number) => {
     if (disabled || busy) return;
     draggingRef.current = true;
@@ -53,22 +65,23 @@ export function DualSwipe({
     const dx = clientX - startXRef.current;
     const max = halfTravel();
     const p = Math.max(-1, Math.min(1, dx / max));
-    setProgress(p);
+    updateProgress(p);
   };
 
   const onEnd = () => {
     if (!draggingRef.current) return;
     draggingRef.current = false;
-    if (progress >= 0.65) {
-      setProgress(1);
+    const finalP = progressRef.current; // REF'dan o'qiymiz — stale state yo'q
+    if (finalP >= 0.6) {
+      updateProgress(1);
       haptic('heavy');
       onAccept();
-    } else if (progress <= -0.65) {
-      setProgress(-1);
+    } else if (finalP <= -0.6) {
+      updateProgress(-1);
       haptic('heavy');
       onDecline();
     } else {
-      setProgress(0);
+      updateProgress(0);
     }
   };
 
@@ -82,6 +95,26 @@ export function DualSwipe({
       className={`relative h-[64px] w-full overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800 ${
         disabled ? 'opacity-40' : ''
       }`}
+      onPointerDown={(e) => {
+        if (disabled || busy) return;
+        try { (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId); } catch {/* */}
+        onStart(e.clientX);
+      }}
+      onPointerMove={(e) => onMove(e.clientX)}
+      onPointerUp={(e) => {
+        try { (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId); } catch {/* */}
+        onEnd();
+      }}
+      onPointerCancel={onEnd}
+      onPointerLeave={() => { if (draggingRef.current) onEnd(); }}
+      onTouchStart={(e) => onStart(e.touches[0]?.clientX ?? 0)}
+      onTouchMove={(e) => {
+        if (draggingRef.current && e.cancelable) e.preventDefault();
+        onMove(e.touches[0]?.clientX ?? 0);
+      }}
+      onTouchEnd={onEnd}
+      onTouchCancel={onEnd}
+      style={{ touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none' }}
     >
       {/* Decline fill — chap tomondan o'ngga */}
       <div
@@ -118,28 +151,14 @@ export function DualSwipe({
         </div>
       </div>
 
-      {/* Knob — markazdan ikki tomonga */}
-      <button
-        type="button"
-        disabled={disabled || busy}
-        onPointerDown={(e) => {
-          (e.currentTarget as HTMLButtonElement).setPointerCapture(e.pointerId);
-          onStart(e.clientX);
-        }}
-        onPointerMove={(e) => onMove(e.clientX)}
-        onPointerUp={(e) => {
-          try {
-            (e.currentTarget as HTMLButtonElement).releasePointerCapture(e.pointerId);
-          } catch {/* ignore */}
-          onEnd();
-        }}
-        onPointerCancel={onEnd}
-        className={`absolute top-1 flex h-[56px] w-[56px] items-center justify-center rounded-xl shadow-lg active:scale-95 ${
+      {/* Knob — markazdan ikki tomonga, pointer-events:none (track o'zi ushlaydi) */}
+      <div
+        className={`pointer-events-none absolute top-1 flex h-[56px] w-[56px] items-center justify-center rounded-xl shadow-lg ${
           progress > 0.3
             ? 'bg-emerald-500 text-white'
             : progress < -0.3
               ? 'bg-red-500 text-white'
-              : 'bg-white text-slate-900'
+              : 'bg-white text-slate-900 dark:bg-slate-100'
         }`}
         style={{
           left: '50%',
@@ -160,7 +179,7 @@ export function DualSwipe({
             <ChevronRight size={14} strokeWidth={2.8} />
           </span>
         )}
-      </button>
+      </div>
     </div>
   );
 }
