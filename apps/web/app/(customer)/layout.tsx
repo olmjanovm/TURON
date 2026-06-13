@@ -1,17 +1,28 @@
-import { CustomerBottomNav, CartFab } from '@/components/customer/bottom-nav';
+import { LocaleProvider } from '@/lib/i18n/locale-context';
+import { CustomerHeader } from '@/components/customer/customer-header';
+import { CustomerBottomNav } from '@/components/customer/bottom-nav';
+import { FlyToCartProvider } from '@/components/customer/fly-to-cart';
 
-/** FAZA B — Customer layout (TURON Olovi: tandir header, light body). */
+/**
+ * Customer layout — premium, theme-aware (rang tokenlari globals.css'da),
+ * i18n (3 til: uz, uz-Cyrl, ru), fly-to-cart.
+ * Sticky header, statik bottom nav, frosted glass effekt.
+ */
 export default function CustomerLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-dvh bg-slate-50 text-slate-900">
-      <main
-        className="mx-auto w-full max-w-[480px]"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)' }}
-      >
-        {children}
-      </main>
-      <CartFab />
-      <CustomerBottomNav />
-    </div>
+    <LocaleProvider>
+      <FlyToCartProvider>
+        <div className="relative min-h-dvh bg-gradient-to-b from-slate-50 via-slate-50 to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50">
+          <CustomerHeader />
+          <main
+            className="relative mx-auto w-full max-w-[480px]"
+            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 86px)' }}
+          >
+            {children}
+          </main>
+          <CustomerBottomNav />
+        </div>
+      </FlyToCartProvider>
+    </LocaleProvider>
   );
 }

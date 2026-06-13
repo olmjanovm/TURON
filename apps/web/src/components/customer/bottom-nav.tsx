@@ -2,37 +2,53 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Search, ClipboardList, User } from 'lucide-react';
-import { useCartStore } from '@/stores/cart-store';
-
-const ITEMS = [
-  { href: '/', label: 'Bosh', icon: Home },
-  { href: '/search', label: 'Qidiruv', icon: Search },
-  { href: '/orders', label: 'Buyurtma', icon: ClipboardList },
-  { href: '/profile', label: 'Profil', icon: User },
-];
+import { Home, Heart, ClipboardList, User } from 'lucide-react';
+import { useT } from '@/lib/i18n/locale-context';
+import { useCustomerPrefs } from '@/stores/customer-prefs-store';
 
 export function CustomerBottomNav() {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? '/';
+  const t = useT();
+  const favCount = useCustomerPrefs((s) => s.favorites.length);
+
+  const ITEMS = [
+    { href: '/',           label: t('nav.home'),      icon: Home,          match: (p: string) => p === '/' || p.startsWith('/product/') || p.startsWith('/menu/') },
+    { href: '/favorites',  label: t('nav.favorites'), icon: Heart,         match: (p: string) => p.startsWith('/favorites'),  badge: favCount },
+    { href: '/orders',     label: t('nav.orders'),    icon: ClipboardList, match: (p: string) => p.startsWith('/orders') },
+    { href: '/profile',    label: t('nav.profile'),   icon: User,          match: (p: string) => p.startsWith('/profile') },
+  ];
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur"
+      className="fixed bottom-0 left-1/2 z-40 w-full max-w-[480px] -translate-x-1/2 border-t border-slate-100 bg-white/85 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/85"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
-      <div className="mx-auto grid w-full max-w-[480px] grid-cols-4">
-        {ITEMS.map(({ href, label, icon: Icon }) => {
-          const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
+      <div className="grid grid-cols-4 px-2">
+        {ITEMS.map(({ href, label, icon: Icon, match, badge }) => {
+          const active = match(pathname);
           return (
             <Link
               key={href}
               href={href}
-              className={`flex flex-col items-center gap-1 py-2.5 transition-colors ${
-                active ? 'text-ember' : 'text-slate-400'
-              }`}
+              className="group relative flex flex-col items-center gap-0.5 py-2.5"
             >
-              <Icon size={22} strokeWidth={active ? 2.4 : 2} />
-              <span className="text-[10px] font-semibold">{label}</span>
+              <span
+                className={`relative flex h-9 w-9 items-center justify-center rounded-2xl transition-all ${
+                  active
+                    ? 'bg-gradient-to-br from-[#c62020] to-[#f97316] text-white shadow-[0_8px_18px_-6px_rgba(198,32,32,0.45)]'
+                    : 'text-slate-400 group-active:scale-90 dark:text-slate-500'
+                }`}
+              >
+                <Icon size={18} strokeWidth={active ? 2.5 : 2} />
+                {badge && badge > 0 ? (
+                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-white bg-[#c62020] px-1 text-[9px] font-black text-white dark:border-slate-950">
+                    {badge > 9 ? '9+' : badge}
+                  </span>
+                ) : null}
+              </span>
+              <span className={`text-[10px] font-bold ${active ? 'text-[#c62020]' : 'text-slate-400 dark:text-slate-500'}`}>
+                {label}
+              </span>
             </Link>
           );
         })}
@@ -41,19 +57,7 @@ export function CustomerBottomNav() {
   );
 }
 
+// Kept for backward compat — endi CustomerHeader'da cart bor
 export function CartFab() {
-  const count = useCartStore((s) => s.items.reduce((n, i) => n + i.quantity, 0));
-  if (count === 0) return null;
-  return (
-    <Link
-      href="/cart"
-      className="fixed bottom-20 right-4 z-40 flex h-14 items-center gap-2 rounded-full bg-ember px-5 text-white shadow-lg shadow-ember/30 transition active:scale-95"
-      style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
-    >
-      <span className="text-sm font-bold">Savat</span>
-      <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-white px-1.5 text-xs font-black text-ember">
-        {count}
-      </span>
-    </Link>
-  );
+  return null;
 }

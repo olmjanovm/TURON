@@ -28,6 +28,12 @@ export default function RootLayout({
       <head>
         {/* Device tier'ni paint'dan OLDIN o'rnatadi (flash yo'q) */}
         <script dangerouslySetInnerHTML={{ __html: TIER_INIT_SCRIPT }} />
+        {/* Theme — paint'dan OLDIN .dark klassini qo'yadi (flash yo'q). */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('turon-theme')||'system';var d=t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');}catch(e){}})();`,
+          }}
+        />
         {/* Telegram WebApp SDK — interaktivlikdan oldin yuklanadi */}
         <Script
           src="https://telegram.org/js/telegram-web-app.js"
