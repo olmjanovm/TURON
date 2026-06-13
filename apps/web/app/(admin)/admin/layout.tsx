@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Store, Bell } from 'lucide-react';
 import { AdminBottomNav } from '@/components/admin/admin-bottom-nav';
 import { AdminRoleGuard } from '@/components/admin/admin-role-guard';
+import { AdminBrand } from '@/components/admin/admin-brand';
 
 /**
  * FAZA I — Admin layout (Next.js + TS). Premium light tema:
@@ -28,7 +29,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="mx-auto flex h-16 w-full max-w-[480px] items-center justify-between px-4">
           <div>
             <p className="text-[11px] font-medium text-slate-400">Boshqaruv paneli</p>
-            <h1 className="text-lg font-black tracking-tight text-slate-900">TURON</h1>
+            <AdminBrand />
           </div>
           <div className="flex items-center gap-2">
             <Link
