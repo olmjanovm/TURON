@@ -11,12 +11,18 @@ import { AUTH_COOKIE } from '@/lib/server/backend';
  */
 const PROTECTED_PREFIXES = ['/admin', '/courier'];
 
+// MIGRATSIYA PREVIEW: hozir /admin va /courier brauzerda ham ochilsin (dizaynni
+// ko'rish uchun). Ma'lumot baribir API'da auth talab qiladi (UI ko'rinadi, data emas).
+// To'liq deploy/almashtirishdan oldin bu yana yoqiladi.
+const ENFORCE_AUTH_REDIRECT = false;
+
 export function middleware(req: NextRequest) {
+  if (!ENFORCE_AUTH_REDIRECT) return NextResponse.next();
+
   const { pathname } = req.nextUrl;
   const isProtected = PROTECTED_PREFIXES.some(
     (p) => pathname === p || pathname.startsWith(`${p}/`),
   );
-
   if (!isProtected) return NextResponse.next();
 
   const token = req.cookies.get(AUTH_COOKIE)?.value;
@@ -25,7 +31,6 @@ export function middleware(req: NextRequest) {
     url.pathname = '/';
     return NextResponse.redirect(url);
   }
-
   return NextResponse.next();
 }
 
