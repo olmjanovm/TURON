@@ -37,6 +37,18 @@ export function useToggleCourier() {
   });
 }
 
+export function useUpdateCourier() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...patch }: { id: string; fullName?: string; phoneNumber?: string; isActive?: boolean }) =>
+      apiFetch<AdminCourier>(`/api/couriers/admin/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'couriers'] }),
+  });
+}
+
 export function useCreateCourier() {
   const qc = useQueryClient();
   return useMutation({

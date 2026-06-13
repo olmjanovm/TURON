@@ -2,7 +2,7 @@
 
 import { use, useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, Phone, User, Truck, Loader2, Check, X, Bike } from 'lucide-react';
+import { ChevronLeft, Phone, User, Truck, Loader2, Check, X, Bike, MessageCircle, MapPin } from 'lucide-react';
 import { OrderStatusEnum } from '@turon/shared';
 import {
   useAdminOrder,
@@ -103,59 +103,84 @@ function DispatchActions({ orderId, order }: { orderId: string; order: Order }) 
   const terminal =
     order.orderStatus === OrderStatusEnum.DELIVERED ||
     order.orderStatus === OrderStatusEnum.CANCELLED;
-  if (terminal) return null;
-  if (order.courierName) {
-    return (
-      <div className="admin-card flex items-center gap-3 p-4">
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-50 text-violet-600">
-          <Bike size={18} />
-        </div>
-        <div className="flex-1">
-          <p className="text-xs text-slate-400">Biriktirilgan kuryer</p>
-          <p className="text-sm font-bold text-slate-900">{order.courierName}</p>
-        </div>
-      </div>
-    );
-  }
+  const assigned = Boolean(order.courierName);
+  if (terminal && !assigned) return null;
 
   return (
     <div className="admin-card admin-card-accent p-4 pt-5">
-      <p className="text-sm font-bold text-slate-900">Kuryer biriktirish</p>
-      {!open ? (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-ember to-orange-500 py-3 text-sm font-bold text-white shadow-lg shadow-ember/30 active:scale-[0.99]"
-        >
-          <Bike size={16} /> Kuryer tanlash
-        </button>
-      ) : isLoading ? (
-        <div className="mt-3 space-y-2"><SkeletonRow /><SkeletonRow /></div>
-      ) : (
-        <div className="mt-3 space-y-2">
-          {(options ?? []).length === 0 && (
-            <p className="py-3 text-center text-xs text-slate-400">Mavjud kuryer yo'q</p>
+      {assigned ? (
+        <>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-50 text-violet-600">
+              <Bike size={18} />
+            </div>
+            <div className="flex-1">
+              <p className="text-xs text-slate-400">Biriktirilgan kuryer</p>
+              <p className="text-sm font-bold text-slate-900">{order.courierName}</p>
+            </div>
+          </div>
+          {!terminal && (
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setOpen((o) => !o)}
+                className="flex items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-white py-2.5 text-xs font-bold text-slate-700 active:scale-[0.99]"
+              >
+                <Bike size={14} /> Boshqa kuryer
+              </button>
+              <Link
+                href={`/admin/chats/${orderId}?role=courier`}
+                className="flex items-center justify-center gap-1.5 rounded-2xl bg-violet-50 py-2.5 text-xs font-bold text-violet-700 active:scale-[0.99]"
+              >
+                <MessageCircle size={14} /> Kuryerga xabar
+              </Link>
+            </div>
           )}
-          {(options ?? []).map((c) => (
+        </>
+      ) : (
+        <>
+          <p className="text-sm font-bold text-slate-900">Kuryer biriktirish</p>
+          {!open && (
             <button
-              key={c.id}
               type="button"
-              disabled={dispatch.isPending}
-              onClick={() => dispatch.mutate(c.id, { onSuccess: () => setOpen(false) })}
-              className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left active:scale-[0.99] disabled:opacity-60"
+              onClick={() => setOpen(true)}
+              className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-ember to-orange-500 py-3 text-sm font-bold text-white shadow-lg shadow-ember/30 active:scale-[0.99]"
             >
-              <span className={`h-2.5 w-2.5 rounded-full ${c.isOnline ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-bold text-slate-900">{c.fullName}</span>
-                <span className="block text-[11px] text-slate-500">
-                  {c.activeAssignments} faol{c.etaMinutes ? ` · ~${c.etaMinutes} daq` : ''}
-                </span>
-              </span>
-              {dispatch.isPending ? <Loader2 size={15} className="animate-spin text-ember" /> : null}
+              <Bike size={16} /> Kuryer tanlash
             </button>
-          ))}
-        </div>
+          )}
+        </>
       )}
+
+      {open &&
+        (isLoading ? (
+          <div className="mt-3 space-y-2"><SkeletonRow /><SkeletonRow /></div>
+        ) : (
+          <div className="mt-3 space-y-2">
+            {assigned && <p className="text-[11px] font-semibold text-slate-400">Yangi kuryerni tanlang (qayta yo'naltirish):</p>}
+            {(options ?? []).length === 0 && (
+              <p className="py-3 text-center text-xs text-slate-400">Mavjud kuryer yo'q</p>
+            )}
+            {(options ?? []).map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                disabled={dispatch.isPending}
+                onClick={() => dispatch.mutate(c.id, { onSuccess: () => setOpen(false) })}
+                className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left active:scale-[0.99] disabled:opacity-60"
+              >
+                <span className={`h-2.5 w-2.5 rounded-full ${c.isOnline ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-bold text-slate-900">{c.fullName}</span>
+                  <span className="block text-[11px] text-slate-500">
+                    {c.activeAssignments} faol{c.etaMinutes ? ` · ~${c.etaMinutes} daq` : ''}
+                  </span>
+                </span>
+                {dispatch.isPending ? <Loader2 size={15} className="animate-spin text-ember" /> : null}
+              </button>
+            ))}
+          </div>
+        ))}
     </div>
   );
 }
@@ -196,19 +221,37 @@ function OrderBody({
       </div>
 
       {/* Mijoz */}
-      {(order.customerName || order.customerPhone) && (
-        <div className="admin-card p-4">
+      {(order.customerName || order.customerPhone || order.customerAddress) && (
+        <div className="admin-card space-y-2 p-4">
           <div className="flex items-center gap-2 text-sm text-slate-700">
             <User size={16} className="text-slate-400" />
             <span className="font-medium">{order.customerName ?? 'Mijoz'}</span>
           </div>
           {order.customerPhone && (
-            <a href={`tel:${order.customerPhone}`} className="mt-2 flex items-center gap-2 text-sm text-sky-600">
+            <a href={`tel:${order.customerPhone}`} className="flex items-center gap-2 text-sm font-semibold text-sky-600">
               <Phone size={16} /> {order.customerPhone}
             </a>
           )}
+          {order.customerAddress?.addressText && (
+            <a
+              href={
+                order.customerAddress.latitude && order.customerAddress.longitude
+                  ? `https://yandex.uz/maps/?pt=${order.customerAddress.longitude},${order.customerAddress.latitude}&z=17&l=map`
+                  : undefined
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-start gap-2 text-sm text-slate-600"
+            >
+              <MapPin size={16} className="mt-0.5 shrink-0 text-ember" />
+              <span>
+                {order.customerAddress.addressText}
+                {order.customerAddress.note ? <span className="block text-xs text-slate-400">{order.customerAddress.note}</span> : null}
+              </span>
+            </a>
+          )}
           {order.courierName && (
-            <div className="mt-2 flex items-center gap-2 text-sm text-slate-600">
+            <div className="flex items-center gap-2 text-sm text-slate-600">
               <Truck size={16} className="text-slate-400" /> {order.courierName}
             </div>
           )}

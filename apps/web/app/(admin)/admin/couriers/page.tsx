@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Phone, Power, UserPlus, Loader2, X } from 'lucide-react';
 import { useCouriers, useToggleCourier, useCreateCourier } from '@/hooks/use-admin-couriers';
 import { SkeletonRow } from '@/components/ui/skeleton';
@@ -39,26 +40,28 @@ export default function AdminCouriersPage() {
         <div className="space-y-2">
           {(couriers ?? []).map((c) => (
             <div key={c.id} className="admin-card flex items-center gap-3 p-4">
-              <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-sm font-black text-slate-500">
-                {c.fullName.charAt(0).toUpperCase()}
-                <span
-                  className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-white ${
-                    c.isOnline ? 'bg-emerald-500' : 'bg-slate-300'
-                  }`}
-                />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-bold text-slate-900">{c.fullName}</p>
-                <div className="mt-0.5 flex items-center gap-2 text-[11px] text-slate-500">
-                  {c.phoneNumber && (
-                    <span className="inline-flex items-center gap-1">
-                      <Phone size={11} /> {c.phoneNumber}
-                    </span>
-                  )}
-                  <span>· {c.activeAssignments} faol</span>
-                  <span>· {c.completedToday} bugun</span>
+              <Link href={`/admin/couriers/${c.id}/edit`} className="flex min-w-0 flex-1 items-center gap-3">
+                <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-sm font-black text-slate-500">
+                  {c.fullName.charAt(0).toUpperCase()}
+                  <span
+                    className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-white ${
+                      c.isOnline ? 'bg-emerald-500' : 'bg-slate-300'
+                    }`}
+                  />
                 </div>
-              </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold text-slate-900">{c.fullName}</p>
+                  <div className="mt-0.5 flex items-center gap-2 text-[11px] text-slate-500">
+                    {c.phoneNumber && (
+                      <span className="inline-flex items-center gap-1">
+                        <Phone size={11} /> {c.phoneNumber}
+                      </span>
+                    )}
+                    <span>· {c.activeAssignments} faol</span>
+                    <span>· {c.completedToday} bugun</span>
+                  </div>
+                </div>
+              </Link>
               <button
                 type="button"
                 disabled={toggle.isPending}

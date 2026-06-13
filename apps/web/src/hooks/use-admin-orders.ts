@@ -29,6 +29,7 @@ export interface AdminOrder {
   createdAt?: string;
   customerName?: string;
   customerPhone?: string | null;
+  customerAddress?: { addressText?: string; latitude?: number; longitude?: number; note?: string | null } | null;
   courierName?: string;
 }
 
