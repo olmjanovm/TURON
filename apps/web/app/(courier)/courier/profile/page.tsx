@@ -2,32 +2,45 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle2, Loader2, Save, User, Phone } from 'lucide-react';
-import { useCourierProfile, useUpdateProfile } from '@/hooks/use-courier';
+import { ArrowLeft, Bike, Car, CheckCircle2, Footprints, Loader2, Save, User, Phone } from 'lucide-react';
+import { useCourierProfile, useUpdateProfile, type CourierVehicle } from '@/hooks/use-courier';
 import { Skeleton } from '@/components/ui/skeleton';
 import { focusScrollIntoView } from '@/hooks/use-keyboard';
+
+const VEHICLE_META: Record<CourierVehicle, { label: string; icon: typeof Car; desc: string }> = {
+  auto:       { label: 'Mashina',  icon: Car,        desc: "Asfaltdan yo'l" },
+  bicycle:    { label: 'Skuter',   icon: Bike,       desc: "Velosiped/skuter yo'li" },
+  pedestrian: { label: 'Piyoda',   icon: Footprints, desc: "Piyodalar yo'li" },
+};
 
 export default function CourierProfilePage() {
   const { data: profile, isLoading, error } = useCourierProfile();
   const update = useUpdateProfile();
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const [vehicleMode, setVehicleMode] = useState<CourierVehicle>('auto');
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (profile) {
       setFullName(profile.fullName ?? '');
       setPhone(profile.phoneNumber ?? '');
+      setVehicleMode(profile.vehicleMode ?? 'auto');
     }
   }, [profile]);
 
   const dirty =
-    profile != null && (fullName.trim() !== (profile.fullName ?? '') || phone.trim() !== (profile.phoneNumber ?? ''));
+    profile != null && (
+      fullName.trim() !== (profile.fullName ?? '') ||
+      phone.trim() !== (profile.phoneNumber ?? '') ||
+      vehicleMode !== (profile.vehicleMode ?? 'auto')
+    );
 
   const handleSave = () => {
-    const payload: { fullName?: string; phoneNumber?: string } = {};
+    const payload: { fullName?: string; phoneNumber?: string; vehicleMode?: CourierVehicle } = {};
     if (fullName.trim() !== (profile?.fullName ?? '')) payload.fullName = fullName.trim();
     if (phone.trim() !== (profile?.phoneNumber ?? '')) payload.phoneNumber = phone.trim();
+    if (vehicleMode !== (profile?.vehicleMode ?? 'auto')) payload.vehicleMode = vehicleMode;
     if (Object.keys(payload).length === 0) return;
     update.mutate(payload, {
       onSuccess: () => {
@@ -136,6 +149,37 @@ export default function CourierProfilePage() {
               placeholder="+998 90 123 45 67"
               className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-sm text-slate-900 outline-none focus:border-[#c62020]"
             />
+          </div>
+        </div>
+
+        {/* Vehicle mode — marshrut turi navigatorda ishlatiladi */}
+        <div>
+          <label className="text-xs font-bold text-slate-600">Transport vositasi</label>
+          <p className="mb-2 mt-0.5 text-[10px] text-slate-400">
+            Navigatorda yo&apos;l shu turga qarab chiziladi
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {(['auto', 'bicycle', 'pedestrian'] as CourierVehicle[]).map((mode) => {
+              const meta = VEHICLE_META[mode];
+              const Icon = meta.icon;
+              const active = vehicleMode === mode;
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setVehicleMode(mode)}
+                  className={`flex flex-col items-center gap-1.5 rounded-2xl border px-2 py-3 transition ${
+                    active ? 'border-[#c62020] bg-[#c62020]/5' : 'border-slate-200 bg-slate-50'
+                  }`}
+                >
+                  <Icon size={20} className={active ? 'text-[#c62020]' : 'text-slate-500'} />
+                  <p className={`text-[11px] font-black ${active ? 'text-[#c62020]' : 'text-slate-600'}`}>
+                    {meta.label}
+                  </p>
+                  <p className="text-center text-[9px] leading-tight text-slate-400">{meta.desc}</p>
+                </button>
+              );
+            })}
           </div>
         </div>
 

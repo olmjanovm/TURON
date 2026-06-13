@@ -92,6 +92,8 @@ export interface CourierTodayStats {
   }>;
 }
 
+export type CourierVehicle = 'auto' | 'bicycle' | 'pedestrian';
+
 export interface CourierProfileDetail {
   courierId: string;
   fullName: string;
@@ -103,6 +105,7 @@ export interface CourierProfileDetail {
   activeAssignments: number;
   completedToday: number;
   deliveryFeesToday?: number;
+  vehicleMode?: CourierVehicle;
   createdAt: string;
 }
 
@@ -249,7 +252,7 @@ export function useReportProblem() {
 export function useUpdateProfile() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: { fullName?: string; phoneNumber?: string }) =>
+    mutationFn: (payload: { fullName?: string; phoneNumber?: string; vehicleMode?: CourierVehicle }) =>
       apiFetch<CourierProfileDetail>('/couriers/me/profile', {
         method: 'PATCH',
         body: JSON.stringify(payload),

@@ -6,20 +6,21 @@ import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import {
   useCourierOrder,
+  useCourierProfile,
   useAdvanceStage,
   getNextStageAction,
   getStageIndex,
   STAGE_FLOW,
+  type CourierVehicle,
 } from '@/hooks/use-courier';
 import { useCourierSocket } from '@/hooks/use-courier-socket';
 import { SwipeConfirm } from '@/components/courier/map/swipe-confirm';
-import { OrderSheet, MapTopBar } from '@/components/courier/map/order-sheet';
+import { OrderSheet } from '@/components/courier/map/order-sheet';
 import { RESTAURANT_DEFAULT } from '@/lib/yandex-maps';
-import { estimateRoute } from '@/lib/route-estimate';
 
-// Map yuklash faqat client'da — Yandex Maps SSR'da ishlamaydi
-const OrderMap = dynamic(
-  () => import('@/components/courier/map/order-map').then((m) => m.OrderMap),
+// DeliveryNavigator faqat client'da — Yandex Maps SSR'da ishlamaydi
+const DeliveryNavigator = dynamic(
+  () => import('@/components/courier/map/delivery-navigator').then((m) => m.DeliveryNavigator),
   {
     ssr: false,
     loading: () => (
@@ -31,29 +32,21 @@ const OrderMap = dynamic(
 );
 
 const STAGE_LABELS: Record<string, string> = {
-  IDLE:                  'Buyurtmani qabul qilish',
-  GOING_TO_RESTAURANT:   "Restoranga yo'l olding",
+  IDLE: 'Buyurtmani qabul qilish',
+  GOING_TO_RESTAURANT: "Restoranga yo'l olding",
   ARRIVED_AT_RESTAURANT: 'Restoranga yetding',
-  PICKING_UP:            'Buyurtmani olding',
-  DELIVERING:            'Mijozga olib boryapsan',
-  DELIVERED:             'Topshirildi',
-};
-
-const ROUTE_META: Record<string, string> = {
-  IDLE: 'Buyurtmani qabul qiling',
-  GOING_TO_RESTAURANT: 'Restoranga yetib boring',
-  ARRIVED_AT_RESTAURANT: 'Buyurtmani oling va boshlang',
-  PICKING_UP: 'Mijozga yetkazib boring',
-  DELIVERING: 'Mijozga topshiring',
-  DELIVERED: 'Yakunlandi',
+  PICKING_UP: 'Buyurtmani olding',
+  DELIVERING: 'Mijozga olib boryapsan',
+  DELIVERED: 'Topshirildi',
 };
 
 export default function CourierMapPage({ params }: { params: Promise<{ orderId: string }> }) {
   const { orderId } = use(params);
   const router = useRouter();
   const { data: order, isLoading, isError } = useCourierOrder(orderId);
+  const { data: profile } = useCourierProfile();
   const advance = useAdvanceStage();
-  useCourierSocket(); // realtime
+  useCourierSocket();
 
   if (isLoading) {
     return (
@@ -80,13 +73,26 @@ export default function CourierMapPage({ params }: { params: Promise<{ orderId: 
     );
   }
 
-  return <MapView order={order} onBack={() => router.replace(`/courier/order/${orderId}`)} onAdvance={(next) => advance.mutate({ orderId, nextStage: next })} advancing={advance.isPending} />;
+  return (
+    <MapView
+      order={order}
+      vehicleMode={profile?.vehicleMode ?? 'auto'}
+      onBack={() => router.replace(`/courier/order/${orderId}`)}
+      onAdvance={(next) => advance.mutate({ orderId, nextStage: next })}
+      advancing={advance.isPending}
+    />
+  );
 }
 
 function MapView({
-  order, onBack, onAdvance, advancing,
+  order,
+  vehicleMode,
+  onBack,
+  onAdvance,
+  advancing,
 }: {
   order: NonNullable<ReturnType<typeof useCourierOrder>['data']>;
+  vehicleMode: CourierVehicle;
   onBack: () => void;
   onAdvance: (next: import('@/hooks/use-courier').DeliveryStage) => void;
   advancing: boolean;
@@ -117,19 +123,25 @@ function MapView({
     stage === 'IDLE' || stage === 'GOING_TO_RESTAURANT' || stage === 'ARRIVED_AT_RESTAURANT' || stage === 'PICKING_UP';
   const routeTo = goingToPickup ? pickup : destination;
 
-  const meta = estimateRoute(courier ?? pickup, routeTo);
   const next = getNextStageAction(stage);
   const isLastAction = next?.next === 'DELIVERED';
 
   return (
     <div className="fixed inset-0 z-50 bg-[#0d0d0f] text-white" data-no-ptr="true">
-      {/* Map */}
-      <OrderMap pickup={pickup} destination={destination} courier={courier} routeTo={routeTo} />
+      <DeliveryNavigator
+        pickup={pickup}
+        destination={destination}
+        courier={courier}
+        routeTo={routeTo}
+        vehicleMode={vehicleMode}
+        orderNumber={order.orderNumber}
+        onClose={onBack}
+      />
 
-      {/* Stage progress overlay (top under bar) */}
+      {/* Stage progress overlay (top) */}
       <div
         className="pointer-events-none absolute inset-x-0 z-10 mx-auto flex w-full max-w-[480px] gap-1 px-4"
-        style={{ top: 'calc(env(safe-area-inset-top, 0px) + 70px)' }}
+        style={{ top: 'calc(env(safe-area-inset-top, 0px) + 78px)' }}
       >
         {STAGE_FLOW.map((s, i) => {
           const idx = getStageIndex(stage);
@@ -146,12 +158,11 @@ function MapView({
         })}
       </div>
 
-      <MapTopBar orderNumber={order.orderNumber} onBack={onBack} />
-
+      {/* OrderSheet — pastdagi bosqich nazorati */}
       <OrderSheet
         order={order}
         stageLabel={STAGE_LABELS[stage] ?? stage}
-        routeMeta={isDelivered ? 'Buyurtma yakunlandi' : `${goingToPickup ? 'Restorangacha' : 'Mijozgacha'} · ${meta.formatted}`}
+        routeMeta={isDelivered ? 'Buyurtma yakunlandi' : goingToPickup ? 'Restoranga' : 'Mijozga'}
       >
         {isDelivered ? (
           <button
