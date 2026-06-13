@@ -38,14 +38,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             >
               <Store size={18} />
             </Link>
-            <button
-              type="button"
+            <Link
+              href="/admin/notifications"
               className="relative flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition active:scale-95"
               aria-label="Bildirishnomalar"
             >
               <Bell size={18} />
               <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-ember ring-2 ring-white" />
-            </button>
+            </Link>
           </div>
         </div>
       </header>
