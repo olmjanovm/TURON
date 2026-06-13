@@ -1,30 +1,19 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Bell, ChevronDown, MapPin, Search, ShoppingBag } from 'lucide-react';
-import { useCartStore } from '@/stores/cart-store';
+import { Bell, ChevronDown, MapPin, Search } from 'lucide-react';
 import { useCustomerPrefs } from '@/stores/customer-prefs-store';
 import { useT } from '@/lib/i18n/locale-context';
-import { useCartTargetRegister } from './fly-to-cart';
 
 /**
  * Premium customer header.
  * Chap: yetkazib berish manzili (▾ tanlash uchun /addresses sahifaga).
- * O'ng: qidiruv 🔍, bildirishnoma 🔔 (badge), savat 🛍 (badge + flight target).
+ * O'ng: qidiruv 🔍 + bildirishnoma 🔔 (badge).
+ * Savat — bottom right'da floating FAB (cart-fab.tsx), bu yerda yo'q.
  */
 export function CustomerHeader() {
-  const cartCount = useCartStore((s) => s.items.reduce((n, i) => n + i.quantity, 0));
   const selected = useCustomerPrefs((s) => s.selectedAddress);
   const t = useT();
-
-  const cartRef = useRef<HTMLAnchorElement | null>(null);
-  const register = useCartTargetRegister();
-
-  useEffect(() => {
-    register(cartRef.current);
-    return () => register(null);
-  }, [register]);
 
   return (
     <header
@@ -69,19 +58,6 @@ export function CustomerHeader() {
           >
             <Bell size={17} />
             <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#c62020] ring-2 ring-white dark:ring-slate-900" />
-          </Link>
-          <Link
-            ref={cartRef}
-            href="/cart"
-            aria-label={t('nav.cart')}
-            className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-[#c62020] to-[#f97316] text-white shadow-[0_8px_18px_-6px_rgba(198,32,32,0.45)] active:scale-95"
-          >
-            <ShoppingBag size={17} strokeWidth={2.4} />
-            {cartCount > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-slate-900 px-1 text-[10px] font-black text-white dark:border-slate-950">
-                {cartCount}
-              </span>
-            )}
           </Link>
         </div>
       </div>

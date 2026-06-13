@@ -3,17 +3,16 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 
 /**
- * Fly-to-cart: bir mahsulot rasmining nusxasini cart ikonka tomon bezier yo'l
- * bilan uchiradi, kichraytiradi, savatda bounce + badge yangilanadi.
+ * Modern add-to-cart effect (Wolt/Glovo stili — "genie-jar" emas):
+ *   1. Click joyidan ember "+1" badge yuqoriga ko'tariladi va kichik ark bilan
+ *      cart FAB tomonga uchadi (~500ms, faqat transform + opacity → GPU).
+ *   2. Cart FAB spring bounce (1 → 1.18 → 0.94 → 1.05 → 1, ~420ms).
+ *   3. Telegram haptic medium.
  *
- * Uskuna:
- *   <FlyToCartProvider>
- *     <CartTargetRef ref={...} />  — ikonka joyini ro'yxatga oladi
- *     <button onClick={() => flyToCart({ x, y, imageUrl })}>...
- *   </FlyToCartProvider>
- *
- * Animatsiya GPU-friendly: faqat transform + opacity. ~600ms, 60fps.
- * Past quvvatli qurilmada CSS-only fallback (prefers-reduced-motion).
+ * Provider birga ikkita context taqdim etadi:
+ *   - registerTarget — cart FAB ro'yxatdan o'tkazadi (bir nechta DOM elementi
+ *     ham mumkin, eng oxirgi mount g'olib bo'ladi).
+ *   - fly(...) — animatsiyani triggerlash.
  */
 
 interface FlyContext {
@@ -29,7 +28,6 @@ interface Flight {
   fromY: number;
   toX: number;
   toY: number;
-  imageUrl?: string;
   onLand?: () => void;
 }
 
@@ -38,7 +36,7 @@ let nextId = 0;
 export function FlyToCartProvider({ children }: { children: React.ReactNode }) {
   const targetRef = useRef<HTMLElement | null>(null);
   const [flights, setFlights] = useState<Flight[]>([]);
-  const [bounceKey, setBounceKey] = useState(0);
+  const [bounceTick, setBounceTick] = useState(0);
 
   const registerTarget = useCallback((el: HTMLElement | null) => {
     targetRef.current = el;
@@ -46,13 +44,11 @@ export function FlyToCartProvider({ children }: { children: React.ReactNode }) {
 
   const fly: FlyContext['fly'] = useCallback((params) => {
     const target = targetRef.current;
-    if (!target) {
-      params.onLand?.();
-      return;
-    }
-    const rect = target.getBoundingClientRect();
-    const toX = rect.left + rect.width / 2;
-    const toY = rect.top + rect.height / 2;
+    // Cart FAB hali ko'rinmasa (savat bo'sh edi) — qo'shgandan keyin mount bo'ladi.
+    // Animatsiyani ekran o'ng-pastiga yo'naltirib oddiy emit bilan chiqaramiz.
+    const rect = target?.getBoundingClientRect();
+    const toX = rect ? rect.left + rect.width / 2 : window.innerWidth - 44;
+    const toY = rect ? rect.top + rect.height / 2 : window.innerHeight - 130;
 
     const flight: Flight = {
       id: ++nextId,
@@ -60,10 +56,9 @@ export function FlyToCartProvider({ children }: { children: React.ReactNode }) {
       fromY: params.fromY,
       toX,
       toY,
-      imageUrl: params.imageUrl,
       onLand: () => {
         params.onLand?.();
-        setBounceKey((k) => k + 1);
+        setBounceTick((k) => k + 1);
       },
     };
     setFlights((arr) => [...arr, flight]);
@@ -76,26 +71,30 @@ export function FlyToCartProvider({ children }: { children: React.ReactNode }) {
   return (
     <Ctx.Provider value={{ registerTarget, fly }}>
       {children}
-      <div aria-hidden className="pointer-events-none fixed inset-0 z-[60]">
+      {/* Flight layer — pointer-events: none, juda yuqori z-index */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 z-[70]">
         {flights.map((f) => (
-          <FlyingItem key={f.id} flight={f} onDone={() => removeFlight(f.id)} />
+          <FloatingBadge key={f.id} flight={f} onDone={() => removeFlight(f.id)} />
         ))}
       </div>
-      <BounceBridge bounceKey={bounceKey} target={targetRef} />
+      <CartBouncer tick={bounceTick} target={targetRef} />
     </Ctx.Provider>
   );
 }
 
-function FlyingItem({ flight, onDone }: { flight: Flight; onDone: () => void }) {
-  const [stage, setStage] = useState<'start' | 'mid' | 'end'>('start');
+function FloatingBadge({ flight, onDone }: { flight: Flight; onDone: () => void }) {
+  const [stage, setStage] = useState<'enter' | 'travel' | 'land'>('enter');
 
   useEffect(() => {
-    const id1 = window.setTimeout(() => setStage('mid'), 20);
-    const id2 = window.setTimeout(() => setStage('end'), 320);
+    // 0 → enter (badge paydo bo'ladi, +scale)
+    const id1 = window.setTimeout(() => setStage('travel'), 60);
+    // travel (arc bilan FAB tomonga uchadi)
+    const id2 = window.setTimeout(() => setStage('land'), 380);
+    // land (yo'q bo'ladi, callback)
     const id3 = window.setTimeout(() => {
       flight.onLand?.();
       onDone();
-    }, 620);
+    }, 540);
     return () => {
       window.clearTimeout(id1);
       window.clearTimeout(id2);
@@ -105,61 +104,62 @@ function FlyingItem({ flight, onDone }: { flight: Flight; onDone: () => void }) 
 
   const dx = flight.toX - flight.fromX;
   const dy = flight.toY - flight.fromY;
-  // bezier kontrol nuqtasi — yuqori arc
-  const peakY = Math.min(flight.fromY, flight.toY) - 120;
+  // Arc peak — yuqoriroq, harakat tabiiy bo'lishi uchun
+  const peakY = Math.min(flight.fromY, flight.toY) - 80;
 
-  const style: React.CSSProperties = {
-    left: 0,
-    top: 0,
-    transform:
-      stage === 'start'
-        ? `translate(${flight.fromX - 28}px, ${flight.fromY - 28}px) scale(1)`
-        : stage === 'mid'
-          ? `translate(${flight.fromX + dx * 0.6 - 28}px, ${peakY - 28}px) scale(0.7)`
-          : `translate(${flight.toX - 14}px, ${flight.toY - 14}px) scale(0.15)`,
-    opacity: stage === 'end' ? 0 : 1,
-    transition:
-      stage === 'mid'
-        ? 'transform 300ms cubic-bezier(0.45, 0, 0.55, 1.4), opacity 300ms ease'
-        : 'transform 300ms cubic-bezier(0.5, -0.2, 0.6, 1.2), opacity 250ms ease',
-  };
+  let transform = '';
+  let opacity = 1;
+  let transition = '';
+
+  if (stage === 'enter') {
+    // Click joyida paydo bo'ladi, kichik pop
+    transform = `translate(${flight.fromX - 22}px, ${flight.fromY - 22}px) scale(0.5)`;
+    opacity = 0;
+    transition = 'transform 60ms ease-out, opacity 60ms ease-out';
+  } else if (stage === 'travel') {
+    // Arc peak'ga, biroz aylanish
+    transform = `translate(${flight.fromX + dx * 0.55 - 22}px, ${peakY - 22}px) scale(1) rotate(-12deg)`;
+    opacity = 1;
+    transition = 'transform 320ms cubic-bezier(0.4, 0, 0.2, 1), opacity 320ms ease';
+  } else {
+    // FAB ichida yo'qoladi
+    transform = `translate(${flight.toX - 12}px, ${flight.toY - 12}px) scale(0.2) rotate(0deg)`;
+    opacity = 0;
+    transition = 'transform 160ms cubic-bezier(0.4, 0, 1, 1), opacity 160ms ease';
+  }
 
   return (
     <div
-      className="absolute h-14 w-14 overflow-hidden rounded-2xl bg-slate-200 shadow-2xl"
-      style={style}
+      className="absolute left-0 top-0 flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-[#c62020] to-[#f97316] text-sm font-black text-white shadow-[0_8px_20px_-4px_rgba(198,32,32,0.6)] ring-2 ring-white"
+      style={{ transform, opacity, transition, willChange: 'transform, opacity' }}
     >
-      {flight.imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={flight.imageUrl} alt="" className="h-full w-full object-cover" />
-      ) : (
-        <div className="h-full w-full bg-gradient-to-br from-amber-400 to-red-600" />
-      )}
+      +1
     </div>
   );
 }
 
-function BounceBridge({ bounceKey, target }: { bounceKey: number; target: React.RefObject<HTMLElement | null> }) {
+function CartBouncer({ tick, target }: { tick: number; target: React.RefObject<HTMLElement | null> }) {
   useEffect(() => {
-    if (bounceKey === 0) return;
+    if (tick === 0) return;
     const el = target.current;
     if (!el) return;
+    // Spring bounce
     el.animate(
       [
         { transform: 'scale(1)' },
-        { transform: 'scale(1.25)' },
-        { transform: 'scale(0.92)' },
+        { transform: 'scale(1.18)' },
+        { transform: 'scale(0.94)' },
         { transform: 'scale(1.05)' },
         { transform: 'scale(1)' },
       ],
-      { duration: 420, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' },
+      { duration: 420, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)' },
     );
     try {
       const tg = (window as Window & { Telegram?: { WebApp?: { HapticFeedback?: { impactOccurred?: (s: string) => void } } } })
         .Telegram?.WebApp?.HapticFeedback;
       tg?.impactOccurred?.('medium');
     } catch {/* ignore */}
-  }, [bounceKey, target]);
+  }, [tick, target]);
   return null;
 }
 

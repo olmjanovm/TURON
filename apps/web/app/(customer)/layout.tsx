@@ -1,12 +1,13 @@
 import { LocaleProvider } from '@/lib/i18n/locale-context';
 import { CustomerHeader } from '@/components/customer/customer-header';
 import { CustomerBottomNav } from '@/components/customer/bottom-nav';
+import { CartFab } from '@/components/customer/cart-fab';
 import { FlyToCartProvider } from '@/components/customer/fly-to-cart';
 
 /**
  * Customer layout — premium, theme-aware (rang tokenlari globals.css'da),
  * i18n (3 til: uz, uz-Cyrl, ru), fly-to-cart.
- * Sticky header, statik bottom nav, frosted glass effekt.
+ * Sticky header, statik bottom nav, floating CartFab (savat to'lganda).
  */
 export default function CustomerLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -20,6 +21,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
           >
             {children}
           </main>
+          <CartFab />
           <CustomerBottomNav />
         </div>
       </FlyToCartProvider>
