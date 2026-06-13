@@ -90,6 +90,18 @@ export default function AdminDashboardPage() {
         />
       </div>
 
+      {/* Hisobotlar linki */}
+      <Link href="/admin/reports" className="admin-card admin-card-interactive flex items-center gap-3 p-4">
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+          <TrendingUp size={18} />
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-bold text-slate-900">Hisobotlar</p>
+          <p className="text-xs text-slate-400">Statistika va Excel eksport</p>
+        </div>
+        <ChevronRight size={16} className="text-slate-300" />
+      </Link>
+
       {/* Status breakdown */}
       <section className="admin-card admin-card-accent p-4 pt-5">
         <h2 className="mb-3 text-sm font-bold text-slate-900">Holatlar bo'yicha</h2>
