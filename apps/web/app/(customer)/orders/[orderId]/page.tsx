@@ -11,7 +11,9 @@ const STATUS_FLOW = ['PENDING', 'PREPARING', 'READY_FOR_PICKUP', 'DELIVERING', '
 
 const PAYMENT_LABEL: Record<string, string> = {
   CASH: 'Naqd',
-  BANK_TRANSFER: "O'tkazma",
+  MANUAL_TRANSFER: "Bank o'tkazmasi",
+  BANK_TRANSFER: "Bank o'tkazmasi",
+  EXTERNAL_PAYMENT: 'Onlayn',
   CARD: 'Karta',
 };
 

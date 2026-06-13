@@ -9,7 +9,8 @@ import { useCustomerPrefs } from '@/stores/customer-prefs-store';
 import { useAddresses, useCreateOrder, useQuoteOrder, type QuoteResult } from '@/hooks/use-customer';
 import { useT } from '@/lib/i18n/locale-context';
 
-type PaymentMethod = 'CASH' | 'BANK_TRANSFER';
+type PaymentMethod = 'CASH' | 'MANUAL_TRANSFER';
+// CASH = naqd, MANUAL_TRANSFER = bank o'tkazmasi (backend nomi)
 
 export default function CheckoutPage() {
   return (
@@ -183,8 +184,8 @@ function CheckoutInner() {
             label={t('checkout.payment.cash')}
           />
           <PayOption
-            active={paymentMethod === 'BANK_TRANSFER'}
-            onClick={() => setPaymentMethod('BANK_TRANSFER')}
+            active={paymentMethod === 'MANUAL_TRANSFER'}
+            onClick={() => setPaymentMethod('MANUAL_TRANSFER')}
             icon={CreditCard}
             label={t('checkout.payment.transfer')}
           />

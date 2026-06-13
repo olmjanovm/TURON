@@ -42,11 +42,13 @@ export interface CustomerOrder {
   tracking?: { courierLocation?: { latitude: number; longitude: number } } | null;
 }
 
+export type PaymentMethod = 'CASH' | 'MANUAL_TRANSFER' | 'EXTERNAL_PAYMENT';
+
 export interface QuoteInput {
   items: { productId: string; quantity: number }[];
   addressId?: string;
   promoCode?: string;
-  paymentMethod: 'CASH' | 'BANK_TRANSFER';
+  paymentMethod: PaymentMethod;
 }
 
 export interface QuoteResult {
@@ -81,13 +83,32 @@ export function useAddresses() {
   });
 }
 
+export interface AddressInput {
+  label: string;
+  addressText: string;
+  landmark?: string | null;
+  latitude: number;
+  longitude: number;
+}
+
+/** Backend `title/address/note/latitude/longitude` kutadi — client field nomlarini map qilamiz. */
+function toBackendAddress(input: AddressInput) {
+  return {
+    title: input.label,
+    address: input.addressText,
+    note: input.landmark || undefined,
+    latitude: input.latitude,
+    longitude: input.longitude,
+  };
+}
+
 export function useCreateAddress() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: Omit<Address, 'id' | 'createdAt'>) =>
+    mutationFn: (input: AddressInput) =>
       apiFetch<Address>('/addresses', {
         method: 'POST',
-        body: JSON.stringify(input),
+        body: JSON.stringify(toBackendAddress(input)),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['customer', 'addresses'] }),
   });
@@ -96,10 +117,10 @@ export function useCreateAddress() {
 export function useUpdateAddress() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: Partial<Address> }) =>
+    mutationFn: ({ id, patch }: { id: string; patch: AddressInput }) =>
       apiFetch<Address>(`/addresses/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(patch),
+        method: 'PUT',
+        body: JSON.stringify(toBackendAddress(patch)),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['customer', 'addresses'] }),
   });
@@ -132,12 +153,21 @@ export function useOrderDetail(orderId: string | undefined) {
   });
 }
 
+/** Client → backend: productId→menuItemId, addressId→deliveryAddressId. */
+function toBackendQuote(input: QuoteInput) {
+  return {
+    items: input.items.map((i) => ({ menuItemId: i.productId, quantity: i.quantity })),
+    deliveryAddressId: input.addressId,
+    promoCode: input.promoCode,
+  };
+}
+
 export function useQuoteOrder() {
   return useMutation({
     mutationFn: (input: QuoteInput) =>
       apiFetch<QuoteResult>('/orders/quote', {
         method: 'POST',
-        body: JSON.stringify(input),
+        body: JSON.stringify(toBackendQuote(input)),
       }),
   });
 }
@@ -147,10 +177,17 @@ export function useCreateOrder() {
   return useMutation({
     mutationFn: (input: CreateOrderInput) => {
       const idempotencyKey = crypto.randomUUID();
+      const body = {
+        idempotencyKey,
+        items: input.items.map((i) => ({ menuItemId: i.productId, quantity: i.quantity })),
+        deliveryAddressId: input.addressId,
+        paymentMethod: input.paymentMethod,
+        promoCode: input.promoCode,
+        note: input.note,
+      };
       return apiFetch<CustomerOrder>('/orders', {
         method: 'POST',
-        headers: { 'Idempotency-Key': idempotencyKey },
-        body: JSON.stringify(input),
+        body: JSON.stringify(body),
       });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['customer', 'orders'] }),

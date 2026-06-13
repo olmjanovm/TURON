@@ -20,7 +20,6 @@ export function AddressForm({ initial }: { initial?: Address }) {
   const [label, setLabel] = useState(initial?.label ?? '');
   const [addressText, setAddressText] = useState(initial?.addressText ?? '');
   const [landmark, setLandmark] = useState(initial?.landmark ?? '');
-  const [isDefault, setIsDefault] = useState(initial?.isDefault ?? false);
   const [error, setError] = useState<string | null>(null);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
     initial?.latitude != null && initial?.longitude != null
@@ -54,23 +53,29 @@ export function AddressForm({ initial }: { initial?: Address }) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!label.trim() || !addressText.trim()) {
+    if (!label.trim() || addressText.trim().length < 5) {
       setError(t('common.required'));
+      return;
+    }
+    const lat = coords?.lat ?? initial?.latitude;
+    const lng = coords?.lng ?? initial?.longitude;
+    if (lat == null || lng == null) {
+      setError(t('address.detect_error') + ' — "Hozirgi joylashuvni aniqlash" tugmasini bosing');
       return;
     }
     const payload = {
       label: label.trim(),
       addressText: addressText.trim(),
       landmark: landmark.trim() || null,
-      isDefault,
-      latitude: coords?.lat ?? initial?.latitude ?? null,
-      longitude: coords?.lng ?? initial?.longitude ?? null,
+      latitude: lat,
+      longitude: lng,
     };
     const done = () => router.replace('/addresses');
+    const onErr = (e: unknown) => setError(e instanceof Error ? e.message : t('common.error'));
     if (initial) {
-      update.mutate({ id: initial.id, patch: payload }, { onSuccess: done, onError: (e) => setError(e instanceof Error ? e.message : t('common.error')) });
+      update.mutate({ id: initial.id, patch: payload }, { onSuccess: done, onError: onErr });
     } else {
-      create.mutate(payload, { onSuccess: done, onError: (e) => setError(e instanceof Error ? e.message : t('common.error')) });
+      create.mutate(payload, { onSuccess: done, onError: onErr });
     }
   };
 
@@ -149,18 +154,6 @@ export function AddressForm({ initial }: { initial?: Address }) {
           className="input"
         />
       </Field>
-
-      <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
-        <input
-          type="checkbox"
-          checked={isDefault}
-          onChange={(e) => setIsDefault(e.target.checked)}
-          className="h-5 w-5 accent-[#c62020]"
-        />
-        <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
-          {t('address.default')}
-        </span>
-      </label>
 
       {error && (
         <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-600 dark:bg-red-500/15 dark:text-red-300">

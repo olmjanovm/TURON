@@ -2,18 +2,21 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Heart, ClipboardList, User } from 'lucide-react';
+import { Home, Heart, ShoppingBag, ClipboardList, User } from 'lucide-react';
 import { useT } from '@/lib/i18n/locale-context';
 import { useCustomerPrefs } from '@/stores/customer-prefs-store';
+import { useCartStore } from '@/stores/cart-store';
 
 export function CustomerBottomNav() {
   const pathname = usePathname() ?? '/';
   const t = useT();
   const favCount = useCustomerPrefs((s) => s.favorites.length);
+  const cartCount = useCartStore((s) => s.items.reduce((n, i) => n + i.quantity, 0));
 
   const ITEMS = [
     { href: '/',           label: t('nav.home'),      icon: Home,          match: (p: string) => p === '/' || p.startsWith('/product/') || p.startsWith('/menu/') },
     { href: '/favorites',  label: t('nav.favorites'), icon: Heart,         match: (p: string) => p.startsWith('/favorites'),  badge: favCount },
+    { href: '/cart',       label: t('nav.cart'),      icon: ShoppingBag,   match: (p: string) => p.startsWith('/cart') || p.startsWith('/checkout'), badge: cartCount },
     { href: '/orders',     label: t('nav.orders'),    icon: ClipboardList, match: (p: string) => p.startsWith('/orders') },
     { href: '/profile',    label: t('nav.profile'),   icon: User,          match: (p: string) => p.startsWith('/profile') },
   ];
@@ -23,7 +26,7 @@ export function CustomerBottomNav() {
       className="fixed bottom-0 left-1/2 z-40 w-full max-w-[480px] -translate-x-1/2 border-t border-slate-100 bg-white/85 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/85"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
-      <div className="grid grid-cols-4 px-2">
+      <div className="grid grid-cols-5 px-1">
         {ITEMS.map(({ href, label, icon: Icon, match, badge }) => {
           const active = match(pathname);
           return (
