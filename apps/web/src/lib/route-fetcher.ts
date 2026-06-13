@@ -1,6 +1,7 @@
 'use client';
 
 import type { LatLng, Ymaps, YmapObject } from './yandex-maps';
+import { saveRoute, loadRoute } from './route-cache';
 
 export interface RouteSegment {
   /** [lng, lat][] */
@@ -27,7 +28,7 @@ export interface RouteResult {
   totalDurationSec: number;
   snappedStart: [number, number];
   snappedEnd: [number, number];
-  source: 'yandex-http' | 'multirouter';
+  source: 'yandex-http' | 'multirouter' | 'cache';
 }
 
 type Mode = 'auto' | 'pedestrian' | 'bicycle';
@@ -51,12 +52,32 @@ export async function fetchRoute(
   mode: Mode,
   ymaps: Ymaps,
 ): Promise<RouteResult | null> {
+  // OFFLINE — cache'dan o'qish (agar internet yo'q bo'lsa)
+  const online = typeof navigator === 'undefined' ? true : navigator.onLine;
+  if (!online) {
+    const cached = loadRoute(from, to, mode);
+    if (cached) return { ...cached, source: 'cache' };
+    return null;
+  }
+
   // 1) HTTP Router API orqali
   const httpResult = await fetchFromHttp(from, to, mode);
-  if (httpResult) return httpResult;
+  if (httpResult) {
+    saveRoute(from, to, mode, httpResult);
+    return httpResult;
+  }
 
   // 2) Fallback — multiRouter
-  return fetchFromMultiRouter(from, to, mode, ymaps);
+  const multiResult = await fetchFromMultiRouter(from, to, mode, ymaps);
+  if (multiResult) {
+    saveRoute(from, to, mode, multiResult);
+    return multiResult;
+  }
+
+  // 3) Eng oxirgi — eski cache (yangi marshrut yo'q bo'lsa)
+  const stale = loadRoute(from, to, mode);
+  if (stale) return { ...stale, source: 'cache' };
+  return null;
 }
 
 async function fetchFromHttp(from: LatLng, to: LatLng, mode: Mode): Promise<RouteResult | null> {

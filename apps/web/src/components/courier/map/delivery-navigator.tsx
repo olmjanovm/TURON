@@ -1,46 +1,22 @@
 'use client';
 
 /**
- * DeliveryNavigator (ENTERPRISE)
+ * DeliveryNavigator (FIELD-GRADE)
  *
- * Premium kuryer navigatsiya — to'liq driver-first ilova.
+ * Haqiqiy kuryer ish sharoiti uchun mustahkam navigatsiya.
  *
- *  ASOSIY XUSUSIYATLAR:
+ *  YANGI FIELD-GRADE YANGILANISHLAR:
+ *  • Kalman filter — GPS jitter yo'qoladi (bino ichida sakrash)
+ *  • Internal watchPosition — parent prop bo'lmasa ham GPS lock
+ *  • Battery throttle — sekin tezlikda tick chastotasi pasayadi
+ *  • Offline cache (localStorage) — tarmoq uzilsa marshrut saqlanadi
+ *  • Hyper-zoom — 100m radiusda zoom 19 + top-down (azimuth 0)
+ *  • Map persistent — parent re-render xaritani dispose qilmaydi
+ *  • HW-acceleration hints — will-change, backface-visibility
  *
- *  1. RIGID 3-SOND AUTOFOCUS
- *     • Sudrash/zoom → 3s strict idle → smooth panTo(courier)
- *     • Har interaksiyada timer reset, race condition yo'q
- *
- *  2. 3D PERSPECTIVE CAMERA + COMPASS ROTATION
- *     • CSS perspective(1400px) + rotateX(45deg) — 3D tilt his
- *     • setAzimuth(heading) — telefon yo'nalishi bo'yicha aylanish
- *     • Marker har doim ekranda "yuqoriga"
- *     • Silent compass permission (banner yo'q)
- *
- *  3. UZBEK TTS VOICE NAVIGATOR
- *     • Web Speech API + maneuver tokenlari
- *     • Distance threshold (500m, 100m, 30m) → har birida ovozli xabar
- *     • Dedup — bir xil xabar 8s ichida qaytmaydi
- *
- *  4. SPEED LIMIT RADAR
- *     • Yo'l speed limit Yandex API'dan (fallback: vehicle mode)
- *     • Joriy tezlik geolocation.coords.speed yoki position deltas
- *     • Chegaradan tashqari → flashing radar (top-left) + beep
- *
- *  5. AUTO DAY/NIGHT STYLING
- *     • Soat (19-7 = tun) + prefers-color-scheme
- *     • Filter avtomatik o'tadi (dark/light)
- *     • Foydalanuvchi manual override qila olishi mumkin
- *
- *  6. HIGH-FIDELITY HUD + SLIDE-TO-CONFIRM
- *     • Maneuver chip (sharp white arrows)
- *     • Distance + ETA + duration
- *     • Trafik gradient progress meter
- *     • Slide-to-confirm — accidental click himoyasi
- *
- *  7. PICTURE-IN-PICTURE
- *     • Document PiP (Chromium 116+) yoki canvas+video fallback
- *     • Kuryer boshqa ilovaga o'tsa, kichik oyna keyingi burilish + masofa
+ *  Saqlangan: TTS (Uzbek), speed radar, custom traffic polylines,
+ *  silent compass, 3s autofocus, slide-to-confirm (64px gloves), PiP.
+ *  O'chirilgan: Day/Night auto.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -52,12 +28,11 @@ import {
   ChevronsRight,
   Gauge,
   Loader2,
-  Moon,
   PictureInPicture2,
   RotateCcw,
-  Sun,
   Volume2,
   VolumeX,
+  WifiOff,
   X,
 } from 'lucide-react';
 import {
@@ -76,35 +51,38 @@ import {
 } from '@/lib/route-fetcher';
 import { speak, beep, maneuverPhrase, setVoiceEnabled, isVoiceEnabled } from '@/lib/nav-audio';
 import { pipManager } from '@/lib/pip-manager';
+import { GpsWatcher, type GpsTick } from '@/lib/gps-watcher';
+import { PositionSmoother } from '@/lib/kalman-filter';
 
 export type VehicleMode = 'auto' | 'bicycle' | 'pedestrian';
-export type ThemeMode = 'auto' | 'day' | 'night';
 
 interface DeliveryNavigatorProps {
   pickup: LatLng;
   destination: LatLng;
+  /** Parent-provided GPS. null bo'lsa internal watchPosition ishlaydi. */
   courier?: LatLng | null;
   routeTo: LatLng;
   vehicleMode?: VehicleMode;
   onClose?: () => void;
   orderNumber?: string;
   stageLabel?: string;
-  /** Slide-to-confirm matni. masalan: "Restoranga yetib bordim" */
   confirmLabel?: string;
-  /** Slide-to-confirm bosilganda chaqiriladi */
   onConfirm?: () => void;
-  /** API chaqirilayotgan paytda true */
   confirmBusy?: boolean;
+  /** Internal GPS tick — parent'ga uzatish (Socket emit) */
+  onGpsTick?: (tick: GpsTick) => void;
 }
 
 const AUTOFOCUS_MS = 3_000;
 const PAN_DURATION_MS = 650;
 const HEADING_LOW_PASS = 0.22;
-const NEAR_MANEUVER_METERS = 60;
 const VOICE_THRESHOLDS = [500, 150, 40] as const;
-const SPEED_BUFFER_KMH = 10; // chegara + 10 km/h => beep
+const SPEED_BUFFER_KMH = 10;
+const HYPER_ZOOM_RADIUS_M = 100;
+const HYPER_ZOOM_LEVEL = 19;
+const NORMAL_ZOOM_LEVEL = 17;
 const DEFAULT_SPEED_LIMIT: Record<VehicleMode, number> = {
-  auto: 60, // shahar
+  auto: 60,
   bicycle: 25,
   pedestrian: 6,
 };
@@ -154,25 +132,14 @@ function maneuverLabel(type: string): string {
   return "To'g'ri";
 }
 
-/** Joriy soatdan kechmi tunmi. 19:00 - 07:00 = tun. */
-function isNightHour(): boolean {
-  const h = new Date().getHours();
-  return h >= 19 || h < 7;
-}
+export function DeliveryNavigator(props: DeliveryNavigatorProps) {
+  const {
+    pickup, destination, courier: courierProp, routeTo,
+    vehicleMode = 'auto', onClose, orderNumber, stageLabel,
+    confirmLabel, onConfirm, confirmBusy, onGpsTick,
+  } = props;
 
-export function DeliveryNavigator({
-  pickup,
-  destination,
-  courier,
-  routeTo,
-  vehicleMode = 'auto',
-  onClose,
-  orderNumber,
-  stageLabel,
-  confirmLabel,
-  onConfirm,
-  confirmBusy,
-}: DeliveryNavigatorProps) {
+  // Persistent refs — parent re-render xaritani dispose qilmaydi
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<YmapInstance | null>(null);
   const ymapsRef = useRef<Ymaps | null>(null);
@@ -185,28 +152,56 @@ export function DeliveryNavigator({
   const headingRef = useRef(0);
   const compassListenerCleanupRef = useRef<(() => void) | null>(null);
   const compassRequestedRef = useRef(false);
+  const hyperZoomActiveRef = useRef(false);
 
-  // Spoken maneuvers — har maneuver+threshold kombinatsiyasi uchun
+  const propSmootherRef = useRef(new PositionSmoother());
+  const internalWatcherRef = useRef<GpsWatcher | null>(null);
   const spokenManeuversRef = useRef<Set<string>>(new Set());
-  const lastCourierRef = useRef<LatLng | null>(null);
-  const lastCourierTsRef = useRef<number>(0);
 
   const [mapReady, setMapReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [route, setRoute] = useState<RouteResult | null>(null);
   const [nextManeuver, setNextManeuver] = useState<RouteManeuver | null>(null);
   const [maneuverDistance, setManeuverDistance] = useState<number | null>(null);
-
-  // Voice / theme / radar UI state
-  const [voiceOn, setVoiceOn] = useState<boolean>(isVoiceEnabled());
-  const [themeMode, setThemeMode] = useState<ThemeMode>('auto');
-  const [isNight, setIsNight] = useState<boolean>(isNightHour());
+  const [internalCourier, setInternalCourier] = useState<LatLng | null>(null);
   const [currentSpeedKmh, setCurrentSpeedKmh] = useState<number | null>(null);
-  const [currentSpeedLimit, setCurrentSpeedLimit] = useState<number>(DEFAULT_SPEED_LIMIT[vehicleMode]);
+  const [voiceOn, setVoiceOn] = useState<boolean>(isVoiceEnabled());
+  const [isOnline, setIsOnline] = useState<boolean>(
+    typeof navigator !== 'undefined' ? navigator.onLine : true,
+  );
   const [pipOpen, setPipOpen] = useState(false);
   const pipContentRef = useRef<HTMLDivElement | null>(null);
 
-  // ── Custom anti-aliased polyline rendering ──────────────────────────
+  // Smoothed courier — parent > internal
+  const smoothedCourier = useMemo<LatLng | null>(() => {
+    if (courierProp) {
+      const s = propSmootherRef.current.smooth(courierProp.lat, courierProp.lng, 10);
+      return s;
+    }
+    return internalCourier;
+  }, [courierProp?.lat, courierProp?.lng, internalCourier]);
+
+  const currentSpeedLimit = useMemo<number>(() => {
+    if (!route || !smoothedCourier) return DEFAULT_SPEED_LIMIT[vehicleMode];
+    let nearest: RouteSegment | null = null;
+    let bestDist = Infinity;
+    for (const seg of route.segments) {
+      if (seg.coords.length === 0) continue;
+      const mid = seg.coords[Math.floor(seg.coords.length / 2)];
+      const d = haversineM(smoothedCourier, { lat: mid[1], lng: mid[0] });
+      if (d < bestDist) { bestDist = d; nearest = seg; }
+    }
+    return nearest?.speedLimitKmh && nearest.speedLimitKmh > 0
+      ? nearest.speedLimitKmh
+      : DEFAULT_SPEED_LIMIT[vehicleMode];
+  }, [route, smoothedCourier?.lat, smoothedCourier?.lng, vehicleMode]);
+
+  const overSpeedLimit = useMemo(
+    () => currentSpeedKmh != null && currentSpeedKmh > currentSpeedLimit + SPEED_BUFFER_KMH,
+    [currentSpeedKmh, currentSpeedLimit],
+  );
+
+  // Polyline rendering
   const renderPolylines = useCallback((segments: RouteSegment[]) => {
     const map = mapRef.current;
     const ymaps = ymapsRef.current;
@@ -223,28 +218,19 @@ export function DeliveryNavigator({
       const color = trafficColor(seg.traffic);
 
       const outline = new ymaps.Polyline(latLngCoords as number[][], {}, {
-        strokeColor: '#ffffff',
-        strokeWidth: 9,
-        strokeOpacity: 0.7,
-        strokeStyle: 'solid',
-        zIndex: 400,
+        strokeColor: '#ffffff', strokeWidth: 9, strokeOpacity: 0.7, zIndex: 400,
       });
       map.geoObjects.add(outline);
       polylineGroupRef.current.push(outline);
 
       const mainLine = new ymaps.Polyline(latLngCoords as number[][], {}, {
-        strokeColor: color,
-        strokeWidth: 6.5,
-        strokeOpacity: 1,
-        strokeStyle: 'solid',
-        zIndex: 401,
+        strokeColor: color, strokeWidth: 6.5, strokeOpacity: 1, zIndex: 401,
       });
       map.geoObjects.add(mainLine);
       polylineGroupRef.current.push(mainLine);
     });
   }, []);
 
-  // ── Snap-to-road dot ────────────────────────────────────────────────
   const renderSnapDot = useCallback((coords: [number, number]) => {
     const map = mapRef.current;
     const ymaps = ymapsRef.current;
@@ -254,14 +240,12 @@ export function DeliveryNavigator({
     const dot = new ymaps.Placemark([coords[1], coords[0]], {}, {
       iconLayout: DotLayout as unknown as string,
       iconShape: { type: 'Circle', coordinates: [0, 0], radius: 9 },
-      zIndex: 500,
-      cursor: 'arrow',
+      zIndex: 500, cursor: 'arrow',
     });
     map.geoObjects.add(dot);
     snapDotRef.current = dot;
   }, []);
 
-  // ── Fetch route ─────────────────────────────────────────────────────
   const refreshRoute = useCallback(async (from: LatLng, to: LatLng) => {
     const ymaps = ymapsRef.current;
     if (!ymaps) return;
@@ -272,7 +256,7 @@ export function DeliveryNavigator({
     renderSnapDot(result.snappedStart);
   }, [vehicleMode, renderPolylines, renderSnapDot]);
 
-  // ── Map init ────────────────────────────────────────────────────────
+  // Map mount — bir marta, parent re-render xaritani buzmaydi
   useEffect(() => {
     let cancelled = false;
 
@@ -281,10 +265,10 @@ export function DeliveryNavigator({
         if (cancelled || !containerRef.current) return;
         ymapsRef.current = ymaps;
 
-        const center = courier ?? pickup;
+        const center = courierProp ?? pickup;
         const map = new ymaps.Map(containerRef.current, {
           center: [center.lat, center.lng],
-          zoom: 17,
+          zoom: NORMAL_ZOOM_LEVEL,
           controls: [],
           type: 'yandex#map',
         }, {
@@ -293,16 +277,14 @@ export function DeliveryNavigator({
           copyrightUaVisible: false,
           copyrightLogoVisible: false,
           copyrightProvidersVisible: false,
-          minZoom: 4,
-          maxZoom: 21,
+          minZoom: 4, maxZoom: 21,
         } as Record<string, unknown>);
         mapRef.current = map;
 
         const CourierArrowLayout = ymaps.templateLayoutFactory!.createClass([
           '<div class="navigator-arrow-wrap" style="transform: rotate({{ properties.iconRotateAngle }}deg);">',
           '<svg viewBox="0 0 48 60" width="48" height="60" xmlns="http://www.w3.org/2000/svg">',
-          '<defs>',
-          '<linearGradient id="navArrG" x1="0" y1="0" x2="0" y2="1">',
+          '<defs><linearGradient id="navArrG" x1="0" y1="0" x2="0" y2="1">',
           '<stop offset="0%" stop-color="#fb923c"/><stop offset="100%" stop-color="#9a3412"/>',
           '</linearGradient>',
           '<filter id="navArrS" x="-50%" y="-50%" width="200%" height="200%">',
@@ -315,19 +297,17 @@ export function DeliveryNavigator({
         ].join(''));
 
         const courierMarker = new ymaps.Placemark(
-          [(courier ?? pickup).lat, (courier ?? pickup).lng],
+          [(courierProp ?? pickup).lat, (courierProp ?? pickup).lng],
           { iconRotateAngle: 0 },
           {
             iconLayout: CourierArrowLayout as unknown as string,
             iconShape: { type: 'Rectangle', coordinates: [[-24, -30], [24, 30]] },
-            zIndex: 1000,
-            cursor: 'arrow',
+            zIndex: 1000, cursor: 'arrow',
           },
         );
         map.geoObjects.add(courierMarker);
         courierMarkerRef.current = courierMarker;
 
-        // Pickup pin
         const PickupLayout = ymaps.templateLayoutFactory!.createClass(
           '<div class="nav-pin nav-pin-pickup">' +
             '<svg width="38" height="46" viewBox="0 0 36 44"><path d="M18 0C8.06 0 0 8.06 0 18c0 13.5 18 26 18 26s18-12.5 18-26C36 8.06 27.94 0 18 0z" fill="#f59e0b" stroke="#fff" stroke-width="3"/><circle cx="18" cy="18" r="6" fill="#fff"/></svg></div>',
@@ -338,7 +318,6 @@ export function DeliveryNavigator({
           zIndex: 700,
         }));
 
-        // Dest pin
         const DestLayout = ymaps.templateLayoutFactory!.createClass(
           '<div class="nav-pin nav-pin-dest">' +
             '<svg width="38" height="46" viewBox="0 0 36 44"><path d="M18 0C8.06 0 0 8.06 0 18c0 13.5 18 26 18 26s18-12.5 18-26C36 8.06 27.94 0 18 0z" fill="#c62020" stroke="#fff" stroke-width="3"/><path d="M12 19v-3l6-5 6 5v3h-2v6h-3v-4h-2v4h-3v-6z" fill="#fff"/></svg></div>',
@@ -349,7 +328,6 @@ export function DeliveryNavigator({
           zIndex: 700,
         }));
 
-        // Interaction → autofocus pause
         const onInteract = () => {
           interactingRef.current = true;
           if (autofocusTimerRef.current != null) window.clearTimeout(autofocusTimerRef.current);
@@ -366,7 +344,7 @@ export function DeliveryNavigator({
 
         setMapReady(true);
 
-        const from = courier ?? pickup;
+        const from = courierProp ?? pickup;
         void refreshRoute(from, routeTo);
       })
       .catch((err) => {
@@ -388,58 +366,116 @@ export function DeliveryNavigator({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Refresh route on coord change ───────────────────────────────────
+  // Internal GPS watcher (parent prop bo'lmasa)
   useEffect(() => {
-    if (!mapReady) return;
-    const from = courier ?? pickup;
-    void refreshRoute(from, routeTo);
-  }, [mapReady, courier?.lat, courier?.lng, routeTo.lat, routeTo.lng, pickup.lat, pickup.lng, refreshRoute]);
+    if (courierProp) {
+      internalWatcherRef.current?.stop();
+      internalWatcherRef.current = null;
+      return;
+    }
+    const watcher = new GpsWatcher();
+    internalWatcherRef.current = watcher;
+    watcher.start({
+      onTick: (tick) => {
+        setInternalCourier({ lat: tick.lat, lng: tick.lng });
+        if (tick.speedKmh != null) setCurrentSpeedKmh(Math.round(tick.speedKmh));
+        onGpsTick?.(tick);
+      },
+      onError: () => {/* permission/timeout — UI'da emas */},
+    });
+    return () => {
+      watcher.stop();
+      internalWatcherRef.current = null;
+    };
+  }, [courierProp != null, onGpsTick]);
 
-  // ── Courier position + speed calc ───────────────────────────────────
+  // Online/offline
   useEffect(() => {
-    if (!courier) return;
+    const onOnline = () => setIsOnline(true);
+    const onOffline = () => setIsOnline(false);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, []);
+
+  // Refresh route on courier change
+  useEffect(() => {
+    if (!mapReady || !smoothedCourier) return;
+    void refreshRoute(smoothedCourier, routeTo);
+  }, [mapReady, smoothedCourier?.lat, smoothedCourier?.lng, routeTo.lat, routeTo.lng, refreshRoute]);
+
+  // Courier marker + autofocus + HYPER-ZOOM
+  useEffect(() => {
+    if (!smoothedCourier) return;
     const marker = courierMarkerRef.current;
     const map = mapRef.current;
     if (!marker || !map) return;
-    marker.geometry?.setCoordinates?.([courier.lat, courier.lng]);
-    if (!interactingRef.current) {
-      void map.panTo([courier.lat, courier.lng], { flying: true, duration: PAN_DURATION_MS });
+
+    marker.geometry?.setCoordinates?.([smoothedCourier.lat, smoothedCourier.lng]);
+
+    const distToDest = haversineM(smoothedCourier, destination);
+    const shouldHyperZoom = distToDest <= HYPER_ZOOM_RADIUS_M;
+    const mapWithExt = map as YmapInstance & {
+      setAzimuth?: (a: number, opts?: { duration?: number }) => void;
+    };
+
+    if (shouldHyperZoom && !hyperZoomActiveRef.current) {
+      hyperZoomActiveRef.current = true;
+      try { void map.setZoom(HYPER_ZOOM_LEVEL, { duration: 800 }); } catch {/* */}
+      mapWithExt.setAzimuth?.(0, { duration: 800 });
+      void speak('Manzilga yaqin keldingiz, kirish joyini topshiring', {
+        key: `hyperzoom_${destination.lat}_${destination.lng}`,
+      });
+    } else if (!shouldHyperZoom && hyperZoomActiveRef.current) {
+      hyperZoomActiveRef.current = false;
+      try { void map.setZoom(NORMAL_ZOOM_LEVEL, { duration: 600 }); } catch {/* */}
     }
 
-    // Tezlik hisoblash (m/s → km/h)
+    if (!interactingRef.current) {
+      void map.panTo([smoothedCourier.lat, smoothedCourier.lng], {
+        flying: true, duration: PAN_DURATION_MS,
+      });
+    }
+  }, [smoothedCourier?.lat, smoothedCourier?.lng, destination.lat, destination.lng]);
+
+  // Speed delta (parent prop based)
+  const lastCourierRef = useRef<LatLng | null>(null);
+  const lastCourierTsRef = useRef<number>(0);
+  useEffect(() => {
+    if (!courierProp || !smoothedCourier) return;
     const now = Date.now();
     const prev = lastCourierRef.current;
     const prevTs = lastCourierTsRef.current;
     if (prev && prevTs > 0 && now - prevTs < 30_000 && now - prevTs > 500) {
-      const meters = haversineM(prev, courier);
+      const meters = haversineM(prev, smoothedCourier);
       const seconds = (now - prevTs) / 1000;
       const ms = meters / seconds;
       const kmh = Math.round(ms * 3.6);
       if (kmh < 250) setCurrentSpeedKmh(kmh);
     }
-    lastCourierRef.current = courier;
+    lastCourierRef.current = smoothedCourier;
     lastCourierTsRef.current = now;
-  }, [courier?.lat, courier?.lng]);
+  }, [smoothedCourier?.lat, smoothedCourier?.lng, courierProp]);
 
-  // ── Detect next maneuver + speed limit segment ──────────────────────
+  // Maneuver + TTS
   useEffect(() => {
-    if (!route || !courier) {
+    if (!route || !smoothedCourier) {
       setNextManeuver(null);
       setManeuverDistance(null);
       return;
     }
-
-    // Eng yaqin maneuver
     let bestMan: { m: RouteManeuver; idx: number; dist: number } | null = null;
     for (let i = 0; i < route.maneuvers.length; i++) {
       const m = route.maneuvers[i];
-      const d = haversineM(courier, { lat: m.coords[1], lng: m.coords[0] });
+      const d = haversineM(smoothedCourier, { lat: m.coords[1], lng: m.coords[0] });
       if (bestMan == null || d < bestMan.dist) bestMan = { m, idx: i, dist: d };
     }
     setNextManeuver(bestMan?.m ?? null);
     setManeuverDistance(bestMan ? Math.round(bestMan.dist) : null);
 
-    // TTS — threshold'lar
     if (bestMan && bestMan.dist <= 800) {
       for (const threshold of VOICE_THRESHOLDS) {
         if (bestMan.dist <= threshold && bestMan.dist >= threshold - 50) {
@@ -452,49 +488,31 @@ export function DeliveryNavigator({
         }
       }
     }
+  }, [route, smoothedCourier?.lat, smoothedCourier?.lng]);
 
-    // Speed limit — eng yaqin segmentdan
-    let nearestSegment: RouteSegment | null = null;
-    let nearestSegDist = Infinity;
-    for (const seg of route.segments) {
-      if (seg.coords.length === 0) continue;
-      const mid = seg.coords[Math.floor(seg.coords.length / 2)];
-      const d = haversineM(courier, { lat: mid[1], lng: mid[0] });
-      if (d < nearestSegDist) {
-        nearestSegDist = d;
-        nearestSegment = seg;
-      }
-    }
-    const segLimit = nearestSegment?.speedLimitKmh;
-    setCurrentSpeedLimit(typeof segLimit === 'number' && segLimit > 0 ? segLimit : DEFAULT_SPEED_LIMIT[vehicleMode]);
-  }, [route, courier?.lat, courier?.lng, vehicleMode]);
-
-  // ── Destination arrival voice ───────────────────────────────────────
+  // Arrival voice
   useEffect(() => {
-    if (!courier) return;
-    const distToDest = haversineM(courier, { lat: routeTo.lat, lng: routeTo.lng });
+    if (!smoothedCourier) return;
+    const distToDest = haversineM(smoothedCourier, routeTo);
     if (distToDest < 30) {
       void speak('Siz manzilga yetib keldingiz', { key: `arrived_${routeTo.lat}_${routeTo.lng}` });
     }
-  }, [courier?.lat, courier?.lng, routeTo.lat, routeTo.lng]);
+  }, [smoothedCourier?.lat, smoothedCourier?.lng, routeTo.lat, routeTo.lng]);
 
-  // ── Speed radar — beep when over limit ──────────────────────────────
-  const overSpeedLimit = useMemo(
-    () => currentSpeedKmh != null && currentSpeedKmh > currentSpeedLimit + SPEED_BUFFER_KMH,
-    [currentSpeedKmh, currentSpeedLimit],
-  );
+  // Speed radar beep
   useEffect(() => {
-    if (overSpeedLimit) {
-      beep(1100, 220);
-    }
+    if (overSpeedLimit) beep(1100, 220);
   }, [overSpeedLimit]);
 
-  // ── Silent compass + listeners ──────────────────────────────────────
+  // Silent compass
   const attachCompass = useCallback(() => {
     if (compassListenerCleanupRef.current) return;
     let raf: number | null = null;
 
     const handler = (e: DeviceOrientationEvent) => {
+      // Hyper-zoom: xarita aylanmasin (top-down)
+      if (hyperZoomActiveRef.current) return;
+
       const eAny = e as DeviceOrientationEvent & { webkitCompassHeading?: number };
       let raw: number | null = null;
       if (typeof eAny.webkitCompassHeading === 'number') raw = eAny.webkitCompassHeading;
@@ -574,19 +592,7 @@ export function DeliveryNavigator({
     };
   }, [attachCompass]);
 
-  // ── Day/night auto-detection ────────────────────────────────────────
-  useEffect(() => {
-    if (themeMode !== 'auto') {
-      setIsNight(themeMode === 'night');
-      return;
-    }
-    const update = () => setIsNight(isNightHour());
-    update();
-    const interval = window.setInterval(update, 60_000);
-    return () => window.clearInterval(interval);
-  }, [themeMode]);
-
-  // ── PiP subscription ────────────────────────────────────────────────
+  // PiP
   useEffect(() => {
     const unsub = pipManager.subscribe((s) => setPipOpen(s.open));
     return () => {
@@ -604,7 +610,6 @@ export function DeliveryNavigator({
     if (!content) return;
     const ok = await pipManager.openDocument(content);
     if (!ok) {
-      // Fallback — canvas + video
       await pipManager.openCanvas((ctx, w, h) => {
         ctx.fillStyle = '#0a0a0c';
         ctx.fillRect(0, 0, w, h);
@@ -614,41 +619,27 @@ export function DeliveryNavigator({
         ctx.fillText(nextManeuver ? maneuverLabel(nextManeuver.type) : 'TURON', w / 2, h / 2 - 10);
         ctx.font = 'bold 32px sans-serif';
         ctx.fillStyle = '#fb923c';
-        ctx.fillText(
-          maneuverDistance != null ? `${maneuverDistance} m` : '—',
-          w / 2,
-          h / 2 + 30,
-        );
+        ctx.fillText(maneuverDistance != null ? `${maneuverDistance} m` : '—', w / 2, h / 2 + 30);
       });
     }
   }, [nextManeuver, maneuverDistance]);
 
-  // ── Voice toggle ─────────────────────────────────────────────────────
   const toggleVoice = useCallback(() => {
     const next = !voiceOn;
     setVoiceOn(next);
     setVoiceEnabled(next);
   }, [voiceOn]);
 
-  // ── Theme toggle ─────────────────────────────────────────────────────
-  const cycleTheme = useCallback(() => {
-    setThemeMode((prev) => (prev === 'auto' ? 'day' : prev === 'day' ? 'night' : 'auto'));
-  }, []);
-
-  // ── Render helpers ───────────────────────────────────────────────────
   const ManeuverIcon = nextManeuver ? maneuverIcon(nextManeuver.type) : null;
   const maneuverText = nextManeuver ? maneuverLabel(nextManeuver.type) : null;
-  const themeBtnLabel = themeMode === 'auto' ? 'Auto' : themeMode === 'day' ? 'Day' : 'Night';
-  const filterClassName = isNight ? 'map-night-filter' : 'map-day-filter';
+  const isOfflineRoute = route?.source === 'cache';
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-[#0a0a0c]" data-no-ptr="true">
-      {/* 3D Map */}
       <div className="map-3d-wrap absolute inset-0">
-        <div ref={containerRef} className={`map-base ${filterClassName} h-full w-full`} />
+        <div ref={containerRef} className="map-base map-night-filter h-full w-full" />
       </div>
 
-      {/* Vignette + horizon */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 z-[5]"
@@ -675,30 +666,23 @@ export function DeliveryNavigator({
         </div>
       )}
 
-      {/* TOP — speed radar (chap), order info (markaz), action tugmalar (o'ng) */}
       <div
         className="pointer-events-auto absolute inset-x-0 z-20 mx-auto flex w-full max-w-[480px] items-start justify-between gap-2 px-4 pt-3"
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
       >
-        {/* Speed radar */}
-        <SpeedRadar
-          currentKmh={currentSpeedKmh}
-          limitKmh={currentSpeedLimit}
-          overLimit={overSpeedLimit}
-        />
+        <SpeedRadar currentKmh={currentSpeedKmh} limitKmh={currentSpeedLimit} overLimit={overSpeedLimit} />
 
-        {/* Order badge */}
         {orderNumber && (
           <div className="rounded-2xl bg-white/95 px-3 py-1.5 shadow-2xl shadow-black/60">
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
               {vehicleMode === 'pedestrian' ? 'Piyoda' : vehicleMode === 'bicycle' ? 'Skuter' : 'Mashina'}
               {route?.source === 'yandex-http' && <span className="ml-1 text-emerald-500">●</span>}
+              {isOfflineRoute && <span className="ml-1 text-amber-500">●</span>}
             </p>
             <p className="text-sm font-black leading-tight text-slate-900">#{orderNumber}</p>
           </div>
         )}
 
-        {/* Action stack: close + voice + theme + pip */}
         <div className="flex flex-col items-end gap-1.5">
           {onClose && (
             <button
@@ -720,15 +704,6 @@ export function DeliveryNavigator({
           >
             {voiceOn ? <Volume2 size={16} /> : <VolumeX size={16} />}
           </button>
-          <button
-            type="button"
-            onClick={cycleTheme}
-            className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/95 text-slate-700 shadow-2xl shadow-black/60 active:scale-95"
-            aria-label={`Theme: ${themeBtnLabel}`}
-            title={`Theme: ${themeBtnLabel}`}
-          >
-            {isNight ? <Moon size={15} /> : <Sun size={15} />}
-          </button>
           {pipManager.isSupported() && (
             <button
               type="button"
@@ -744,12 +719,23 @@ export function DeliveryNavigator({
         </div>
       </div>
 
-      {/* Turn arrow — yaqin maneuver */}
+      {!isOnline && (
+        <div
+          className="pointer-events-auto absolute left-1/2 z-20 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-amber-500/95 px-3 py-1.5 shadow-2xl"
+          style={{ top: 'calc(env(safe-area-inset-top, 0px) + 62px)' }}
+        >
+          <WifiOff size={12} className="text-white" />
+          <span className="text-[11px] font-black uppercase tracking-wider text-white">
+            Oflayn — keshlangan marshrut
+          </span>
+        </div>
+      )}
+
       {nextManeuver && ManeuverIcon && (
         <div
           ref={pipContentRef}
           className="pointer-events-none absolute left-1/2 z-20 -translate-x-1/2"
-          style={{ top: 'calc(env(safe-area-inset-top, 0px) + 78px)' }}
+          style={{ top: 'calc(env(safe-area-inset-top, 0px) + 90px)' }}
         >
           <div className="flex items-center gap-3 rounded-3xl bg-white/95 px-4 py-3 shadow-2xl shadow-black/70 backdrop-blur">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg">
@@ -768,7 +754,6 @@ export function DeliveryNavigator({
         </div>
       )}
 
-      {/* HUD bottom */}
       {route && mapReady && (
         <NavigatorHUD
           distanceMeters={route.totalDistanceMeters}
@@ -781,27 +766,21 @@ export function DeliveryNavigator({
         />
       )}
 
-      {/* CSS */}
       <style jsx global>{`
-        .map-3d-wrap {
-          perspective: 1400px;
-          perspective-origin: 50% 65%;
-        }
+        .map-3d-wrap { perspective: 1400px; perspective-origin: 50% 65%; }
         .map-base {
           transform: rotateX(45deg) translateZ(0);
           transform-origin: 50% 65%;
-          transition: transform 400ms cubic-bezier(0.4, 0, 0.2, 1), filter 600ms ease;
+          transition: transform 400ms cubic-bezier(0.4, 0, 0.2, 1);
+          will-change: transform;
+          backface-visibility: hidden;
+          -webkit-backface-visibility: hidden;
         }
         .map-night-filter {
           filter: invert(0.92) hue-rotate(190deg) saturate(0.85) brightness(1.05) contrast(1.05);
         }
-        .map-day-filter {
-          filter: saturate(0.85) brightness(1.02) contrast(1.1);
-        }
         .map-base ymaps[class*="copyright"],
-        .map-base ymaps[class*="controls__toolbar"] {
-          display: none !important;
-        }
+        .map-base ymaps[class*="controls__toolbar"] { display: none !important; }
 
         .navigator-arrow-wrap {
           width: 48px;
@@ -809,16 +788,15 @@ export function DeliveryNavigator({
           transform-origin: 50% 60%;
           transition: transform 220ms cubic-bezier(0.4, 0, 0.2, 1);
           will-change: transform;
+          backface-visibility: hidden;
         }
         .nav-pin {
-          width: 38px;
-          height: 46px;
+          width: 38px; height: 46px;
           transform: translate(-19px, -46px);
           filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.55));
         }
         .nav-snap-dot {
-          width: 18px;
-          height: 18px;
+          width: 18px; height: 18px;
           border-radius: 9999px;
           background: #3b82f6;
           border: 3px solid #fff;
@@ -829,19 +807,14 @@ export function DeliveryNavigator({
           0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.85); }
           50% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
         }
-        .radar-flashing {
-          animation: radarPulse 0.9s ease-out infinite;
-        }
+        .radar-flashing { animation: radarPulse 0.9s ease-out infinite; }
       `}</style>
     </div>
   );
 }
 
-// ─── Speed radar (top-left) ─────────────────────────────────────────────
 function SpeedRadar({
-  currentKmh,
-  limitKmh,
-  overLimit,
+  currentKmh, limitKmh, overLimit,
 }: {
   currentKmh: number | null;
   limitKmh: number;
@@ -849,7 +822,6 @@ function SpeedRadar({
 }) {
   return (
     <div className="flex flex-col items-center gap-1">
-      {/* Speed limit sign (radar) */}
       <div
         className={`relative flex h-14 w-14 items-center justify-center rounded-full border-4 bg-white text-slate-900 shadow-2xl ${
           overLimit ? 'border-red-500 radar-flashing' : 'border-red-400'
@@ -858,7 +830,6 @@ function SpeedRadar({
       >
         <span className="text-lg font-black tabular-nums leading-none">{limitKmh}</span>
       </div>
-      {/* Current speed */}
       <div
         className={`rounded-xl px-2 py-0.5 text-center shadow-lg ${
           overLimit ? 'bg-red-500 text-white' : 'bg-[#0a0a0c]/85 text-white'
@@ -873,15 +844,9 @@ function SpeedRadar({
   );
 }
 
-// ─── HUD with slide-to-confirm ──────────────────────────────────────────
 function NavigatorHUD({
-  distanceMeters,
-  durationSec,
-  stageLabel,
-  segments,
-  confirmLabel,
-  onConfirm,
-  confirmBusy,
+  distanceMeters, durationSec, stageLabel, segments,
+  confirmLabel, onConfirm, confirmBusy,
 }: {
   distanceMeters: number;
   durationSec: number;
@@ -928,9 +893,7 @@ function NavigatorHUD({
             </div>
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Masofa</p>
-              <p className="text-base font-black tabular-nums leading-tight">
-                {formatDist(distanceMeters)}
-              </p>
+              <p className="text-base font-black tabular-nums leading-tight">{formatDist(distanceMeters)}</p>
             </div>
           </div>
           <div className="text-center">
@@ -943,14 +906,9 @@ function NavigatorHUD({
           </div>
         </div>
 
-        {/* Slide-to-confirm — onConfirm bo'lsa */}
         {confirmLabel && onConfirm && (
           <div className="mt-3">
-            <SlideToConfirm
-              label={confirmLabel}
-              busy={confirmBusy}
-              onConfirm={onConfirm}
-            />
+            <SlideToConfirm label={confirmLabel} busy={confirmBusy} onConfirm={onConfirm} />
           </div>
         )}
       </div>
@@ -958,11 +916,8 @@ function NavigatorHUD({
   );
 }
 
-// ─── Slide-to-confirm (premium variant) ─────────────────────────────────
 function SlideToConfirm({
-  label,
-  onConfirm,
-  busy,
+  label, onConfirm, busy,
 }: {
   label: string;
   onConfirm: () => void;
@@ -973,14 +928,13 @@ function SlideToConfirm({
   const progressRef = useRef(0);
   const draggingRef = useRef(false);
   const startXRef = useRef(0);
-  const KNOB = 52;
+  const KNOB = 64; // gloves-friendly
   const TH = 0.85;
 
   const setP = (p: number) => {
     progressRef.current = p;
     setProgress(p);
   };
-
   const maxTravel = () => Math.max(40, (trackRef.current?.clientWidth ?? 320) - KNOB - 8);
 
   const onStart = (clientX: number) => {
@@ -1016,7 +970,8 @@ function SlideToConfirm({
   return (
     <div
       ref={trackRef}
-      className="relative h-[60px] w-full overflow-hidden rounded-2xl bg-white/8"
+      className="relative w-full overflow-hidden rounded-3xl bg-white/8"
+      style={{ height: KNOB + 8, touchAction: 'none', userSelect: 'none' }}
       onPointerDown={(e) => {
         if (busy) return;
         try { (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId); } catch {/* */}
@@ -1035,27 +990,36 @@ function SlideToConfirm({
       }}
       onTouchEnd={onEnd}
       onTouchCancel={onEnd}
-      style={{ touchAction: 'none', userSelect: 'none' }}
     >
       <div
         className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-500 to-emerald-600 transition-[width] duration-150 ease-out"
         style={{ width: `${4 + progress * 96}%` }}
       />
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-[13px] font-black uppercase tracking-wider text-white">
-        {busy ? <Loader2 size={20} className="animate-spin" /> : progress === 1 ? '✓' : `SURGURIB TASDIQLANG · ${label}`}
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-2 text-center text-[13px] font-black uppercase tracking-wider text-white">
+        {busy
+          ? <Loader2 size={20} className="animate-spin" />
+          : progress === 1
+            ? '✓'
+            : `▶▶ SURGURIB TASDIQLANG · ${label}`}
       </div>
       <div
-        className={`pointer-events-none absolute left-1 top-1 flex items-center justify-center rounded-xl shadow-lg ${
+        className={`pointer-events-none absolute left-1 top-1 flex items-center justify-center rounded-2xl shadow-xl ${
           progress >= TH ? 'bg-emerald-500 text-white' : 'bg-white text-slate-900'
         }`}
         style={{
           width: KNOB,
           height: KNOB,
           transform: `translateX(${progress * maxTravel()}px)`,
-          transition: draggingRef.current ? 'none' : 'transform 240ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+          transition: draggingRef.current
+            ? 'none'
+            : 'transform 240ms cubic-bezier(0.34, 1.56, 0.64, 1)',
         }}
       >
-        {busy ? <Loader2 size={22} className="animate-spin" /> : progress >= TH ? <Check size={22} strokeWidth={2.8} /> : <ChevronsRight size={22} strokeWidth={2.8} />}
+        {busy
+          ? <Loader2 size={28} className="animate-spin" />
+          : progress >= TH
+            ? <Check size={28} strokeWidth={3} />
+            : <ChevronsRight size={28} strokeWidth={3} />}
       </div>
     </div>
   );
