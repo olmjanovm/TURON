@@ -53,6 +53,7 @@ import { speak, beep, maneuverPhrase, setVoiceEnabled, isVoiceEnabled } from '@/
 import { pipManager } from '@/lib/pip-manager';
 import { GpsWatcher, type GpsTick } from '@/lib/gps-watcher';
 import { PositionSmoother } from '@/lib/kalman-filter';
+import { distanceToRoute } from '@/lib/route-geometry';
 
 export type VehicleMode = 'auto' | 'bicycle' | 'pedestrian';
 
@@ -86,6 +87,14 @@ const DEFAULT_SPEED_LIMIT: Record<VehicleMode, number> = {
   bicycle: 25,
   pedestrian: 6,
 };
+
+// === Dynamic features ===
+const DEVIATION_THRESHOLD_M = 50;        // 50m chetga chiqsa → reroute
+const REROUTE_COOLDOWN_MS = 5_000;       // 5s ichida ko'p reroute qilmaslik
+const TRAFFIC_RECHECK_MS = 120_000;      // har 2 daq trafik tekshirish
+const TRAFFIC_IMPROVEMENT_SEC = 120;     // 2+ daq tezroq bo'lsa swap
+const DRIVING_MODE_ENTER_KMH = 15;       // bu tezlikdan keyin driving mode
+const DRIVING_MODE_EXIT_KMH = 10;        // bu tezlikdan past bo'lsa chiqamiz (hysteresis)
 
 function deltaAngle(a: number, b: number): number {
   return ((b - a + 540) % 360) - 180;
@@ -158,6 +167,12 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
   const internalWatcherRef = useRef<GpsWatcher | null>(null);
   const spokenManeuversRef = useRef<Set<string>>(new Set());
 
+  // Dynamic feature refs
+  const reroutingRef = useRef(false);
+  const lastRerouteAtRef = useRef(0);
+  const onlineTransitionRef = useRef<boolean | null>(null);
+  const trafficIntervalRef = useRef<number | null>(null);
+
   const [mapReady, setMapReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [route, setRoute] = useState<RouteResult | null>(null);
@@ -170,6 +185,7 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
     typeof navigator !== 'undefined' ? navigator.onLine : true,
   );
   const [pipOpen, setPipOpen] = useState(false);
+  const [drivingMode, setDrivingMode] = useState(false);
   const pipContentRef = useRef<HTMLDivElement | null>(null);
 
   // Smoothed courier — parent > internal
@@ -504,6 +520,112 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
     if (overSpeedLimit) beep(1100, 220);
   }, [overSpeedLimit]);
 
+  // ── FEATURE 1: 50m deviation detector → auto reroute ────────────────
+  useEffect(() => {
+    if (!route || !smoothedCourier || !mapReady) return;
+    if (reroutingRef.current) return;
+    const now = Date.now();
+    if (now - lastRerouteAtRef.current < REROUTE_COOLDOWN_MS) return;
+
+    const dist = distanceToRoute(smoothedCourier, route.segments);
+    if (dist <= DEVIATION_THRESHOLD_M) return;
+
+    reroutingRef.current = true;
+    lastRerouteAtRef.current = now;
+
+    void (async () => {
+      try {
+        const ymaps = ymapsRef.current;
+        if (!ymaps) return;
+        const fresh = await fetchRoute(smoothedCourier, routeTo, vehicleMode, ymaps);
+        if (!fresh) return;
+        // Smooth morph — yangi polyline qo'yib eski o'chiriladi
+        setRoute(fresh);
+        renderPolylines(fresh.segments);
+        renderSnapDot(fresh.snappedStart);
+        // TTS dedup'larni reset — yangi maneuvers
+        spokenManeuversRef.current.clear();
+        void speak("Yo'nalish qayta tuzildi", { key: 'reroute' });
+        try {
+          const tg = (window as Window & { Telegram?: { WebApp?: { HapticFeedback?: { notificationOccurred?: (s: string) => void } } } })
+            .Telegram?.WebApp?.HapticFeedback;
+          tg?.notificationOccurred?.('warning');
+        } catch {/* */}
+      } catch {/* swallow */} finally {
+        // Cooldown timer'i yana paydo bo'lguncha
+        window.setTimeout(() => { reroutingRef.current = false; }, REROUTE_COOLDOWN_MS);
+      }
+    })();
+  }, [smoothedCourier?.lat, smoothedCourier?.lng, route, vehicleMode, routeTo.lat, routeTo.lng, mapReady, renderPolylines, renderSnapDot]);
+
+  // ── FEATURE 2: Periodic traffic re-evaluation (har 2 daq) ───────────
+  useEffect(() => {
+    if (!mapReady) return;
+    if (trafficIntervalRef.current != null) {
+      window.clearInterval(trafficIntervalRef.current);
+    }
+    trafficIntervalRef.current = window.setInterval(async () => {
+      const ymaps = ymapsRef.current;
+      const cur = smoothedCourier;
+      const currentRoute = route;
+      if (!ymaps || !cur || !currentRoute) return;
+      // Reroute hozir ishlayotgan bo'lsa — yana so'rovi yubormaslik
+      if (reroutingRef.current) return;
+      // Offline — cache yangi qiymat bermaydi
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+
+      try {
+        const fresh = await fetchRoute(cur, routeTo, vehicleMode, ymaps);
+        if (!fresh) return;
+        const savedSec = currentRoute.totalDurationSec - fresh.totalDurationSec;
+        if (savedSec >= TRAFFIC_IMPROVEMENT_SEC) {
+          setRoute(fresh);
+          renderPolylines(fresh.segments);
+          renderSnapDot(fresh.snappedStart);
+          spokenManeuversRef.current.clear();
+          void speak(
+            `Trafik tufayli qisqaroq yo'l topildi. ${Math.round(savedSec / 60)} daqiqa tezroq`,
+            { key: 'better_route' },
+          );
+        }
+      } catch {/* */}
+    }, TRAFFIC_RECHECK_MS);
+
+    return () => {
+      if (trafficIntervalRef.current != null) {
+        window.clearInterval(trafficIntervalRef.current);
+        trafficIntervalRef.current = null;
+      }
+    };
+  }, [mapReady, smoothedCourier?.lat, smoothedCourier?.lng, route?.totalDurationSec, routeTo.lat, routeTo.lng, vehicleMode, renderPolylines, renderSnapDot]);
+
+  // ── FEATURE 3: Network transition → TTS announce ────────────────────
+  useEffect(() => {
+    // Birinchi mount'da boshlang'ich qiymatni qayd etamiz, jim
+    if (onlineTransitionRef.current === null) {
+      onlineTransitionRef.current = isOnline;
+      return;
+    }
+    if (onlineTransitionRef.current && !isOnline) {
+      void speak("Internet aloqasi uzildi. Oflayn kesh rejimi yoqildi", { key: 'offline_announce' });
+      beep(440, 300);
+    } else if (!onlineTransitionRef.current && isOnline) {
+      void speak('Internet aloqasi tiklandi', { key: 'online_announce' });
+      beep(880, 220);
+    }
+    onlineTransitionRef.current = isOnline;
+  }, [isOnline]);
+
+  // ── FEATURE 4: Safe driving mode (>15 km/h → hide non-critical UI) ──
+  useEffect(() => {
+    if (currentSpeedKmh == null) return;
+    if (!drivingMode && currentSpeedKmh > DRIVING_MODE_ENTER_KMH) {
+      setDrivingMode(true);
+    } else if (drivingMode && currentSpeedKmh < DRIVING_MODE_EXIT_KMH) {
+      setDrivingMode(false);
+    }
+  }, [currentSpeedKmh, drivingMode]);
+
   // Silent compass
   const attachCompass = useCallback(() => {
     if (compassListenerCleanupRef.current) return;
@@ -635,7 +757,10 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
   const isOfflineRoute = route?.source === 'cache';
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-[#0a0a0c]" data-no-ptr="true">
+    <div
+      className={`relative h-full w-full overflow-hidden bg-[#0a0a0c] ${!isOnline ? 'offline-crimson-border' : ''}`}
+      data-no-ptr="true"
+    >
       <div className="map-3d-wrap absolute inset-0">
         <div ref={containerRef} className="map-base map-night-filter h-full w-full" />
       </div>
@@ -683,13 +808,18 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
           </div>
         )}
 
-        <div className="flex flex-col items-end gap-1.5">
+        <div
+          className={`flex flex-col items-end gap-1.5 transition-opacity duration-300 ${
+            drivingMode ? 'pointer-events-none opacity-25' : 'opacity-100'
+          }`}
+        >
           {onClose && (
             <button
               type="button"
               onClick={onClose}
               className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/95 text-slate-900 shadow-2xl shadow-black/60 active:scale-95"
               aria-label="Yopish"
+              disabled={drivingMode}
             >
               <X size={16} />
             </button>
@@ -701,6 +831,7 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
               voiceOn ? 'bg-emerald-500 text-white' : 'bg-white/95 text-slate-500'
             }`}
             aria-label="Voice"
+            disabled={drivingMode}
           >
             {voiceOn ? <Volume2 size={16} /> : <VolumeX size={16} />}
           </button>
@@ -712,6 +843,7 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
                 pipOpen ? 'bg-amber-500 text-white' : 'bg-white/95 text-slate-700'
               }`}
               aria-label="PiP"
+              disabled={drivingMode}
             >
               <PictureInPicture2 size={15} />
             </button>
@@ -721,12 +853,38 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
 
       {!isOnline && (
         <div
-          className="pointer-events-auto absolute left-1/2 z-20 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-amber-500/95 px-3 py-1.5 shadow-2xl"
+          className="pointer-events-auto absolute left-1/2 z-20 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1.5 shadow-2xl offline-pulse"
           style={{ top: 'calc(env(safe-area-inset-top, 0px) + 62px)' }}
         >
           <WifiOff size={12} className="text-white" />
           <span className="text-[11px] font-black uppercase tracking-wider text-white">
             Oflayn — keshlangan marshrut
+          </span>
+        </div>
+      )}
+
+      {/* Rerouting indikator */}
+      {reroutingRef.current && (
+        <div
+          className="pointer-events-none absolute left-1/2 z-20 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-amber-500/95 px-3 py-1.5 shadow-2xl"
+          style={{ top: 'calc(env(safe-area-inset-top, 0px) + 62px)' }}
+        >
+          <Loader2 size={12} className="animate-spin text-white" />
+          <span className="text-[11px] font-black uppercase tracking-wider text-white">
+            Yo&apos;nalish qayta tuzilmoqda...
+          </span>
+        </div>
+      )}
+
+      {/* Driving mode badge */}
+      {drivingMode && (
+        <div
+          className="pointer-events-none absolute right-2 z-20 flex items-center gap-1 rounded-full bg-emerald-500/95 px-2 py-1 shadow-lg"
+          style={{ top: 'calc(env(safe-area-inset-top, 0px) + 62px)' }}
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+          <span className="text-[10px] font-black uppercase tracking-wider text-white">
+            Haydash rejimi
           </span>
         </div>
       )}
@@ -808,6 +966,19 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
           50% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
         }
         .radar-flashing { animation: radarPulse 0.9s ease-out infinite; }
+
+        /* Crimson border — internet aloqasi uzilganda */
+        @keyframes crimsonBorderPulse {
+          0%, 100% { box-shadow: inset 0 0 0 4px #dc2626, inset 0 0 24px rgba(220, 38, 38, 0.35); }
+          50%      { box-shadow: inset 0 0 0 4px rgba(220, 38, 38, 0.3), inset 0 0 8px rgba(220, 38, 38, 0.15); }
+        }
+        .offline-crimson-border { animation: crimsonBorderPulse 1.1s ease-in-out infinite; }
+
+        @keyframes offlineChipPulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.55); }
+          50%      { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }
+        }
+        .offline-pulse { animation: offlineChipPulse 1.1s ease-in-out infinite; }
       `}</style>
     </div>
   );
