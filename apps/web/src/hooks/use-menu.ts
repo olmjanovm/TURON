@@ -25,6 +25,7 @@ export interface MenuProduct {
   isNew?: boolean;
   isPopular?: boolean;
   discountPercent?: number | null;
+  stockQuantity?: number;
 }
 
 export function useCategories() {

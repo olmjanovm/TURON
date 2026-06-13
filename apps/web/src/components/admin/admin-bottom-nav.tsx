@@ -15,6 +15,11 @@ const NAV = [
 export function AdminBottomNav() {
   const pathname = usePathname();
 
+  // Form sahifalarida (yaratish/tahrirlash) nav yashiriladi — pastki save bar
+  // o'rnini egallaydi, ustma-ust tushmaydi.
+  const isFormRoute = /\/(new|edit)$/.test(pathname);
+  if (isFormRoute) return null;
+
   return (
     <nav
       className="admin-nav fixed inset-x-0 bottom-0 z-50"
