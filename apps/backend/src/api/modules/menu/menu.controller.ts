@@ -133,7 +133,12 @@ async function getSerializedProductById(id: string) {
   return product ? serializeProduct(product) : null;
 }
 
+// Public menu — CDN/proxy/brauzer keshlashi uchun (1 daqiqa fresh, 5 daqiqa stale-while-revalidate)
+const PUBLIC_MENU_CACHE = 'public, max-age=60, s-maxage=60, stale-while-revalidate=300';
+const MENU_TTL_MS = 60_000; // 60s — o'zgarishda menuCache.clear() darrov yangilaydi
+
 export async function getCategories(request: FastifyRequest, reply: FastifyReply) {
+  reply.header('Cache-Control', PUBLIC_MENU_CACHE);
   const cacheKey = 'categories:active';
   const cached = menuCache.get<any[]>(cacheKey);
   if (cached) return reply.send(cached);
@@ -150,7 +155,7 @@ export async function getCategories(request: FastifyRequest, reply: FastifyReply
   });
 
   const serialized = categories.map(serializeCategory);
-  menuCache.set(cacheKey, serialized);
+  menuCache.set(cacheKey, serialized, MENU_TTL_MS);
   return reply.send(serialized);
 }
 
@@ -168,6 +173,7 @@ export async function getAdminCategories(request: FastifyRequest, reply: Fastify
 }
 
 export async function getProducts(request: FastifyRequest, reply: FastifyReply) {
+  reply.header('Cache-Control', PUBLIC_MENU_CACHE);
   const cacheKey = 'products:active';
   const cached = menuCache.get<any[]>(cacheKey);
   if (cached) return reply.send(cached);
@@ -185,7 +191,7 @@ export async function getProducts(request: FastifyRequest, reply: FastifyReply) 
   });
 
   const serialized = products.map(serializeProduct);
-  menuCache.set(cacheKey, serialized);
+  menuCache.set(cacheKey, serialized, MENU_TTL_MS);
   return reply.send(serialized);
 }
 
