@@ -26,6 +26,7 @@ import {
   ArrowUp,
   Check,
   ChevronsRight,
+  Compass,
   Gauge,
   Loader2,
   PictureInPicture2,
@@ -194,6 +195,16 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
   );
   const [pipOpen, setPipOpen] = useState(false);
   const [drivingMode, setDrivingMode] = useState(false);
+  // iOS 13+ uchun DeviceOrientationEvent.requestPermission() shart.
+  // Holatlar:
+  //   'checking'    — sahifa yangi yuklandi
+  //   'prompt'      — iOS: user-gesture'ni kutmoqdamiz (UI button ko'rsatamiz)
+  //   'granted'     — ruxsat berildi yoki Android/desktop (avtomatik attach)
+  //   'denied'      — rad etilgan / "keyinroq" tanlandi → GPS-bearing fallback
+  //   'unsupported' — DeviceOrientationEvent yo'q
+  const [compassPermState, setCompassPermState] = useState<
+    'checking' | 'prompt' | 'granted' | 'denied' | 'unsupported'
+  >('checking');
   const pipContentRef = useRef<HTMLDivElement | null>(null);
 
   // Smoothed courier — parent > internal
@@ -837,41 +848,63 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
     };
   }, []);
 
+  // Boshlang'ich aniqlash: iOS 13+ user-gesture so'raydi, qolganlari avtomatik.
+  //
+  //  MUHIM: iOS Safari'da DeviceOrientationEvent.requestPermission() FAQAT
+  //  haqiqiy user click event'i ichida (synchronously) chaqirilishi mumkin.
+  //  Eski kod `pointerdown` + async wrapper orqali chaqirardi — iOS uni
+  //  gesture'siz chaqirilgan deb hisoblab silently rad etardi.
+  //
+  //  Endi: state='prompt' bo'lganda <CompassPermissionPrompt> ko'rinadi va
+  //  uning Button onClick'i to'g'ridan-to'g'ri requestPermission()'ni
+  //  chaqiradi (gesture context saqlanadi).
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    if (typeof DeviceOrientationEvent === 'undefined') {
+      setCompassPermState('unsupported');
+      return;
+    }
     const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
-
-    const silentRequest = async () => {
-      if (compassRequestedRef.current) return;
-      compassRequestedRef.current = true;
-      if (typeof DOE?.requestPermission === 'function') {
-        try {
-          const result = await DOE.requestPermission();
-          if (result === 'granted') attachCompass();
-        } catch {/* */}
-      } else {
-        attachCompass();
-      }
-    };
-
-    const onceHandler = () => {
-      void silentRequest();
-      window.removeEventListener('pointerdown', onceHandler);
-      window.removeEventListener('touchstart', onceHandler);
-    };
-    window.addEventListener('pointerdown', onceHandler, { once: true, passive: true });
-    window.addEventListener('touchstart', onceHandler, { once: true, passive: true });
-
-    if (typeof DOE?.requestPermission !== 'function') {
+    if (typeof DOE.requestPermission === 'function') {
+      // iOS 13+ — UI prompt'ni ko'rsatamiz, foydalanuvchi click qilsa permission so'raymiz
+      setCompassPermState('prompt');
+      compassRequestedRef.current = false;
+    } else {
+      // Android / desktop — permission yo'q, darrov attach
       attachCompass();
       compassRequestedRef.current = true;
+      setCompassPermState('granted');
     }
-
-    return () => {
-      window.removeEventListener('pointerdown', onceHandler);
-      window.removeEventListener('touchstart', onceHandler);
-    };
   }, [attachCompass]);
+
+  // iOS permission — to'g'ridan-to'g'ri click handler ichida chaqiriladi.
+  // ASYNC bo'lsa-da, DOE.requestPermission() chaqiruvi SYNCHRON ravishda
+  // boshlanadi (Promise qaytguncha) — iOS shu paytda gesture'ni ko'radi.
+  const requestCompassPermission = useCallback(async () => {
+    const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
+    if (typeof DOE?.requestPermission !== 'function') {
+      attachCompass();
+      setCompassPermState('granted');
+      return;
+    }
+    try {
+      const result = await DOE.requestPermission();
+      if (result === 'granted') {
+        attachCompass();
+        compassRequestedRef.current = true;
+        setCompassPermState('granted');
+      } else {
+        setCompassPermState('denied');
+      }
+    } catch {
+      // iOS gesture'siz chaqirsa bu yerga tushadi — yana urinish mumkin
+      setCompassPermState('denied');
+    }
+  }, [attachCompass]);
+
+  const skipCompassPermission = useCallback(() => {
+    setCompassPermState('denied');
+  }, []);
 
   // PiP
   useEffect(() => {
@@ -1083,6 +1116,13 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
         />
       )}
 
+      {compassPermState === 'prompt' && mapReady && (
+        <CompassPermissionPrompt
+          onAllow={requestCompassPermission}
+          onSkip={skipCompassPermission}
+        />
+      )}
+
       <style jsx global>{`
         .map-3d-wrap { perspective: 1400px; perspective-origin: 50% 65%; }
         .map-base {
@@ -1139,6 +1179,59 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
         }
         .offline-pulse { animation: offlineChipPulse 1.1s ease-in-out infinite; }
       `}</style>
+    </div>
+  );
+}
+
+/**
+ * iOS Safari uchun kompos ruxsati so'rash overlay'i.
+ *
+ * iOS 13+ DeviceOrientationEvent.requestPermission() ni FAQAT real
+ * user click ichidan chaqirilsa qabul qiladi — shuning uchun overlay
+ * butun ekranni qoplaydi, button click handler to'g'ridan-to'g'ri
+ * permission'ni chaqiradi.
+ */
+function CompassPermissionPrompt({
+  onAllow,
+  onSkip,
+}: {
+  onAllow: () => void;
+  onSkip: () => void;
+}) {
+  return (
+    <div
+      className="pointer-events-auto absolute inset-x-0 z-40 mx-auto flex w-full max-w-[420px] items-center justify-center px-4"
+      style={{ top: 'calc(env(safe-area-inset-top, 0px) + 140px)' }}
+    >
+      <div className="w-full rounded-3xl bg-white/97 p-5 shadow-2xl shadow-black/70 backdrop-blur">
+        <div className="mb-3 flex items-center gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg">
+            <Compass size={24} strokeWidth={2.6} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-base font-black leading-tight text-slate-900">
+              Kompos ruxsati
+            </p>
+            <p className="mt-0.5 text-xs leading-snug text-slate-500">
+              Telefon yo&apos;nalishini xaritada ko&apos;rsatish uchun
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onAllow}
+          className="w-full rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 py-3.5 text-sm font-black uppercase tracking-wider text-white shadow-lg shadow-orange-500/30 active:scale-[0.98]"
+        >
+          Ruxsat berish
+        </button>
+        <button
+          type="button"
+          onClick={onSkip}
+          className="mt-2 w-full py-1.5 text-center text-xs font-bold text-slate-400 active:scale-95"
+        >
+          Keyinroq · GPS yo&apos;nalish ishlaydi
+        </button>
+      </div>
     </div>
   );
 }
