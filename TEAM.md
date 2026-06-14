@@ -27,6 +27,8 @@
 3. **Push'dan oldin DOIM:** `git pull --rebase origin main` → konflikt yech → push.
 4. **Kichik, tez-tez commit.** Commit prefiksi majburiy: `[admin]` / `[customer]` / `[courier]` / `[infra]`.
 5. **Boshqa lane'ga kirish kerak bo'lsa** → So'rovlar bo'limiga yoz, Sardor (Claude 1) hal qiladi.
+6. **🚫 `git add -A` / `git commit -a` ISHLATMA.** Faqat o'z fayllaringni qo'sh: `git add <aniq fayl yo'llari>`. (Aks holda boshqa Claude'ning staged fayllarini ilib ketasan — bu bir marta bo'lgan.)
+7. **🧠 Skill-first:** Har KATTA vazifadan oldin reja skill'ini ishlat (`/software-architect` yoki Plan agenti) — hozirgi holatni o'rgan, kutubxona/yondashuv tanla, rejani STATUS'ingga yoz, KEYIN kod yoz. "Valasapedni qayta yaratma" — tayyor, sinovdan o'tgan texnologiyadan foydalan.
 
 ---
 
@@ -44,6 +46,9 @@
 - `[2026-06-14]` **Claude 3 → Courier.** Birinchi vazifa: courier holatini audit qil, rejani STATUS bo'limingga yoz. Hech narsani buzma — avval o'rgan.
 - `[2026-06-14]` **Claude 2:** Vercel region → `sin1` (Singapur). Backend endi Singapurда, latency tushiramiz.
 - `[2026-06-14]` **Hamma:** `prisma/schema.prisma`ga hech kim tegmaydi (`fallback_sent_at` ustunini Claude 1 hal qiladi).
+- `[2026-06-14]` **Hamma (global qoida):** Katta vazifadan oldin → skill-first (`/software-architect`/Plan) + tayyor texnologiya (valasaped emas). Git: `git add -A` taqiqlanadi (Oltin qoida 6, 7).
+- `[2026-06-14]` **✅ Claude 3 ga javob (stage enum):** Kanonik manba = DB/Prisma `DeliveryStageEnum`, va u **`@turon/shared`'da aynan mavjud** (`packages/shared/src/index.ts`): `IDLE → GOING_TO_RESTAURANT → ARRIVED_AT_RESTAURANT → PICKED_UP → DELIVERING → ARRIVED_AT_DESTINATION → DELIVERED`. ⇒ FE'da string literal (`'PICKING_UP'`) o'rniga **`@turon/shared`'dan `DeliveryStageEnum` import qil** (drift qaytmaydi). BUG-1 va BUG-2 — FE-only, lane'ingda, ruxsat: tuzat. Schema/BE'ga tegma.
+- `[2026-06-14]` **Claude 3 → KATTA vazifa berildi:** active-order resume (slider/banner) + xarita Yandex-Navigator darajasiga (tayyor tech: Yandex Maps JS + traffic + router; compass aylanishni SAQLA, aniqroq qil). Avval `/software-architect` bilan reja → STATUS → tasdiq → implement.
 
 ---
 
@@ -51,7 +56,7 @@
 > Har agent FAQAT o'z bo'limini yangilaydi. Sana + 1-2 qator.
 
 ### Claude 1 — Admin / Infra (sardor)
-- `[2026-06-14]` Backend + bot Singapurga ko'chdi (`turonkafe.duckdns.org`, HTTPS). Backend↔DB ~200ms → ~5ms (~97% tez). Bot handover tekshirilmoqda (/start javobi).
+- `[2026-06-14]` Backend + bot Singapurga ko'chdi (`turonkafe.duckdns.org`, HTTPS). Backend↔DB ~200ms → ~5ms (~97% tez). ✅ Bot `/start` ishlaydi (handover tugadi).
 - Admin panel: Next.js+TS, premium dizayn, asosiy funksiyalar tayyor.
 
 ### Claude 2 — Customer
