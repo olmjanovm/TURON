@@ -207,14 +207,19 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
   >('checking');
   const pipContentRef = useRef<HTMLDivElement | null>(null);
 
-  // Smoothed courier — parent > internal
+  // Smoothed courier — DEVICE GPS birlamchi (offline ham ishlaydi, real-vaqt,
+  // network lag yo'q). courierProp (server socket) faqat device GPS lock
+  // bo'lmaguncha fallback sifatida ishlatiladi. Aks holda xarita focus'i
+  // server'ning eskirgan/sakraydigan qiymatiga tortilardi (focus bug).
   const smoothedCourier = useMemo<LatLng | null>(() => {
-    if (courierProp) {
-      const s = propSmootherRef.current.smooth(courierProp.lat, courierProp.lng, 10);
-      return s;
+    if (internalCourier) {
+      return propSmootherRef.current.smooth(internalCourier.lat, internalCourier.lng, 10);
     }
-    return internalCourier;
-  }, [courierProp?.lat, courierProp?.lng, internalCourier]);
+    if (courierProp) {
+      return propSmootherRef.current.smooth(courierProp.lat, courierProp.lng, 10);
+    }
+    return null;
+  }, [internalCourier?.lat, internalCourier?.lng, courierProp?.lat, courierProp?.lng]);
 
   const currentSpeedLimit = useMemo<number>(() => {
     if (!route || !smoothedCourier) return DEFAULT_SPEED_LIMIT[vehicleMode];
@@ -433,13 +438,11 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Internal GPS watcher (parent prop bo'lmasa)
+  // Internal GPS watcher — DOIM ishlaydi (courierProp bo'lsa ham).
+  // Device GPS local chip orqali — offline, network lag 0, server eskirgan
+  // ma'lumotini hech qachon kutmaymiz. onGpsTick orqali parent'ga emit
+  // qilamiz (server ham xabardor bo'lsin).
   useEffect(() => {
-    if (courierProp) {
-      internalWatcherRef.current?.stop();
-      internalWatcherRef.current = null;
-      return;
-    }
     const watcher = new GpsWatcher();
     internalWatcherRef.current = watcher;
     watcher.start({
@@ -454,7 +457,7 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       watcher.stop();
       internalWatcherRef.current = null;
     };
-  }, [courierProp != null, onGpsTick]);
+  }, [onGpsTick]);
 
   // Online/offline
   useEffect(() => {
@@ -902,9 +905,6 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
     }
   }, [attachCompass]);
 
-  const skipCompassPermission = useCallback(() => {
-    setCompassPermState('denied');
-  }, []);
 
   // PiP
   useEffect(() => {
@@ -1117,10 +1117,7 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       )}
 
       {compassPermState === 'prompt' && mapReady && (
-        <CompassPermissionPrompt
-          onAllow={requestCompassPermission}
-          onSkip={skipCompassPermission}
-        />
+        <CompassPermissionPrompt onAllow={requestCompassPermission} />
       )}
 
       <style jsx global>{`
@@ -1184,54 +1181,27 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
 }
 
 /**
- * iOS Safari uchun kompos ruxsati so'rash overlay'i.
+ * Kompos ruxsati uchun KICHIK pastdagi tugma.
  *
- * iOS 13+ DeviceOrientationEvent.requestPermission() ni FAQAT real
- * user click ichidan chaqirilsa qabul qiladi — shuning uchun overlay
- * butun ekranni qoplaydi, button click handler to'g'ridan-to'g'ri
- * permission'ni chaqiradi.
+ * iOS Safari'da DeviceOrientationEvent.requestPermission() FAQAT real
+ * click ichidan ishlaydi — tugmaning onClick'i to'g'ridan-to'g'ri
+ * permission'ni chaqiradi. Bottom HUD panel'i ustida, xaritani
+ * yopib qoymaydi. Grant'dan keyin avtomatik yo'qoladi.
  */
-function CompassPermissionPrompt({
-  onAllow,
-  onSkip,
-}: {
-  onAllow: () => void;
-  onSkip: () => void;
-}) {
+function CompassPermissionPrompt({ onAllow }: { onAllow: () => void }) {
   return (
     <div
-      className="pointer-events-auto absolute inset-x-0 z-40 mx-auto flex w-full max-w-[420px] items-center justify-center px-4"
-      style={{ top: 'calc(env(safe-area-inset-top, 0px) + 140px)' }}
+      className="pointer-events-none absolute inset-x-0 z-30 mx-auto flex w-full max-w-[420px] justify-center px-4"
+      style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 130px)' }}
     >
-      <div className="w-full rounded-3xl bg-white/97 p-5 shadow-2xl shadow-black/70 backdrop-blur">
-        <div className="mb-3 flex items-center gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg">
-            <Compass size={24} strokeWidth={2.6} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-base font-black leading-tight text-slate-900">
-              Kompos ruxsati
-            </p>
-            <p className="mt-0.5 text-xs leading-snug text-slate-500">
-              Telefon yo&apos;nalishini xaritada ko&apos;rsatish uchun
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={onAllow}
-          className="w-full rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 py-3.5 text-sm font-black uppercase tracking-wider text-white shadow-lg shadow-orange-500/30 active:scale-[0.98]"
-        >
-          Ruxsat berish
-        </button>
-        <button
-          type="button"
-          onClick={onSkip}
-          className="mt-2 w-full py-1.5 text-center text-xs font-bold text-slate-400 active:scale-95"
-        >
-          Keyinroq · GPS yo&apos;nalish ishlaydi
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={onAllow}
+        className="pointer-events-auto flex items-center gap-2 rounded-full bg-amber-500/95 px-4 py-2.5 text-[11px] font-black uppercase tracking-wider text-white shadow-2xl shadow-amber-900/40 backdrop-blur active:scale-95"
+      >
+        <Compass size={14} strokeWidth={2.8} />
+        Kompos · Ruxsat berish
+      </button>
     </div>
   );
 }
