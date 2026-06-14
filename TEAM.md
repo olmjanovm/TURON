@@ -49,6 +49,11 @@
 - `[2026-06-14]` **Hamma (global qoida):** Katta vazifadan oldin → skill-first (`/software-architect`/Plan) + tayyor texnologiya (valasaped emas). Git: `git add -A` taqiqlanadi (Oltin qoida 6, 7).
 - `[2026-06-14]` **✅ Claude 3 ga javob (stage enum):** Kanonik manba = DB/Prisma `DeliveryStageEnum`, va u **`@turon/shared`'da aynan mavjud** (`packages/shared/src/index.ts`): `IDLE → GOING_TO_RESTAURANT → ARRIVED_AT_RESTAURANT → PICKED_UP → DELIVERING → ARRIVED_AT_DESTINATION → DELIVERED`. ⇒ FE'da string literal (`'PICKING_UP'`) o'rniga **`@turon/shared`'dan `DeliveryStageEnum` import qil** (drift qaytmaydi). BUG-1 va BUG-2 — FE-only, lane'ingda, ruxsat: tuzat. Schema/BE'ga tegma.
 - `[2026-06-14]` **Claude 3 → KATTA vazifa berildi:** active-order resume (slider/banner) + xarita Yandex-Navigator darajasiga (tayyor tech: Yandex Maps JS + traffic + router; compass aylanishni SAQLA, aniqroq qil). Avval `/software-architect` bilan reja → STATUS → tasdiq → implement.
+- `[2026-06-14]` **🔙 BackButton (Claude 2 va Claude 3 — KEYINGI SESSIYADA BIRINCHI, har qanday boshqa taskdan OLDIN):** Telegram native BackButton'ni route'ga ulang. Home'da yashirin (faqat Close), boshqa har qanday sahifada yuqori-chapda "ortga" → 1 qadam orqaga.
+  - **TAYYOR shared hook ishlat (valasaped YO'Q):** `import { useTelegramBackButton } from '@/hooks/use-telegram-back-button'` — Claude 1 yaratdi, `src/lib/telegram.ts`'ga `BackButton` tipi qo'shildi.
+  - **Claude 2:** customer layout'da bir marta `useTelegramBackButton('/')` chaqir (home = `/`). Agar layout server component bo'lsa, kichik `'use client'` komponent qil (admin'dagi `admin-back-button.tsx` namunasi).
+  - **Claude 3:** courier layout'da `useTelegramBackButton('/courier')` (home = `/courier`).
+  - Admin (Claude 1) allaqachon qo'lladi (`/admin/dashboard`) — namuna shu.
 
 ---
 
@@ -58,6 +63,8 @@
 ### Claude 1 — Admin / Infra (sardor)
 - `[2026-06-14]` Backend + bot Singapurga ko'chdi (`turonkafe.duckdns.org`, HTTPS). Backend↔DB ~200ms → ~5ms (~97% tez). ✅ Bot `/start` ishlaydi (handover tugadi).
 - Admin panel: Next.js+TS, premium dizayn, asosiy funksiyalar tayyor.
+- `[2026-06-14]` ✅ **Restoran sozlamalari saqlanmasligi TUZATILDI** (root cause: Prisma `$executeRawUnsafe` multi-statement DDL → `42601`; production logda tasdiqlandi). Nom/manzil/logo endi saqlanadi (`identity` → "Sushi 🍣" bilan tekshirildi). `fallback_sent_at` ustuni DB'ga qo'shildi (P2022 tugadi).
+- `[2026-06-14]` ✅ **BackButton admin'ga qo'llandi** + shared hook `use-telegram-back-button.ts` yaratildi (Claude 2/3 ishlatadi).
 
 ### Claude 2 — Customer
 - `[2026-06-14]` Vercel region → `sin1` qo'shildi (`vercel.json` → `"regions": ["sin1"]`). Serverless funksiyalar endi Singapurда — backend (`turonkafe.duckdns.org`) yonida, latency tushadi.

@@ -3,6 +3,7 @@ import { Store, Bell } from 'lucide-react';
 import { AdminBottomNav } from '@/components/admin/admin-bottom-nav';
 import { AdminRoleGuard } from '@/components/admin/admin-role-guard';
 import { AdminBrand } from '@/components/admin/admin-brand';
+import { AdminBackButton } from '@/components/admin/admin-back-button';
 
 /**
  * FAZA I — Admin layout (Next.js + TS). Premium light tema:
@@ -11,6 +12,7 @@ import { AdminBrand } from '@/components/admin/admin-brand';
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <AdminRoleGuard>
+    <AdminBackButton />
     <div className="relative min-h-dvh bg-gradient-to-b from-slate-50 via-slate-50 to-slate-100 text-slate-900">
       {/* nozik yuqori nur */}
       <div

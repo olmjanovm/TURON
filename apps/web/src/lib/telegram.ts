@@ -33,6 +33,15 @@ type TelegramWebApp = {
     notificationOccurred?: (type: HapticNotification) => void;
     selectionChanged?: () => void;
   };
+  // Telegram native BackButton (Bot API 6.1+). Eski klientlarda undefined —
+  // chaqiruvchilar guard qiladi (graceful degrade).
+  BackButton?: {
+    show?: () => void;
+    hide?: () => void;
+    onClick?: (cb: () => void) => void;
+    offClick?: (cb: () => void) => void;
+    isVisible?: boolean;
+  };
 };
 
 declare global {
