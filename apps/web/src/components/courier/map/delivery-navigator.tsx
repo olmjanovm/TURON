@@ -53,7 +53,7 @@ import { speak, beep, maneuverPhrase, setVoiceEnabled, isVoiceEnabled } from '@/
 import { pipManager } from '@/lib/pip-manager';
 import { GpsWatcher, type GpsTick } from '@/lib/gps-watcher';
 import { PositionSmoother } from '@/lib/kalman-filter';
-import { distanceToRoute } from '@/lib/route-geometry';
+import { distanceToRoute, haversineMeters } from '@/lib/route-geometry';
 
 export type VehicleMode = 'auto' | 'bicycle' | 'pedestrian';
 
@@ -99,15 +99,8 @@ const DRIVING_MODE_EXIT_KMH = 10;        // bu tezlikdan past bo'lsa chiqamiz (h
 function deltaAngle(a: number, b: number): number {
   return ((b - a + 540) % 360) - 180;
 }
-function haversineM(a: LatLng, b: LatLng): number {
-  const toRad = (x: number) => (x * Math.PI) / 180;
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const lat1 = toRad(a.lat);
-  const lat2 = toRad(b.lat);
-  const x = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return 2 * 6_371_000 * Math.asin(Math.sqrt(x));
-}
+// Geometriya — @turf/turf orqali (route-geometry.ts'da)
+const haversineM = haversineMeters;
 function formatTime(secondsAhead: number): string {
   const eta = new Date(Date.now() + secondsAhead * 1000);
   return `${eta.getHours().toString().padStart(2, '0')}:${eta.getMinutes().toString().padStart(2, '0')}`;

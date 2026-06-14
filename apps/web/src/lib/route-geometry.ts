@@ -1,71 +1,114 @@
 'use client';
 
+import distance from '@turf/distance';
+import { point, lineString } from '@turf/helpers';
+import nearestPointOnLine from '@turf/nearest-point-on-line';
+import pointToLineDistance from '@turf/point-to-line-distance';
+
 import type { LatLng } from './yandex-maps';
 import type { RouteSegment } from './route-fetcher';
 
+type TurfLine = ReturnType<typeof lineString>;
+
 /**
- * Marshrutdan deviation hisoblash util'i.
- * Kichik masofalarda equirectangular projection ishlatilamiz —
- * 100km radius'da 0.5%'dan kam xato beradi.
+ * Marshrut geometriyasi — @turf/turf primitivlari ustida.
+ *
+ * Ichki konventsiya: [lng, lat] (GeoJSON). RouteSegment.coords ham shu formatda.
+ * Turf ham GeoJSON ishlatadi — qo'shimcha o'rin almashtirish kerak emas.
  */
 
-const EARTH_R = 6_371_000;
+/** Ikki nuqta orasidagi great-circle masofa (metr). */
+export function haversineMeters(a: LatLng, b: LatLng): number {
+  return distance(point([a.lng, a.lat]), point([b.lng, b.lat]), { units: 'meters' });
+}
 
 /**
- * Point P dan AB segment chizig'iga eng yaqin masofa (m).
- * a, b koordinatalari [lng, lat] formatda.
+ * Segment polyline'ini turf LineString'ga konvertatsiya.
+ * Yagona segment uchun — minimal allokatsiya.
+ */
+function toLineString(coords: [number, number][]): TurfLine | null {
+  if (!coords || coords.length < 2) return null;
+  return lineString(coords as number[][]);
+}
+
+/**
+ * Point P dan AB segment chizig'iga eng yaqin masofa (metr).
+ * Saqlanib qolgan API — eski chaqiruvchilar uchun.
  */
 export function pointToSegmentMeters(
   p: LatLng,
   a: [number, number],
   b: [number, number],
 ): number {
-  // Equirectangular projection — markaz sifatida courier latitude
-  const lat0 = (p.lat * Math.PI) / 180;
-  const cosLat0 = Math.cos(lat0);
-  const scale = (EARTH_R * Math.PI) / 180;
-
-  const toXY = (lng: number, lat: number): [number, number] => [
-    lng * cosLat0 * scale,
-    lat * scale,
-  ];
-
-  const [px, py] = toXY(p.lng, p.lat);
-  const [ax, ay] = toXY(a[0], a[1]);
-  const [bx, by] = toXY(b[0], b[1]);
-
-  const dx = bx - ax;
-  const dy = by - ay;
-  const lenSq = dx * dx + dy * dy;
-
-  if (lenSq < 1e-9) {
-    // Degenerate segment — distance to point A
-    return Math.sqrt((px - ax) ** 2 + (py - ay) ** 2);
+  // Degenerate — segment = nuqta
+  if (a[0] === b[0] && a[1] === b[1]) {
+    return haversineMeters(p, { lat: a[1], lng: a[0] });
   }
-
-  // Project P onto AB, clamp t to [0, 1]
-  let t = ((px - ax) * dx + (py - ay) * dy) / lenSq;
-  t = Math.max(0, Math.min(1, t));
-
-  const projX = ax + t * dx;
-  const projY = ay + t * dy;
-
-  return Math.sqrt((px - projX) ** 2 + (py - projY) ** 2);
+  const line = lineString([a, b]);
+  return pointToLineDistance(point([p.lng, p.lat]), line, { units: 'meters' });
 }
 
 /**
- * Kuryer'dan butun route polyline'iga eng yaqin masofa (m).
- * Barcha segment va ulardagi har bir sub-segmentni tekshiradi.
+ * Kuryer'dan butun route polyline'iga eng yaqin masofa (metr).
+ * Har bir segment uchun turf pointToLineDistance — barchasidan min.
  */
 export function distanceToRoute(p: LatLng, segments: RouteSegment[]): number {
+  if (segments.length === 0) return Infinity;
+  const pt = point([p.lng, p.lat]);
   let minDist = Infinity;
+
   for (const seg of segments) {
-    if (seg.coords.length < 2) continue;
-    for (let i = 0; i < seg.coords.length - 1; i++) {
-      const d = pointToSegmentMeters(p, seg.coords[i], seg.coords[i + 1]);
-      if (d < minDist) minDist = d;
-      if (minDist < 1) return minDist; // optimization — yaqin keldi
-    }
+    const line = toLineString(seg.coords);
+    if (!line) continue;
+    const d = pointToLineDistance(pt, line, { units: 'meters' });
+    if (d < minDist) minDist = d;
+    if (minDist < 1) return minDist;
   }
   return minDist;
+}
+
+/**
+ * Kengaytirilgan: kuryer'ga eng yaqin route nuqtasi + qaysi segmentda + masofa.
+ *  • snappedPoint — turf nearest-point-on-line natijasi ([lng, lat])
+ *  • segmentIndex — qaysi RouteSegment'ga to'g'ri keladi
+ *  • distanceMeters — perpendikular masofa
+ *  • alongRouteMeters — segment boshlanishidan snap nuqtagacha (m)
+ *
+ * Maneuver HUD, deviation detector va "X meters left" hisoblari uchun
+ * ishlatiladi.
+ */
+export interface RouteSnap {
+  snappedPoint: [number, number];
+  segmentIndex: number;
+  distanceMeters: number;
+  alongRouteMeters: number;
+}
+
+export function nearestOnRoute(p: LatLng, segments: RouteSegment[]): RouteSnap | null {
+  if (segments.length === 0) return null;
+  const pt = point([p.lng, p.lat]);
+
+  let best: RouteSnap | null = null;
+
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    const line = toLineString(seg.coords);
+    if (!line) continue;
+
+    const snap = nearestPointOnLine(line, pt, { units: 'meters' });
+    const props = snap.properties as { dist?: number; location?: number; index?: number } | undefined;
+
+    const dist = props?.dist ?? Infinity;
+    if (best == null || dist < best.distanceMeters) {
+      const coords = snap.geometry.coordinates as [number, number];
+      best = {
+        snappedPoint: [coords[0], coords[1]],
+        segmentIndex: i,
+        distanceMeters: dist,
+        alongRouteMeters: props?.location ?? 0,
+      };
+    }
+  }
+
+  return best;
 }
