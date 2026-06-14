@@ -2,6 +2,7 @@
 
 import { useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Heart, Plus } from 'lucide-react';
 import type { MenuProduct } from '@/hooks/use-menu';
 import { useCartStore } from '@/stores/cart-store';
@@ -54,12 +55,13 @@ export function ProductCard({ product }: { product: MenuProduct }) {
     >
       <div ref={imgRef} className="relative aspect-square overflow-hidden bg-slate-100 dark:bg-slate-800">
         {product.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             src={product.imageUrl}
             alt={product.name}
+            fill
+            sizes="(max-width: 480px) 50vw, 240px"
             loading="lazy"
-            className="h-full w-full object-cover transition-transform group-active:scale-105"
+            className="object-cover transition-transform group-active:scale-105"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-amber-200/40 via-orange-200/30 to-red-300/40">
