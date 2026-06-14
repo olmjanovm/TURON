@@ -22,6 +22,8 @@ export interface AdminChatMessage {
   content: string;
   isRead: boolean;
   createdAt: string;
+  /** Faqat optimistic (klient) holat — serverdan kelgan xabarda bo'lmaydi (= yuborilgan). */
+  status?: 'pending' | 'failed';
 }
 
 /** Order-chat va support thread endpointlarini hal qiladi. */
@@ -50,6 +52,15 @@ export function useChatMessages(chatId: string) {
   });
 }
 
+const CHAT_KEY = (chatId: string) => ['admin', 'chat', chatId] as const;
+
+/**
+ * Xabar yuborish — OPTIMISTIC (Telegram singari):
+ *  • Yuborilishi bilanoq xabar suhbatda darhol ko'rinadi (kutish — soat ikonkasi bilan).
+ *  • Server tasdiqlasa — haqiqiy xabar bilan almashtiriladi (refetch).
+ *  • Xato bo'lsa — xabar "failed" (qizil) bo'lib qoladi, yo'qolmaydi.
+ * Shunday qilib input qotmaydi, tez-tez yozish/yuborish mumkin.
+ */
 export function useSendChat(chatId: string, targetRole: 'COURIER' | 'CUSTOMER') {
   const qc = useQueryClient();
   return useMutation({
@@ -58,8 +69,34 @@ export function useSendChat(chatId: string, targetRole: 'COURIER' | 'CUSTOMER') 
         method: 'POST',
         body: JSON.stringify({ content, targetRole }),
       }),
+    onMutate: async (content: string) => {
+      await qc.cancelQueries({ queryKey: CHAT_KEY(chatId) });
+      const prev = qc.getQueryData<AdminChatMessage[]>(CHAT_KEY(chatId));
+      const tempId = `temp-${Date.now()}`;
+      const optimistic: AdminChatMessage = {
+        id: tempId,
+        orderId: chatId,
+        senderRole: 'ADMIN',
+        senderName: 'Siz',
+        content,
+        isRead: false,
+        createdAt: new Date().toISOString(),
+        status: 'pending',
+      };
+      qc.setQueryData<AdminChatMessage[]>(CHAT_KEY(chatId), (old) => [...(old ?? []), optimistic]);
+      return { tempId };
+    },
+    onError: (_err, _content, ctx) => {
+      // Optimistic xabarni "failed" deb belgilaymiz (yo'qotmaymiz)
+      if (ctx?.tempId) {
+        qc.setQueryData<AdminChatMessage[]>(CHAT_KEY(chatId), (old) =>
+          (old ?? []).map((m) => (m.id === ctx.tempId ? { ...m, status: 'failed' } : m)),
+        );
+      }
+    },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin', 'chat', chatId] });
+      // Haqiqiy server xabari bilan almashtirish + inbox yangilash
+      qc.invalidateQueries({ queryKey: CHAT_KEY(chatId) });
       qc.invalidateQueries({ queryKey: ['admin', 'chat-inbox'] });
     },
   });

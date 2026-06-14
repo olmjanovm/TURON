@@ -1785,6 +1785,43 @@ export async function launchTelegramBot(context: BotLaunchContext): Promise<Tele
   return state.bot;
 }
 
+/**
+ * Admin foydalanuvchining Telegram chatiga hujjat (fayl) yuboradi.
+ *
+ * Mini App WebView'da blob download ishlamaydi (qora oyna ochiladi) — shuning uchun
+ * Excel hisobot bot orqali admin'ning Telegram chatiga DOCUMENT sifatida yuboriladi:
+ * native, yuklab olinadigan. Bot poller bo'lmasa ham ishlaydi (faqat Bot API chaqiruvi),
+ * shu sabab API process'idan ham chaqirsa bo'ladi.
+ */
+export async function sendDocumentToAdminUser(
+  adminUserId: string,
+  buffer: Buffer,
+  filename: string,
+  caption?: string,
+): Promise<{ ok: boolean; reason?: 'no_telegram_id' | 'send_failed' }> {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: adminUserId },
+      select: { telegramId: true },
+    });
+    if (!user?.telegramId) return { ok: false, reason: 'no_telegram_id' };
+
+    const state = getBotState();
+    await state.bot.telegram.sendDocument(
+      String(user.telegramId),
+      { source: buffer, filename },
+      caption ? { caption } : {},
+    );
+    return { ok: true };
+  } catch (error) {
+    console.error(
+      '[Bot] sendDocumentToAdminUser failed:',
+      error instanceof Error ? error.message : error,
+    );
+    return { ok: false, reason: 'send_failed' };
+  }
+}
+
 export async function forwardSupportMessageToAdmin(payload: {
   orderNumber?: string;
   customerName?: string;

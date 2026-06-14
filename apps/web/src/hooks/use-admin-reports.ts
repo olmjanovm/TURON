@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api-client';
+import { isTelegramEnvironment } from '@/lib/telegram';
 
 export type ReportTimeframe = 'today' | 'week' | 'month' | 'year';
 
@@ -21,7 +22,7 @@ export function useReportStats(timeframe: ReportTimeframe) {
   });
 }
 
-/** Excel eksport — proxy body'ni blob qilib client'da yuklab oladi. */
+/** Brauzer (desktop) — blob qilib faylni yuklab oladi. */
 export async function downloadReportExcel(timeframe: ReportTimeframe): Promise<void> {
   const res = await fetch(`/api/reports/export?timeframe=${timeframe}`, {
     credentials: 'same-origin',
@@ -36,4 +37,24 @@ export async function downloadReportExcel(timeframe: ReportTimeframe): Promise<v
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+/** Telegram Mini App — botdan admin chatiga hujjat sifatida yuboradi. */
+export async function sendReportToTelegram(timeframe: ReportTimeframe): Promise<void> {
+  await apiFetch(`/api/reports/export-telegram?timeframe=${timeframe}`, { method: 'POST' });
+}
+
+/**
+ * Hisobot eksporti — muhitga qarab to'g'ri usulni tanlaydi:
+ *  • Telegram Mini App ichida → bot chatga .xlsx yuboradi (blob download WebView'da
+ *    ishlamaydi, qora oyna ochiladi). Qaytaradi: 'telegram'.
+ *  • Oddiy brauzer (desktop) → faylni yuklab oladi. Qaytaradi: 'download'.
+ */
+export async function exportReport(timeframe: ReportTimeframe): Promise<'telegram' | 'download'> {
+  if (isTelegramEnvironment()) {
+    await sendReportToTelegram(timeframe);
+    return 'telegram';
+  }
+  await downloadReportExcel(timeframe);
+  return 'download';
 }

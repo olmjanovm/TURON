@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { Wallet, Percent, Users, ShoppingBag, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { OrderStatusEnum } from '@turon/shared';
-import { useReportStats, downloadReportExcel, type ReportTimeframe } from '@/hooks/use-admin-reports';
+import { useReportStats, exportReport, type ReportTimeframe } from '@/hooks/use-admin-reports';
 import { statusMeta } from '@/lib/order-status';
 import { SkeletonStatTile } from '@/components/ui/skeleton';
 
@@ -19,6 +19,7 @@ export default function AdminReportsPage() {
   const { data, isLoading, isError } = useReportStats(timeframe);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState('');
+  const [exportMsg, setExportMsg] = useState('');
 
   const totalOrders = useMemo(
     () => (data?.orders ?? []).reduce((n, o) => n + o.count, 0),
@@ -27,9 +28,15 @@ export default function AdminReportsPage() {
 
   async function onExport() {
     setExportError('');
+    setExportMsg('');
     setExporting(true);
     try {
-      await downloadReportExcel(timeframe);
+      const mode = await exportReport(timeframe);
+      setExportMsg(
+        mode === 'telegram'
+          ? 'Hisobot Telegram chatingizga yuborildi ✅'
+          : 'Yuklab olindi ✅',
+      );
     } catch {
       setExportError('Eksport bajarilmadi');
     } finally {
@@ -106,8 +113,9 @@ export default function AdminReportsPage() {
             className="flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 py-3.5 text-sm font-bold text-emerald-700 active:scale-[0.99] disabled:opacity-60"
           >
             {exporting ? <Loader2 size={16} className="animate-spin" /> : <FileSpreadsheet size={16} />}
-            Excel hisobotni yuklab olish
+            Excel hisobotni olish
           </button>
+          {exportMsg && <p className="text-center text-xs font-semibold text-emerald-600">{exportMsg}</p>}
           {exportError && <p className="text-center text-xs text-rose-600">{exportError}</p>}
         </>
       )}

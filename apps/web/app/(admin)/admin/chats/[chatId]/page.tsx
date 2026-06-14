@@ -3,7 +3,7 @@
 import { use, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ChevronLeft, Send, Loader2 } from 'lucide-react';
+import { ChevronLeft, Send, Clock, Check, AlertCircle } from 'lucide-react';
 import { useChatMessages, useSendChat } from '@/hooks/use-admin-chats';
 import { SkeletonRow } from '@/components/ui/skeleton';
 
@@ -50,8 +50,11 @@ export default function AdminChatThreadPage({ params }: { params: Promise<{ chat
                 <div className={`max-w-[78%] rounded-2xl px-3.5 py-2 text-sm ${mine ? 'bg-gradient-to-br from-ember to-orange-500 text-white' : 'border border-slate-200 bg-white text-slate-800'}`}>
                   {!mine && <p className="mb-0.5 text-[10px] font-bold text-slate-400">{m.senderName}</p>}
                   <p className="whitespace-pre-wrap break-words">{m.content}</p>
-                  <p className={`mt-0.5 text-right text-[9px] ${mine ? 'text-white/60' : 'text-slate-300'}`}>
-                    {new Date(m.createdAt).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}
+                  <p className={`mt-0.5 flex items-center justify-end gap-1 text-[9px] ${mine ? 'text-white/70' : 'text-slate-300'}`}>
+                    <span>{new Date(m.createdAt).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}</span>
+                    {mine && m.status === 'pending' && <Clock size={11} aria-label="Yuborilmoqda" />}
+                    {mine && m.status === 'failed' && <AlertCircle size={11} className="text-rose-200" aria-label="Yuborilmadi" />}
+                    {mine && !m.status && <Check size={11} aria-label="Yuborildi" />}
                   </p>
                 </div>
               </div>
@@ -76,11 +79,11 @@ export default function AdminChatThreadPage({ params }: { params: Promise<{ chat
           />
           <button
             type="button"
-            disabled={send.isPending || !text.trim()}
+            disabled={!text.trim()}
             onClick={submit}
             className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-r from-ember to-orange-500 text-white shadow-lg shadow-ember/30 active:scale-90 disabled:opacity-50"
           >
-            {send.isPending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+            <Send size={18} />
           </button>
         </div>
       </div>
