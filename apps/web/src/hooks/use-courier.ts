@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { DeliveryStageEnum } from '@turon/shared';
 import { apiFetch } from '@/lib/api-client';
 
 // ── Types ────────────────────────────────────────────────────────────────
@@ -13,13 +14,8 @@ export type AssignmentStatus =
   | 'DECLINED'
   | 'CANCELLED';
 
-export type DeliveryStage =
-  | 'IDLE'
-  | 'GOING_TO_RESTAURANT'
-  | 'ARRIVED_AT_RESTAURANT'
-  | 'PICKING_UP'
-  | 'DELIVERING'
-  | 'DELIVERED';
+// Yagona manba — @turon/shared DeliveryStageEnum. Qo'lda union yozmaymiz (drift bo'lmasin).
+export type DeliveryStage = `${DeliveryStageEnum}`;
 
 export interface CourierOrderPreview {
   id: string;
@@ -187,12 +183,14 @@ export function useUpdateCourierStatus() {
   });
 }
 
+// Target bosqich → o'sha bosqichga KIRADIGAN endpoint (backend mapStageToCourierAction bilan bir xil).
 const stageActionPath = (stage: DeliveryStage): string => {
   switch (stage) {
     case 'GOING_TO_RESTAURANT': return 'accept';
     case 'ARRIVED_AT_RESTAURANT': return 'arrived-restaurant';
-    case 'PICKING_UP': return 'pickup';
+    case 'PICKED_UP': return 'pickup';
     case 'DELIVERING': return 'start-delivery';
+    case 'ARRIVED_AT_DESTINATION': return 'arrive-destination';
     case 'DELIVERED': return 'deliver';
     default: return 'accept';
   }
@@ -264,32 +262,34 @@ export function useUpdateProfile() {
 }
 
 // ── Stage flow helpers ───────────────────────────────────────────────────
+// Kuryer ko'radigan 5 ta bosqich. ARRIVED_AT_DESTINATION — alohida tugma yo'q,
+// u DELIVERING ichida (getStageIndex'da normalizatsiya qilinadi).
 export const STAGE_FLOW: { key: DeliveryStage; title: string; short: string }[] = [
   { key: 'GOING_TO_RESTAURANT',  title: 'Yo\'ldaman',     short: 'Yo\'l' },
   { key: 'ARRIVED_AT_RESTAURANT', title: 'Yetdim',        short: 'Yetdim' },
-  { key: 'PICKING_UP',            title: 'Oldim',         short: 'Oldim' },
+  { key: 'PICKED_UP',            title: 'Oldim',         short: 'Oldim' },
   { key: 'DELIVERING',            title: 'Olib boryapman', short: 'Yo\'lda' },
   { key: 'DELIVERED',             title: 'Topshirdim',    short: 'Topshirildi' },
 ];
 
 export function getStageIndex(stage: DeliveryStage | undefined): number {
   if (!stage || stage === 'IDLE') return 0;
-  const idx = STAGE_FLOW.findIndex((s) => s.key === stage);
+  // ARRIVED_AT_DESTINATION — kuryer eshik oldida, hali DELIVERING qadamida hisoblanadi
+  const normalized = stage === 'ARRIVED_AT_DESTINATION' ? 'DELIVERING' : stage;
+  const idx = STAGE_FLOW.findIndex((s) => s.key === normalized);
   return idx >= 0 ? idx : 0;
 }
 
+// Joriy bosqichdan keyingi amal: label = hozirgi qadamni yakunlash, next = KIRILADIGAN bosqich.
+const NEXT_STAGE_ACTION: Partial<Record<DeliveryStage, { label: string; next: DeliveryStage }>> = {
+  IDLE:                   { label: 'Buyurtmani qabul qilish',    next: 'GOING_TO_RESTAURANT' },
+  GOING_TO_RESTAURANT:    { label: 'Restoranga yetib bordim',    next: 'ARRIVED_AT_RESTAURANT' },
+  ARRIVED_AT_RESTAURANT:  { label: 'Buyurtmani oldim',           next: 'PICKED_UP' },
+  PICKED_UP:              { label: 'Yetkazib berishni boshlash', next: 'DELIVERING' },
+  DELIVERING:             { label: 'Mijozga topshirdim',         next: 'DELIVERED' },
+  ARRIVED_AT_DESTINATION: { label: 'Mijozga topshirdim',         next: 'DELIVERED' },
+};
+
 export function getNextStageAction(current: DeliveryStage | undefined): { label: string; next: DeliveryStage } | null {
-  const idx = getStageIndex(current);
-  if (current === 'DELIVERED') return null;
-  const next = STAGE_FLOW[idx];
-  if (!next) return null;
-  const labels: Record<DeliveryStage, string> = {
-    IDLE: 'Buyurtmani qabul qilish',
-    GOING_TO_RESTAURANT: 'Restoranga yetib bordim',
-    ARRIVED_AT_RESTAURANT: 'Buyurtmani oldim',
-    PICKING_UP: 'Yetkazib berishni boshlash',
-    DELIVERING: 'Mijozga topshirdim',
-    DELIVERED: '',
-  };
-  return { label: labels[next.key], next: next.key };
+  return NEXT_STAGE_ACTION[current ?? 'IDLE'] ?? null;
 }

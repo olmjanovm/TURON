@@ -33,8 +33,9 @@ const STAGE_LABELS: Record<string, string> = {
   IDLE: 'Buyurtmani qabul qilish',
   GOING_TO_RESTAURANT: "Restoranga yo'l olding",
   ARRIVED_AT_RESTAURANT: 'Restoranga yetding',
-  PICKING_UP: 'Buyurtmani olding',
+  PICKED_UP: 'Buyurtmani olding',
   DELIVERING: 'Mijozga olib boryapsan',
+  ARRIVED_AT_DESTINATION: 'Mijoz manziliga yetding',
   DELIVERED: 'Topshirildi',
 };
 
@@ -118,7 +119,7 @@ function MapView({
 
   // Hozirgi maqsad — pickup yoki destination
   const goingToPickup =
-    stage === 'IDLE' || stage === 'GOING_TO_RESTAURANT' || stage === 'ARRIVED_AT_RESTAURANT' || stage === 'PICKING_UP';
+    stage === 'IDLE' || stage === 'GOING_TO_RESTAURANT' || stage === 'ARRIVED_AT_RESTAURANT' || stage === 'PICKED_UP';
   const routeTo = goingToPickup ? pickup : destination;
 
   const next = getNextStageAction(stage);
