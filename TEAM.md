@@ -70,6 +70,22 @@
 - **⚠️ Eslatma:** node_modules o'rnatilmagani uchun lokal `tsc` ishlamadi; o'zgarishlar inspeksiya orqali tip-xavfsiz tekshirildi. Tirik buyurtma bilan ASSIGNED→DELIVERED end-to-end test qoldi (qurilma + real DB kerak).
 - **❓ Sardor (Claude 1)ga:** Stage kanonik manbasi `@turon/shared.DeliveryStageEnum` ekan — FE endi o'shanga bog'landi. Backend ham shu enum'ni ishlatishini tasdiqlaysizmi (drift boshqa joyda yo'qmi)?
 
+#### 📐 REJA (Sardor katta vazifasi — `/software-architect` bilan tuzildi, tasdiq kutmoqda)
+- **Kuzatuv:** Xarita/Navigator allaqachon Navigator-darajada (Kalman, ichki GPS watch, traffic, 50m reroute, davriy traffic re-eval, TTS, kompas+GPS fallback, hyper-zoom, PiP, driving mode, offline). ⇒ Qism-2 = kichik aniqlik tюнинг, regressiya yo'q. Asosiy yangi ish = Qism-1 (resume banner) — hozir global mexanizm YO'Q.
+- **QISM-1: Active-delivery resume banner.**
+  - *Holat manbai:* mavjud `useCourierOrders()` (poll+socket). Yangi store kerak emas (interrupt store — YANGI buyurtma uchun, bu — FAOL buyurtma uchun, alohida concern).
+  - *Yangi fayl:* `src/hooks/use-courier-active-order.ts` — "faol buyurtma" ta'rifini yagona joyga oladi (ACCEPTED|PICKED_UP|DELIVERING; bir nechta bo'lsa prioritet DELIVERING>PICKED_UP>ACCEPTED, tie-break `assignedAt` desc). Lane: `use-courier-*` ✓.
+  - *Yangi fayl:* `src/components/courier/active-delivery-bar.tsx` — bottom-nav ustida fixed banner (order №, bosqich label, qisqa manzil, "Davom ettirish" CTA). Bir teginish → `router.push('/courier/map/{id}')` (navigatsiyaga qaytish).
+  - *Ko'rsatish mantig'i:* `show = activeOrder && !kbOpen && !pathname.startsWith('/courier/map/') && pathname !== '/courier/order/{id}'` (joriy sahifada takror bo'lmasin). Keyboard'da yashirinadi (`useKeyboard`), slide-up animatsiya.
+  - *Tegiladi:* `app/(courier)/layout.tsx` — `<ActiveDeliveryBar/>` mount (CourierBottomNav yonida). Ixtiyoriy DRY: `use-courier-gps.ts` + orders page yangi selektorni qayta ishlatadi (alohida, kichik commit).
+- **QISM-2: Kompas aniqligi (kichik, izolyatsiya, qaytariladigan — faqat `delivery-navigator.tsx` heading handler).**
+  - (a) Adaptiv low-pass: `|delta|` kichik → 0.15 (jitter kam), katta burilish → 0.35 (lag kam). Hozirgi qotgan 0.22 o'rniga.
+  - (b) Dead-zone ~1.5° — turganda marker titramasin.
+  - (c) Tez harakatda (>12 km/h) kompas GPS-bearing'dan >60° farq qilsa, GPS-bearing'ga ko'proq ishonch (telefon cho'ntakda/mountda noto'g'ri o'qiydi). Gated, faqat nudge.
+  - Kompas AYLANISHI saqlanadi; har biri default yo'lni buzmaydi, A/B + revert oson.
+- **Ketma-ketlik:** (1) Qism-1 hook → (2) banner → (3) layout mount → tekshir → (4) Qism-2 tюнинг alohida commit. Har biri `[courier]` surgical commit, aniq `git add`.
+- **❓ Tasdiq:** shu reja bo'yicha implement boshlaymizmi? (Banner CTA → `map` ekanini tasdiqlang; xohlasangiz → `order` detali qilaman.)
+
 ---
 
 ## ✉️ SO'ROVLAR / SAVOLLAR (async "chat")
