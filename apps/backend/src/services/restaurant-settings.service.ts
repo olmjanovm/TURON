@@ -92,8 +92,21 @@ async function ensureRestaurantSettingsStorage() {
 
       create index if not exists idx_restaurant_settings_key on public.restaurant_settings(key);
     `).then(() => undefined).catch((error) => {
-      storageReadyPromise = null;
-      throw error;
+      // Best-effort safety net only. The restaurant_settings table is normally
+      // created by Prisma migrations (the Telegram bot writes to it directly).
+      // On the Supabase pooler (PgBouncer) this multi-statement DDL / `create
+      // extension` can FAIL — and previously that made every setSetting() throw
+      // (admin settings never persisted) while getSetting() silently fell back to
+      // defaults. So we SWALLOW the error and let reads/writes run against the
+      // already-existing table. Never throw, never null-reset (no retry storm).
+      if (!storageWarningLogged) {
+        storageWarningLogged = true;
+        console.warn(
+          '[restaurant-settings] ensure-storage DDL skipped (non-fatal):',
+          error instanceof Error ? error.message : error,
+        );
+      }
+      return undefined;
     });
   }
 

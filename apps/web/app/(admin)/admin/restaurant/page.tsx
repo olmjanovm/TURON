@@ -59,14 +59,25 @@ export default function AdminRestaurantPage() {
       name: form.name.trim(),
       phone: normalizePhone(form.phone || ''),
       addressText: form.addressText.trim(),
-      longitude: Number(form.longitude) || 0,
-      latitude: Number(form.latitude) || 0,
       workingHours: form.workingHours,
       isOpen: form.isOpen,
       autoSchedule: form.autoSchedule,
       logoUrl: form.logoUrl || undefined,
     };
-    save.mutate(patch, { onSuccess: () => router.push('/admin/dashboard') });
+
+    // Koordinatani FAQAT haqiqiy bo'lsa yuboramiz. Avval `Number(...) || 0` 0 yuborardi,
+    // backend Zod (lng≥55, lat≥37) uni rad etib BUTUN patch'ni 400 qilardi — natijada
+    // nom ham, manzil ham saqlanmasdi. Endi yaroqsiz koordinata patch'ni buzmaydi.
+    const lat = Number(form.latitude);
+    const lng = Number(form.longitude);
+    if (Number.isFinite(lat) && lat >= 37 && lat <= 46) patch.latitude = lat;
+    if (Number.isFinite(lng) && lng >= 55 && lng <= 75) patch.longitude = lng;
+
+    save.mutate(patch, {
+      onSuccess: () => router.push('/admin/dashboard'),
+      onError: (e) =>
+        setError(e instanceof Error ? e.message : "Saqlashda xatolik. Qayta urinib ko'ring."),
+    });
   }
 
   return (

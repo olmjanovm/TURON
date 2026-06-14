@@ -38,7 +38,12 @@ export function useSaveRestaurant() {
         method: 'PATCH',
         body: JSON.stringify(patch),
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'restaurant'] }),
+    onSuccess: () => {
+      // Admin sozlamalari + ommaviy identity (nom/logo butun ilovada) — ikkalasini
+      // ham yangilaymiz, shunda nom o'zgarishi darhol aks etadi (loading/customer/courier).
+      qc.invalidateQueries({ queryKey: ['admin', 'restaurant'] });
+      qc.invalidateQueries({ queryKey: ['restaurant', 'identity'] });
+    },
   });
 }
 

@@ -12,7 +12,7 @@ export default async function restaurantPublicRoutes(fastify: FastifyInstance) {
   fastify.get('/identity', async (_request, reply) => {
     const settings = await getRestaurantSettings();
     return reply
-      .header('cache-control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600')
+      .header('cache-control', 'public, max-age=30, s-maxage=60, stale-while-revalidate=120')
       .send({
         name: settings.name,
         logoUrl: settings.logoUrl ?? null,
