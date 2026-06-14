@@ -101,6 +101,17 @@ function deltaAngle(a: number, b: number): number {
 }
 // Geometriya — @turf/turf orqali (route-geometry.ts'da)
 const haversineM = haversineMeters;
+
+/** Great-circle bearing from→to (degrees clockwise from north). */
+function gpsBearing(from: LatLng, to: LatLng): number {
+  const toRad = (x: number) => (x * Math.PI) / 180;
+  const f1 = toRad(from.lat);
+  const f2 = toRad(to.lat);
+  const dLng = toRad(to.lng - from.lng);
+  const y = Math.sin(dLng) * Math.cos(f2);
+  const x = Math.cos(f1) * Math.sin(f2) - Math.sin(f1) * Math.cos(f2) * Math.cos(dLng);
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
 function formatTime(secondsAhead: number): string {
   const eta = new Date(Date.now() + secondsAhead * 1000);
   return `${eta.getHours().toString().padStart(2, '0')}:${eta.getMinutes().toString().padStart(2, '0')}`;
@@ -155,6 +166,10 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
   const compassListenerCleanupRef = useRef<(() => void) | null>(null);
   const compassRequestedRef = useRef(false);
   const hyperZoomActiveRef = useRef(false);
+  // Compass — robustlik uchun
+  const absoluteFiredRef = useRef(false);   // 'deviceorientationabsolute' yoki e.absolute=true bo'lganmi
+  const headingInitedRef = useRef(false);   // birinchi o'qish low-pass'siz bootstrap
+  const lastCompassAtRef = useRef(0);       // GPS-bearing fallback uchun
 
   const propSmootherRef = useRef(new PositionSmoother());
   const internalWatcherRef = useRef<GpsWatcher | null>(null);
@@ -523,6 +538,50 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
     lastCourierTsRef.current = now;
   }, [smoothedCourier?.lat, smoothedCourier?.lng, courierProp]);
 
+  // ── GPS-bearing FALLBACK ──────────────────────────────────────────────
+  // Magnitometr yo'q / ruxsat berilmagan / kalibrlanmagan holatlarda
+  // ketma-ket GPS nuqtalardan heading hisoblaymiz. Compass ishlayotgan
+  // bo'lsa (3s ichida tick kelgan), bu fallback URINMAYDI.
+  const bearingPrevRef = useRef<LatLng | null>(null);
+  const bearingPrevTsRef = useRef<number>(0);
+  useEffect(() => {
+    if (!smoothedCourier) return;
+    const now = Date.now();
+    const prev = bearingPrevRef.current;
+    const prevTs = bearingPrevTsRef.current;
+
+    if (prev && prevTs > 0) {
+      const ageMs = now - prevTs;
+      const compassFresh = now - lastCompassAtRef.current < 3_000;
+      const movedM = haversineM(prev, smoothedCourier);
+      const ms = movedM / Math.max(0.001, ageMs / 1000);
+      const kmh = ms * 3.6;
+
+      // Faqat compass yo'q + harakat aniq (jitter emas) + tezlik o'rtacha
+      if (!compassFresh && movedM >= 5 && kmh > 5 && kmh < 250 && !hyperZoomActiveRef.current) {
+        const raw = gpsBearing(prev, smoothedCourier);
+        if (!headingInitedRef.current) {
+          headingRef.current = raw;
+          headingInitedRef.current = true;
+        } else {
+          const current = headingRef.current;
+          const delta = deltaAngle(current, raw);
+          // GPS bearing ko'proq shovqinli — chuqurroq low-pass (0.12)
+          headingRef.current = ((current + delta * 0.12) + 360) % 360;
+        }
+        const marker = courierMarkerRef.current;
+        marker?.properties?.set?.('iconRotateAngle', headingRef.current);
+        const map = mapRef.current as
+          | (YmapInstance & { setAzimuth?: (a: number, opts?: { duration?: number }) => void })
+          | null;
+        map?.setAzimuth?.(headingRef.current, { duration: 250 });
+      }
+    }
+
+    bearingPrevRef.current = smoothedCourier;
+    bearingPrevTsRef.current = now;
+  }, [smoothedCourier?.lat, smoothedCourier?.lng]);
+
   // Maneuver + TTS
   useEffect(() => {
     if (!route || !smoothedCourier) {
@@ -673,25 +732,76 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
     }
   }, [currentSpeedKmh, drivingMode]);
 
-  // Silent compass
+  // Compass — magnit shimoldan true heading.
+  //
+  // 1) Birinchi o'qish low-pass'siz bootstrap (aks holda 0 → real_heading
+  //    sekin konvergensiya, marker shimol'da yopishib qoladi)
+  // 2) `deviceorientationabsolute` (yoki e.absolute=true) bo'lsa, relativ
+  //    `deviceorientation` event'ini e'tiborsiz qoldiramiz (Android jitter)
+  // 3) Screen orientation (portret/landshaft) — heading'ga qo'shamiz
+  // 4) iOS webkitCompassAccuracy < 0 → kalibrlanmagan, skip
+  // 5) Tezlikda GPS-bearing fallback (alohida effect'da)
   const attachCompass = useCallback(() => {
     if (compassListenerCleanupRef.current) return;
     let raf: number | null = null;
 
-    const handler = (e: DeviceOrientationEvent) => {
-      // Hyper-zoom: xarita aylanmasin (top-down)
+    const getScreenAngle = (): number => {
+      if (typeof screen !== 'undefined' && screen.orientation?.angle != null) {
+        return screen.orientation.angle;
+      }
+      const legacy = (window as Window & { orientation?: number }).orientation;
+      return typeof legacy === 'number' ? legacy : 0;
+    };
+
+    const handler = (
+      e: DeviceOrientationEvent & {
+        webkitCompassHeading?: number;
+        webkitCompassAccuracy?: number;
+      },
+    ) => {
+      // Hyper-zoom (top-down) — xarita aylanmasin
       if (hyperZoomActiveRef.current) return;
 
-      const eAny = e as DeviceOrientationEvent & { webkitCompassHeading?: number };
+      const isAbsoluteEvent =
+        e.type === 'deviceorientationabsolute' || e.absolute === true;
+      if (isAbsoluteEvent) absoluteFiredRef.current = true;
+
+      // Bir marta absolute o'qishni ko'rganmiz — boshqa relativ event'lar (alpha
+      // = sahifa yuklanganidan beri burilish) magnit heading EMAS, e'tibor bermaymiz
+      if (absoluteFiredRef.current && !isAbsoluteEvent) return;
+
       let raw: number | null = null;
-      if (typeof eAny.webkitCompassHeading === 'number') raw = eAny.webkitCompassHeading;
-      else if (e.alpha != null) raw = 360 - e.alpha;
-      if (raw == null) return;
+
+      // iOS — to'g'ridan-to'g'ri magnit heading beradi (clockwise from north)
+      if (typeof e.webkitCompassHeading === 'number') {
+        // iOS accuracy < 0 → magnitometr kalibrlanmagan
+        if (typeof e.webkitCompassAccuracy === 'number' && e.webkitCompassAccuracy < 0) return;
+        raw = e.webkitCompassHeading;
+      } else if (isAbsoluteEvent && e.alpha != null) {
+        // Android Chrome — alpha: 0 = shimol, counter-clockwise yuqoridan
+        // True heading (clockwise from north) = (360 - alpha)
+        raw = (360 - e.alpha) % 360;
+      } else {
+        return;
+      }
+
+      // Screen orientation correction — telefonni landshaftga aylantirsa
+      // brauzer alpha'ni screen ramkasiga nisbatan beradi. Compensate.
+      raw = (raw + getScreenAngle()) % 360;
       raw = ((raw % 360) + 360) % 360;
-      const current = headingRef.current;
-      const delta = deltaAngle(current, raw);
-      const next = ((current + delta * HEADING_LOW_PASS) + 360) % 360;
-      headingRef.current = next;
+
+      // Birinchi o'qishni TO'G'RIDAN-TO'G'RI yozamiz — low-pass'ga shimol'dan
+      // boshlash marker'ni sekin konvergensiya qiladi (eski bug)
+      if (!headingInitedRef.current) {
+        headingRef.current = raw;
+        headingInitedRef.current = true;
+      } else {
+        const current = headingRef.current;
+        const delta = deltaAngle(current, raw);
+        headingRef.current = ((current + delta * HEADING_LOW_PASS) + 360) % 360;
+      }
+
+      lastCompassAtRef.current = Date.now();
 
       if (raf == null) {
         raf = window.requestAnimationFrame(() => {
@@ -711,6 +821,8 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       window.addEventListener('deviceorientationabsolute' as keyof WindowEventMap, handler as EventListener);
       absoluteAdded = true;
     }
+    // Relativ event'ni ham qo'shamiz — iOS faqat shu bilan webkitCompassHeading'ni beradi.
+    // Lekin handler ichida absoluteFired bo'lsa, alpha-based relativ o'qishni skip qiladi.
     window.addEventListener('deviceorientation', handler);
 
     compassListenerCleanupRef.current = () => {
