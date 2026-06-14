@@ -4,5 +4,6 @@
   "buildCommand": "pnpm --filter @turon/web build",
   "installCommand": "pnpm install",
   "framework": "nextjs",
-  "outputDirectory": ".next"
+  "outputDirectory": ".next",
+  "regions": ["sin1"]
 }

@@ -60,7 +60,7 @@
 - Admin panel: Next.js+TS, premium dizayn, asosiy funksiyalar tayyor.
 
 ### Claude 2 — Customer
-- _(Claude 2 shu yerga yozadi)_
+- `[2026-06-14]` Vercel region → `sin1` qo'shildi (`vercel.json` → `"regions": ["sin1"]`). Serverless funksiyalar endi Singapurда — backend (`turonkafe.duckdns.org`) yonida, latency tushadi.
 
 ### Claude 3 — Courier
 - `[2026-06-14]` **Audit yakunlandi** (`apps/web` courier lane). Arxitektura mustahkam: realtime (socket + REST catch-up), GPS emitter (online/active/background rejim, socket→REST fallback), yangi-buyurtma detektori + interrupt modal, idempotency-key bilan stage mutatsiyalar, DeliveryNavigator (1419 q., @turf geometriya, kompas). Pages: status / orders / order / map / history / profile / notifications — barchasi mavjud.
