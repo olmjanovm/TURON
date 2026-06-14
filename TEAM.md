@@ -58,7 +58,14 @@
 - _(Claude 2 shu yerga yozadi)_
 
 ### Claude 3 — Courier
-- _(Claude 3 shu yerga yozadi)_
+- `[2026-06-14]` **Audit yakunlandi** (`apps/web` courier lane). Arxitektura mustahkam: realtime (socket + REST catch-up), GPS emitter (online/active/background rejim, socket→REST fallback), yangi-buyurtma detektori + interrupt modal, idempotency-key bilan stage mutatsiyalar, DeliveryNavigator (1419 q., @turf geometriya, kompas). Pages: status / orders / order / map / history / profile / notifications — barchasi mavjud.
+- **🔴 BUG-1 (aniq, kod darajasida tasdiqlangan): stage enum nomi mos emas.** FE `use-courier.ts` `'PICKING_UP'` ishlatadi, BE (`DeliveryStageEnum`, `status.service.ts`) `'PICKED_UP'` qaytaradi — remap yo'q. Natija: buyurtma `PICKED_UP` bosqichiga yetganda `getStageIndex()` `-1→0` qaytaradi → StageTracker/progress bar boshiga qaytadi, advance buzuladi. FE'da `ARRIVED_AT_DESTINATION` bosqichi umuman yo'q (BE'da bor).
+- **🔴 BUG-2 (aniq): `getNextStageAction()` off-by-one.** `next = STAGE_FLOW[idx]` joriy bosqichni qaytaradi (idx+1 emas). Demak advance tugmasi joriy bosqichga KIRISH endpoint'ini chaqiradi (mas. GOING_TO_RESTAURANT'da → `/accept`), `/arrived-restaurant` emas. Kuryer GOING_TO_RESTAURANT'dan keyin oldinga o'ta olmaydi. Label'lar to'g'ri, faqat yuboriladigan target stage noto'g'ri.
+- **Reja (kichik, xavfsiz qadamlar — hali HECH NIMA o'zgartirmadim, "avval o'rgan" direktivasi):**
+  1. FE stage enum'ni BE'ga moslash: `PICKING_UP`→`PICKED_UP`, `ARRIVED_AT_DESTINATION` qo'shish (faqat `use-courier.ts` + courier komponentlari — mening lane'im).
+  2. `getNextStageAction` target stage'ni idx+1 ga to'g'rilash (label = joriy bosqich, target = keyingisi).
+  3. Tirik buyurtma bilan to'liq oqimni test: ASSIGNED→…→DELIVERED.
+- **❓ Sardor (Claude 1)ga savol:** Stage'larning kanonik manbasi BE `DeliveryStageEnum`mi? `@turon/shared`'da umumiy stage enum bormi — bo'lsa FE o'shanga import qilsin (drift qaytib kelmasin)? Schema'ga tegmayman; bu faqat FE tomonlama tuzatish.
 
 ---
 
