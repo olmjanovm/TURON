@@ -6,7 +6,7 @@ import { ArrowLeft, Check, Loader2, Minus, Plus, ShoppingBag, Trash2, X } from '
 import { useCartStore, type CartLine } from '@/stores/cart-store';
 import { useValidatePromo } from '@/hooks/use-customer';
 import { useT } from '@/lib/i18n/locale-context';
-import { useKeyboard, focusScrollIntoView } from '@/hooks/use-keyboard';
+import { useKeyboard } from '@/hooks/use-keyboard';
 
 interface AppliedPromo {
   code: string;
@@ -21,8 +21,12 @@ export default function CartPage() {
   const [promoInput, setPromoInput] = useState('');
   const [promo, setPromo] = useState<AppliedPromo | null>(null);
   const [promoError, setPromoError] = useState<string | null>(null);
+  const [promoFocused, setPromoFocused] = useState(false);
   const validate = useValidatePromo();
   const { isOpen: kbOpen, height: kbHeight } = useKeyboard();
+  // Promokod input fokuslanганda — kartani klaviatura USTIGA pin qilamiz (fixed).
+  // Scroll'ga urinmaymiz (ishonchsiz edi); bu 100% ko'rinishni kafolatlaydi.
+  const promoPinned = promoFocused && kbOpen;
 
   const handleApplyPromo = () => {
     setPromoError(null);
@@ -79,12 +83,7 @@ export default function CartPage() {
   const grand = Math.max(0, subtotal - discount);
 
   return (
-    <div
-      className="space-y-4 px-4 pb-32 pt-4"
-      // Klaviatura ochilganda pastdan qo'shimcha joy — promokod input klaviatura
-      // ustiga scroll bo'la olishi uchun (aks holda input klaviatura ortida qolardi).
-      style={kbOpen ? { paddingBottom: kbHeight + 120 } : undefined}
-    >
+    <div className="space-y-4 px-4 pb-32 pt-4">
       <div className="flex items-center justify-between">
         <Link
           href="/"
@@ -113,8 +112,15 @@ export default function CartPage() {
         ))}
       </div>
 
-      {/* Promo */}
-      <div className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      {/* Promo — fokuslanganda klaviatura ustiga pin bo'ladi (fixed) */}
+      <div
+        className={`rounded-3xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 ${
+          promoPinned
+            ? 'fixed inset-x-0 z-[55] mx-auto w-[calc(100%-1.5rem)] max-w-[456px] shadow-2xl transition-[bottom] duration-200'
+            : ''
+        }`}
+        style={promoPinned ? { bottom: kbHeight + 8 } : undefined}
+      >
         <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
           {t('cart.promo.placeholder')}
         </p>
@@ -140,7 +146,8 @@ export default function CartPage() {
                 type="text"
                 value={promoInput}
                 onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
-                onFocus={focusScrollIntoView}
+                onFocus={() => setPromoFocused(true)}
+                onBlur={() => setPromoFocused(false)}
                 placeholder={t('cart.promo.placeholder')}
                 className="flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold uppercase tracking-wider text-slate-900 outline-none focus:border-[#c62020] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
               />
@@ -168,14 +175,16 @@ export default function CartPage() {
         <SumRow label={t('cart.total')} value={grand} bold />
       </div>
 
-      {/* Sticky checkout CTA — klaviatura ochilganda uning USTIGA ko'tariladi (bottom:kbHeight).
-          kbHeight endi barqaror (scroll'ga bog'liq emas), shuning uchun sakramaydi.
-          Promo input shu CTA ustiga scroll bo'ladi → [input][CTA][klaviatura]. */}
+      {/* Sticky checkout CTA — promokod yozayotganda (klaviatura ochiq) KERAK EMAS,
+          shuning uchun pastga silliq yashirinadi. Faqat klaviatura + promo input qoladi.
+          Klaviatura yopilsa CTA (va bottom nav) qaytadi. */}
       <div
-        className="fixed inset-x-0 z-50 mx-auto w-full max-w-[480px] border-t border-slate-100 bg-white/95 px-4 pb-3 pt-3 backdrop-blur-xl transition-[bottom] duration-200 dark:border-slate-800 dark:bg-slate-950/95"
+        className="fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[480px] border-t border-slate-100 bg-white/95 px-4 pb-3 pt-3 backdrop-blur-xl transition-all duration-300 dark:border-slate-800 dark:bg-slate-950/95"
         style={{
-          bottom: kbOpen ? kbHeight : 0,
-          paddingBottom: kbOpen ? 10 : 'calc(env(safe-area-inset-bottom, 0px) + 86px)',
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 86px)',
+          transform: kbOpen ? 'translateY(130%)' : 'translateY(0)',
+          opacity: kbOpen ? 0 : 1,
+          pointerEvents: kbOpen ? 'none' : 'auto',
         }}
       >
         <Link

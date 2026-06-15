@@ -8,7 +8,7 @@ import { useCartStore } from '@/stores/cart-store';
 import { useCustomerPrefs } from '@/stores/customer-prefs-store';
 import { useAddresses, useCreateOrder, useQuoteOrder, type QuoteResult } from '@/hooks/use-customer';
 import { useT } from '@/lib/i18n/locale-context';
-import { useKeyboard, focusScrollIntoView } from '@/hooks/use-keyboard';
+import { useKeyboard } from '@/hooks/use-keyboard';
 
 type PaymentMethod = 'CASH' | 'MANUAL_TRANSFER';
 // CASH = naqd, MANUAL_TRANSFER = bank o'tkazmasi (backend nomi)
@@ -37,7 +37,10 @@ function CheckoutInner() {
   const [error, setError] = useState<string | null>(null);
   const [quote, setQuote] = useState<QuoteResult | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [noteFocused, setNoteFocused] = useState(false);
   const { isOpen: kbOpen, height: kbHeight } = useKeyboard();
+  // Izoh fokuslanganda — kartani klaviatura ustiga pin qilamiz (cart promokod kabi)
+  const notePinned = noteFocused && kbOpen;
 
   const quoteMutation = useQuoteOrder();
   const createMutation = useCreateOrder();
@@ -133,11 +136,7 @@ function CheckoutInner() {
   const total = quote?.total ?? subtotal;
 
   return (
-    <div
-      className="space-y-4 px-4 pb-32 pt-4"
-      // Klaviatura ochilganda izoh (note) maydoni uning ustiga scroll bo'la olishi uchun joy
-      style={kbOpen ? { paddingBottom: kbHeight + 120 } : undefined}
-    >
+    <div className="space-y-4 px-4 pb-32 pt-4">
       <div className="flex items-center justify-between">
         <Link
           href="/cart"
@@ -198,17 +197,28 @@ function CheckoutInner() {
         </div>
       </Section>
 
-      {/* Note */}
-      <Section title={t('checkout.note.title')}>
+      {/* Note — fokuslanganda klaviatura ustiga pin bo'ladi */}
+      <div
+        className={
+          notePinned
+            ? 'fixed inset-x-0 z-[55] mx-auto w-[calc(100%-1.5rem)] max-w-[456px] rounded-3xl border border-slate-100 bg-white p-4 shadow-2xl transition-[bottom] duration-200 dark:border-slate-800 dark:bg-slate-900'
+            : 'rounded-3xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900'
+        }
+        style={notePinned ? { bottom: kbHeight + 8 } : undefined}
+      >
+        <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+          {t('checkout.note.title')}
+        </p>
         <textarea
           rows={2}
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          onFocus={focusScrollIntoView}
+          onFocus={() => setNoteFocused(true)}
+          onBlur={() => setNoteFocused(false)}
           placeholder={t('checkout.note.placeholder')}
           className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-[#c62020] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
         />
-      </Section>
+      </div>
 
       {/* Summary */}
       <Section title={t('checkout.summary.title')}>
@@ -234,10 +244,12 @@ function CheckoutInner() {
       )}
 
       <div
-        className="fixed inset-x-0 z-50 mx-auto w-full max-w-[480px] border-t border-slate-100 bg-white/95 px-4 pb-3 pt-3 backdrop-blur-xl transition-[bottom] duration-200 dark:border-slate-800 dark:bg-slate-950/95"
+        className="fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[480px] border-t border-slate-100 bg-white/95 px-4 pb-3 pt-3 backdrop-blur-xl transition-all duration-300 dark:border-slate-800 dark:bg-slate-950/95"
         style={{
-          bottom: kbOpen ? kbHeight : 0,
-          paddingBottom: kbOpen ? 10 : 'calc(env(safe-area-inset-bottom, 0px) + 86px)',
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 86px)',
+          transform: kbOpen ? 'translateY(130%)' : 'translateY(0)',
+          opacity: kbOpen ? 0 : 1,
+          pointerEvents: kbOpen ? 'none' : 'auto',
         }}
       >
         <button
