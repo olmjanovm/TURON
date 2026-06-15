@@ -1,6 +1,7 @@
 import { CourierBottomNav } from '@/components/courier/courier-bottom-nav';
 import { CourierRealtime } from '@/components/courier/courier-realtime';
 import { CourierBackButton } from '@/components/courier/courier-back-button';
+import { ActiveDeliveryBar } from '@/components/courier/active-delivery-bar';
 import { PullToRefresh } from '@/components/pull-to-refresh';
 
 export default function CourierLayout({ children }: { children: React.ReactNode }) {
@@ -15,6 +16,7 @@ export default function CourierLayout({ children }: { children: React.ReactNode 
       >
         {children}
       </main>
+      <ActiveDeliveryBar />
       <CourierBottomNav />
     </div>
   );
