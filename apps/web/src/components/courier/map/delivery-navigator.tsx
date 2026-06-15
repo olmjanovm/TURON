@@ -77,7 +77,12 @@ interface DeliveryNavigatorProps {
 
 const AUTOFOCUS_MS = 3_000;
 const PAN_DURATION_MS = 650;
-const HEADING_LOW_PASS = 0.22;
+// Kompas silliqlash — adaptiv low-pass (qotgan 0.22 o'rniga: jitter↓ + turn-lag↓)
+const HEADING_ALPHA_MIN = 0.15;
+const HEADING_ALPHA_MAX = 0.4;
+const COMPASS_DEADZONE_DEG = 1.5;      // turganda mikro-jitter'ni e'tiborsiz qoldir
+const GPS_FUSION_MIN_KMH = 12;         // bu tezlikdan yuqorida GPS-bearing fusion yoqiladi
+const GPS_FUSION_DISAGREE_DEG = 60;    // kompas GPS'dan shuncha farq qilsa, GPS'ga moyil
 const VOICE_THRESHOLDS = [500, 150, 40] as const;
 const SPEED_BUFFER_KMH = 10;
 const HYPER_ZOOM_RADIUS_M = 100;
@@ -99,6 +104,12 @@ const DRIVING_MODE_EXIT_KMH = 10;        // bu tezlikdan past bo'lsa chiqamiz (h
 
 function deltaAngle(a: number, b: number): number {
   return ((b - a + 540) % 360) - 180;
+}
+// |delta| kichik → silliq (min alpha), katta burilish → tez (max alpha)
+function adaptiveHeadingAlpha(delta: number): number {
+  const a = Math.abs(delta);
+  const alpha = HEADING_ALPHA_MIN + (a / 60) * (HEADING_ALPHA_MAX - HEADING_ALPHA_MIN);
+  return Math.min(HEADING_ALPHA_MAX, Math.max(HEADING_ALPHA_MIN, alpha));
 }
 // Geometriya — @turf/turf orqali (route-geometry.ts'da)
 const haversineM = haversineMeters;
@@ -571,24 +582,40 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       const ms = movedM / Math.max(0.001, ageMs / 1000);
       const kmh = ms * 3.6;
 
-      // Faqat compass yo'q + harakat aniq (jitter emas) + tezlik o'rtacha
-      if (!compassFresh && movedM >= 5 && kmh > 5 && kmh < 250 && !hyperZoomActiveRef.current) {
-        const raw = gpsBearing(prev, smoothedCourier);
-        if (!headingInitedRef.current) {
-          headingRef.current = raw;
-          headingInitedRef.current = true;
-        } else {
-          const current = headingRef.current;
-          const delta = deltaAngle(current, raw);
-          // GPS bearing ko'proq shovqinli — chuqurroq low-pass (0.12)
-          headingRef.current = ((current + delta * 0.12) + 360) % 360;
+      // Harakat aniq (jitter emas) + tezlik o'rtacha bo'lsa
+      if (movedM >= 5 && kmh > 5 && kmh < 250 && !hyperZoomActiveRef.current) {
+        const gpsB = gpsBearing(prev, smoothedCourier);
+        let applied = false;
+
+        if (!compassFresh) {
+          // Kompas yo'q/eskirgan — GPS-bearing birlamchi heading manbai
+          if (!headingInitedRef.current) {
+            headingRef.current = gpsB;
+            headingInitedRef.current = true;
+          } else {
+            const delta = deltaAngle(headingRef.current, gpsB);
+            // GPS bearing ko'proq shovqinli — chuqurroq low-pass (0.12)
+            headingRef.current = ((headingRef.current + delta * 0.12) + 360) % 360;
+          }
+          applied = true;
+        } else if (kmh > GPS_FUSION_MIN_KMH) {
+          // Kompas bor, lekin tez ketyapmiz — kuchli kelishmovchilikda GPS yo'nalishiga
+          // yengil tortamiz (magnit shovqin / noto'g'ri mount holatini tuzatadi)
+          const disagree = deltaAngle(headingRef.current, gpsB);
+          if (Math.abs(disagree) > GPS_FUSION_DISAGREE_DEG) {
+            headingRef.current = ((headingRef.current + disagree * 0.1) + 360) % 360;
+            applied = true;
+          }
         }
-        const marker = courierMarkerRef.current;
-        marker?.properties?.set?.('iconRotateAngle', headingRef.current);
-        const map = mapRef.current as
-          | (YmapInstance & { setAzimuth?: (a: number, opts?: { duration?: number }) => void })
-          | null;
-        map?.setAzimuth?.(headingRef.current, { duration: 250 });
+
+        if (applied) {
+          const marker = courierMarkerRef.current;
+          marker?.properties?.set?.('iconRotateAngle', headingRef.current);
+          const map = mapRef.current as
+            | (YmapInstance & { setAzimuth?: (a: number, opts?: { duration?: number }) => void })
+            | null;
+          map?.setAzimuth?.(headingRef.current, { duration: 250 });
+        }
       }
     }
 
@@ -812,7 +839,13 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       } else {
         const current = headingRef.current;
         const delta = deltaAngle(current, raw);
-        headingRef.current = ((current + delta * HEADING_LOW_PASS) + 360) % 360;
+        // Dead-zone — turganda mikro-jitter marker'ni titratmasin
+        if (Math.abs(delta) < COMPASS_DEADZONE_DEG) {
+          lastCompassAtRef.current = Date.now();
+          return;
+        }
+        // Adaptiv low-pass — silliqlik bilan tezkorlik balansi
+        headingRef.current = ((current + delta * adaptiveHeadingAlpha(delta)) + 360) % 360;
       }
 
       lastCompassAtRef.current = Date.now();
