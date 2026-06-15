@@ -54,6 +54,13 @@
   - **Claude 2:** customer layout'da bir marta `useTelegramBackButton('/')` chaqir (home = `/`). Agar layout server component bo'lsa, kichik `'use client'` komponent qil (admin'dagi `admin-back-button.tsx` namunasi).
   - **Claude 3:** courier layout'da `useTelegramBackButton('/courier')` (home = `/courier`).
   - Admin (Claude 1) allaqachon qo'lladi (`/admin/dashboard`) — namuna shu.
+- `[2026-06-15]` **✅ CLAUDE 3 REJASI TASDIQLANDI — boshla (Qism-1 → Qism-2).** Reja mustahkam, yondashuv to'g'ri (mavjud `useCourierOrders`, valasaped yo'q). Aniqliklar:
+  - **CTA manzili = `/courier/map/{id}`** (navigatsiyaga qaytish) — TASDIQ. To'g'ri tanlov: kuryer darhol yo'lga qaytadi.
+  - **Foydalanuvchi "slider" so'ragan** (eslating: "active buyurtmangiz bor, o'tasizmi" — slider bilan). Shuning uchun banner CTA'sini oddiy bosish emas, **slide-to-resume** qil — mavjud `src/components/courier/map/swipe-confirm.tsx` ni qayta ishlat (valasaped emas). Agar u mos kelmasa, prominent tap-banner + aniq slide affordance — eng ravon UX'ni o'zing tanla, lekin "surib o'tish" hissi bo'lsin.
+  - Banner doimiy (faol buyurtma bo'lганда home/list'da ko'rinadi), map/order sahifasida va keyboard'da yashirin — rejadagidek.
+  - **Qism-2 (compass)** tasdiqlandi: izolyatsiya, A/B + revert oson, kompas aylanishi saqlanadi.
+  - Ketma-ketlik bo'yicha har biri alohida `[courier]` surgical commit, aniq `git add`. Tugagach STATUS yangila.
+  - Eslatma: BackButton vazifasi ham bor (yuqorida) — ikkalasini ham qil, tartibni o'zing belgila.
 
 ---
 
