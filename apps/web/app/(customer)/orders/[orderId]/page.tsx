@@ -2,6 +2,7 @@
 
 import { use, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ArrowLeft, Check, Loader2, MapPin, Package, Phone, X } from 'lucide-react';
 import { useOrderDetail, useCancelOrder, ORDER_STATUS_META } from '@/hooks/use-customer';
 import { OrderModifySheet } from '@/components/customer/order-modify-sheet';
@@ -25,6 +26,7 @@ function formatDate(value: string) {
 export default function OrderDetailPage({ params }: { params: Promise<{ orderId: string }> }) {
   const { orderId } = use(params);
   const t = useT();
+  const router = useRouter();
   const { data: order, isLoading, isError } = useOrderDetail(orderId);
   const cancel = useCancelOrder();
   const [cancelling, setCancelling] = useState(false);
@@ -224,6 +226,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ orderId:
         <OrderModifySheet
           onClose={() => setModifyOpen(false)}
           onConfirmCancel={confirmCancel}
+          onMessageAdmin={() => router.push(`/orders/${orderId}/chat`)}
           cancelling={cancelling}
         />
       )}

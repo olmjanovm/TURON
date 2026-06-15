@@ -14,6 +14,9 @@ export function CustomerBottomNav() {
   const favCount = useCustomerPrefs((s) => s.favorites.length);
   const cartCount = useCartStore((s) => s.items.reduce((n, i) => n + i.quantity, 0));
   const { isOpen: kbOpen } = useKeyboard();
+  // Chat sahifasida nav yashirin — o'zining input paneli pastda turadi
+  const onChatRoute = pathname.includes('/chat');
+  const hideNav = kbOpen || onChatRoute;
 
   const ITEMS = [
     { href: '/',           label: t('nav.home'),      icon: Home,          match: (p: string) => p === '/' || p.startsWith('/product/') || p.startsWith('/menu/') },
@@ -26,7 +29,7 @@ export function CustomerBottomNav() {
   return (
     <nav
       className={`fixed bottom-0 left-1/2 z-40 w-full max-w-[480px] border-t border-slate-100 bg-white/85 backdrop-blur-xl transition-transform duration-200 dark:border-slate-800 dark:bg-slate-950/85 ${
-        kbOpen ? 'pointer-events-none -translate-x-1/2 translate-y-full' : '-translate-x-1/2 translate-y-0'
+        hideNav ? 'pointer-events-none -translate-x-1/2 translate-y-full' : '-translate-x-1/2 translate-y-0'
       }`}
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >

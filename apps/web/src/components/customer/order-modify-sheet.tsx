@@ -22,10 +22,12 @@ import {
 export function OrderModifySheet({
   onClose,
   onConfirmCancel,
+  onMessageAdmin,
   cancelling,
 }: {
   onClose: () => void;
   onConfirmCancel: () => void;
+  onMessageAdmin: () => void;
   cancelling: boolean;
 }) {
   const [view, setView] = useState<'options' | 'cancel'>('options');
@@ -81,9 +83,8 @@ export function OrderModifySheet({
                 icon={MessageCircle}
                 tint="bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300"
                 label="Adminga xabar yozish"
-                desc="Operator bilan bog’lanish"
-                soon
-                onClick={soon}
+                desc="Operator bilan jonli suhbat"
+                onClick={onMessageAdmin}
               />
               <OptionRow
                 icon={XCircle}

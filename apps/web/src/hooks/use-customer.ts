@@ -210,6 +210,73 @@ export function useCancelOrder() {
   });
 }
 
+// ── Order chat (mijoz ↔ admin) ─────────────────────────────────────────────
+export interface OrderChatMessage {
+  id: string;
+  orderId: string;
+  senderId: string;
+  senderRole: 'COURIER' | 'CUSTOMER' | 'ADMIN';
+  senderName: string;
+  content: string;
+  isRead: boolean;
+  createdAt: string;
+  /** Faqat optimistic (klient) holat. Yo'q = serverdan kelgan (yuborilgan). */
+  status?: 'pending' | 'failed';
+}
+
+const ORDER_CHAT_KEY = (orderId: string) => ['customer', 'order-chat', orderId] as const;
+
+export function useOrderChat(orderId: string) {
+  return useQuery<OrderChatMessage[]>({
+    queryKey: ORDER_CHAT_KEY(orderId),
+    queryFn: () => apiFetch(`/orders/${orderId}/chat`),
+    enabled: !!orderId,
+    refetchInterval: 5_000, // admin javobini tez ko'rish (real-time'ga yaqin)
+  });
+}
+
+/**
+ * Xabar yuborish — OPTIMISTIC (Telegram singari): xabar darhol ko'rinadi
+ * (soat = yuborilmoqda), server tasdiqlasa almashtiriladi, xato bo'lsa "failed".
+ * Mijozning o'z xabari isRead=true bo'lsa → admin o'qigan (2✓), aks holda 1✓.
+ */
+export function useSendOrderMessage(orderId: string) {
+  const qc = useQueryClient();
+  const key = ORDER_CHAT_KEY(orderId);
+  return useMutation({
+    mutationFn: (content: string) =>
+      apiFetch(`/orders/${orderId}/chat`, {
+        method: 'POST',
+        body: JSON.stringify({ content }),
+      }),
+    onMutate: async (content: string) => {
+      await qc.cancelQueries({ queryKey: key });
+      const tempId = `temp-${Date.now()}`;
+      const optimistic: OrderChatMessage = {
+        id: tempId,
+        orderId,
+        senderId: 'me',
+        senderRole: 'CUSTOMER',
+        senderName: 'Siz',
+        content,
+        isRead: false,
+        createdAt: new Date().toISOString(),
+        status: 'pending',
+      };
+      qc.setQueryData<OrderChatMessage[]>(key, (old) => [...(old ?? []), optimistic]);
+      return { tempId };
+    },
+    onError: (_err, _content, ctx) => {
+      if (ctx?.tempId) {
+        qc.setQueryData<OrderChatMessage[]>(key, (old) =>
+          (old ?? []).map((m) => (m.id === ctx.tempId ? { ...m, status: 'failed' } : m)),
+        );
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: key }),
+  });
+}
+
 // ── Promo ────────────────────────────────────────────────────────────────
 export function useValidatePromo() {
   return useMutation({
