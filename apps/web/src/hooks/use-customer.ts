@@ -194,6 +194,23 @@ export function useCreateOrder() {
   });
 }
 
+/**
+ * Buyurtma manzilini o'zgartirish (ADDRESS_CHANGE modification).
+ * Backend AUTO qo'llaydi (kuryer yo'lda bo'lsa ham) → kuryerga real-time reroute.
+ */
+export function useChangeOrderAddress(orderId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (addressId: string) =>
+      apiFetch(`/orders/${orderId}/modifications`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': crypto.randomUUID() },
+        body: JSON.stringify({ type: 'ADDRESS_CHANGE', payload: { addressId } }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['customer'] }),
+  });
+}
+
 export function useCancelOrder() {
   const qc = useQueryClient();
   return useMutation({

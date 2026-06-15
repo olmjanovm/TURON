@@ -23,11 +23,13 @@ export function OrderModifySheet({
   onClose,
   onConfirmCancel,
   onMessageAdmin,
+  onChangeAddress,
   cancelling,
 }: {
   onClose: () => void;
   onConfirmCancel: () => void;
   onMessageAdmin: () => void;
+  onChangeAddress: () => void;
   cancelling: boolean;
 }) {
   const [view, setView] = useState<'options' | 'cancel'>('options');
@@ -59,9 +61,8 @@ export function OrderModifySheet({
                 icon={MapPin}
                 tint="bg-sky-50 text-sky-600 dark:bg-sky-500/15 dark:text-sky-300"
                 label="Boshqa manzilga yetkazish"
-                desc="Manzilni xaritadan o’zgartirish"
-                soon
-                onClick={soon}
+                desc="Manzilni xaritadan (GPS) o’zgartirish"
+                onClick={onChangeAddress}
               />
               <OptionRow
                 icon={Soup}

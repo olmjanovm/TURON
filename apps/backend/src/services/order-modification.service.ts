@@ -116,7 +116,12 @@ export class OrderModificationService {
       throw new Error('Bu buyurtma sizniki emas');
     }
 
-    const mode = resolveDecisionMode(order.status);
+    // Manzil o'zgarishi — kuryer yo'lda bo'lsa ham AVTOMATIK qo'llanadi (admin
+    // tasdig'isiz), faqat yakunlangan (yetkazilgan/bekor) buyurtmada mumkin emas.
+    const mode =
+      type === 'ADDRESS_CHANGE'
+        ? (TERMINAL_ORDER_STATUSES.has(order.status) ? 'CLOSED' : 'AUTO')
+        : resolveDecisionMode(order.status);
     if (mode === 'CLOSED') {
       throw new Error("Bu holatdagi buyurtmani o'zgartirib bo'lmaydi");
     }
@@ -250,8 +255,7 @@ export class OrderModificationService {
     }
 
     if (row.type === 'ADDRESS_CHANGE') {
-      // Address change application is part of the next iteration. The
-      // request is still recorded so admin tooling can act on it manually.
+      await this.applyAddressChange(row.orderId, row.payload);
       return;
     }
 
@@ -340,6 +344,82 @@ export class OrderModificationService {
       type: NotificationTypeEnum.WARNING,
       title: 'Mijoz buyurtmani bekor qildi',
       message: `#${String(order.orderNumber)} mijoz tomonidan bekor qilindi (${reason})`,
+      relatedOrderId: orderId,
+    }).catch(() => {});
+  }
+
+  /**
+   * Mijoz buyurtma manzilini o'zgartiradi (kuryer yo'lda bo'lsa ham).
+   * deliveryAddressId + destination koordinatalari yangilanadi, so'ng kuryer/admin'ga
+   * real-time snapshot push qilinadi — kuryer navigatsiyasi yangi manzilga reroute qiladi.
+   */
+  private static async applyAddressChange(orderId: string, payload: any): Promise<void> {
+    const addressId = typeof payload?.addressId === 'string' ? payload.addressId : null;
+    if (!addressId) throw new Error("Yangi manzil ko'rsatilmadi");
+
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { courierAssignments: true },
+    });
+    if (!order) throw new Error('Buyurtma topilmadi');
+    if (TERMINAL_ORDER_STATUSES.has(order.status)) {
+      throw new Error("Yakunlangan buyurtma manzilini o'zgartirib bo'lmaydi");
+    }
+
+    const address = await prisma.deliveryAddress.findUnique({ where: { id: addressId } });
+    if (!address || address.userId !== order.userId) {
+      throw new Error('Yangi manzil topilmadi');
+    }
+
+    await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        deliveryAddressId: addressId,
+        destinationLat: address.latitude,
+        destinationLng: address.longitude,
+      },
+    });
+
+    // Real-time: kuryer (yo'lda bo'lsa ham) + admin yangi manzilni darhol oladi.
+    try {
+      const refreshed = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: ORDER_INCLUDE as any,
+      });
+      if (refreshed) {
+        const snapshot = {
+          ...serializeOrder(refreshed),
+          tracking: await orderTrackingService.getSnapshot(orderId),
+        };
+        orderTrackingService.publishOrderUpdate(orderId, snapshot);
+      }
+    } catch {
+      /* non-critical */
+    }
+
+    const orderNumber = String(order.orderNumber);
+
+    // Faol kuryerni xabardor qilamiz — yangi manzilga yo'l olsin.
+    const activeStatuses = ['ASSIGNED', 'ACCEPTED', 'PICKED_UP', 'DELIVERING'];
+    const activeAssignment = order.courierAssignments.find((a: any) =>
+      activeStatuses.includes(a.status),
+    );
+    if (activeAssignment) {
+      await InAppNotificationsService.notifyUser({
+        userId: activeAssignment.courierId,
+        roleTarget: UserRoleEnum.COURIER,
+        type: NotificationTypeEnum.WARNING,
+        title: "Manzil o'zgardi",
+        message: `#${orderNumber} buyurtma manzili o'zgartirildi: ${address.address}. Yangi manzilga yo'l oling.`,
+        relatedOrderId: orderId,
+      }).catch(() => {});
+    }
+
+    // Admin xabardor.
+    await InAppNotificationsService.notifyAdmins({
+      type: NotificationTypeEnum.WARNING,
+      title: "Manzil o'zgartirildi",
+      message: `#${orderNumber} buyurtma manzili mijoz tomonidan o'zgartirildi: ${address.address}`,
       relatedOrderId: orderId,
     }).catch(() => {});
   }

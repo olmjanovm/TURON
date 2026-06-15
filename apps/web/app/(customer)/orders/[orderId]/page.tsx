@@ -227,6 +227,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ orderId:
           onClose={() => setModifyOpen(false)}
           onConfirmCancel={confirmCancel}
           onMessageAdmin={() => router.push(`/orders/${orderId}/chat`)}
+          onChangeAddress={() => router.push(`/orders/${orderId}/change-address`)}
           cancelling={cancelling}
         />
       )}
