@@ -23,9 +23,14 @@ export function useKeyboard() {
     if (!vv) return;
 
     const compute = () => {
-      // window.innerHeight = layout viewport (klaviaturadan oldingi)
-      // visualViewport.height = ko'rinadigan qism (klaviaturadan keyingi)
-      const diff = window.innerHeight - vv.height - vv.offsetTop;
+      // Klaviatura balandligi = layout viewport − ko'rinadigan viewport.
+      //   window.innerHeight = layout viewport (klaviaturadan mustaqil)
+      //   visualViewport.height = klaviaturadan keyingi ko'rinadigan qism
+      // MUHIM: `offsetTop`ni AYIRMAYMIZ. Aks holda sahifa scroll qilinganda
+      // offsetTop o'zgarib, kbHeight ham o'zgaradi → fixed CTA siljiydi va input
+      // "chiqib keyin yo'qoladi" (flicker), nav qaytmaydi. offsetTop'siz qiymat
+      // scroll'dan mustaqil va barqaror bo'ladi.
+      const diff = window.innerHeight - vv.height;
       const height = Math.max(0, Math.round(diff));
       // 150px chegarasi — kichik UI o'zgarishlarni klaviatura deb hisoblamaslik
       const isOpen = height > 150;
@@ -65,15 +70,16 @@ export function focusScrollIntoView(e: React.FocusEvent<HTMLElement>) {
     const vv = typeof window !== 'undefined' ? window.visualViewport : null;
     if (vv) {
       const rect = el.getBoundingClientRect();
-      const targetTop = vv.height * 0.33; // ko'rinadigan maydonning yuqori uchdan biri
-      const delta = rect.top - targetTop;
-      if (Math.abs(delta) > 8) window.scrollBy({ top: delta, behavior: 'smooth' });
+      // Input pastki qirrasini ko'rinadigan maydon pastidan ~110px tepada turg'azamiz —
+      // ya'ni klaviatura ustidagi lifted CTA (~88px) ustida aniq ko'rinadi.
+      const desiredBottom = vv.height - 110;
+      const delta = rect.bottom - desiredBottom;
+      if (Math.abs(delta) > 6) window.scrollBy({ top: delta, behavior: 'smooth' });
     } else {
       el.scrollIntoView({ block: 'center', behavior: 'smooth' });
     }
   };
 
-  // Klaviatura animatsiyasini kutib, 2 bosqichда aniqlaymiz
-  setTimeout(doScroll, 200);
-  setTimeout(doScroll, 430);
+  // Bitta urinish — klaviatura o'rnashgach (flicker bo'lmasligi uchun ikki marta emas)
+  setTimeout(doScroll, 340);
 }

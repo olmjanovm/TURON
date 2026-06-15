@@ -234,12 +234,10 @@ function CheckoutInner() {
       )}
 
       <div
-        className="fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[480px] border-t border-slate-100 bg-white/95 px-4 pb-3 pt-3 backdrop-blur-xl transition-all duration-300 dark:border-slate-800 dark:bg-slate-950/95"
+        className="fixed inset-x-0 z-50 mx-auto w-full max-w-[480px] border-t border-slate-100 bg-white/95 px-4 pb-3 pt-3 backdrop-blur-xl transition-[bottom] duration-200 dark:border-slate-800 dark:bg-slate-950/95"
         style={{
-          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 86px)',
-          transform: kbOpen ? 'translateY(130%)' : 'translateY(0)',
-          opacity: kbOpen ? 0 : 1,
-          pointerEvents: kbOpen ? 'none' : 'auto',
+          bottom: kbOpen ? kbHeight : 0,
+          paddingBottom: kbOpen ? 10 : 'calc(env(safe-area-inset-bottom, 0px) + 86px)',
         }}
       >
         <button
