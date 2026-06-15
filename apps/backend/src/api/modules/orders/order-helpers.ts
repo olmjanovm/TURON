@@ -261,6 +261,9 @@ export function serializeOrder(order: any) {
     note: order.note || '',
     createdAt: order.createdAt.toISOString(),
     orderStatus: order.status,
+    // Bekor qilinganda kim tomonidan (admin panel "buyurtmachi tomonidan bekor qilindi" ko'rsatadi)
+    cancelledByRole: order.cancelledByRole ?? null,
+    cancellationReason: order.cancellationReason ?? null,
     customerAddress: serializeAddress(order.deliveryAddress),
     courierId: latestAssignment?.courierId || order.courierId,
     courierName: courier?.fullName,

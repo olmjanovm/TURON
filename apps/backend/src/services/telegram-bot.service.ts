@@ -1121,8 +1121,10 @@ async function syncCallbackMessageStatus(
 export async function syncTelegramOrderStatus(
   orderId: string,
   status?: string | null,
+  labelOverride?: string,
 ): Promise<void> {
-  const statusLabel = getTelegramOrderStatusLabel(status);
+  // labelOverride — masalan "Mijoz tomonidan bekor qilindi" (oddiy "Bekor qilindi" o'rniga).
+  const statusLabel = labelOverride ?? getTelegramOrderStatusLabel(status);
   const updatedCount = await syncTelegramOrderMessages(orderId, statusLabel);
   if (updatedCount > 0) {
     return;

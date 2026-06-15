@@ -227,6 +227,18 @@ function OrderBody({
             {new Date(order.createdAt).toLocaleString('uz-UZ')}
           </p>
         )}
+        {order.orderStatus === OrderStatusEnum.CANCELLED && order.cancelledByRole && (
+          <div className="mt-2 rounded-xl bg-rose-50 px-3 py-2 text-xs font-bold text-rose-600">
+            {order.cancelledByRole === 'customer'
+              ? '❌ Buyurtmachi tomonidan bekor qilindi'
+              : order.cancelledByRole === 'courier'
+                ? '❌ Kuryer tomonidan bekor qilindi'
+                : '❌ Admin tomonidan bekor qilindi'}
+            {order.cancellationReason && (
+              <span className="mt-0.5 block font-normal text-rose-400">{order.cancellationReason}</span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Mijoz */}

@@ -4,7 +4,7 @@ import { AuditService } from './audit.service.js';
 import { InAppNotificationsService } from './in-app-notifications.service.js';
 import { orderTrackingService } from './order-tracking.service.js';
 import { ORDER_INCLUDE, serializeOrder } from '../api/modules/orders/order-helpers.js';
-import { sendAdminAlert } from './telegram-bot.service.js';
+import { sendAdminAlert, syncTelegramOrderStatus } from './telegram-bot.service.js';
 
 /**
  * Yandex Eats / Uber Eats stilidagi buyurtmani o'zgartirish so'rovlari.
@@ -326,6 +326,14 @@ export class OrderModificationService {
     } catch {
       /* non-critical */
     }
+
+    // Telegram bot xabarini yangilaymiz: tasdiqlash/bekor tugmalari olib tashlanadi
+    // va holat "Mijoz tomonidan bekor qilindi" ga o'zgaradi (real-time, mos).
+    await syncTelegramOrderStatus(
+      orderId,
+      OrderStatusEnum.CANCELLED,
+      'Mijoz tomonidan bekor qilindi',
+    ).catch(() => {});
 
     // Tell admins it happened (so they don't keep cooking).
     await InAppNotificationsService.notifyAdmins({

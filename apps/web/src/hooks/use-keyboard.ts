@@ -45,16 +45,35 @@ export function useKeyboard() {
 }
 
 /**
- * Input fokusda ekran tepasiga sudralib scroll qiladi.
- * Klaviatura animatsiyasini kutgan holda (~300ms) ishlatiladi.
+ * Input fokusda — uni klaviatura USTIDAGI ko'rinadigan maydonga olib chiqadi.
  *
- * Misol:
+ * Nega oddiy `scrollIntoView({block:'center'})` emas: u layout viewport markaziga
+ * keltiradi, lekin klaviatura ochiq bo'lganda markaz aynan klaviatura chizig'ida
+ * bo'lib, input ortda qolib ketadi. Shuning uchun `visualViewport` (klaviaturadan
+ * keyingi ko'rinadigan balandlik) asosida input'ni ko'rinadigan maydonning yuqori
+ * ~33%'iga olib kelamiz — klaviatura va sticky CTA ustida aniq ko'rinadi.
+ *
+ * Klaviatura animatsiyasi bosqichma-bosqich (viewport asta kichrayadi), shuning
+ * uchun 2 marta urinamiz.
+ *
  *   <input onFocus={focusScrollIntoView} ... />
  */
 export function focusScrollIntoView(e: React.FocusEvent<HTMLElement>) {
   const el = e.currentTarget;
-  // Klaviatura ochilishini kutamiz (animation ~250-300ms)
-  setTimeout(() => {
-    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-  }, 320);
+
+  const doScroll = () => {
+    const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+    if (vv) {
+      const rect = el.getBoundingClientRect();
+      const targetTop = vv.height * 0.33; // ko'rinadigan maydonning yuqori uchdan biri
+      const delta = rect.top - targetTop;
+      if (Math.abs(delta) > 8) window.scrollBy({ top: delta, behavior: 'smooth' });
+    } else {
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+  };
+
+  // Klaviatura animatsiyasini kutib, 2 bosqichда aniqlaymiz
+  setTimeout(doScroll, 200);
+  setTimeout(doScroll, 430);
 }

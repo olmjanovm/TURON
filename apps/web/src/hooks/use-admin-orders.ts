@@ -31,6 +31,8 @@ export interface AdminOrder {
   customerPhone?: string | null;
   customerAddress?: { addressText?: string; latitude?: number; longitude?: number; note?: string | null } | null;
   courierName?: string;
+  cancelledByRole?: 'customer' | 'admin' | 'courier' | null;
+  cancellationReason?: string | null;
 }
 
 /** GET /api/orders -> admin ro'yxati. */
@@ -48,6 +50,8 @@ export function useAdminOrder(id: string) {
     queryKey: ['admin', 'order', id],
     queryFn: () => apiFetch<AdminOrder>(`/api/orders/${id}`),
     enabled: Boolean(id),
+    // Real-time'ga yaqin: mijoz bekor qilsa / holat o'zgarsa admin ko'rib turadi
+    refetchInterval: 10_000,
   });
 }
 
