@@ -4,7 +4,7 @@ import { use, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  AlertTriangle, ArrowLeft, Check, CheckCircle2, ChevronRight, Loader2, Map, MapPin, Package, Phone, Send, X,
+  AlertTriangle, ArrowLeft, Check, CheckCircle2, ChevronRight, Headset, Loader2, Map, MapPin, Package, Phone, Send, X,
 } from 'lucide-react';
 import {
   useCourierOrder,
@@ -14,6 +14,7 @@ import {
   getNextStageAction,
 } from '@/hooks/use-courier';
 import { StageTracker } from '@/components/courier/stage-tracker';
+import { AdminContactSheet } from '@/components/courier/admin-contact-sheet';
 import { focusScrollIntoView } from '@/hooks/use-keyboard';
 
 const PAYMENT_LABEL: Record<string, string> = {
@@ -34,6 +35,7 @@ export default function CourierOrderDetailPage({ params }: { params: Promise<{ o
   const [problemText, setProblemText] = useState('');
   const [problemSent, setProblemSent] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -50,16 +52,29 @@ export default function CourierOrderDetailPage({ params }: { params: Promise<{ o
           <ArrowLeft size={16} /> Orqaga
         </Link>
         <div className="rounded-3xl border border-slate-100 bg-white p-8 text-center shadow-sm">
-          <p className="text-base font-black text-slate-900">Buyurtma topilmadi</p>
-          <p className="mt-1 text-sm text-slate-500">{error instanceof Error ? error.message : 'Xato yuz berdi'}</p>
+          <p className="text-base font-black text-slate-900">Bu buyurtma eskirgan</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Buyurtmani ochib bo&apos;lmadi. Ma&apos;lumot kerak bo&apos;lsa, admin bilan bog&apos;laning.
+          </p>
+          <button
+            type="button"
+            onClick={() => setContactOpen(true)}
+            className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#c62020] to-[#f97316] px-5 py-2.5 text-sm font-black text-white shadow-[0_8px_18px_-6px_rgba(198,32,32,0.5)] active:scale-95"
+          >
+            <Headset size={16} /> Admin bilan bog&apos;lanish
+          </button>
           <button
             type="button"
             onClick={() => void refetch()}
-            className="mt-4 rounded-2xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white active:scale-95"
+            className="mt-2 block w-full rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 active:scale-95"
           >
             Qayta urinish
           </button>
         </div>
+
+        {contactOpen && (
+          <AdminContactSheet orderId={orderId} expired onClose={() => setContactOpen(false)} />
+        )}
       </div>
     );
   }
@@ -230,12 +245,21 @@ export default function CourierOrderDetailPage({ params }: { params: Promise<{ o
           )
         )
       ) : (
-        <div className="flex items-center gap-3 rounded-3xl border border-emerald-200 bg-emerald-50 p-5">
-          <CheckCircle2 size={28} className="shrink-0 text-emerald-600" />
-          <div>
-            <p className="text-base font-black text-emerald-900">Buyurtma topshirildi</p>
-            <p className="text-xs text-emerald-700">Muvaffaqiyatli yakunlandi</p>
+        <div className="space-y-2">
+          <div className="flex items-center gap-3 rounded-3xl border border-emerald-200 bg-emerald-50 p-5">
+            <CheckCircle2 size={28} className="shrink-0 text-emerald-600" />
+            <div>
+              <p className="text-base font-black text-emerald-900">Buyurtma topshirildi</p>
+              <p className="text-xs text-emerald-700">Muvaffaqiyatli yakunlandi</p>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={() => setContactOpen(true)}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white py-3 text-sm font-black text-slate-700 shadow-sm active:scale-[0.99]"
+          >
+            <Headset size={16} className="text-[#c62020]" /> Bu buyurtma haqida admin bilan bog&apos;lanish
+          </button>
         </div>
       )}
 
@@ -342,6 +366,14 @@ export default function CourierOrderDetailPage({ params }: { params: Promise<{ o
             </div>
           )}
         </div>
+      )}
+
+      {contactOpen && (
+        <AdminContactSheet
+          orderId={order.id}
+          orderNumber={order.orderNumber}
+          onClose={() => setContactOpen(false)}
+        />
       )}
     </div>
   );
