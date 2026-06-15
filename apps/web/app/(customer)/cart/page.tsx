@@ -79,7 +79,12 @@ export default function CartPage() {
   const grand = Math.max(0, subtotal - discount);
 
   return (
-    <div className="space-y-4 px-4 pb-32 pt-4">
+    <div
+      className="space-y-4 px-4 pb-32 pt-4"
+      // Klaviatura ochilganda pastdan qo'shimcha joy — promokod input klaviatura
+      // ustiga scroll bo'la olishi uchun (aks holda input klaviatura ortida qolardi).
+      style={kbOpen ? { paddingBottom: kbHeight + 120 } : undefined}
+    >
       <div className="flex items-center justify-between">
         <Link
           href="/"
@@ -224,9 +229,7 @@ function CartItemRow({ item }: { item: CartLine }) {
     <div className="relative overflow-hidden rounded-3xl">
       <button
         type="button"
-        onClick={() => {
-          if (confirm(t('cart.delete_confirm'))) remove(item.productId);
-        }}
+        onClick={() => remove(item.productId)}
         className="absolute right-0 top-0 flex h-full items-center justify-center rounded-3xl bg-red-500 px-4 text-white"
         style={{ width: 88 }}
         aria-label={t('common.delete')}

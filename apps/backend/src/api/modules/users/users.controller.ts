@@ -78,6 +78,56 @@ export async function saveUserPhone(
 }
 
 /**
+ * PATCH /users/me
+ *
+ * Mijoz profilini yangilaydi: fullName va/yoki phoneNumber. Avval faqat /me/phone
+ * bor edi (ism o'zgartirib bo'lmasdi), customer profil sahifasi esa mavjud bo'lmagan
+ * /customers/me/profile ni chaqirib 404 olardi. Endi to'g'ri ishlaydi.
+ */
+export async function updateMyProfile(
+  request: FastifyRequest<{ Body: { fullName?: string; phoneNumber?: string } }>,
+  reply: FastifyReply,
+) {
+  const user = request.user as any;
+  const data: { fullName?: string; phoneNumber?: string | null } = {};
+
+  const fullName = typeof request.body?.fullName === 'string' ? request.body.fullName.trim() : undefined;
+  if (fullName !== undefined && fullName.length > 0) {
+    if (fullName.length < 2) {
+      return reply.status(400).send({ error: "Ism kamida 2 harf bo'lishi kerak" });
+    }
+    data.fullName = fullName;
+  }
+
+  if (typeof request.body?.phoneNumber === 'string') {
+    const raw = request.body.phoneNumber.trim();
+    if (raw) {
+      const normalized = normalizeUzbekPhone(raw);
+      if (!normalized) {
+        return reply.status(400).send({
+          error: "Noto'g'ri telefon raqam formati. Masalan: +998901234567",
+        });
+      }
+      data.phoneNumber = normalized;
+    } else {
+      data.phoneNumber = null;
+    }
+  }
+
+  if (Object.keys(data).length === 0) {
+    return reply.status(400).send({ error: "O'zgartirish uchun maydon yo'q" });
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: user.id },
+    data,
+    select: { id: true, fullName: true, phoneNumber: true },
+  });
+
+  return reply.send(updated);
+}
+
+/**
  * GET /users/me
  *
  * Returns the authenticated user's live profile snapshot so the mini app can

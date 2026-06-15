@@ -197,10 +197,14 @@ export function useCreateOrder() {
 export function useCancelOrder() {
   const qc = useQueryClient();
   return useMutation({
+    // Bekor qilish backend'da "modification request" oqimi orqali ketadi
+    // (/orders/:id/modifications, type=CANCEL). Avval mavjud bo'lmagan
+    // /orders/:id/cancel chaqirilib 404 olinardi.
     mutationFn: (orderId: string) =>
-      apiFetch(`/orders/${orderId}/cancel`, {
+      apiFetch(`/orders/${orderId}/modifications`, {
         method: 'POST',
         headers: { 'Idempotency-Key': crypto.randomUUID() },
+        body: JSON.stringify({ type: 'CANCEL' }),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['customer'] }),
   });
@@ -229,8 +233,9 @@ export function useNotifications() {
 export function useMarkNotificationRead() {
   const qc = useQueryClient();
   return useMutation({
+    // Backend route PATCH (POST emas edi — 404 berardi)
     mutationFn: (id: string) =>
-      apiFetch(`/notifications/${id}/read`, { method: 'POST' }),
+      apiFetch(`/notifications/${id}/read`, { method: 'PATCH' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['customer', 'notifications'] }),
   });
 }
@@ -239,8 +244,9 @@ export function useMarkNotificationRead() {
 export function useUpdateMyProfile() {
   const qc = useQueryClient();
   return useMutation({
+    // Backend: PATCH /users/me (avval mavjud bo'lmagan /customers/me/profile edi → 404)
     mutationFn: (patch: { fullName?: string; phoneNumber?: string }) =>
-      apiFetch('/customers/me/profile', {
+      apiFetch('/users/me', {
         method: 'PATCH',
         body: JSON.stringify(patch),
       }),

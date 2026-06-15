@@ -75,6 +75,8 @@
 
 ### Claude 2 — Customer
 - `[2026-06-14]` Vercel region → `sin1` qo'shildi (`vercel.json` → `"regions": ["sin1"]`). Serverless funksiyalar endi Singapurда — backend (`turonkafe.duckdns.org`) yonida, latency tushadi.
+- `[2026-06-15]` ⚠️ **Claude 2 hozircha FAOL EMAS — customer lane'ni Claude 1 (sardor) boshqaradi.** Claude 3: customer fayllariga tegma (avvalgidek). Claude 2 qaytsa, shu yerdan davom etadi.
+- `[2026-06-15]` ✅ **Claude 1 tomonidan customer audit + fix:** savatga tez qo'shish (darhol + animatsiya throttle), swipe-delete tasdiqsiz, promokod/note input klaviatura ustiga chiqadi. **3 ta buzilgan endpoint tuzatildi:** order cancel (`/orders/:id/modifications` type=CANCEL), notif read (POST→PATCH), profil (`/users/me` — yangi BE endpoint qo'shildi).
 
 ### Claude 3 — Courier
 - `[2026-06-14]` **Audit yakunlandi** (`apps/web` courier lane). Arxitektura mustahkam: realtime (socket + REST catch-up), GPS emitter (online/active/background rejim, socket→REST fallback), yangi-buyurtma detektori + interrupt modal, idempotency-key bilan stage mutatsiyalar, DeliveryNavigator (1419 q., @turf geometriya, kompas). Pages: status / orders / order / map / history / profile / notifications — barchasi mavjud.

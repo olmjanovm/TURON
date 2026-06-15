@@ -20,6 +20,7 @@ export function ProductCard({ product }: { product: MenuProduct }) {
   const toggleFav = useCustomerPrefs((s) => s.toggleFavorite);
   const fly = useFlyToCart();
   const imgRef = useRef<HTMLDivElement | null>(null);
+  const lastFlyRef = useRef(0);
 
   const hasDiscount = product.oldPrice && product.oldPrice > product.price;
   const discountPct =
@@ -30,22 +31,27 @@ export function ProductCard({ product }: { product: MenuProduct }) {
   const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
+    // 1) Savatga DARHOL qo'shamiz — son tezda oshadi (40 marta bossang ham bir zumda 40).
+    //    Avval add() animatsiya tugagach (onLand, ~540ms) chaqirilardi → 40 bosish
+    //    40 ta ketma-ket flight ortida kutib qolardi (juda sekin). Endi darhol.
+    add({
+      productId: product.id,
+      name: product.name,
+      price: product.price,
+      imageUrl: product.imageUrl,
+    });
+
+    // 2) Animatsiyani THROTTLE qilamiz: tez-tez bosishda har bosishga flight
+    //    yaratmaymiz (faqat ~350ms da bir marta). Son baribir har bosishda oshadi.
+    const now = Date.now();
+    if (now - lastFlyRef.current < 350) return;
+    lastFlyRef.current = now;
+
     const rect = imgRef.current?.getBoundingClientRect();
     const fromX = rect ? rect.left + rect.width / 2 : (e as React.MouseEvent).clientX;
     const fromY = rect ? rect.top + rect.height / 2 : (e as React.MouseEvent).clientY;
-
-    fly({
-      fromX,
-      fromY,
-      imageUrl: product.imageUrl,
-      onLand: () =>
-        add({
-          productId: product.id,
-          name: product.name,
-          price: product.price,
-          imageUrl: product.imageUrl,
-        }),
-    });
+    fly({ fromX, fromY, imageUrl: product.imageUrl });
   };
 
   return (

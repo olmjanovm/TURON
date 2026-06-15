@@ -133,7 +133,11 @@ function CheckoutInner() {
   const total = quote?.total ?? subtotal;
 
   return (
-    <div className="space-y-4 px-4 pb-32 pt-4">
+    <div
+      className="space-y-4 px-4 pb-32 pt-4"
+      // Klaviatura ochilganda izoh (note) maydoni uning ustiga scroll bo'la olishi uchun joy
+      style={kbOpen ? { paddingBottom: kbHeight + 120 } : undefined}
+    >
       <div className="flex items-center justify-between">
         <Link
           href="/cart"
