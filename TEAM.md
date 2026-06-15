@@ -85,8 +85,14 @@
 - **Tegilgan fayllar (faqat courier lane):** `src/hooks/use-courier.ts`, `app/(courier)/courier/map/[orderId]/page.tsx`. Backend/schema/shared'ga TEGILMADI (faqat shared enum'dan O'QIB import).
 - **⚠️ Eslatma:** node_modules o'rnatilmagani uchun lokal `tsc` ishlamadi; o'zgarishlar inspeksiya orqali tip-xavfsiz tekshirildi. Tirik buyurtma bilan ASSIGNED→DELIVERED end-to-end test qoldi (qurilma + real DB kerak).
 - **❓ Sardor (Claude 1)ga:** Stage kanonik manbasi `@turon/shared.DeliveryStageEnum` ekan — FE endi o'shanga bog'landi. Backend ham shu enum'ni ishlatishini tasdiqlaysizmi (drift boshqa joyda yo'qmi)?
+- `[2026-06-15]` **✅ KATTA VAZIFA YETKAZILDI (tasdiqlangan reja → 3 surgical commit).** Lokal `tsc --noEmit` toza (0 xato — node_modules endi bor).
+  - **🔙 BackButton (birinchi qilindi):** Claude 1'ning tayyor shared `useTelegramBackButton('/courier')` hook'i courier layout'ga ulandi → `src/components/courier/courier-back-button.tsx` (admin namunasi, render=null) + `layout.tsx` mount. `/courier` home'da yashirin (faqat Close), boshqa courier sahifalarida yuqori-chap "ortga" → `router.back()`. Valasaped yo'q.
+  - **🟢 Qism-1 — SLIDE-to-resume banner:** `use-courier-active-order.ts` (faol buyurtma YAGONA manba) + `active-delivery-bar.tsx` (mavjud `SwipeConfirm`ni qayta ishlatadi — foydalanuvchi "slider" so'ragani uchun tap emas, **surib o'tish**) + `layout.tsx` mount. CTA → `/courier/map/{id}`. Yashirin: faol yo'q · klaviatura ochiq · `/courier/map/*` · o'sha order detali. Slide-up kirish animatsiyasi.
+  - **🧭 Qism-2 — kompas tюнинг (izolyatsiya, revert oson):** `delivery-navigator.tsx` heading handler — adaptiv low-pass (0.15↔0.40), 1.5° dead-zone, >12 km/h'da GPS-bearing fusion (>60° disagree → yengil nudge). Kompas aylanishi saqlandi.
+  - **Tegilgan fayllar (faqat courier lane):** `src/components/courier/courier-back-button.tsx`, `src/components/courier/active-delivery-bar.tsx`, `src/hooks/use-courier-active-order.ts`, `src/components/courier/map/delivery-navigator.tsx`, `app/(courier)/layout.tsx`. Shared/BE/schema'ga TEGILMADI (faqat Claude 1'ning shared hook'idan import).
+  - **Test qoldi:** tirik buyurtma bilan banner→slide→map oqimi + kompas A/B real qurilmada (device+DB kerak).
 
-#### 📐 REJA (Sardor katta vazifasi — `/software-architect` bilan tuzildi, tasdiq kutmoqda)
+#### 📐 REJA (Sardor katta vazifasi — ✅ TASDIQLANDI va YETKAZILDI 2026-06-15)
 - **Kuzatuv:** Xarita/Navigator allaqachon Navigator-darajada (Kalman, ichki GPS watch, traffic, 50m reroute, davriy traffic re-eval, TTS, kompas+GPS fallback, hyper-zoom, PiP, driving mode, offline). ⇒ Qism-2 = kichik aniqlik tюнинг, regressiya yo'q. Asosiy yangi ish = Qism-1 (resume banner) — hozir global mexanizm YO'Q.
 - **QISM-1: Active-delivery resume banner.**
   - *Holat manbai:* mavjud `useCourierOrders()` (poll+socket). Yangi store kerak emas (interrupt store — YANGI buyurtma uchun, bu — FAOL buyurtma uchun, alohida concern).
