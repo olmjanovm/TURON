@@ -4,6 +4,7 @@ import { use, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Check, Loader2, MapPin, Package, Phone, X } from 'lucide-react';
 import { useOrderDetail, useCancelOrder, ORDER_STATUS_META } from '@/hooks/use-customer';
+import { OrderModifySheet } from '@/components/customer/order-modify-sheet';
 import { useT } from '@/lib/i18n/locale-context';
 import type { TranslationKey } from '@/lib/i18n/translations';
 
@@ -27,6 +28,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ orderId:
   const { data: order, isLoading, isError } = useOrderDetail(orderId);
   const cancel = useCancelOrder();
   const [cancelling, setCancelling] = useState(false);
+  const [modifyOpen, setModifyOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -53,10 +55,14 @@ export default function OrderDetailPage({ params }: { params: Promise<{ orderId:
   const isFinal = isCancelled || order.orderStatus === 'DELIVERED';
   const grandTotal = order.total + (order.deliveryFee ?? 0) - (order.discountAmount ?? 0);
 
-  const handleCancel = () => {
-    if (!confirm(t('orders.detail.cancel_confirm'))) return;
+  const confirmCancel = () => {
     setCancelling(true);
-    cancel.mutate(orderId, { onSettled: () => setCancelling(false) });
+    cancel.mutate(orderId, {
+      onSettled: () => {
+        setCancelling(false);
+        setModifyOpen(false);
+      },
+    });
   };
 
   return (
@@ -202,16 +208,24 @@ export default function OrderDetailPage({ params }: { params: Promise<{ orderId:
         </div>
       </Section>
 
-      {/* Cancel */}
+      {/* Cancel / o'zgartirish — variant modalini ochadi */}
       {!isFinal && (order.orderStatus === 'PENDING' || order.orderStatus === 'PREPARING') && (
         <button
           type="button"
-          onClick={handleCancel}
+          onClick={() => setModifyOpen(true)}
           disabled={cancelling}
           className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 text-sm font-black text-red-600 active:scale-95 disabled:opacity-50 dark:border-red-500/30 dark:bg-red-500/15 dark:text-red-300"
         >
           {cancelling ? <Loader2 size={16} className="animate-spin" /> : <><X size={16} /> {t('orders.detail.cancel')}</>}
         </button>
+      )}
+
+      {modifyOpen && (
+        <OrderModifySheet
+          onClose={() => setModifyOpen(false)}
+          onConfirmCancel={confirmCancel}
+          cancelling={cancelling}
+        />
       )}
     </div>
   );
