@@ -105,17 +105,26 @@ export interface CourierProfileDetail {
   createdAt: string;
 }
 
+// Backend (courier-directory.service serializeCourierHistoryEntry) bilan bir xil.
+// DIQQAT: bu yerda `orderId` navigatsiya uchun — `/courier/order/{orderId}`.
+// (Ilgari FE `id`/`deliveryAddress` o'qirdi → undefined → /courier/order/undefined → 403.)
 export interface CourierHistoryItem {
-  id: string;
+  assignmentId: string;
+  orderId: string;
   orderNumber: string;
   orderStatus: string;
+  assignmentStatus: AssignmentStatus;
   total: number;
   deliveryFee: number;
   paymentMethod?: string;
   customerName?: string | null;
-  deliveryAddress?: string | null;
+  customerPhone?: string | null;
+  destinationAddress?: string | null;
+  itemCount?: number;
+  note?: string | null;
+  assignedAt: string;
   deliveredAt?: string | null;
-  createdAt: string;
+  cancelledAt?: string | null;
 }
 
 // ── Queries ──────────────────────────────────────────────────────────────

@@ -53,7 +53,7 @@ export default function CourierHistoryPage() {
         (h) =>
           h.orderNumber?.toLowerCase().includes(q) ||
           h.customerName?.toLowerCase().includes(q) ||
-          h.deliveryAddress?.toLowerCase().includes(q),
+          h.destinationAddress?.toLowerCase().includes(q),
       );
     }
     return list;
@@ -151,8 +151,8 @@ export default function CourierHistoryPage() {
         <div className="space-y-3">
           {filtered.map((h: CourierHistoryItem) => (
             <Link
-              key={h.id}
-              href={`/courier/order/${h.id}`}
+              key={h.assignmentId}
+              href={`/courier/order/${h.orderId}`}
               className="block rounded-3xl border border-slate-100 bg-white p-4 shadow-sm transition active:scale-[0.99]"
             >
               <div className="flex items-start justify-between gap-2">
@@ -164,14 +164,14 @@ export default function CourierHistoryPage() {
                 </div>
                 <StatusBadge status={h.orderStatus} />
               </div>
-              {h.deliveryAddress && (
+              {h.destinationAddress && (
                 <div className="mt-2 flex items-start gap-1">
                   <MapPin size={12} className="mt-0.5 shrink-0 text-slate-400" />
-                  <p className="line-clamp-2 text-[11px] text-slate-500">{h.deliveryAddress}</p>
+                  <p className="line-clamp-2 text-[11px] text-slate-500">{h.destinationAddress}</p>
                 </div>
               )}
               <div className="mt-2 flex items-center justify-between text-xs">
-                <p className="text-slate-400">{formatDate(h.deliveredAt ?? h.createdAt)}</p>
+                <p className="text-slate-400">{formatDate(h.deliveredAt ?? h.cancelledAt ?? h.assignedAt)}</p>
                 <p className="font-black text-slate-900 tabular-nums">
                   {((h.total ?? 0) + (h.deliveryFee ?? 0)).toLocaleString('uz-UZ')} so&apos;m
                 </p>
