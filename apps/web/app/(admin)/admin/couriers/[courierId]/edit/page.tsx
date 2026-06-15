@@ -16,6 +16,7 @@ export default function EditCourierPage({ params }: { params: Promise<{ courierI
 
   const [fullName, setFullName] = useState<string | null>(null);
   const [phone, setPhone] = useState<string | null>(null);
+  const [error, setError] = useState('');
 
   if (isLoading) return <div className="space-y-2"><SkeletonRow /><SkeletonRow /></div>;
   if (!courier) return <div className="admin-card p-6 text-center text-sm text-slate-500">Kuryer topilmadi.</div>;
@@ -24,14 +25,22 @@ export default function EditCourierPage({ params }: { params: Promise<{ courierI
   const phoneVal = phone ?? courier.phoneNumber ?? '';
 
   function save() {
+    setError('');
     update.mutate(
       { id: courier!.id, fullName: name.trim(), phoneNumber: phoneVal.trim() || undefined },
-      { onSuccess: () => router.push('/admin/couriers') },
+      {
+        onSuccess: () => router.push('/admin/couriers'),
+        onError: (e) => setError(e instanceof Error ? e.message : "Saqlashda xatolik. Qayta urinib ko'ring."),
+      },
     );
   }
 
   function setActive(isActive: boolean) {
-    update.mutate({ id: courier!.id, isActive });
+    setError('');
+    update.mutate(
+      { id: courier!.id, isActive },
+      { onError: (e) => setError(e instanceof Error ? e.message : "O'zgartirib bo'lmadi. Qayta urinib ko'ring.") },
+    );
   }
 
   return (
@@ -86,6 +95,7 @@ export default function EditCourierPage({ params }: { params: Promise<{ courierI
         </a>
       )}
 
+      {error && <p className="text-center text-xs text-rose-600">{error}</p>}
       <SaveBar label="Saqlash" onClick={save} loading={update.isPending} />
     </div>
   );

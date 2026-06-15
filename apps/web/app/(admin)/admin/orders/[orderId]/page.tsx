@@ -50,6 +50,7 @@ export default function AdminOrderDetailPage({
             order={order}
             onAdvance={(s) => updateStatus.mutate(s)}
             isUpdating={updateStatus.isPending}
+            isError={updateStatus.isError}
           />
         </>
       )}
@@ -90,6 +91,9 @@ function PaymentActions({ orderId, order }: { orderId: string; order: Order }) {
           Rad etish
         </button>
       </div>
+      {(approve.isError || reject.isError) && (
+        <p className="mt-2 text-center text-xs text-rose-600">Amal bajarilmadi. Qayta urinib ko'ring.</p>
+      )}
     </div>
   );
 }
@@ -181,6 +185,9 @@ function DispatchActions({ orderId, order }: { orderId: string; order: Order }) 
             ))}
           </div>
         ))}
+      {dispatch.isError && (
+        <p className="mt-2 text-xs text-rose-600">Kuryer biriktirib bo'lmadi. Qayta urinib ko'ring.</p>
+      )}
     </div>
   );
 }
@@ -189,10 +196,12 @@ function OrderBody({
   order,
   onAdvance,
   isUpdating,
+  isError,
 }: {
   order: NonNullable<ReturnType<typeof useAdminOrder>['data']>;
   onAdvance: (s: OrderStatusEnum) => void;
   isUpdating: boolean;
+  isError?: boolean;
 }) {
   const meta = statusMeta(order.orderStatus);
   const next = NEXT_STATUS[order.orderStatus];
@@ -318,6 +327,9 @@ function OrderBody({
           >
             Buyurtmani bekor qilish
           </button>
+          {isError && (
+            <p className="text-center text-xs text-rose-600">Holatni o'zgartirib bo'lmadi. Qayta urinib ko'ring.</p>
+          )}
         </div>
       )}
     </>

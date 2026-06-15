@@ -70,7 +70,10 @@ export function ProductForm({ initial }: { initial?: MenuProduct }) {
       isNew,
       isPopular,
     };
-    save.mutate(payload, { onSuccess: () => router.push('/admin/menu') });
+    save.mutate(payload, {
+      onSuccess: () => router.push('/admin/menu'),
+      onError: (e) => setError(e instanceof Error ? e.message : "Saqlashda xatolik. Qayta urinib ko'ring."),
+    });
   }
 
   return (

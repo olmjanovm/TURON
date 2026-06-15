@@ -113,7 +113,11 @@ function CreateCourierSheet({ onClose }: { onClose: () => void }) {
           <Field label="To'liq ism" value={fullName} onChange={setFullName} placeholder="Ism Familiya" />
           <Field label="Telefon" value={phoneNumber} onChange={setPhoneNumber} placeholder="+998..." />
         </div>
-        {create.isError && <p className="mt-2 text-xs text-rose-600">Saqlashda xatolik.</p>}
+        {create.isError && (
+          <p className="mt-2 text-xs text-rose-600">
+            {create.error instanceof Error ? create.error.message : 'Saqlashda xatolik.'}
+          </p>
+        )}
         <button
           type="button"
           disabled={create.isPending}

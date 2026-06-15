@@ -38,7 +38,10 @@ export function PromoForm({ initial }: { initial?: AdminPromo }) {
         ? new Date(initial.startDate).toISOString()
         : new Date().toISOString(),
     };
-    save.mutate(payload, { onSuccess: () => router.push('/admin/promos') });
+    save.mutate(payload, {
+      onSuccess: () => router.push('/admin/promos'),
+      onError: (e) => setError(e instanceof Error ? e.message : "Saqlashda xatolik. Qayta urinib ko'ring."),
+    });
   }
 
   return (

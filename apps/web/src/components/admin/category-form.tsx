@@ -27,7 +27,10 @@ export function CategoryForm({ initial }: { initial?: MenuCategory }) {
       sortOrder: Number(sortOrder) || 0,
       isActive,
     };
-    save.mutate(payload, { onSuccess: () => router.push('/admin/menu') });
+    save.mutate(payload, {
+      onSuccess: () => router.push('/admin/menu'),
+      onError: (e) => setError(e instanceof Error ? e.message : "Saqlashda xatolik. Qayta urinib ko'ring."),
+    });
   }
 
   return (
