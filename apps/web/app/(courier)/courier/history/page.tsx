@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { ArrowLeft, CheckCircle2, Clock3, MapPin, Package, Search, XCircle } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
+import { ArrowLeft, CheckCircle2, Clock3, MapPin, MessageCircle, Package, Search, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useCourierHistory, type CourierHistoryItem } from '@/hooks/use-courier';
+import { useOrdersChatUnread } from '@/hooks/use-courier-chat';
+import { useContactedOrders } from '@/stores/courier-contacted-store';
 import { Skeleton } from '@/components/ui/skeleton';
 import { focusScrollIntoView } from '@/hooks/use-keyboard';
 
@@ -42,6 +44,16 @@ export default function CourierHistoryPage() {
   const { data: history = [], isLoading } = useCourierHistory();
   const [filter, setFilter] = useState<Filter>('ALL');
   const [search, setSearch] = useState('');
+
+  // Admin javobi badge'i — FAQAT kuryer bog'langan buyurtmalar uchun unread poll.
+  const hydrate = useContactedOrders((s) => s.hydrate);
+  const contactedIds = useContactedOrders((s) => s.ids);
+  useEffect(() => { hydrate(); }, [hydrate]);
+  const trackedIds = useMemo(() => {
+    const inHistory = new Set(history.map((h) => h.orderId));
+    return contactedIds.filter((id) => inHistory.has(id));
+  }, [contactedIds, history]);
+  const unreadByOrder = useOrdersChatUnread(trackedIds);
 
   const filtered = useMemo(() => {
     let list = history;
@@ -162,7 +174,17 @@ export default function CourierHistoryPage() {
                     <p className="text-xs text-slate-500">{h.customerName}</p>
                   )}
                 </div>
-                <StatusBadge status={h.orderStatus} />
+                <div className="flex items-center gap-1.5">
+                  {(unreadByOrder[h.orderId] ?? 0) > 0 && (
+                    <span
+                      className="inline-flex items-center gap-1 rounded-full bg-[#c62020] px-2 py-0.5 text-[10px] font-black text-white"
+                      aria-label="Admindan yangi javob"
+                    >
+                      <MessageCircle size={10} /> {unreadByOrder[h.orderId]}
+                    </span>
+                  )}
+                  <StatusBadge status={h.orderStatus} />
+                </div>
               </div>
               {h.destinationAddress && (
                 <div className="mt-2 flex items-start gap-1">

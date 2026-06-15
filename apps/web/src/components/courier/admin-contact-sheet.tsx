@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, Clock3, Loader2, Send, ShieldCheck, X } from 'lucide-react';
 import { useOrderChat, useSendOrderChat, type CourierChatMessage } from '@/hooks/use-courier-chat';
 import { focusScrollIntoView } from '@/hooks/use-keyboard';
@@ -30,11 +31,22 @@ function timeLabel(iso: string): string {
  * AVTOMATIK yuboriladi (vaqtni tejash). Keyin kuryer xohlagan xabarini yozadi.
  */
 export function AdminContactSheet({ orderId, orderNumber, expired, onClose }: AdminContactSheetProps) {
-  const { data: messages = [], isLoading, isError } = useOrderChat(orderId);
+  const qc = useQueryClient();
+  const { data: messages = [], isLoading, isError, isSuccess } = useOrderChat(orderId);
   const send = useSendOrderChat(orderId);
   const [text, setText] = useState('');
   const seededRef = useRef(false);
+  const readSyncedRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Chat ochildi → backend GET inbound xabarlarni "o'qilgan" deb belgiladi.
+  // Unread badge'ni darhol tozalash uchun unread query'ni invalidatsiya qilamiz.
+  useEffect(() => {
+    if (isSuccess && !readSyncedRef.current) {
+      readSyncedRef.current = true;
+      qc.invalidateQueries({ queryKey: ['courier', 'chat-unread', orderId] });
+    }
+  }, [isSuccess, orderId, qc]);
 
   const seed = useMemo(() => seedMessage(orderNumber), [orderNumber]);
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api-client';
 
 /**
@@ -27,6 +27,43 @@ export interface CourierChatMessage {
 }
 
 const CHAT_KEY = (orderId: string) => ['courier', 'chat', orderId] as const;
+const UNREAD_KEY = (orderId: string) => ['courier', 'chat-unread', orderId] as const;
+
+/** Bitta buyurtma uchun o'qilmagan admin/peer xabarlari soni (order detail badge). */
+export function useOrderChatUnread(orderId: string | undefined, enabled = true) {
+  return useQuery<number>({
+    queryKey: UNREAD_KEY(orderId ?? ''),
+    queryFn: async () => {
+      const res = await apiFetch<{ count: number }>(`/courier/order/${orderId}/chat/unread`);
+      return res?.count ?? 0;
+    },
+    enabled: Boolean(orderId) && enabled,
+    refetchInterval: 15_000,
+  });
+}
+
+/**
+ * Bir nechta buyurtma uchun unread (tarix ro'yxati badge'lari).
+ * FAQAT kuryer bog'langan buyurtmalar uchun chaqiriladi (kichik to'plam → N+1 yo'q).
+ * Qaytadi: { orderId: count } map.
+ */
+export function useOrdersChatUnread(orderIds: string[]): Record<string, number> {
+  const results = useQueries({
+    queries: orderIds.map((id) => ({
+      queryKey: UNREAD_KEY(id),
+      queryFn: async () => {
+        const res = await apiFetch<{ count: number }>(`/courier/order/${id}/chat/unread`);
+        return res?.count ?? 0;
+      },
+      refetchInterval: 20_000,
+    })),
+  });
+  const map: Record<string, number> = {};
+  orderIds.forEach((id, i) => {
+    map[id] = (results[i]?.data as number | undefined) ?? 0;
+  });
+  return map;
+}
 
 export function useOrderChat(orderId: string | undefined, enabled = true) {
   return useQuery<CourierChatMessage[]>({
