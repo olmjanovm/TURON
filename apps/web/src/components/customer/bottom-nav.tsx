@@ -14,9 +14,9 @@ export function CustomerBottomNav() {
   const favCount = useCustomerPrefs((s) => s.favorites.length);
   const cartCount = useCartStore((s) => s.items.reduce((n, i) => n + i.quantity, 0));
   const { isOpen: kbOpen } = useKeyboard();
-  // Chat sahifasida nav yashirin — o'zining input paneli pastda turadi
-  const onChatRoute = pathname.includes('/chat');
-  const hideNav = kbOpen || onChatRoute;
+  // Chat va savat sahifalarida nav yashirin — ularning o'z pastki paneli (input/CTA) bor
+  const focusedFlow = pathname.includes('/chat') || pathname.startsWith('/cart');
+  const hideNav = kbOpen || focusedFlow;
 
   const ITEMS = [
     { href: '/',           label: t('nav.home'),      icon: Home,          match: (p: string) => p === '/' || p.startsWith('/product/') || p.startsWith('/menu/') },

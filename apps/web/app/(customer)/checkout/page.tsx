@@ -201,7 +201,7 @@ function CheckoutInner() {
       <div
         className={
           notePinned
-            ? 'fixed inset-x-0 z-[55] mx-auto w-[calc(100%-1.5rem)] max-w-[456px] rounded-3xl border border-slate-100 bg-white p-4 shadow-2xl transition-[bottom] duration-200 dark:border-slate-800 dark:bg-slate-900'
+            ? 'fixed inset-x-0 z-[55] mx-auto w-[calc(100%-1.5rem)] max-w-[456px] rounded-3xl border border-slate-100 bg-white p-4 shadow-2xl dark:border-slate-800 dark:bg-slate-900'
             : 'rounded-3xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900'
         }
         style={notePinned ? { bottom: kbHeight + 8 } : undefined}

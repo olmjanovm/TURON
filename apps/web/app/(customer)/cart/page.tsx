@@ -116,7 +116,7 @@ export default function CartPage() {
       <div
         className={`rounded-3xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 ${
           promoPinned
-            ? 'fixed inset-x-0 z-[55] mx-auto w-[calc(100%-1.5rem)] max-w-[456px] shadow-2xl transition-[bottom] duration-200'
+            ? 'fixed inset-x-0 z-[55] mx-auto w-[calc(100%-1.5rem)] max-w-[456px] shadow-2xl'
             : ''
         }`}
         style={promoPinned ? { bottom: kbHeight + 8 } : undefined}
@@ -181,7 +181,7 @@ export default function CartPage() {
       <div
         className="fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[480px] border-t border-slate-100 bg-white/95 px-4 pb-3 pt-3 backdrop-blur-xl transition-all duration-300 dark:border-slate-800 dark:bg-slate-950/95"
         style={{
-          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 86px)',
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 14px)',
           transform: kbOpen ? 'translateY(130%)' : 'translateY(0)',
           opacity: kbOpen ? 0 : 1,
           pointerEvents: kbOpen ? 'none' : 'auto',
