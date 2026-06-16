@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "public": true,
   "buildCommand": "pnpm --filter @turon/web build",
   "installCommand": "pnpm install",
   "framework": "nextjs",
