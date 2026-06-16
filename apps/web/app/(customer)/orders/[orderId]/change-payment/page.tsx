@@ -50,9 +50,9 @@ export default function ChangePaymentPage({ params }: { params: Promise<{ orderI
 
   const submit = () => {
     setError('');
-    if (!receipt) return setError('Avval to’lov chekini yuklang');
+    // Chek ixtiyoriy — bo'lmasa ham so'rov adminga ketadi, admin hal qiladi.
     change.mutate(
-      { amount, receiptImageBase64: receipt },
+      { amount, receiptImageBase64: receipt || '' },
       {
         onSuccess: () => setSent(true),
         onError: (e) => setError(e instanceof Error ? e.message : 'Yuborilmadi'),
@@ -131,7 +131,7 @@ export default function ChangePaymentPage({ params }: { params: Promise<{ orderI
 
       {/* Chek yuklash */}
       <div className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">To&apos;lov cheki</p>
+        <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">To&apos;lov cheki (ixtiyoriy)</p>
         <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPick} />
         <button
           type="button"
@@ -155,11 +155,11 @@ export default function ChangePaymentPage({ params }: { params: Promise<{ orderI
       <button
         type="button"
         onClick={submit}
-        disabled={change.isPending || !receipt}
+        disabled={change.isPending}
         className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-[#c62020] to-[#f97316] py-3.5 text-sm font-black text-white shadow-[0_8px_18px_-6px_rgba(198,32,32,0.55)] active:scale-[0.98] disabled:opacity-60"
       >
         {change.isPending ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
-        To&apos;lov qildim — adminга yuborish
+        Adminга yuborish
       </button>
       <p className="text-center text-[11px] text-slate-400">
         Admin chekni tekshirib tasdiqlaydi. Tasdiqlangach to&apos;lov usuli kartaga o&apos;zgaradi.

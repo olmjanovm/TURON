@@ -124,10 +124,10 @@ export default function ChangeItemsPage({ params }: { params: Promise<{ orderId:
   const submit = () => {
     setError('');
     if (entries.length === 0) return setError("Kamida bitta mahsulot bo'lishi kerak");
-    if (delta > 0 && !receipt) return setError("Qo'shimcha to'lov uchun chekni yuklang");
+    // Chek ixtiyoriy — bo'lmasa ham so'rov adminga ketadi, admin ko'rib tasdiqlaydi.
     const items = entries.map(([menuItemId, l]) => ({ menuItemId, quantity: l.quantity }));
     change.mutate(
-      { items, receiptImageBase64: delta > 0 ? receipt : undefined },
+      { items, receiptImageBase64: receipt || undefined },
       {
         onSuccess: () => setSent(true),
         onError: (e) => setError(e instanceof Error ? e.message : 'Yuborilmadi'),
