@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Check, Loader2, Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
 import { useCartStore, type CartLine } from '@/stores/cart-store';
@@ -23,10 +23,31 @@ export default function CartPage() {
   const [promoError, setPromoError] = useState<string | null>(null);
   const [promoFocused, setPromoFocused] = useState(false);
   const validate = useValidatePromo();
-  const { isOpen: kbOpen, height: kbHeight } = useKeyboard();
+  const promoRef = useRef<HTMLDivElement>(null);
+  const { isOpen: kbOpen } = useKeyboard();
   // Promokod input fokuslanганda — kartani klaviatura USTIGA pin qilamiz (fixed).
   // Scroll'ga urinmaymiz (ishonchsiz edi); bu 100% ko'rinishni kafolatlaydi.
-  const promoPinned = promoFocused && kbOpen;
+  // Promo input fokuslanganda — kartani ko'rinadigan viewport pastiga (klaviatura
+  // ustiga) transform bilan pin qilamiz. visualViewport'ni to'g'ridan-to'g'ri o'qiymiz —
+  // bu kbHeight matematikasiga bog'liq emas, shuning uchun har qurilmada to'g'ri turadi.
+  useEffect(() => {
+    if (!promoFocused) return;
+    const el = promoRef.current;
+    const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+    if (!el || !vv) return;
+    const update = () => {
+      const lift = Math.max(0, window.innerHeight - vv.offsetTop - vv.height);
+      el.style.transform = `translateY(${-(lift + 12)}px)`;
+    };
+    update();
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    return () => {
+      vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
+      if (el) el.style.transform = '';
+    };
+  }, [promoFocused]);
 
   const handleApplyPromo = () => {
     setPromoError(null);
@@ -112,14 +133,14 @@ export default function CartPage() {
         ))}
       </div>
 
-      {/* Promo — fokuslanganda klaviatura ustiga pin bo'ladi (fixed) */}
+      {/* Promo — fokuslanganda klaviatura ustiga (vizual viewport pastiga) pin bo'ladi */}
       <div
+        ref={promoRef}
         className={`rounded-3xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 ${
-          promoPinned
-            ? 'fixed inset-x-0 z-[55] mx-auto w-[calc(100%-1.5rem)] max-w-[456px] shadow-2xl'
+          promoFocused
+            ? 'fixed inset-x-0 bottom-0 z-[55] mx-auto w-[calc(100%-1.5rem)] max-w-[456px] shadow-2xl'
             : ''
         }`}
-        style={promoPinned ? { bottom: kbHeight + 16 } : undefined}
       >
         <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
           {t('cart.promo.placeholder')}
