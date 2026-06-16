@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Check, Loader2, Minus, Plus, ShoppingBag, Tag, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Check, Loader2, Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
 import { useCartStore, type CartLine } from '@/stores/cart-store';
 import { useValidatePromo } from '@/hooks/use-customer';
 import { useT } from '@/lib/i18n/locale-context';
+import { useKeyboard } from '@/hooks/use-keyboard';
 
 interface AppliedPromo {
   code: string;
@@ -17,13 +18,19 @@ export default function CartPage() {
   const items = useCartStore((s) => s.items);
   const total = useCartStore((s) => s.items.reduce((sum, i) => sum + i.price * i.quantity, 0));
   const clear = useCartStore((s) => s.clear);
+  const [promoInput, setPromoInput] = useState('');
   const [promo, setPromo] = useState<AppliedPromo | null>(null);
   const [promoError, setPromoError] = useState<string | null>(null);
-  const [showPromo, setShowPromo] = useState(false);
+  const [promoFocused, setPromoFocused] = useState(false);
   const validate = useValidatePromo();
-  const handleApplyPromo = (raw: string) => {
+  const { isOpen: kbOpen, height: kbHeight } = useKeyboard();
+  // Promokod input fokuslanганda — kartani klaviatura USTIGA pin qilamiz (fixed).
+  // Scroll'ga urinmaymiz (ishonchsiz edi); bu 100% ko'rinishni kafolatlaydi.
+  const promoPinned = promoFocused && kbOpen;
+
+  const handleApplyPromo = () => {
     setPromoError(null);
-    const code = raw.trim().toUpperCase();
+    const code = promoInput.trim().toUpperCase();
     if (!code) return;
     validate.mutate(code, {
       onSuccess: (data) => {
@@ -32,7 +39,7 @@ export default function CartPage() {
             data.discountAmount ??
             (data.discountPercent ? Math.round((total * data.discountPercent) / 100) : 0);
           setPromo({ code, discountAmount: discount });
-          setShowPromo(false);
+          setPromoInput('');
         } else {
           setPromoError(data.message ?? t('cart.promo.invalid'));
         }
@@ -105,8 +112,18 @@ export default function CartPage() {
         ))}
       </div>
 
-      {/* Promo — bosilganda to'liq ekranli oyna (input tepada, klaviatura pastda) */}
-      <div className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      {/* Promo — fokuslanganda klaviatura ustiga pin bo'ladi (fixed) */}
+      <div
+        className={`rounded-3xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 ${
+          promoPinned
+            ? 'fixed inset-x-0 z-[55] mx-auto w-[calc(100%-1.5rem)] max-w-[456px] shadow-2xl'
+            : ''
+        }`}
+        style={promoPinned ? { bottom: kbHeight + 16 } : undefined}
+      >
+        <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+          {t('cart.promo.placeholder')}
+        </p>
         {promo ? (
           <div className="flex items-center justify-between rounded-2xl bg-emerald-50 px-3 py-2.5 dark:bg-emerald-500/15">
             <span className="flex items-center gap-2 text-sm font-black text-emerald-700 dark:text-emerald-300">
@@ -123,20 +140,28 @@ export default function CartPage() {
             </button>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => {
-              setPromoError(null);
-              setShowPromo(true);
-            }}
-            className="flex w-full items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-left active:scale-[0.99] dark:bg-slate-800"
-          >
-            <Tag size={16} className="text-[#c62020]" />
-            <span className="flex-1 text-sm font-semibold text-slate-600 dark:text-slate-300">
-              {t('cart.promo.placeholder')}
-            </span>
-            <Plus size={16} className="text-slate-400" />
-          </button>
+          <>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={promoInput}
+                onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                onFocus={() => setPromoFocused(true)}
+                onBlur={() => setPromoFocused(false)}
+                placeholder={t('cart.promo.placeholder')}
+                className="flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold uppercase tracking-wider text-slate-900 outline-none focus:border-[#c62020] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              />
+              <button
+                type="button"
+                onClick={handleApplyPromo}
+                disabled={validate.isPending || !promoInput.trim()}
+                className="rounded-2xl bg-slate-900 px-5 text-sm font-black text-white active:scale-95 disabled:opacity-50 dark:bg-white dark:text-slate-900"
+              >
+                {validate.isPending ? <Loader2 size={14} className="animate-spin" /> : t('cart.promo.apply')}
+              </button>
+            </div>
+            {promoError && <p className="mt-2 text-xs text-red-500">{promoError}</p>}
+          </>
         )}
       </div>
 
@@ -150,11 +175,17 @@ export default function CartPage() {
         <SumRow label={t('cart.total')} value={grand} bold />
       </div>
 
-      {/* Sticky checkout CTA — pastda turadi. Promo endi alohida oynada, shuning uchun
-          savatda inline klaviatura yo'q → CTA bilan muammo bo'lmaydi. */}
+      {/* Sticky checkout CTA — promokod yozayotganda (klaviatura ochiq) KERAK EMAS,
+          shuning uchun pastga silliq yashirinadi. Faqat klaviatura + promo input qoladi.
+          Klaviatura yopilsa CTA (va bottom nav) qaytadi. */}
       <div
-        className="fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[480px] border-t border-slate-100 bg-white/95 px-4 pt-3 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 14px)' }}
+        className="fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[480px] border-t border-slate-100 bg-white/95 px-4 pb-3 pt-3 backdrop-blur-xl transition-all duration-300 dark:border-slate-800 dark:bg-slate-950/95"
+        style={{
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 14px)',
+          transform: kbOpen ? 'translateY(130%)' : 'translateY(0)',
+          opacity: kbOpen ? 0 : 1,
+          pointerEvents: kbOpen ? 'none' : 'auto',
+        }}
       >
         <Link
           href={promo ? `/checkout?promo=${encodeURIComponent(promo.code)}` : '/checkout'}
@@ -165,81 +196,6 @@ export default function CartPage() {
             {grand.toLocaleString('uz-UZ')} {t('common.currency')}
           </span>
         </Link>
-      </div>
-
-      {showPromo && (
-        <PromoModal
-          applying={validate.isPending}
-          error={promoError}
-          onApply={handleApplyPromo}
-          onClose={() => setShowPromo(false)}
-        />
-      )}
-    </div>
-  );
-}
-
-/**
- * To'liq ekranli promokod oynasi — input EKRAN TEPASIDA, klaviatura pastda.
- * Ular hech qachon ustma-ust kelmaydi (pin/scroll kerak emas) — eng ishonchli usul.
- */
-function PromoModal({
-  applying,
-  error,
-  onApply,
-  onClose,
-}: {
-  applying: boolean;
-  error: string | null;
-  onApply: (code: string) => void;
-  onClose: () => void;
-}) {
-  const t = useT();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [code, setCode] = useState('');
-
-  useEffect(() => {
-    const id = setTimeout(() => inputRef.current?.focus(), 120);
-    return () => clearTimeout(id);
-  }, []);
-
-  return (
-    <div className="fixed inset-0 z-[80] flex flex-col bg-white dark:bg-slate-950">
-      <div
-        className="flex items-center gap-3 border-b border-slate-100 px-4 pb-3 dark:border-slate-800"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 14px)' }}
-      >
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 active:scale-95 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-        >
-          <X size={18} />
-        </button>
-        <h2 className="text-base font-black text-slate-900 dark:text-slate-50">Promokod kiritish</h2>
-      </div>
-
-      <div className="space-y-3 p-4">
-        <input
-          ref={inputRef}
-          type="text"
-          value={code}
-          onChange={(e) => setCode(e.target.value.toUpperCase())}
-          onKeyDown={(e) => e.key === 'Enter' && onApply(code)}
-          placeholder="PROMO KOD"
-          autoFocus
-          className="w-full rounded-2xl border-2 border-slate-200 bg-slate-50 px-4 py-4 text-center text-lg font-black uppercase tracking-[0.2em] text-slate-900 outline-none focus:border-[#c62020] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-        />
-        <button
-          type="button"
-          onClick={() => onApply(code)}
-          disabled={applying || !code.trim()}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-[#c62020] to-[#f97316] py-3.5 text-sm font-black text-white active:scale-[0.98] disabled:opacity-50"
-        >
-          {applying ? <Loader2 size={16} className="animate-spin" /> : null}
-          {t('cart.promo.apply')}
-        </button>
-        {error && <p className="text-center text-sm text-red-500">{error}</p>}
       </div>
     </div>
   );
