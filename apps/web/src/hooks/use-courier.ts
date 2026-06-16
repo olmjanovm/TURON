@@ -25,12 +25,18 @@ export interface CourierOrderPreview {
   deliveryFee: number;
   customerName?: string | null;
   customerPhone?: string | null;
+  // DIQQAT: list (`/courier/orders`) `customerAddress`/`deliveryAddress` EMAS,
+  // `destinationAddress` (string) qaytaradi. Detail (`/courier/order/:id`,
+  // serializeOrder) esa `customerAddress` beradi. Manzilni o'qiyotganda fallback:
+  //   customerAddress?.addressText ?? deliveryAddress ?? destinationAddress
   customerAddress?: { addressText?: string | null; latitude?: number; longitude?: number } | null;
   deliveryAddress?: string | null;
+  destinationAddress?: string | null;
+  destinationArea?: string | null;
   paymentMethod?: string;
   courierAssignmentStatus?: AssignmentStatus;
   deliveryStage?: DeliveryStage;
-  itemsCount?: number;
+  itemCount?: number;
   assignedAt?: string;
   createdAt: string;
 }
@@ -42,7 +48,7 @@ export interface CourierOrderItem {
   quantity: number;
 }
 
-export interface CourierOrderDetail extends Omit<CourierOrderPreview, 'itemsCount'> {
+export interface CourierOrderDetail extends Omit<CourierOrderPreview, 'itemCount'> {
   items: CourierOrderItem[];
   note?: string | null;
   pickupLat?: number;

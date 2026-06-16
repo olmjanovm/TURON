@@ -99,7 +99,7 @@ export function OrderInterruptModal() {
   };
 
   const total = (current.total ?? 0) + (current.deliveryFee ?? 0);
-  const address = current.customerAddress?.addressText ?? current.deliveryAddress;
+  const address = current.customerAddress?.addressText ?? current.deliveryAddress ?? current.destinationAddress;
   const progressPct = (timeLeft / totalSec) * 100;
   const busy = accept.isPending || decline.isPending;
 

@@ -38,7 +38,7 @@ export function ActiveDeliveryBar() {
 
   const stage = active.deliveryStage ?? 'IDLE';
   const stageText = STAGE_FLOW[getStageIndex(stage)]?.title ?? 'Yetkazilmoqda';
-  const address = active.customerAddress?.addressText ?? active.deliveryAddress ?? null;
+  const address = active.customerAddress?.addressText ?? active.deliveryAddress ?? active.destinationAddress ?? null;
 
   return (
     <div

@@ -17,7 +17,7 @@ const ASSIGN_META: Record<string, { label: string; chip: string; dot: string }> 
 export function OrderCard({ order }: { order: CourierOrderPreview }) {
   const meta = ASSIGN_META[order.courierAssignmentStatus ?? 'ASSIGNED'] ?? ASSIGN_META.ASSIGNED;
   const total = (order.total ?? 0) + (order.deliveryFee ?? 0);
-  const address = order.customerAddress?.addressText ?? order.deliveryAddress;
+  const address = order.customerAddress?.addressText ?? order.deliveryAddress ?? order.destinationAddress;
 
   return (
     <Link
