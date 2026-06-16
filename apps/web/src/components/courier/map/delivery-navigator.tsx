@@ -156,6 +156,19 @@ function maneuverLabel(type: string): string {
   if (t.includes('u-turn') || t.includes('uturn')) return 'Orqaga';
   return "To'g'ri";
 }
+// Ovoz uchun masofa prefiksi (maneuverPhrase bilan bir xil bosqichlar).
+function distancePrefixUz(d: number): string {
+  if (d < 50) return 'Hozir';
+  if (d < 150) return '100 metrdan keyin';
+  if (d < 600) return `${Math.round(d / 100) * 100} metrdan keyin`;
+  return `${(d / 1000).toFixed(1)} kilometrdan keyin`;
+}
+// Yandex'ning ko'cha-nomli instruction matnidan foydalanamiz (lang=uz_UZ);
+// bo'lmasa — eski type asosidagi maneuverPhrase'ga qaytamiz (regressiya yo'q).
+function maneuverVoice(man: RouteManeuver, distance: number): string {
+  const instr = man.instruction?.trim();
+  return instr ? `${distancePrefixUz(distance)} ${instr}` : maneuverPhrase(man.type, distance);
+}
 
 export function DeliveryNavigator(props: DeliveryNavigatorProps) {
   const {
@@ -510,6 +523,26 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeTo.lat, routeTo.lng, mapReady]);
 
+  // ── Leg almashuvini ovozli e'lon ("buyurtmani oldingiz → mijozga") ──────
+  // routeTo destination'ga teng bo'lsa — yetkazish legi; pickup bo'lsa — restoran legi.
+  // Birinchi renderda jim (yangi mount / yarim yo'lda resume noto'g'ri gapirmasin).
+  const announcedLegRef = useRef<'pickup' | 'destination' | null>(null);
+  useEffect(() => {
+    if (!mapReady) return;
+    const onDestLeg =
+      Math.abs(routeTo.lat - destination.lat) < 1e-7 && Math.abs(routeTo.lng - destination.lng) < 1e-7;
+    const leg = onDestLeg ? 'destination' : 'pickup';
+    const prev = announcedLegRef.current;
+    if (prev === leg) return;
+    announcedLegRef.current = leg;
+    if (prev === null) return; // birinchi yuklash — e'lon qilmaymiz
+    if (leg === 'destination') {
+      void speak('Buyurtmani oldingiz, endi mijoz manziliga boring', { key: 'leg_dest' });
+    } else {
+      void speak("Restoranga yo'l oldingiz", { key: 'leg_pickup' });
+    }
+  }, [routeTo.lat, routeTo.lng, destination.lat, destination.lng, mapReady]);
+
   // Courier marker + autofocus + HYPER-ZOOM
   useEffect(() => {
     if (!smoothedCourier) return;
@@ -645,7 +678,7 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
           const key = `${bestMan.idx}_${threshold}`;
           if (!spokenManeuversRef.current.has(key)) {
             spokenManeuversRef.current.add(key);
-            void speak(maneuverPhrase(bestMan.m.type, threshold), { key });
+            void speak(maneuverVoice(bestMan.m, threshold), { key });
             break;
           }
         }
@@ -978,7 +1011,9 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
   }, [voiceOn]);
 
   const ManeuverIcon = nextManeuver ? maneuverIcon(nextManeuver.type) : null;
-  const maneuverText = nextManeuver ? maneuverLabel(nextManeuver.type) : null;
+  const maneuverText = nextManeuver
+    ? (nextManeuver.instruction?.trim() || maneuverLabel(nextManeuver.type))
+    : null;
   const isOfflineRoute = route?.source === 'cache';
 
   return (
@@ -1120,13 +1155,13 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
           className="pointer-events-none absolute left-1/2 z-20 -translate-x-1/2"
           style={{ top: 'calc(env(safe-area-inset-top, 0px) + 90px)' }}
         >
-          <div className="flex items-center gap-3 rounded-3xl bg-white/95 px-4 py-3 shadow-2xl shadow-black/70 backdrop-blur">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg">
+          <div className="flex max-w-[88vw] items-center gap-3 rounded-3xl bg-white/95 px-4 py-3 shadow-2xl shadow-black/70 backdrop-blur">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg">
               <ManeuverIcon size={30} strokeWidth={3} />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Keyingi</p>
-              <p className="text-lg font-black leading-tight text-slate-900">{maneuverText}</p>
+              <p className="line-clamp-2 text-lg font-black leading-tight text-slate-900">{maneuverText}</p>
               {maneuverDistance != null && (
                 <p className="text-sm font-bold text-[#c62020]">
                   {maneuverDistance < 50 ? 'Hozir' : `${maneuverDistance} m`}
