@@ -16,6 +16,7 @@ import {
 import { StageTracker } from '@/components/courier/stage-tracker';
 import { AdminContactSheet } from '@/components/courier/admin-contact-sheet';
 import { useOrderChatUnread } from '@/hooks/use-courier-chat';
+import { useDeliverFlow } from '@/hooks/use-courier-deliver';
 import { useContactedOrders } from '@/stores/courier-contacted-store';
 import { focusScrollIntoView } from '@/hooks/use-keyboard';
 
@@ -44,6 +45,10 @@ export default function CourierOrderDetailPage({ params }: { params: Promise<{ o
     markContacted(orderId);
     setContactOpen(true);
   };
+  const deliverFlow = useDeliverFlow(orderId, () => {
+    setConfirming(false);
+    setTimeout(() => router.push('/courier/orders'), 1200);
+  });
 
   if (isLoading) {
     return (
@@ -101,22 +106,19 @@ export default function CourierOrderDetailPage({ params }: { params: Promise<{ o
   const address = order.customerAddress?.addressText ?? order.deliveryAddress;
 
   const handleAdvance = () => {
-    if (!nextAct || advance.isPending) return;
-    if (isLastAction && !confirming) {
-      setConfirming(true);
+    if (!nextAct) return;
+    // Yakuniy bosqich (DELIVERED) — GPS + geofence orqali yopiladi (useDeliverFlow).
+    if (isLastAction) {
+      if (!confirming) {
+        setConfirming(true);
+        return;
+      }
+      if (deliverFlow.isBusy) return;
+      deliverFlow.start();
       return;
     }
-    setConfirming(false);
-    advance.mutate(
-      { orderId: order.id, nextStage: nextAct.next },
-      {
-        onSuccess: () => {
-          if (nextAct.next === 'DELIVERED') {
-            setTimeout(() => router.push('/courier/orders'), 1200);
-          }
-        },
-      },
-    );
+    if (advance.isPending) return;
+    advance.mutate({ orderId: order.id, nextStage: nextAct.next });
   };
 
   const handleDecline = () => {
@@ -214,25 +216,66 @@ export default function CourierOrderDetailPage({ params }: { params: Promise<{ o
           <div className="space-y-2 rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3.5">
               <p className="text-sm font-black text-amber-900">Haqiqatan topshirdingizmi?</p>
-              <p className="mt-0.5 text-xs text-amber-800/80">Bu amaliyotni bekor qilib bo&apos;lmaydi</p>
+              <p className="mt-0.5 text-xs text-amber-800/80">
+                {deliverFlow.state.phase === 'locating'
+                  ? 'Joylashuv aniqlanmoqda…'
+                  : 'GPS bilan tasdiqlanadi · bekor qilib bo\'lmaydi'}
+              </p>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setConfirming(false)}
-                className="flex h-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-sm font-black text-slate-700 active:scale-95"
-              >
-                Yo&apos;q
-              </button>
-              <button
-                type="button"
-                onClick={handleAdvance}
-                disabled={advance.isPending}
-                className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-emerald-500 text-sm font-black text-white shadow-[0_8px_18px_-6px_rgba(16,185,129,0.55)] active:scale-95 disabled:opacity-50"
-              >
-                {advance.isPending ? <Loader2 size={18} className="animate-spin" /> : <><CheckCircle2 size={17} /> Ha, topshirdim</>}
-              </button>
-            </div>
+
+            {/* GPS uzoq → bypass tasdig'i (server admin'ga alert yuboradi) */}
+            {deliverFlow.state.phase === 'bypass' ? (
+              <div className="space-y-2">
+                <div className="rounded-2xl border border-red-200 bg-red-50 p-3">
+                  <p className="text-xs font-bold leading-snug text-red-700">{deliverFlow.state.message}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { deliverFlow.reset(); setConfirming(false); }}
+                    className="flex h-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-sm font-black text-slate-700 active:scale-95"
+                  >
+                    Bekor
+                  </button>
+                  <button
+                    type="button"
+                    onClick={deliverFlow.confirmBypass}
+                    disabled={deliverFlow.isBusy}
+                    className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-red-600 text-sm font-black text-white shadow-[0_8px_18px_-6px_rgba(220,38,38,0.55)] active:scale-95 disabled:opacity-50"
+                  >
+                    {deliverFlow.isBusy ? <Loader2 size={18} className="animate-spin" /> : <><AlertTriangle size={16} /> Baribir yopish</>}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {deliverFlow.state.phase === 'error' && deliverFlow.state.message && (
+                  <p className="rounded-2xl bg-red-50 px-3 py-2 text-xs font-bold text-red-600">{deliverFlow.state.message}</p>
+                )}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { deliverFlow.reset(); setConfirming(false); }}
+                    disabled={deliverFlow.isBusy}
+                    className="flex h-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-sm font-black text-slate-700 active:scale-95 disabled:opacity-50"
+                  >
+                    Yo&apos;q
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAdvance}
+                    disabled={deliverFlow.isBusy}
+                    className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-emerald-500 text-sm font-black text-white shadow-[0_8px_18px_-6px_rgba(16,185,129,0.55)] active:scale-95 disabled:opacity-50"
+                  >
+                    {deliverFlow.isBusy ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <><CheckCircle2 size={17} /> {deliverFlow.state.phase === 'error' ? 'Qayta urinish' : 'Ha, topshirdim'}</>
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         ) : (
           nextAct && (

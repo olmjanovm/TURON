@@ -14,7 +14,9 @@ import {
   type CourierVehicle,
 } from '@/hooks/use-courier';
 import { useCourierSocket } from '@/hooks/use-courier-socket';
+import { useDeliverFlow } from '@/hooks/use-courier-deliver';
 import { RESTAURANT_DEFAULT } from '@/lib/yandex-maps';
+import { AlertTriangle } from 'lucide-react';
 
 // DeliveryNavigator faqat client'da — Yandex Maps SSR'da ishlamaydi
 const DeliveryNavigator = dynamic(
@@ -123,6 +125,10 @@ function MapView({
   const routeTo = goingToPickup ? pickup : destination;
 
   const next = getNextStageAction(stage);
+  const isFinal = next?.next === 'DELIVERED';
+
+  // Yakuniy bosqich (DELIVERED) GPS + geofence orqali yopiladi (boshqalari oddiy advance).
+  const deliverFlow = useDeliverFlow(order.id, () => onBack());
 
   return (
     <div className="fixed inset-0 z-50 bg-[#0d0d0f] text-white" data-no-ptr="true">
@@ -136,9 +142,54 @@ function MapView({
         onClose={onBack}
         stageLabel={STAGE_LABELS[stage] ?? stage}
         confirmLabel={!isDelivered && next ? next.label : undefined}
-        onConfirm={!isDelivered && next ? () => onAdvance(next.next) : undefined}
-        confirmBusy={advancing}
+        onConfirm={
+          !isDelivered && next
+            ? () => (isFinal ? deliverFlow.start() : onAdvance(next.next))
+            : undefined
+        }
+        confirmBusy={advancing || deliverFlow.isBusy}
       />
+
+      {/* GPS geofence: uzoq → bypass, yoki xato — to'liq ekran overlay */}
+      {(deliverFlow.state.phase === 'bypass' || deliverFlow.state.phase === 'error') && (
+        <div className="absolute inset-0 z-30 flex items-end justify-center bg-black/60 px-4 pb-8 backdrop-blur-sm">
+          <div className="w-full max-w-[420px] rounded-3xl bg-[#16161a] p-5 shadow-2xl">
+            <div className="mb-3 flex items-center gap-2">
+              <AlertTriangle size={18} className={deliverFlow.state.phase === 'bypass' ? 'text-amber-400' : 'text-red-400'} />
+              <p className="text-sm font-black text-white">
+                {deliverFlow.state.phase === 'bypass' ? 'Manzildan uzoqdasiz' : 'Topshirishda xatolik'}
+              </p>
+            </div>
+            <p className="mb-4 text-xs leading-snug text-white/70">{deliverFlow.state.message}</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={deliverFlow.reset}
+                disabled={deliverFlow.isBusy}
+                className="flex h-12 items-center justify-center rounded-2xl border border-white/15 bg-white/5 text-sm font-black text-white active:scale-95 disabled:opacity-50"
+              >
+                {deliverFlow.state.phase === 'error' ? 'Yopish' : 'Bekor'}
+              </button>
+              <button
+                type="button"
+                onClick={deliverFlow.state.phase === 'bypass' ? deliverFlow.confirmBypass : deliverFlow.start}
+                disabled={deliverFlow.isBusy}
+                className={`flex h-12 items-center justify-center gap-2 rounded-2xl text-sm font-black text-white active:scale-95 disabled:opacity-50 ${
+                  deliverFlow.state.phase === 'bypass' ? 'bg-red-600' : 'bg-emerald-500'
+                }`}
+              >
+                {deliverFlow.isBusy ? (
+                  <Loader2 size={18} className="animate-spin" />
+                ) : deliverFlow.state.phase === 'bypass' ? (
+                  'Baribir yopish'
+                ) : (
+                  'Qayta urinish'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stage progress overlay (top) */}
       <div
