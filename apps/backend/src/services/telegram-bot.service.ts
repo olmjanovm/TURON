@@ -20,7 +20,7 @@ import { ORDER_INCLUDE, serializeOrder } from '../api/modules/orders/order-helpe
 
 const botToken = env.BOT_TOKEN;
 const webAppUrl = env.WEB_APP_URL;
-const MINI_APP_RELEASE = '20260414-r8-search-desktop-frame';
+const MINI_APP_RELEASE = '20260616-r9-order-modify';
 
 // ─── In-memory role cache (TTL: 5 min) ───────────────────────────────────────
 const roleCache = new Map<string, { role: UserRoleEnum; expiresAt: number }>();
