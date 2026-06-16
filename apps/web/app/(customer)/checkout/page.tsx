@@ -204,7 +204,7 @@ function CheckoutInner() {
             ? 'fixed inset-x-0 z-[55] mx-auto w-[calc(100%-1.5rem)] max-w-[456px] rounded-3xl border border-slate-100 bg-white p-4 shadow-2xl dark:border-slate-800 dark:bg-slate-900'
             : 'rounded-3xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900'
         }
-        style={notePinned ? { bottom: kbHeight + 8 } : undefined}
+        style={notePinned ? { bottom: kbHeight + 16 } : undefined}
       >
         <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
           {t('checkout.note.title')}

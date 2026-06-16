@@ -119,7 +119,7 @@ export default function CartPage() {
             ? 'fixed inset-x-0 z-[55] mx-auto w-[calc(100%-1.5rem)] max-w-[456px] shadow-2xl'
             : ''
         }`}
-        style={promoPinned ? { bottom: kbHeight + 8 } : undefined}
+        style={promoPinned ? { bottom: kbHeight + 16 } : undefined}
       >
         <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
           {t('cart.promo.placeholder')}
