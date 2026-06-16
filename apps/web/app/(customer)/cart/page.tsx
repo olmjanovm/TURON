@@ -36,13 +36,27 @@ export default function CartPage() {
     const vv = typeof window !== 'undefined' ? window.visualViewport : null;
     if (!el || !vv) return;
     const update = () => {
-      const lift = Math.max(0, window.innerHeight - vv.offsetTop - vv.height);
+      let lift = window.innerHeight - vv.offsetTop - vv.height;
+      // KLAMP: klaviatura hech qachon ekranning ~55%'idan baland bo'lmaydi. Klaviatura
+      // ochilish animatsiyasi paytida vv.height qisqa vaqt juda kichik bo'lib, lift
+      // ulkan chiqib kartani TEPAGA otib yuborardi — klamp shuni oldini oladi.
+      lift = Math.max(0, Math.min(lift, window.innerHeight * 0.55));
       el.style.transform = `translateY(${-(lift + 12)}px)`;
     };
-    update();
+    // rAF loop (~800ms): animatsiya davomida har kadrda yangilab, OXIRGI barqaror
+    // holatda to'g'ri joylashadi — qo'lда scroll qilish shart bo'lmaydi (iOS'да
+    // yakuniy resize event ishonchsiz keladi, shuning uchun o'zimiz kuzatamiz).
+    let raf = 0;
+    const start = Date.now();
+    const loop = () => {
+      update();
+      if (Date.now() - start < 800) raf = requestAnimationFrame(loop);
+    };
+    loop();
     vv.addEventListener('resize', update);
     vv.addEventListener('scroll', update);
     return () => {
+      cancelAnimationFrame(raf);
       vv.removeEventListener('resize', update);
       vv.removeEventListener('scroll', update);
       if (el) el.style.transform = '';
