@@ -212,6 +212,27 @@ export function useChangeOrderAddress(orderId: string) {
 }
 
 /**
+ * Buyurtma tarkibini o'zgartirish (ITEMS_CHANGE) — mahsulot qo'shish/o'chirish.
+ * Server narxlarni qayta hisoblaydi; delta>0 bo'lsa chek (karta) talab qilinadi.
+ * Admin tasdiqlagach buyurtma yangilanadi.
+ */
+export function useChangeOrderItems(orderId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      items: { menuItemId: string; quantity: number }[];
+      receiptImageBase64?: string;
+    }) =>
+      apiFetch(`/orders/${orderId}/modifications`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': crypto.randomUUID() },
+        body: JSON.stringify({ type: 'ITEMS_CHANGE', payload: input }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['customer'] }),
+  });
+}
+
+/**
  * To'lov usulini naqd → karta o'zgartirish (PAYMENT_METHOD_CHANGE).
  * Chek (base64) + summa yuboriladi. Admin tasdiqlagach order kartaga o'tadi.
  */

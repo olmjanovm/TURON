@@ -10,7 +10,7 @@ interface RequestIdParams extends IdParams {
 }
 
 interface CreateBody {
-  type: 'CANCEL' | 'ADDRESS_CHANGE' | 'PAYMENT_METHOD_CHANGE' | 'OTHER';
+  type: 'CANCEL' | 'ADDRESS_CHANGE' | 'PAYMENT_METHOD_CHANGE' | 'ITEMS_CHANGE' | 'OTHER';
   reason?: string;
   payload?: Record<string, unknown>;
 }

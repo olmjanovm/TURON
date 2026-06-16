@@ -75,9 +75,11 @@ function ModificationRequests({ orderId }: { orderId: string }) {
       ? "To'lov: naqd → karta"
       : t === 'ADDRESS_CHANGE'
         ? "Manzilni o'zgartirish"
-        : t === 'CANCEL'
-          ? 'Bekor qilish'
-          : "So'rov";
+        : t === 'ITEMS_CHANGE'
+          ? 'Taom tarkibi o\'zgartirish'
+          : t === 'CANCEL'
+            ? 'Bekor qilish'
+            : "So'rov";
 
   return (
     <div className="admin-card admin-card-accent p-4 pt-5">
@@ -112,6 +114,39 @@ function ModificationRequests({ orderId }: { orderId: string }) {
                 <p className="mt-1 text-[11px] text-slate-400">
                   To&apos;lov 100% to&apos;g&apos;ri bo&apos;lsa tasdiqlang — buyurtma karta orqali to&apos;langan bo&apos;ladi.
                 </p>
+              </>
+            )}
+
+            {m.type === 'ITEMS_CHANGE' && (
+              <>
+                {(m.payload?.items ?? []).length > 0 && (
+                  <div className="mt-1.5 space-y-0.5">
+                    {m.payload!.items!.map((it, i) => (
+                      <p key={i} className="text-xs text-slate-600">
+                        {it.quantity}× {it.itemName} — {(it.totalPrice ?? 0).toLocaleString('uz-UZ')} so&apos;m
+                      </p>
+                    ))}
+                  </div>
+                )}
+                {typeof m.payload?.newTotal === 'number' && (
+                  <p className="mt-1 text-xs font-bold text-slate-900">
+                    Yangi jami: {m.payload.newTotal.toLocaleString('uz-UZ')} so&apos;m
+                  </p>
+                )}
+                {typeof m.payload?.delta === 'number' && m.payload.delta !== 0 && (
+                  <p className={`text-xs font-bold ${m.payload.delta > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                    {m.payload.delta > 0
+                      ? `Qo'shimcha to'lov: +${m.payload.delta.toLocaleString('uz-UZ')} so'm`
+                      : `Kamaydi: ${m.payload.delta.toLocaleString('uz-UZ')} so'm`}
+                  </p>
+                )}
+                {m.payload?.receiptUrl && (
+                  <a href={m.payload.receiptUrl} target="_blank" rel="noopener noreferrer" className="mt-2 block">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={m.payload.receiptUrl} alt="chek" className="max-h-52 w-full rounded-xl bg-white object-contain" />
+                    <span className="mt-1 block text-center text-[11px] font-semibold text-sky-600">Chekni ochish</span>
+                  </a>
+                )}
               </>
             )}
 

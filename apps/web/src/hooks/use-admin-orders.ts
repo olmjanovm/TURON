@@ -48,9 +48,18 @@ export function useAdminOrders() {
 export interface OrderModification {
   id: string;
   orderId: string;
-  type: 'CANCEL' | 'ADDRESS_CHANGE' | 'PAYMENT_METHOD_CHANGE' | 'OTHER';
+  type: 'CANCEL' | 'ADDRESS_CHANGE' | 'PAYMENT_METHOD_CHANGE' | 'ITEMS_CHANGE' | 'OTHER';
   status: 'PENDING' | 'AUTO_APPROVED' | 'APPROVED' | 'REJECTED';
-  payload: { amount?: number | null; receiptUrl?: string | null; addressText?: string | null } | null;
+  payload: {
+    amount?: number | null;
+    receiptUrl?: string | null;
+    addressText?: string | null;
+    // ITEMS_CHANGE
+    items?: { itemName?: string; quantity?: number; totalPrice?: number }[];
+    newTotal?: number;
+    oldTotal?: number;
+    delta?: number;
+  } | null;
   reason: string | null;
   createdAt: string;
 }

@@ -25,6 +25,7 @@ export function OrderModifySheet({
   onMessageAdmin,
   onChangeAddress,
   onChangePayment,
+  onChangeItems,
   isCash,
   cancelling,
 }: {
@@ -33,14 +34,12 @@ export function OrderModifySheet({
   onMessageAdmin: () => void;
   onChangeAddress: () => void;
   onChangePayment: () => void;
+  onChangeItems: () => void;
   /** Buyurtma naqd to'lov bilanmi — faqat shunda "to'lovni o'zgartirish" ko'rinadi */
   isCash: boolean;
   cancelling: boolean;
 }) {
   const [view, setView] = useState<'options' | 'cancel'>('options');
-  const [notice, setNotice] = useState('');
-
-  const soon = () => setNotice('Bu funksiya tez orada qo’shiladi 🔜');
 
   return (
     <div
@@ -74,8 +73,7 @@ export function OrderModifySheet({
                 tint="bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300"
                 label="Boshqa yoki ko’proq taom"
                 desc="Mahsulot qo’shish yoki olib tashlash"
-                soon
-                onClick={soon}
+                onClick={onChangeItems}
               />
               {isCash && (
                 <OptionRow
@@ -99,14 +97,9 @@ export function OrderModifySheet({
                 label="Buyurtmani bekor qilish"
                 desc="Buyurtmani to’liq bekor qilaman"
                 danger
-                onClick={() => {
-                  setNotice('');
-                  setView('cancel');
-                }}
+                onClick={() => setView('cancel')}
               />
             </div>
-
-            {notice && <p className="mt-3 text-center text-xs font-semibold text-amber-600">{notice}</p>}
 
             <button
               type="button"

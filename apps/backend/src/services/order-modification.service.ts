@@ -25,7 +25,12 @@ import { sendAdminAlert, syncTelegramOrderStatus } from './telegram-bot.service.
  * DELIVERED va CANCELLED order'lar uchun hech qanday so'rov qabul qilinmaydi.
  */
 
-export type ModificationType = 'CANCEL' | 'ADDRESS_CHANGE' | 'PAYMENT_METHOD_CHANGE' | 'OTHER';
+export type ModificationType =
+  | 'CANCEL'
+  | 'ADDRESS_CHANGE'
+  | 'PAYMENT_METHOD_CHANGE'
+  | 'ITEMS_CHANGE'
+  | 'OTHER';
 export type ModificationStatus = 'PENDING' | 'AUTO_APPROVED' | 'APPROVED' | 'REJECTED';
 
 export interface ModificationRequestDto {
@@ -130,7 +135,7 @@ export class OrderModificationService {
     const mode =
       type === 'ADDRESS_CHANGE'
         ? (TERMINAL_ORDER_STATUSES.has(order.status) ? 'CLOSED' : 'AUTO')
-        : type === 'PAYMENT_METHOD_CHANGE'
+        : type === 'PAYMENT_METHOD_CHANGE' || type === 'ITEMS_CHANGE'
           ? (TERMINAL_ORDER_STATUSES.has(order.status) ? 'CLOSED' : 'MANUAL')
           : resolveDecisionMode(order.status);
     if (mode === 'CLOSED') {
@@ -157,6 +162,69 @@ export class OrderModificationService {
       storedPayload = {
         to: PaymentMethodEnum.MANUAL_TRANSFER,
         amount: (payload as any)?.amount ?? null,
+        receiptUrl,
+      };
+    }
+
+    // Taom o'zgartirish — yangi to'liq mahsulot ro'yxati. Narxlarni SERVER hisoblaydi
+    // (FE narxiga ishonmaymiz), delta>0 bo'lsa chek (kartaga) talab qilinadi.
+    if (type === 'ITEMS_CHANGE') {
+      const rawItems = Array.isArray((payload as any)?.items) ? (payload as any).items : [];
+      const cleaned = rawItems
+        .map((i: any) => ({
+          menuItemId: String(i.menuItemId ?? ''),
+          quantity: Math.max(1, Math.floor(Number(i.quantity) || 0)),
+        }))
+        .filter((i: any) => i.menuItemId && i.quantity > 0);
+      if (cleaned.length === 0) throw new Error("Kamida bitta mahsulot bo'lishi kerak");
+
+      const menuItems = await prisma.menuItem.findMany({
+        where: { id: { in: cleaned.map((c: any) => c.menuItemId) } },
+      });
+      const byId = new Map(menuItems.map((m) => [m.id, m]));
+      const builtItems = cleaned.map((c: any) => {
+        const mi = byId.get(c.menuItemId);
+        if (!mi || !mi.isActive) throw new Error('Tanlangan mahsulot mavjud emas');
+        const price = Number(mi.price);
+        return {
+          menuItemId: mi.id,
+          itemName: (mi as any).nameUz ?? 'Taom',
+          priceAtOrder: price,
+          quantity: c.quantity,
+          totalPrice: price * c.quantity,
+          imageUrl: (mi as any).imageUrl ?? null,
+        };
+      });
+      const newSubtotal = builtItems.reduce((s: number, it: any) => s + it.totalPrice, 0);
+
+      const cur = await prisma.order.findUnique({
+        where: { id: orderId },
+        select: { deliveryFee: true, discountAmount: true, totalAmount: true },
+      });
+      const deliveryFee = Number(cur?.deliveryFee ?? 0);
+      const discountAmount = Number(cur?.discountAmount ?? 0);
+      const oldTotal = Number(cur?.totalAmount ?? 0);
+      const newTotal = Math.max(0, newSubtotal + deliveryFee - discountAmount);
+      const delta = newTotal - oldTotal;
+
+      let receiptUrl: string | null = null;
+      const base64 = (payload as any)?.receiptImageBase64;
+      if (typeof base64 === 'string' && base64.trim()) {
+        try {
+          receiptUrl = await StorageService.uploadBase64(base64, 'receipts');
+        } catch {
+          receiptUrl = null;
+        }
+      }
+
+      storedPayload = {
+        items: builtItems,
+        newSubtotal,
+        deliveryFee,
+        discountAmount,
+        newTotal,
+        oldTotal,
+        delta,
         receiptUrl,
       };
     }
@@ -296,6 +364,11 @@ export class OrderModificationService {
 
     if (row.type === 'PAYMENT_METHOD_CHANGE') {
       await this.applyPaymentMethodChange(row.orderId, row.payload);
+      return;
+    }
+
+    if (row.type === 'ITEMS_CHANGE') {
+      await this.applyItemsChange(row.orderId, row.payload);
       return;
     }
 
@@ -538,6 +611,78 @@ export class OrderModificationService {
     }).catch(() => {});
   }
 
+  /**
+   * Admin tasdiqlagach: buyurtma mahsulotlarini yangi ro'yxatga almashtiradi,
+   * subtotal/jami'ni yangilaydi. delta>0 chek bo'lsa Payment'ga biriktiradi.
+   */
+  private static async applyItemsChange(orderId: string, payload: any): Promise<void> {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { payment: true },
+    });
+    if (!order) throw new Error('Buyurtma topilmadi');
+    if (TERMINAL_ORDER_STATUSES.has(order.status)) {
+      throw new Error("Yakunlangan buyurtmani o'zgartirib bo'lmaydi");
+    }
+
+    const items = Array.isArray(payload?.items) ? payload.items : [];
+    if (items.length === 0) throw new Error('Mahsulot ro\'yxati bo\'sh');
+
+    const newSubtotal = Number(payload?.newSubtotal ?? 0);
+    const newTotal = Number(payload?.newTotal ?? 0);
+    const receiptUrl = typeof payload?.receiptUrl === 'string' ? payload.receiptUrl : null;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.orderItem.deleteMany({ where: { orderId } });
+      await tx.orderItem.createMany({
+        data: items.map((it: any) => ({
+          orderId,
+          menuItemId: it.menuItemId ?? null,
+          itemName: it.itemName ?? 'Taom',
+          priceAtOrder: it.priceAtOrder ?? 0,
+          quantity: it.quantity ?? 1,
+          totalPrice: it.totalPrice ?? 0,
+          imageUrl: it.imageUrl ?? null,
+        })),
+      });
+      await tx.order.update({
+        where: { id: orderId },
+        data: { subtotal: newSubtotal, totalAmount: newTotal },
+      });
+      if (receiptUrl && order.payment) {
+        await tx.payment.update({
+          where: { orderId },
+          data: { receiptImageBase64: receiptUrl },
+        });
+      }
+    });
+
+    try {
+      const refreshed = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: ORDER_INCLUDE as any,
+      });
+      if (refreshed) {
+        const snapshot = {
+          ...serializeOrder(refreshed),
+          tracking: await orderTrackingService.getSnapshot(orderId),
+        };
+        orderTrackingService.publishOrderUpdate(orderId, snapshot);
+      }
+    } catch {
+      /* non-critical */
+    }
+
+    await InAppNotificationsService.notifyUser({
+      userId: order.userId,
+      roleTarget: UserRoleEnum.CUSTOMER,
+      type: NotificationTypeEnum.SUCCESS,
+      title: 'Buyurtma yangilandi',
+      message: `#${String(order.orderNumber)} buyurtma tarkibi yangilandi. Yangi jami: ${newTotal.toLocaleString('uz-UZ')} so'm.`,
+      relatedOrderId: orderId,
+    }).catch(() => {});
+  }
+
   private static async notifyAdminPending(
     requestId: string,
     type: ModificationType,
@@ -551,7 +696,9 @@ export class OrderModificationService {
           ? "Manzilni o'zgartirish"
           : type === 'PAYMENT_METHOD_CHANGE'
             ? "To'lov usuli (naqd→karta, chek bilan)"
-            : 'Boshqa';
+            : type === 'ITEMS_CHANGE'
+              ? 'Taom tarkibini o\'zgartirish'
+              : 'Boshqa';
 
     await InAppNotificationsService.notifyAdmins({
       type: NotificationTypeEnum.WARNING,
