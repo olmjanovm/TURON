@@ -1,5 +1,12 @@
-import { OrderStatusEnum, NotificationTypeEnum, UserRoleEnum } from '@turon/shared';
+import {
+  OrderStatusEnum,
+  NotificationTypeEnum,
+  UserRoleEnum,
+  PaymentMethodEnum,
+  PaymentStatusEnum,
+} from '@turon/shared';
 import { prisma } from '../lib/prisma.js';
+import { StorageService } from './storage.service.js';
 import { AuditService } from './audit.service.js';
 import { InAppNotificationsService } from './in-app-notifications.service.js';
 import { orderTrackingService } from './order-tracking.service.js';
@@ -18,7 +25,7 @@ import { sendAdminAlert, syncTelegramOrderStatus } from './telegram-bot.service.
  * DELIVERED va CANCELLED order'lar uchun hech qanday so'rov qabul qilinmaydi.
  */
 
-export type ModificationType = 'CANCEL' | 'ADDRESS_CHANGE' | 'OTHER';
+export type ModificationType = 'CANCEL' | 'ADDRESS_CHANGE' | 'PAYMENT_METHOD_CHANGE' | 'OTHER';
 export type ModificationStatus = 'PENDING' | 'AUTO_APPROVED' | 'APPROVED' | 'REJECTED';
 
 export interface ModificationRequestDto {
@@ -107,7 +114,7 @@ export class OrderModificationService {
 
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      select: { id: true, userId: true, status: true, orderNumber: true },
+      select: { id: true, userId: true, status: true, orderNumber: true, paymentMethod: true },
     });
     if (!order) {
       throw new Error('Buyurtma topilmadi');
@@ -116,14 +123,42 @@ export class OrderModificationService {
       throw new Error('Bu buyurtma sizniki emas');
     }
 
-    // Manzil o'zgarishi — kuryer yo'lda bo'lsa ham AVTOMATIK qo'llanadi (admin
-    // tasdig'isiz), faqat yakunlangan (yetkazilgan/bekor) buyurtmada mumkin emas.
+    // Mode bo'yicha:
+    //  ADDRESS_CHANGE        → AUTO (kuryer yo'lda bo'lsa ham), faqat yakunlanmagan.
+    //  PAYMENT_METHOD_CHANGE → MANUAL (admin chekni tekshirib tasdiqlaydi), yakunlanmagan.
+    //  Boshqalar             → status bo'yicha (PENDING:AUTO, aks:MANUAL).
     const mode =
       type === 'ADDRESS_CHANGE'
         ? (TERMINAL_ORDER_STATUSES.has(order.status) ? 'CLOSED' : 'AUTO')
-        : resolveDecisionMode(order.status);
+        : type === 'PAYMENT_METHOD_CHANGE'
+          ? (TERMINAL_ORDER_STATUSES.has(order.status) ? 'CLOSED' : 'MANUAL')
+          : resolveDecisionMode(order.status);
     if (mode === 'CLOSED') {
       throw new Error("Bu holatdagi buyurtmani o'zgartirib bo'lmaydi");
+    }
+
+    // To'lov usulini o'zgartirish — faqat naqd buyurtmani kartaga (chek bilan).
+    if (type === 'PAYMENT_METHOD_CHANGE' && order.paymentMethod !== PaymentMethodEnum.CASH) {
+      throw new Error("Faqat naqd to'lovni kartaga o'zgartirish mumkin");
+    }
+
+    // PAYMENT_METHOD_CHANGE: chek rasmini (base64) yuklab, payload'da URL saqlaymiz.
+    let storedPayload: any = payload ?? null;
+    if (type === 'PAYMENT_METHOD_CHANGE') {
+      const base64 = (payload as any)?.receiptImageBase64;
+      let receiptUrl: string | null = null;
+      if (typeof base64 === 'string' && base64.trim()) {
+        try {
+          receiptUrl = await StorageService.uploadBase64(base64, 'receipts');
+        } catch {
+          receiptUrl = null;
+        }
+      }
+      storedPayload = {
+        to: PaymentMethodEnum.MANUAL_TRANSFER,
+        amount: (payload as any)?.amount ?? null,
+        receiptUrl,
+      };
     }
 
     // Block duplicate active requests of the same type so the customer
@@ -147,7 +182,7 @@ export class OrderModificationService {
         orderId,
         requestedBy: customerId,
         type,
-        payload: (payload ?? null) as any,
+        payload: storedPayload as any,
         status: initialStatus,
         reason: reason ?? null,
         // For AUTO_APPROVED also stamp decision time so the timeline reads cleanly.
@@ -256,6 +291,11 @@ export class OrderModificationService {
 
     if (row.type === 'ADDRESS_CHANGE') {
       await this.applyAddressChange(row.orderId, row.payload);
+      return;
+    }
+
+    if (row.type === 'PAYMENT_METHOD_CHANGE') {
+      await this.applyPaymentMethodChange(row.orderId, row.payload);
       return;
     }
 
@@ -424,6 +464,80 @@ export class OrderModificationService {
     }).catch(() => {});
   }
 
+  /**
+   * Admin tasdiqlagach: buyurtma to'lov usulini naqd → karta (MANUAL_TRANSFER) ga
+   * o'tkazadi, to'lovni COMPLETED qiladi, chekni Payment'ga yozadi. Mijoz kutmaydi —
+   * so'rov yuborilgach "tasdiqlangach o'zgaradi" deydi; bu yerda real o'zgartiriladi.
+   */
+  private static async applyPaymentMethodChange(orderId: string, payload: any): Promise<void> {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { payment: true },
+    });
+    if (!order) throw new Error('Buyurtma topilmadi');
+    if (TERMINAL_ORDER_STATUSES.has(order.status)) {
+      throw new Error("Yakunlangan buyurtma to'lovini o'zgartirib bo'lmaydi");
+    }
+
+    const receiptUrl = typeof payload?.receiptUrl === 'string' ? payload.receiptUrl : null;
+    const now = new Date();
+
+    await prisma.$transaction(async (tx) => {
+      await tx.order.update({
+        where: { id: orderId },
+        data: {
+          paymentMethod: PaymentMethodEnum.MANUAL_TRANSFER as any,
+          paymentStatus: PaymentStatusEnum.COMPLETED as any,
+        },
+      });
+
+      await tx.payment.upsert({
+        where: { orderId },
+        update: {
+          method: PaymentMethodEnum.MANUAL_TRANSFER as any,
+          status: PaymentStatusEnum.COMPLETED as any,
+          receiptImageBase64: receiptUrl ?? (order.payment as any)?.receiptImageBase64 ?? null,
+          verifiedAt: now,
+        },
+        create: {
+          orderId,
+          method: PaymentMethodEnum.MANUAL_TRANSFER as any,
+          status: PaymentStatusEnum.COMPLETED as any,
+          amount: order.totalAmount,
+          receiptImageBase64: receiptUrl ?? null,
+          verifiedAt: now,
+        },
+      });
+    });
+
+    // Real-time snapshot (admin/kuryer ko'radi) + Telegram bot xabari holatini sync.
+    try {
+      const refreshed = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: ORDER_INCLUDE as any,
+      });
+      if (refreshed) {
+        const snapshot = {
+          ...serializeOrder(refreshed),
+          tracking: await orderTrackingService.getSnapshot(orderId),
+        };
+        orderTrackingService.publishOrderUpdate(orderId, snapshot);
+      }
+    } catch {
+      /* non-critical */
+    }
+
+    // Mijozni xabardor qilamiz — to'lov usuli kartaga o'zgardi.
+    await InAppNotificationsService.notifyUser({
+      userId: order.userId,
+      roleTarget: UserRoleEnum.CUSTOMER,
+      type: NotificationTypeEnum.SUCCESS,
+      title: "To'lov usuli o'zgartirildi",
+      message: `#${String(order.orderNumber)} buyurtma uchun to'lov karta orqali tasdiqlandi.`,
+      relatedOrderId: orderId,
+    }).catch(() => {});
+  }
+
   private static async notifyAdminPending(
     requestId: string,
     type: ModificationType,
@@ -435,7 +549,9 @@ export class OrderModificationService {
         ? 'Bekor qilish'
         : type === 'ADDRESS_CHANGE'
           ? "Manzilni o'zgartirish"
-          : 'Boshqa';
+          : type === 'PAYMENT_METHOD_CHANGE'
+            ? "To'lov usuli (naqd→karta, chek bilan)"
+            : 'Boshqa';
 
     await InAppNotificationsService.notifyAdmins({
       type: NotificationTypeEnum.WARNING,

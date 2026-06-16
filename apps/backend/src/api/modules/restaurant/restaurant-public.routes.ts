@@ -16,6 +16,7 @@ export default async function restaurantPublicRoutes(fastify: FastifyInstance) {
       .send({
         name: settings.name,
         logoUrl: settings.logoUrl ?? null,
+        cardNumber: settings.cardNumber ?? '',
       });
   });
 }

@@ -24,12 +24,17 @@ export function OrderModifySheet({
   onConfirmCancel,
   onMessageAdmin,
   onChangeAddress,
+  onChangePayment,
+  isCash,
   cancelling,
 }: {
   onClose: () => void;
   onConfirmCancel: () => void;
   onMessageAdmin: () => void;
   onChangeAddress: () => void;
+  onChangePayment: () => void;
+  /** Buyurtma naqd to'lov bilanmi — faqat shunda "to'lovni o'zgartirish" ko'rinadi */
+  isCash: boolean;
   cancelling: boolean;
 }) {
   const [view, setView] = useState<'options' | 'cancel'>('options');
@@ -72,14 +77,15 @@ export function OrderModifySheet({
                 soon
                 onClick={soon}
               />
-              <OptionRow
-                icon={CreditCard}
-                tint="bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300"
-                label="To’lov usulini o’zgartirish"
-                desc="Naqd → karta (chek bilan)"
-                soon
-                onClick={soon}
-              />
+              {isCash && (
+                <OptionRow
+                  icon={CreditCard}
+                  tint="bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300"
+                  label="To’lov usulini o’zgartirish"
+                  desc="Naqd → karta (chek bilan)"
+                  onClick={onChangePayment}
+                />
+              )}
               <OptionRow
                 icon={MessageCircle}
                 tint="bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300"

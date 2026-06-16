@@ -44,6 +44,43 @@ export function useAdminOrders() {
   });
 }
 
+// ── Mijoz so'rovlari (modifications: bekor / manzil / to'lov) ───────────────
+export interface OrderModification {
+  id: string;
+  orderId: string;
+  type: 'CANCEL' | 'ADDRESS_CHANGE' | 'PAYMENT_METHOD_CHANGE' | 'OTHER';
+  status: 'PENDING' | 'AUTO_APPROVED' | 'APPROVED' | 'REJECTED';
+  payload: { amount?: number | null; receiptUrl?: string | null; addressText?: string | null } | null;
+  reason: string | null;
+  createdAt: string;
+}
+
+/** Buyurtma bo'yicha mijoz so'rovlari (admin tasdiqi uchun). */
+export function useOrderModifications(orderId: string) {
+  return useQuery<OrderModification[]>({
+    queryKey: ['admin', 'order-mods', orderId],
+    queryFn: () => apiFetch<OrderModification[]>(`/api/orders/${orderId}/modifications`),
+    enabled: Boolean(orderId),
+    refetchInterval: 12_000,
+  });
+}
+
+export function useDecideModification(orderId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ reqId, approve }: { reqId: string; approve: boolean }) =>
+      apiFetch(`/api/orders/${orderId}/modifications/${reqId}/decide`, {
+        method: 'POST',
+        body: JSON.stringify({ approve }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'order-mods', orderId] });
+      qc.invalidateQueries({ queryKey: ['admin', 'order', orderId] });
+      qc.invalidateQueries({ queryKey: ['admin', 'orders'] });
+    },
+  });
+}
+
 /** GET /api/orders/:id -> bitta buyurtma. */
 export function useAdminOrder(id: string) {
   return useQuery<AdminOrder>({

@@ -211,6 +211,23 @@ export function useChangeOrderAddress(orderId: string) {
   });
 }
 
+/**
+ * To'lov usulini naqd → karta o'zgartirish (PAYMENT_METHOD_CHANGE).
+ * Chek (base64) + summa yuboriladi. Admin tasdiqlagach order kartaga o'tadi.
+ */
+export function useChangePaymentMethod(orderId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { amount: number; receiptImageBase64: string }) =>
+      apiFetch(`/orders/${orderId}/modifications`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': crypto.randomUUID() },
+        body: JSON.stringify({ type: 'PAYMENT_METHOD_CHANGE', payload: input }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['customer'] }),
+  });
+}
+
 export function useCancelOrder() {
   const qc = useQueryClient();
   return useMutation({

@@ -21,6 +21,7 @@ export interface RestaurantSettings {
   isOpen: boolean;
   autoSchedule: boolean;
   logoUrl?: string | null;
+  cardNumber: string;
 }
 
 export function useRestaurantSettings() {

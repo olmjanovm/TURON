@@ -63,6 +63,7 @@ export default function AdminRestaurantPage() {
       isOpen: form.isOpen,
       autoSchedule: form.autoSchedule,
       logoUrl: form.logoUrl || undefined,
+      cardNumber: (form.cardNumber || '').trim(),
     };
 
     // Koordinatani FAQAT haqiqiy bo'lsa yuboramiz. Avval `Number(...) || 0` 0 yuborardi,
@@ -115,6 +116,7 @@ export default function AdminRestaurantPage() {
       <div className="admin-card space-y-3 p-4">
         <TextField label="Restoran nomi" value={form.name} onChange={(v) => set('name', v)} placeholder="TURON Kafe" />
         <TextField label="Telefon (+998...)" value={form.phone} onChange={(v) => set('phone', v)} placeholder="+998901234567" />
+        <TextField label="Karta raqami (to'lov uchun)" value={form.cardNumber ?? ''} onChange={(v) => set('cardNumber', v)} placeholder="8600 1234 5678 9012" />
       </div>
 
       {/* Manzil — xaritadan koordinata bo'yicha */}

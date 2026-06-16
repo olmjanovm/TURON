@@ -27,6 +27,7 @@ export interface RestaurantSettings {
   isOpen: boolean;
   autoSchedule: boolean;
   logoUrl?: string | null;
+  cardNumber: string; // To'lov uchun restoran karta raqami (naqd→karta o'zgartirishda mijozga ko'rsatiladi)
   closeReason?: 'lunch_break' | 'maintenance' | 'holiday' | 'manual' | null;
   autoReopenAt?: string | null;
 }
@@ -61,6 +62,7 @@ const DEFAULTS: RestaurantSettings = {
   isOpen: true,
   autoSchedule: true,
   logoUrl: null,
+  cardNumber: '',
   closeReason: null,
   autoReopenAt: null,
 };
@@ -153,6 +155,7 @@ export async function getRestaurantSettings(): Promise<RestaurantSettings> {
     isOpenRaw,
     autoScheduleRaw,
     logoUrl,
+    cardNumber,
     closeReason,
     autoReopenAt,
   ] =
@@ -166,6 +169,7 @@ export async function getRestaurantSettings(): Promise<RestaurantSettings> {
       getSetting('is_open'),
       getSetting('auto_schedule'),
       getSetting('logo_url'),
+      getSetting('card_number'),
       getSetting('close_reason'),
       getSetting('auto_reopen_at'),
     ]);
@@ -185,6 +189,7 @@ export async function getRestaurantSettings(): Promise<RestaurantSettings> {
     isOpen: isOpenRaw !== null ? isOpenRaw === 'true' : DEFAULTS.isOpen,
     autoSchedule: autoScheduleRaw !== null ? autoScheduleRaw === 'true' : DEFAULTS.autoSchedule,
     logoUrl: logoUrl && logoUrl.trim().length > 0 ? logoUrl : DEFAULTS.logoUrl,
+    cardNumber: cardNumber ?? DEFAULTS.cardNumber,
     closeReason:
       closeReason === 'lunch_break' ||
       closeReason === 'maintenance' ||
@@ -206,6 +211,7 @@ export interface PatchRestaurantSettings {
   isOpen?: boolean;
   autoSchedule?: boolean;
   logoUrl?: string | null;
+  cardNumber?: string;
   closeReason?: 'lunch_break' | 'maintenance' | 'holiday' | 'manual' | null;
   autoReopenAt?: string | null;
 }
@@ -234,6 +240,8 @@ export async function patchRestaurantSettings(
     tasks.push(setSetting('auto_schedule', String(patch.autoSchedule), 'boolean', updatedById));
   if (patch.logoUrl !== undefined)
     tasks.push(setSetting('logo_url', patch.logoUrl ?? '', 'string', updatedById));
+  if (patch.cardNumber !== undefined)
+    tasks.push(setSetting('card_number', patch.cardNumber, 'string', updatedById));
   if (patch.closeReason !== undefined)
     tasks.push(setSetting('close_reason', patch.closeReason ?? '', 'string', updatedById));
   if (patch.autoReopenAt !== undefined)

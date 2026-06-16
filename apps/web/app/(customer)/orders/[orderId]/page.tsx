@@ -228,6 +228,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ orderId:
           onConfirmCancel={confirmCancel}
           onMessageAdmin={() => router.push(`/orders/${orderId}/chat`)}
           onChangeAddress={() => router.push(`/orders/${orderId}/change-address`)}
+          onChangePayment={() => router.push(`/orders/${orderId}/change-payment`)}
+          isCash={(order.paymentMethod ?? '').toUpperCase() === 'CASH'}
           cancelling={cancelling}
         />
       )}

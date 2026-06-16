@@ -10,6 +10,8 @@ import {
   useCourierOptions,
   useDispatchOrder,
   usePaymentAction,
+  useOrderModifications,
+  useDecideModification,
 } from '@/hooks/use-admin-orders';
 import { statusMeta, orderMoney, NEXT_STATUS } from '@/lib/order-status';
 import { Skeleton, SkeletonRow } from '@/components/ui/skeleton';
@@ -44,6 +46,7 @@ export default function AdminOrderDetailPage({
         </div>
       ) : (
         <>
+          <ModificationRequests orderId={orderId} />
           <PaymentActions orderId={orderId} order={order} />
           <DispatchActions orderId={orderId} order={order} />
           <OrderBody
@@ -59,6 +62,85 @@ export default function AdminOrderDetailPage({
 }
 
 type Order = NonNullable<ReturnType<typeof useAdminOrder>['data']>;
+
+/** Mijoz so'rovlari (bekor / manzil / to'lov usuli) — PENDING bo'lsa tasdiq/rad. */
+function ModificationRequests({ orderId }: { orderId: string }) {
+  const { data: mods } = useOrderModifications(orderId);
+  const decide = useDecideModification(orderId);
+  const pending = (mods ?? []).filter((m) => m.status === 'PENDING');
+  if (pending.length === 0) return null;
+
+  const typeLabel = (t: string) =>
+    t === 'PAYMENT_METHOD_CHANGE'
+      ? "To'lov: naqd → karta"
+      : t === 'ADDRESS_CHANGE'
+        ? "Manzilni o'zgartirish"
+        : t === 'CANCEL'
+          ? 'Bekor qilish'
+          : "So'rov";
+
+  return (
+    <div className="admin-card admin-card-accent p-4 pt-5">
+      <p className="text-sm font-bold text-slate-900">Mijoz so&apos;rovi</p>
+      <div className="mt-3 space-y-3">
+        {pending.map((m) => (
+          <div key={m.id} className="rounded-2xl border border-amber-200 bg-amber-50/60 p-3">
+            <p className="text-sm font-bold text-slate-900">{typeLabel(m.type)}</p>
+
+            {m.type === 'PAYMENT_METHOD_CHANGE' && (
+              <>
+                {typeof m.payload?.amount === 'number' && (
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    Summa: {m.payload.amount.toLocaleString('uz-UZ')} so&apos;m
+                  </p>
+                )}
+                {m.payload?.receiptUrl ? (
+                  <a href={m.payload.receiptUrl} target="_blank" rel="noopener noreferrer" className="mt-2 block">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={m.payload.receiptUrl}
+                      alt="chek"
+                      className="max-h-60 w-full rounded-xl bg-white object-contain"
+                    />
+                    <span className="mt-1 block text-center text-[11px] font-semibold text-sky-600">
+                      Chekni ochish
+                    </span>
+                  </a>
+                ) : (
+                  <p className="mt-1 text-xs text-rose-500">Chek yuklanmagan</p>
+                )}
+                <p className="mt-1 text-[11px] text-slate-400">
+                  To&apos;lov 100% to&apos;g&apos;ri bo&apos;lsa tasdiqlang — buyurtma karta orqali to&apos;langan bo&apos;ladi.
+                </p>
+              </>
+            )}
+
+            {m.reason && <p className="mt-1 text-xs text-slate-500">Izoh: {m.reason}</p>}
+
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                disabled={decide.isPending}
+                onClick={() => decide.mutate({ reqId: m.id, approve: true })}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-2xl bg-emerald-600 py-2.5 text-sm font-bold text-white active:scale-[0.99] disabled:opacity-60"
+              >
+                {decide.isPending ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Tasdiqlash
+              </button>
+              <button
+                type="button"
+                disabled={decide.isPending}
+                onClick={() => decide.mutate({ reqId: m.id, approve: false })}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-2xl border border-rose-200 bg-white py-2.5 text-sm font-bold text-rose-600 active:scale-[0.99] disabled:opacity-60"
+              >
+                <X size={14} /> Rad etish
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 /** To'lovni tasdiqlash / rad etish (MANUAL_TRANSFER va PENDING bo'lsa). */
 function PaymentActions({ orderId, order }: { orderId: string; order: Order }) {

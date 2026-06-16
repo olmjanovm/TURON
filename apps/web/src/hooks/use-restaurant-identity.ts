@@ -7,11 +7,13 @@ import { apiFetch } from '@/lib/api-client';
 export interface RestaurantIdentity {
   name: string;
   logoUrl: string | null;
+  cardNumber: string;
 }
 
 const DEFAULT_IDENTITY: RestaurantIdentity = {
   name: 'TURON',
   logoUrl: null,
+  cardNumber: '',
 };
 
 /**
@@ -37,6 +39,7 @@ export function useRestaurantIdentity() {
     identity,
     name: identity.name,
     logoUrl: identity.logoUrl,
+    cardNumber: identity.cardNumber,
     isLoading: query.isLoading,
   };
 }
