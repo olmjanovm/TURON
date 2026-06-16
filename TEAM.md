@@ -72,6 +72,7 @@
 - Admin panel: Next.js+TS, premium dizayn, asosiy funksiyalar tayyor.
 - `[2026-06-14]` ✅ **Restoran sozlamalari saqlanmasligi TUZATILDI** (root cause: Prisma `$executeRawUnsafe` multi-statement DDL → `42601`; production logda tasdiqlandi). Nom/manzil/logo endi saqlanadi (`identity` → "Sushi 🍣" bilan tekshirildi). `fallback_sent_at` ustuni DB'ga qo'shildi (P2022 tugadi).
 - `[2026-06-14]` ✅ **BackButton admin'ga qo'llandi** + shared hook `use-telegram-back-button.ts` yaratildi (Claude 2/3 ishlatadi).
+- `[2026-06-16]` 🔎 Vercel deploy F4'dan beri Error (lokal build/lockfile/region toza) — log tekshirilmoqda (trigger deploy).
 
 ### Claude 2 — Customer
 - `[2026-06-14]` Vercel region → `sin1` qo'shildi (`vercel.json` → `"regions": ["sin1"]`). Serverless funksiyalar endi Singapurда — backend (`turonkafe.duckdns.org`) yonida, latency tushadi.
