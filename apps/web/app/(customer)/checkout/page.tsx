@@ -301,8 +301,13 @@ function CheckoutInner() {
       {/* Summary */}
       <Section title={t('checkout.summary.title')}>
         <SumRow label={t('cart.subtotal')} value={quote?.subtotal ?? subtotal} />
-        {(quote?.deliveryFee ?? 0) > 0 && (
-          <SumRow label={t('cart.delivery_fee')} value={quote?.deliveryFee ?? 0} />
+        {quote && (
+          <SumRow
+            label={t('cart.delivery_fee')}
+            value={quote.deliveryFee}
+            valueText={quote.deliveryFee === 0 ? 'Bepul 🎉' : undefined}
+            tone={quote.deliveryFee === 0 ? 'text-emerald-600 dark:text-emerald-300 font-bold' : undefined}
+          />
         )}
         {(quote?.discountAmount ?? 0) > 0 && (
           <SumRow
@@ -470,7 +475,7 @@ function PayOption({
   );
 }
 
-function SumRow({ label, value, bold, tone }: { label: string; value: number; bold?: boolean; tone?: string }) {
+function SumRow({ label, value, bold, tone, valueText }: { label: string; value: number; bold?: boolean; tone?: string; valueText?: string }) {
   const t = useT();
   return (
     <div className={`flex items-center justify-between py-1 text-sm ${bold ? 'font-black' : ''}`}>
@@ -480,7 +485,7 @@ function SumRow({ label, value, bold, tone }: { label: string; value: number; bo
           tone ?? (bold ? 'text-slate-900 dark:text-slate-50' : 'text-slate-700 dark:text-slate-300')
         }`}
       >
-        {value.toLocaleString('uz-UZ')} {t('common.currency')}
+        {valueText ?? `${value.toLocaleString('uz-UZ')} ${t('common.currency')}`}
       </span>
     </div>
   );

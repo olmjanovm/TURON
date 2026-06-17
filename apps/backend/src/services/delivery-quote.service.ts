@@ -7,6 +7,7 @@ import {
   RESTAURANT_COORDINATES,
 } from '@turon/shared';
 import { YandexMapsService } from './yandex-maps.service.js';
+import { getRestaurantSettings } from './restaurant-settings.service.js';
 
 interface CoordinatePoint {
   latitude: number;
@@ -126,10 +127,21 @@ export class DeliveryQuoteService {
     const merchandiseTotal = roundCurrency(subtotal - discountAmount);
     const { distanceMeters, etaMinutes, routeSource } = await resolveDistanceAndEta(input.destination);
 
-    // Simple delivery pricing - NO distance-based surcharges
-    // >= 80,000 sum → FREE delivery
-    // < 80,000 sum → 5,000 sum (flat rate)
-    const deliveryFee = subtotal >= DELIVERY_FREE_THRESHOLD ? 0 : DELIVERY_BASE_FEE;
+    // Yetkazib berish narxi — admin sozlamasidan (restoran settings), fallback
+    // sifatida @turon/shared konstantalar. Masofa asosida qo'shimcha YO'Q:
+    //   subtotal >= freeThreshold  → BEPUL (0)
+    //   subtotal <  freeThreshold  → baseFee (sozlanadigan, default 5000)
+    const settings = await getRestaurantSettings().catch(() => null);
+    const freeThreshold =
+      settings && Number.isFinite(settings.freeDeliveryThreshold)
+        ? settings.freeDeliveryThreshold
+        : DELIVERY_FREE_THRESHOLD;
+    const baseFee =
+      settings && Number.isFinite(settings.deliveryFee)
+        ? settings.deliveryFee
+        : DELIVERY_BASE_FEE;
+
+    const deliveryFee = subtotal >= freeThreshold ? 0 : roundCurrency(baseFee);
     const totalAmount = roundCurrency(merchandiseTotal + deliveryFee);
 
     return {

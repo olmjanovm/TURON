@@ -200,6 +200,8 @@ export const RestaurantSettingsPatchSchema = z
     isOpen: z.boolean().optional(),
     autoSchedule: z.boolean().optional(),
     cardNumber: z.string().trim().max(40).optional().or(z.literal('')),
+    deliveryFee: z.number().min(0).max(1_000_000).optional(),
+    freeDeliveryThreshold: z.number().min(0).max(100_000_000).optional(),
     logoUrl: z.string().trim().url().nullable().optional().or(z.literal('').optional()),
     closeReason: z.enum(['lunch_break', 'maintenance', 'holiday', 'manual']).nullable().optional(),
     autoReopenAt: z.string().datetime().nullable().optional().or(z.literal('').optional()),

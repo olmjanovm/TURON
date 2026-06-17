@@ -8,12 +8,16 @@ export interface RestaurantIdentity {
   name: string;
   logoUrl: string | null;
   cardNumber: string;
+  deliveryFee: number;
+  freeDeliveryThreshold: number;
 }
 
 const DEFAULT_IDENTITY: RestaurantIdentity = {
   name: 'TURON',
   logoUrl: null,
   cardNumber: '',
+  deliveryFee: 5000,
+  freeDeliveryThreshold: 80000,
 };
 
 /**
@@ -40,6 +44,8 @@ export function useRestaurantIdentity() {
     name: identity.name,
     logoUrl: identity.logoUrl,
     cardNumber: identity.cardNumber,
+    deliveryFee: identity.deliveryFee,
+    freeDeliveryThreshold: identity.freeDeliveryThreshold,
     isLoading: query.isLoading,
   };
 }

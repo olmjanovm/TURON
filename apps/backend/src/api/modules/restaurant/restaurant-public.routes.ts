@@ -17,6 +17,8 @@ export default async function restaurantPublicRoutes(fastify: FastifyInstance) {
         name: settings.name,
         logoUrl: settings.logoUrl ?? null,
         cardNumber: settings.cardNumber ?? '',
+        deliveryFee: settings.deliveryFee,
+        freeDeliveryThreshold: settings.freeDeliveryThreshold,
       });
   });
 }

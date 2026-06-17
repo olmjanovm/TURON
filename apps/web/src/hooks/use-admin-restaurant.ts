@@ -22,6 +22,8 @@ export interface RestaurantSettings {
   autoSchedule: boolean;
   logoUrl?: string | null;
   cardNumber: string;
+  deliveryFee: number;
+  freeDeliveryThreshold: number;
 }
 
 export function useRestaurantSettings() {

@@ -28,6 +28,8 @@ export interface RestaurantSettings {
   autoSchedule: boolean;
   logoUrl?: string | null;
   cardNumber: string; // To'lov uchun restoran karta raqami (naqd→karta o'zgartirishda mijozga ko'rsatiladi)
+  deliveryFee: number; // Yetkazib berish narxi (so'm) — buyurtma bepul chegaradan past bo'lsa qo'shiladi
+  freeDeliveryThreshold: number; // Shu summadan (so'm) katta/teng buyurtmaga yetkazib berish BEPUL
   closeReason?: 'lunch_break' | 'maintenance' | 'holiday' | 'manual' | null;
   autoReopenAt?: string | null;
 }
@@ -63,6 +65,8 @@ const DEFAULTS: RestaurantSettings = {
   autoSchedule: true,
   logoUrl: null,
   cardNumber: '',
+  deliveryFee: 5000,
+  freeDeliveryThreshold: 80000,
   closeReason: null,
   autoReopenAt: null,
 };
@@ -156,6 +160,8 @@ export async function getRestaurantSettings(): Promise<RestaurantSettings> {
     autoScheduleRaw,
     logoUrl,
     cardNumber,
+    deliveryFeeRaw,
+    freeDeliveryThresholdRaw,
     closeReason,
     autoReopenAt,
   ] =
@@ -170,6 +176,8 @@ export async function getRestaurantSettings(): Promise<RestaurantSettings> {
       getSetting('auto_schedule'),
       getSetting('logo_url'),
       getSetting('card_number'),
+      getSetting('delivery_fee'),
+      getSetting('free_delivery_threshold'),
       getSetting('close_reason'),
       getSetting('auto_reopen_at'),
     ]);
@@ -190,6 +198,14 @@ export async function getRestaurantSettings(): Promise<RestaurantSettings> {
     autoSchedule: autoScheduleRaw !== null ? autoScheduleRaw === 'true' : DEFAULTS.autoSchedule,
     logoUrl: logoUrl && logoUrl.trim().length > 0 ? logoUrl : DEFAULTS.logoUrl,
     cardNumber: cardNumber ?? DEFAULTS.cardNumber,
+    deliveryFee:
+      deliveryFeeRaw !== null && !Number.isNaN(parseFloat(deliveryFeeRaw))
+        ? Math.max(0, parseFloat(deliveryFeeRaw))
+        : DEFAULTS.deliveryFee,
+    freeDeliveryThreshold:
+      freeDeliveryThresholdRaw !== null && !Number.isNaN(parseFloat(freeDeliveryThresholdRaw))
+        ? Math.max(0, parseFloat(freeDeliveryThresholdRaw))
+        : DEFAULTS.freeDeliveryThreshold,
     closeReason:
       closeReason === 'lunch_break' ||
       closeReason === 'maintenance' ||
@@ -212,6 +228,8 @@ export interface PatchRestaurantSettings {
   autoSchedule?: boolean;
   logoUrl?: string | null;
   cardNumber?: string;
+  deliveryFee?: number;
+  freeDeliveryThreshold?: number;
   closeReason?: 'lunch_break' | 'maintenance' | 'holiday' | 'manual' | null;
   autoReopenAt?: string | null;
 }
@@ -242,6 +260,10 @@ export async function patchRestaurantSettings(
     tasks.push(setSetting('logo_url', patch.logoUrl ?? '', 'string', updatedById));
   if (patch.cardNumber !== undefined)
     tasks.push(setSetting('card_number', patch.cardNumber, 'string', updatedById));
+  if (patch.deliveryFee !== undefined)
+    tasks.push(setSetting('delivery_fee', String(Math.max(0, patch.deliveryFee)), 'number', updatedById));
+  if (patch.freeDeliveryThreshold !== undefined)
+    tasks.push(setSetting('free_delivery_threshold', String(Math.max(0, patch.freeDeliveryThreshold)), 'number', updatedById));
   if (patch.closeReason !== undefined)
     tasks.push(setSetting('close_reason', patch.closeReason ?? '', 'string', updatedById));
   if (patch.autoReopenAt !== undefined)

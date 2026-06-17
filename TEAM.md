@@ -64,6 +64,15 @@
 - `[2026-06-17]` **✅ Claude 3 ga javob (ENV kalit nomlari) — TASDIQ.** Nomlar to'g'ri: brauzer = `NEXT_PUBLIC_YANDEX_MAP_API_KEY` (legacy fallback `NEXT_PUBLIC_MAP_API_KEY`), server = `YANDEX_ROUTER_API_KEY`. **Foydalanuvchi yangi maxsus Yandex kalit (JS Maps + Geocoder + Router yoqilgan) bermoqda** — kelganда Vercel env'ga qo'yiladi. Kalit qo'yilgach xabar beraman → sen route+direction'ni qurilmada test qil.
 - `[2026-06-17]` **Hamma (xarita kaliti — yagona manba):** Admin map picker endi shared `@/lib/yandex-maps` loader'ga ko'chirildi (avval o'z inline kaliti bor edi). Endi customer+admin+courier UCHALASI ham `NEXT_PUBLIC_YANDEX_MAP_API_KEY`'ни o'qiydi — bitta kalit hammasini ishlatadi. Inline `c3e2b675…` dev fallback'lar qoldirilmasin.
 - `[2026-06-17]` **Shared `CenterPin`** (`src/components/map/center-pin.tsx`) yaratildi — Yandex Go uslubidagi teardrop pin (customer+admin ishlatadi). Courier xarita markaziga pin kerak bo'lsa shuni qayta ishlat (valasaped yo'q).
+- `[2026-06-17]` 🔴 **KRITIK — Claude 3 (courier maps), kalit diagnozи (curl bilan isbotlandi):** Foydalanuvchi kaliti `c3e2b675-…` — bu **FAQAT JavaScript API kaliti**. Yandex uni **HTTP server API'lar uchun RAD etadi** (curl: Routing `"Invalid key"`, Geocoder HTTP `403 "Invalid api key"`). Ya'ni `/api/maps/route` (Vercel serverless HTTP Router) bu kalit bilan **ISHLAMAYDI**. ⇒ **Navigatsiya chizig'ini BROWSER `multiRouter` (JS API) orqali chiz** — server route'ga tayanma. `YANDEX_ROUTER_API_KEY` (HTTP) hozircha yo'q (billing kaliti kerak). `NEXT_PUBLIC_YANDEX_MAP_API_KEY=c3e2b675-…` brauzerда ishlaydi (`turon-miniapp.vercel.app` referrer). **Muhim:** server route fail bo'lsa kod JIMGINA multiRouter'ga fallback qilsin (xato UI'ni buzmasin).
+- `[2026-06-17]` 🟡 **Claude 3 — YANGI VAZIFA (foydalanuvchi so'radi):**
+  1. **Haqiqiy Yandex xarita** (default/bo'sh emas) — courier xaritada to'liq Yandex tiles ko'rinsin. Agar dev-fallback yoki noto'g'ri kalit sabab "default" ko'rinayotgan bo'lsa, `NEXT_PUBLIC_YANDEX_MAP_API_KEY` (shared `@/lib/yandex-maps`) ishlatilishini tekshir.
+  2. **Transport turiga qarab navigatsiya chizig'i** — kuryer transporti (mashina / skuter / piyoda)ga qarab yo'l boshqacha chizilsin:
+     - mashina → `routingMode: 'auto'` (mashina yo'llari)
+     - skuter/velosiped → `routingMode: 'bicycle'` (ichki/yaqin yo'llar)
+     - piyoda → `routingMode: 'pedestrian'` (eng qisqa piyoda ichki ko'chalar)
+     - `ymaps.multiRouter.MultiRoute` `params.routingMode`'ни kuryer transportiga bog'la. Transport maydoni qayerdan kelishini (courier profil/buyurtma) o'zing aniqla; bo'lmasa Sardordан (men) BE maydon so'ra.
+  - Avval `/software-architect` bilan kichik reja → STATUS → implement. Surgical `[courier]` commitlar.
 
 ---
 

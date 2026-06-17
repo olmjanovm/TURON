@@ -64,6 +64,8 @@ export default function AdminRestaurantPage() {
       autoSchedule: form.autoSchedule,
       logoUrl: form.logoUrl || undefined,
       cardNumber: (form.cardNumber || '').trim(),
+      deliveryFee: Math.max(0, Number(form.deliveryFee) || 0),
+      freeDeliveryThreshold: Math.max(0, Number(form.freeDeliveryThreshold) || 0),
     };
 
     // Koordinatani FAQAT haqiqiy bo'lsa yuboramiz. Avval `Number(...) || 0` 0 yuborardi,
@@ -117,6 +119,30 @@ export default function AdminRestaurantPage() {
         <TextField label="Restoran nomi" value={form.name} onChange={(v) => set('name', v)} placeholder="TURON Kafe" />
         <TextField label="Telefon (+998...)" value={form.phone} onChange={(v) => set('phone', v)} placeholder="+998901234567" />
         <TextField label="Karta raqami (to'lov uchun)" value={form.cardNumber ?? ''} onChange={(v) => set('cardNumber', v)} placeholder="8600 1234 5678 9012" />
+      </div>
+
+      {/* Yetkazib berish narxi */}
+      <div className="admin-card space-y-3 p-4">
+        <div className="flex items-center gap-2">
+          <Store size={16} className="text-ember" />
+          <p className="text-sm font-bold text-slate-900">Yetkazib berish narxi</p>
+        </div>
+        <TextField
+          label="Yetkazib berish narxi (so'm)"
+          value={String(form.deliveryFee ?? 0)}
+          onChange={(v) => set('deliveryFee', Number(v.replace(/\D/g, '')) || 0)}
+          placeholder="5000"
+        />
+        <TextField
+          label="Bepul yetkazish chegarasi (so'm)"
+          value={String(form.freeDeliveryThreshold ?? 0)}
+          onChange={(v) => set('freeDeliveryThreshold', Number(v.replace(/\D/g, '')) || 0)}
+          placeholder="80000"
+        />
+        <p className="text-[11px] leading-snug text-slate-400">
+          Buyurtma summasi chegaraga teng yoki undan katta bo'lsa — yetkazib berish <b>BEPUL</b>.
+          Aks holda yuqoridagi narx umumiy summaga qo'shiladi.
+        </p>
       </div>
 
       {/* Manzil — xaritadan koordinata bo'yicha */}
