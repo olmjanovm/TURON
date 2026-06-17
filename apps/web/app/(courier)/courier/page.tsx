@@ -10,6 +10,7 @@ import {
   useUpdateCourierStatus,
 } from '@/hooks/use-courier';
 import { useCourierSocket } from '@/hooks/use-courier-socket';
+import { useCourierPermissions } from '@/hooks/use-courier-permissions';
 
 function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: () => void; disabled?: boolean }) {
   return (
@@ -41,6 +42,7 @@ export default function CourierStatusPage() {
   const { data: orders } = useCourierOrders();
   const updateStatus = useUpdateCourierStatus();
   const { isConnected } = useCourierSocket();
+  const { ensurePermissions } = useCourierPermissions();
 
   if (isLoading) {
     return (
@@ -83,7 +85,12 @@ export default function CourierStatusPage() {
   const newAssignments = (orders ?? []).filter((o) => o.courierAssignmentStatus === 'ASSIGNED').length;
 
   const handleToggle = () => {
-    updateStatus.mutate({ isOnline: !isOnline, isAcceptingOrders: !isOnline });
+    const goingOnline = !isOnline;
+    // Ishni boshlaganда (online'ga o'tish) — SHU gesture ichida GPS+kompas
+    // ruxsatini ketma-ket so'raymiz (faqat birinchi marta; keyin cache).
+    // await'siz, to'g'ridan-to'g'ri — iOS gesture konteksti saqlansin.
+    if (goingOnline) void ensurePermissions();
+    updateStatus.mutate({ isOnline: goingOnline, isAcceptingOrders: goingOnline });
   };
 
   return (
