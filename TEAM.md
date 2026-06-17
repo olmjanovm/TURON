@@ -110,6 +110,15 @@
     3. **Profil toggle:** courier profil sahifasida "Yangi buyurtma tovushi" ON/OFF — `localStorage`/store yetarli (BE shart emas). Default ON.
   - **BE kerakmi?** PENDING assignment'ni qaytaradigan REST endpoint bo'lsa ishlat; bo'lmasa Sardordан (men) so'ra. (Ixtiyoriy kelajak: Telegram bot ham kuryerга "yangi buyurtma" push qilsin — bu BE/men, app yopiq bo'lsa ham bildiradi; hozir asosiy = in-app fix.)
   - Avval `/software-architect` reja → STATUS → surgical `[courier]` commit.
+- `[2026-06-17]` 🔴🔴 **ENG KATTA MUAMMO — CHATLAR REAL-TIME EMAS (butun loyiha). Socket.io'ga o'tamiz.** Hozir chat POLLING (`refetchInterval` 5s/12s) → har necha soniyada flicker/loading, xabar yuborilmaydi (courier→admin). Socket.io infratuzilma ALLAQACHON BOR (order-tracking/GPS ishlatadi: `src/lib/socket.ts`, BE `socket-events.service.ts`) — chatni o'shanga ulaymiz (valasaped yo'q).
+  - **ARXITEKTURA (kelishilgan):**
+    - Xona (room) = `order:{orderId}` (yoki `chat:{orderId}`). Ishtirokchi (customer/courier/admin) o'z buyurtmasi xonasiga `chat:join` qiladi. Server room'ga ruxsatni tekshiradi (buyurtma ishtirokchisimi — XAVFSIZLIK).
+    - Eventlar: `chat:message` (yangi xabar → room'ga broadcast), `chat:read` (o'qildi → receipt). Client `chat:join`/`chat:leave`.
+    - **Optimistic + dedupe:** mavjud optimistic send qoladi; socket echo kelganда temp xabarni real bilan almashtir (id/contentь bo'yicha), DUBL bo'lmasin.
+    - **Reliability:** reconnect'да bir marta refetch (catch-up); polling 5s o'rniga **30s xavfsizlik fallback** (socket tushsa). Komponent FON refetch'да loading/flicker KO'RSATMASIN (faqat birinchi yuklashда) — bu flicker bug'ining yechimi.
+  - **🔵 CLAUDE 3 (C3-6 · courier chat):** courier order-chat + admin-bilan-bog'lanish chatlarini Socket.io'ga ulang (`use-courier-chat.ts`): yangi shared `useChatSocket(chatId)` (men `src/lib/`'da yarataman) bilan room'ga join + `chat:message`/`chat:read` listener → React Query cache'ni patch qil; `refetchInterval`'ни 5s→30s safety. "Xabar yuborilmaydi" send bug'ini ham tuzat (POST javobi/endpoint tekshir). FON refetchда loading ko'rsatma. **Men `useChatSocket` + BE emit tayyor qilgach** sen ulaysan — `src/lib/`'ni men qo'shaman, xabar beraman.
+  - **🟠 CLAUDE 1 (men) — A9 (backend + shared lib + admin + customer):** (1) BE: chat POST controllerlarда (order admin-chat, support, courier-order chat) saqlangach `socket-events.service`'дан `chat:message` emit (room auth bilan). (2) shared `src/lib/` `useChatSocket` hook. (3) admin `useChatMessages` + customer order-chat → socket + 30s fallback + flicker fix. (4) read-receipt `chat:read`.
+  - Ketma-ketlik: men BE emit + `useChatSocket`'ni birinchi qilaman → Claude 3 courier'ga ulaydi. (Limit: men keyingi sessiyada A9'ni qilaman; Claude 3 mendan `useChatSocket` kelishini kutadi yoki o'zi vaqtincha pollingни 5s→15s qilib flicker'ni kamaytiradi.)
 
 ---
 
