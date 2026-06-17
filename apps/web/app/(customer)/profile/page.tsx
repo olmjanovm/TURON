@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { getTelegramUser } from '@/lib/telegram';
 import { Bell, ChevronRight, Globe, HelpCircle, Info, Loader2, MapPin, Moon, Save, Sun } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useUpdateMyProfile } from '@/hooks/use-customer';
@@ -63,6 +64,11 @@ export default function ProfilePage() {
 
   const initials = (user?.fullName ?? 'U').split(' ').map((s) => s[0]).join('').slice(0, 2).toUpperCase();
 
+  // Telegram profil rasmi — REAL-TIME (saqlanmaydi). Faqat client'da (hidratsiya
+  // mosligini saqlash uchun mount'dan keyin o'rnatamiz).
+  const [tgPhoto, setTgPhoto] = useState<string | undefined>(undefined);
+  useEffect(() => setTgPhoto(getTelegramUser().photoUrl), []);
+
   return (
     <div className="space-y-4 px-4 pb-6 pt-4">
       <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-slate-50">
@@ -76,8 +82,13 @@ export default function ProfilePage() {
           style={{ background: 'radial-gradient(circle, #c62020, transparent 70%)' }}
         />
         <div className="relative flex items-center gap-3">
-          <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-gradient-to-br from-[#c62020] to-[#f97316] text-xl font-black shadow-[0_10px_24px_-8px_rgba(198,32,32,0.7)]">
-            {initials}
+          <div className="h-14 w-14 shrink-0 overflow-hidden rounded-3xl bg-gradient-to-br from-[#c62020] to-[#f97316] shadow-[0_10px_24px_-8px_rgba(198,32,32,0.7)]">
+            {tgPhoto ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={tgPhoto} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+            ) : (
+              <span className="flex h-full w-full items-center justify-center text-xl font-black">{initials}</span>
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-base font-black">{user?.fullName ?? '—'}</p>

@@ -14,7 +14,18 @@ type TelegramWebApp = {
   expand?: () => void;
   close?: () => void;
   initData?: string;
-  initDataUnsafe?: { user?: { id?: number; language_code?: string } };
+  initDataUnsafe?: {
+    user?: {
+      id?: number;
+      language_code?: string;
+      username?: string;
+      first_name?: string;
+      last_name?: string;
+      photo_url?: string;
+    };
+  };
+  // Telegram kontakt so'rovi (Bot API 6.9+). Eski klientlarda undefined.
+  requestContact?: (callback: (sent: boolean) => void) => void;
   version?: string;
   platform?: string;
   colorScheme?: 'light' | 'dark';
@@ -130,4 +141,44 @@ export const haptic = {
 /** Telegram klient tilini qaytaradi (mavjud bo'lsa). */
 export function getTelegramLanguage(): string | null {
   return getWebApp()?.initDataUnsafe?.user?.language_code ?? null;
+}
+
+export interface TelegramUser {
+  id?: number;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  photoUrl?: string;
+}
+
+/**
+ * Telegram foydalanuvchi ma'lumoti (rasm/username) — REAL-TIME, saqlanmaydi.
+ * `photo_url` Telegram tomonidan beriladi (bot saqlamaydi). Mavjud bo'lmasa
+ * chaqiruvchi initials fallback ko'rsatadi.
+ */
+export function getTelegramUser(): TelegramUser {
+  const u = getWebApp()?.initDataUnsafe?.user;
+  return {
+    id: u?.id,
+    username: u?.username,
+    firstName: u?.first_name,
+    lastName: u?.last_name,
+    photoUrl: u?.photo_url,
+  };
+}
+
+/**
+ * Telegram'dan kontakt (telefon) so'raydi (Bot API 6.9+). `callback(sent)` —
+ * `sent=true` bo'lsa foydalanuvchi raqamini ulashdi. Qo'llab-quvvatlanmasa
+ * `false` qaytaradi (chaqiruvchi qo'lda kiritishga o'tadi).
+ */
+export function requestTelegramContact(callback: (sent: boolean) => void): boolean {
+  const wa = getWebApp();
+  if (typeof wa?.requestContact !== 'function') return false;
+  try {
+    wa.requestContact((sent) => callback(Boolean(sent)));
+    return true;
+  } catch {
+    return false;
+  }
 }

@@ -6,10 +6,13 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Check, ChevronRight, Copy, ImagePlus, Loader2, MapPin, Plus, Wallet, CreditCard } from 'lucide-react';
 import { useCartStore } from '@/stores/cart-store';
 import { useCustomerPrefs } from '@/stores/customer-prefs-store';
-import { useAddresses, useCreateOrder, useQuoteOrder, type QuoteResult } from '@/hooks/use-customer';
+import { useAddresses, useCreateOrder, useQuoteOrder, useUpdateMyProfile, type QuoteResult } from '@/hooks/use-customer';
+import { useAuth } from '@/hooks/use-auth';
 import { useRestaurantIdentity } from '@/hooks/use-restaurant-identity';
 import { useT } from '@/lib/i18n/locale-context';
 import { useKeyboard } from '@/hooks/use-keyboard';
+import { formatUzPhone, isValidUzPhone } from '@/lib/phone';
+import { requestTelegramContact } from '@/lib/telegram';
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -58,6 +61,18 @@ function CheckoutInner() {
 
   const quoteMutation = useQuoteOrder();
   const createMutation = useCreateOrder();
+
+  // A4 — telefon raqami: profilда yo'q bo'lsa, checkoutда so'raymiz (kuryer
+  // bog'lanishi uchun). Bir marta kiritilib SAQLANADI → keyingi buyurtmаларда
+  // qayta so'ramaymiz (bezovta qilmaslik uchun). Telegramdan ham olsa bo'ladi.
+  const { user } = useAuth();
+  const updateProfile = useUpdateMyProfile();
+  const needsPhone = !user?.phoneNumber?.trim();
+  const [phone, setPhone] = useState('');
+  const pickTelegramPhone = () => {
+    const ok = requestTelegramContact(() => { /* bot kontaktni saqlaydi; profil keyingi yuklashда keladi */ });
+    if (!ok) setError("Telegram bu qurilmada qo'llab-quvvatlamaydi — raqamni qo'lda kiriting");
+  };
 
   const subtotal = useMemo(
     () => items.reduce((s, i) => s + i.price * i.quantity, 0),
@@ -142,10 +157,14 @@ function CheckoutInner() {
       setError("Karta orqali to'lov uchun chek rasmini yuklang");
       return;
     }
+    if (needsPhone && !isValidUzPhone(phone)) {
+      setError('Kuryer bog\'lanishi uchun telefon raqamingizni kiriting');
+      return;
+    }
     setShowConfirm(true);
   };
 
-  const handleConfirmSubmit = () => {
+  const runCreateOrder = () => {
     if (!selectedAddressId) return;
     createMutation.mutate(
       {
@@ -168,6 +187,20 @@ function CheckoutInner() {
         },
       },
     );
+  };
+
+  const handleConfirmSubmit = () => {
+    if (!selectedAddressId) return;
+    // Telefon yo'q bo'lsa — avval profilga SAQLAYMIZ (keyingi buyurtmалар uchun),
+    // so'ng buyurtma yaratamiz. Saqlash xato bersa ham buyurtmani bloklamaymiz.
+    if (needsPhone && isValidUzPhone(phone)) {
+      updateProfile.mutate(
+        { phoneNumber: phone },
+        { onSuccess: runCreateOrder, onError: runCreateOrder },
+      );
+    } else {
+      runCreateOrder();
+    }
   };
 
   const total = quote?.total ?? subtotal;
@@ -297,6 +330,32 @@ function CheckoutInner() {
           className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-[#c62020] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
         />
       </div>
+
+      {/* A4 — telefon (profilда yo'q bo'lsa) */}
+      {needsPhone && (
+        <Section title="Telefon raqami">
+          <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
+            Kuryer bog&apos;lanishi uchun raqamingiz kerak. Bir marta — keyin saqlanadi.
+          </p>
+          <div className="flex items-center gap-2">
+            <input
+              type="tel"
+              inputMode="numeric"
+              value={phone}
+              onChange={(e) => setPhone(formatUzPhone(e.target.value))}
+              placeholder="+998 90 123 45 67"
+              className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-[#c62020] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
+            />
+            <button
+              type="button"
+              onClick={pickTelegramPhone}
+              className="shrink-0 rounded-2xl bg-[#229ED9]/10 px-3 py-3 text-xs font-bold text-[#229ED9]"
+            >
+              📱 Telegram
+            </button>
+          </div>
+        </Section>
+      )}
 
       {/* Summary */}
       <Section title={t('checkout.summary.title')}>
