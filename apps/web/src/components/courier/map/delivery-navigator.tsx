@@ -81,13 +81,19 @@ const PAN_DURATION_MS = 650;
 const HEADING_ALPHA_MIN = 0.15;
 const HEADING_ALPHA_MAX = 0.4;
 const COMPASS_DEADZONE_DEG = 1.5;      // turganda mikro-jitter'ni e'tiborsiz qoldir
-const GPS_FUSION_MIN_KMH = 12;         // bu tezlikdan yuqorida GPS-bearing fusion yoqiladi
-const GPS_FUSION_DISAGREE_DEG = 60;    // kompas GPS'dan shuncha farq qilsa, GPS'ga moyil
+// Kompas DRIFT'ni tuzatish uchun harakatда GPS-yo'nalishiga kuchliroq tortamiz
+// ("boshida aniq, keyin noto'g'ri" — magnitometr drifti; GPS course drift qilmaydi).
+const GPS_FUSION_MIN_KMH = 8;          // bu tezlikdan yuqorida GPS-bearing fusion yoqiladi
+const GPS_FUSION_DISAGREE_DEG = 30;    // kompas GPS'dan shuncha farq qilsa, GPS'ga moyil
+const GPS_FUSION_PULL = 0.2;           // GPS course'ga tortish kuchi (drift tuzatish)
 const VOICE_THRESHOLDS = [500, 150, 40] as const;
 const SPEED_BUFFER_KMH = 10;
 const HYPER_ZOOM_RADIUS_M = 100;
 const HYPER_ZOOM_LEVEL = 19;
-const NORMAL_ZOOM_LEVEL = 17;
+const CHASE_ZOOM_LEVEL = 18;           // chase-cam yaqin zoom (boshlang'ich + auto-focus)
+const DEG2RAD = Math.PI / 180;
+// Course-up azimuth belgisi — qurilmada teskari bo'lsa -1 ga o'zgartiriladi.
+const AZIMUTH_SIGN = 1;
 const DEFAULT_SPEED_LIMIT: Record<VehicleMode, number> = {
   auto: 60,
   bicycle: 25,
@@ -379,6 +385,23 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
     snapDotRef.current = dot;
   }, []);
 
+  // COURSE-UP: xaritani heading bo'yicha aylantiramiz (strelka doim oldinga
+  // qaragan holda "harakat yo'nalishi tepada" — real navigatsiya). Yandex
+  // azimuth RADIANda; oldin daraja yuborilardi + strelka ham aylanardi (ikki
+  // marta) → teskari/noto'g'ri edi. Endi: strelka qotirilgan (rotate 0),
+  // FAQAT xarita aylanadi. Hyper-zoom (manzilga yaqin) — top-down, aylantirmaymiz.
+  const applyCourseUp = useCallback((heading: number) => {
+    if (hyperZoomActiveRef.current) return;
+    const map = mapRef.current as
+      | (YmapInstance & { setAzimuth?: (a: number, opts?: { duration?: number }) => void })
+      | null;
+    if (!map?.setAzimuth) return;
+    const norm = ((heading % 360) + 360) % 360;
+    try {
+      map.setAzimuth(norm * DEG2RAD * AZIMUTH_SIGN, { duration: 200 });
+    } catch {/* azimuth ixtiyoriy — xaritani buzmasin */}
+  }, []);
+
   const refreshRoute = useCallback(async (from: LatLng, to: LatLng) => {
     const ymaps = ymapsRef.current;
     if (!ymaps) return;
@@ -418,7 +441,7 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
         const center = courierProp ?? pickup;
         const map = new ymaps.Map(containerRef.current, {
           center: [center.lat, center.lng],
-          zoom: NORMAL_ZOOM_LEVEL,
+          zoom: CHASE_ZOOM_LEVEL,
           controls: [],
           type: 'yandex#map',
         }, {
@@ -487,7 +510,14 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
             const m = mapRef.current;
             if (!marker || !m) return;
             const coords = marker.geometry?.getCoordinates?.();
+            // Auto-focus: kuryerga qaytib markazlash + chase-cam yaqin zoom + course-up
             if (coords) void m.panTo(coords, { flying: true, duration: PAN_DURATION_MS });
+            if (!hyperZoomActiveRef.current) {
+              try {
+                if (m.getZoom?.() !== CHASE_ZOOM_LEVEL) void m.setZoom(CHASE_ZOOM_LEVEL, { duration: PAN_DURATION_MS });
+              } catch {/* */}
+              applyCourseUp(headingRef.current);
+            }
           }, AUTOFOCUS_MS);
         };
         map.events.add(['actionbegin', 'wheel'], onInteract);
@@ -642,7 +672,9 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       });
     } else if (!shouldHyperZoom && hyperZoomActiveRef.current) {
       hyperZoomActiveRef.current = false;
-      try { void map.setZoom(NORMAL_ZOOM_LEVEL, { duration: 600 }); } catch {/* */}
+      try { void map.setZoom(CHASE_ZOOM_LEVEL, { duration: 600 }); } catch {/* */}
+      // Top-down (hyperzoom) tugadi — course-up'ni qaytaramiz
+      applyCourseUp(headingRef.current);
     }
 
     if (!interactingRef.current) {
@@ -650,7 +682,7 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
         flying: true, duration: PAN_DURATION_MS,
       });
     }
-  }, [smoothedCourier?.lat, smoothedCourier?.lng, destination.lat, destination.lng]);
+  }, [smoothedCourier?.lat, smoothedCourier?.lng, destination.lat, destination.lng, applyCourseUp]);
 
   // Speed delta (parent prop based)
   const lastCourierRef = useRef<LatLng | null>(null);
@@ -711,21 +743,22 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
           // yengil tortamiz (magnit shovqin / noto'g'ri mount holatini tuzatadi)
           const disagree = deltaAngle(headingRef.current, gpsB);
           if (Math.abs(disagree) > GPS_FUSION_DISAGREE_DEG) {
-            headingRef.current = ((headingRef.current + disagree * 0.1) + 360) % 360;
+            headingRef.current = ((headingRef.current + disagree * GPS_FUSION_PULL) + 360) % 360;
             applied = true;
           }
         }
 
         if (applied) {
-          // Shimol-tepa: faqat strelka buriladi (xarita azimuth'i o'zgarmaydi)
-          courierMarkerRef.current?.properties?.set?.('iconRotateAngle', headingRef.current);
+          // Course-up: strelka oldinda qotirilgan, xarita aylanadi
+          courierMarkerRef.current?.properties?.set?.('iconRotateAngle', 0);
+          applyCourseUp(headingRef.current);
         }
       }
     }
 
     bearingPrevRef.current = smoothedCourier;
     bearingPrevTsRef.current = now;
-  }, [smoothedCourier?.lat, smoothedCourier?.lng]);
+  }, [smoothedCourier?.lat, smoothedCourier?.lng, applyCourseUp]);
 
   // Maneuver + TTS
   useEffect(() => {
@@ -961,12 +994,11 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       if (raf == null) {
         raf = window.requestAnimationFrame(() => {
           raf = null;
-          // Xarita SHIMOL-TEPA qoladi; FAQAT strelka kompas heading'ga buriladi
-          // (CSS rotate — bir ma'noli). Avval xarita ham setAzimuth(heading) bilan
-          // burilardi, lekin Yandex azimuth birligi/yo'nalishi noaniq + strelka ham
-          // burilгani uchun IKKI MARTA aylanish → yo'nalish teskari/noto'g'ri edi.
-          // Endi: shimol-tepa + strelka = telefon qayoqqa qarasa o'sha tomon (aniq).
-          courierMarkerRef.current?.properties?.set?.('iconRotateAngle', headingRef.current);
+          // COURSE-UP (real navigatsiya): strelka DOIM oldinga (rotate 0),
+          // FAQAT xarita heading bo'yicha aylanadi → strelka orqasida xarita
+          // moslashadi (mashina ortidan ketayotgandek, 45° tilt bilan).
+          courierMarkerRef.current?.properties?.set?.('iconRotateAngle', 0);
+          applyCourseUp(headingRef.current);
         });
       }
     };
@@ -990,7 +1022,7 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       }
       window.removeEventListener('deviceorientation', handler);
     };
-  }, []);
+  }, [applyCourseUp]);
 
   // Boshlang'ich aniqlash: iOS 13+ user-gesture so'raydi, qolganlari avtomatik.
   //
