@@ -14,6 +14,16 @@
  * crash bermaydi, faqat realtime ishlamaydi (REST polling fallback).
  */
 
+type AppRole = 'CUSTOMER' | 'COURIER' | 'ADMIN';
+
+/** Recipients the gateway should deliver a chat event to. */
+export interface SocketChatTarget {
+  /** Specific users (order owner, assigned courier). */
+  userIds?: string[];
+  /** Role broadcast rooms (e.g. all admins). */
+  roles?: AppRole[];
+}
+
 const GATEWAY_URL = (process.env.SOCKET_GATEWAY_URL ?? '').replace(/\/$/, '');
 const SECRET = process.env.SOCKET_WEBHOOK_SECRET ?? '';
 const TIMEOUT_MS = 5_000;
@@ -62,5 +72,19 @@ export const SocketEvents = {
   /** Generic: bitta foydalanuvchiga ixtiyoriy event. */
   emit(userId: string, event: string, payload?: unknown) {
     return post('/webhook/emit', { userId, event, payload });
+  },
+
+  /**
+   * Yangi chat xabari — faqat aniq qabul qiluvchilarga (room emas).
+   * Backend qabul qiluvchilarni hal qiladi (targetRole maxfiyligiga rioya qilib),
+   * gateway esa shunchaki ularning `user:`/`role:` xonalariga uzatadi.
+   */
+  chatMessage(target: SocketChatTarget, message: unknown) {
+    return post('/webhook/chat-message', { userIds: target.userIds, roles: target.roles, message });
+  },
+
+  /** O'qildi (read receipt) — chatning barcha ishtirokchilariga. */
+  chatRead(target: SocketChatTarget, read: unknown) {
+    return post('/webhook/chat-read', { userIds: target.userIds, roles: target.roles, read });
   },
 };

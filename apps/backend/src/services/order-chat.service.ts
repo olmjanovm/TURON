@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma.js';
 import { orderTrackingService } from './order-tracking.service.js';
 import { scheduleFallback, cancelFallbacksForOrder, getFallbackDelayMs } from './admin-chat-fallback.service.js';
 import { SupportService } from './support.service.js';
+import { SocketEvents } from './socket-events.service.js';
 
 export interface ChatMessageDto {
   id: string;
@@ -48,6 +49,35 @@ export class OrderChatService {
       where: { orderId, courierId: userId },
     });
     return assignment !== null;
+  }
+
+  /**
+   * Resolve who should receive a realtime chat event for this order.
+   * Admins always (role room). Customer = order owner; courier = most-recent
+   * assignment. `targetRole` (admin-directed messages) narrows the peer set so
+   * an admin→courier message is never pushed to the customer (and vice versa).
+   * Read receipts pass targetRole=null to reach every participant.
+   */
+  private static async resolveRecipients(
+    orderId: string,
+    targetRole: 'COURIER' | 'CUSTOMER' | null,
+  ): Promise<{ userIds: string[]; roles: Array<'ADMIN'> }> {
+    const userIds: string[] = [];
+
+    if (targetRole !== 'COURIER') {
+      const order = await prisma.order.findUnique({ where: { id: orderId }, select: { userId: true } });
+      if (order?.userId) userIds.push(order.userId);
+    }
+    if (targetRole !== 'CUSTOMER') {
+      const assignment = await prisma.courierAssignment.findFirst({
+        where: { orderId },
+        orderBy: { assignedAt: 'desc' },
+        select: { courierId: true },
+      });
+      if (assignment?.courierId) userIds.push(assignment.courierId);
+    }
+
+    return { userIds, roles: ['ADMIN'] };
   }
 
   /**
@@ -117,8 +147,15 @@ export class OrderChatService {
 
     const dto = serializeChatMessage(msg);
 
-    // Publish via SSE so the other party receives it instantly
+    // Publish via SSE so the other party receives it instantly (legacy channel)
     orderTrackingService.publishChatMessage(orderId, dto);
+
+    // Realtime via Socket.io gateway — recipient-targeted (targetRole-aware).
+    // Fire-and-forget: a missing gateway is a graceful no-op (30s poll fallback).
+    void (async () => {
+      const recipients = await this.resolveRecipients(orderId, targetRole);
+      void SocketEvents.chatMessage(recipients, dto);
+    })();
 
     if (senderRole === 'ADMIN') {
       // Admin sent a message → cancel any pending fallbacks
@@ -178,6 +215,16 @@ export class OrderChatService {
     // Broadcast read receipt to all parties on the SSE stream
     if (updated.count > 0) {
       orderTrackingService.publishChatRead(orderId, readerRole);
+
+      // Realtime read receipt via Socket.io gateway → all participants.
+      void (async () => {
+        const recipients = await this.resolveRecipients(orderId, null);
+        void SocketEvents.chatRead(recipients, {
+          orderId,
+          readerRole,
+          readAt: new Date().toISOString(),
+        });
+      })();
     }
   }
 

@@ -3,7 +3,7 @@ import { Server as SocketServer } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { Redis as RedisClient } from 'ioredis';
 import { env } from './config.js';
-import { verifyHandshake, Rooms, type SocketIdentity } from './auth.js';
+import { verifyHandshake, Rooms, type SocketIdentity, type AppRole } from './auth.js';
 import { recordLive, getLive, type LocationSample } from './location-buffer.js';
 
 // ── Bootstrap Fastify ───────────────────────────────────────────────────
@@ -130,6 +130,42 @@ export function emitToUser(userId: string, event: string, payload: unknown) {
   io.to(Rooms.user(userId)).emit(event, payload);
 }
 
+/**
+ * Chat delivery is recipient-targeted, not room-based.
+ *
+ * The gateway has no DB, so it cannot verify order participation. The backend
+ * (which does) resolves the exact recipients respecting admin `targetRole`
+ * privacy, then tells us which `user:<id>` rooms + `role:<role>` rooms to emit
+ * to. This keeps admin→courier messages from leaking to the customer (and vice
+ * versa) without any DB lookup here. On connect every socket already auto-joins
+ * its own `user:` and `role:` rooms, so no explicit chat-join is needed.
+ */
+interface ChatTarget {
+  userIds?: string[];
+  roles?: AppRole[];
+}
+
+function emitToTarget(target: ChatTarget, event: string, payload: unknown) {
+  const seen = new Set<string>();
+  for (const uid of target.userIds ?? []) {
+    if (!uid || seen.has(`u:${uid}`)) continue;
+    seen.add(`u:${uid}`);
+    io.to(Rooms.user(uid)).emit(event, payload);
+  }
+  for (const role of target.roles ?? []) {
+    if (!role || seen.has(`r:${role}`)) continue;
+    seen.add(`r:${role}`);
+    io.to(Rooms.role(role)).emit(event, payload);
+  }
+}
+
+export function emitChatMessage(target: ChatTarget, message: unknown) {
+  emitToTarget(target, 'chat:message', message);
+}
+export function emitChatRead(target: ChatTarget, read: unknown) {
+  emitToTarget(target, 'chat:read', read);
+}
+
 // ── Webhook endpoints — backend (Fastify) ushbu yo'l orqali event tashlaydi
 //    Auth: X-Webhook-Secret header. Bo'sh secret bo'lsa endpoints o'chirilgan. ─
 async function requireWebhookSecret(req: FastifyRequest, reply: FastifyReply) {
@@ -158,6 +194,12 @@ interface WebhookGeneric {
   userId: string;
   event: string;
   payload?: unknown;
+}
+interface WebhookChat {
+  userIds?: string[];
+  roles?: AppRole[];
+  message?: unknown;
+  read?: unknown;
 }
 
 fastify.post('/webhook/assignment-new', { preHandler: requireWebhookSecret }, async (req, reply) => {
@@ -188,12 +230,33 @@ fastify.post('/webhook/emit', { preHandler: requireWebhookSecret }, async (req, 
   return reply.send({ ok: true });
 });
 
+fastify.post('/webhook/chat-message', { preHandler: requireWebhookSecret }, async (req, reply) => {
+  const b = req.body as WebhookChat;
+  if (!b?.message) return reply.code(400).send({ error: 'message required' });
+  emitChatMessage({ userIds: b.userIds, roles: b.roles }, b.message);
+  return reply.send({ ok: true });
+});
+
+fastify.post('/webhook/chat-read', { preHandler: requireWebhookSecret }, async (req, reply) => {
+  const b = req.body as WebhookChat;
+  if (!b?.read) return reply.code(400).send({ error: 'read required' });
+  emitChatRead({ userIds: b.userIds, roles: b.roles }, b.read);
+  return reply.send({ ok: true });
+});
+
 // ── Redis pub/sub — webhook'ga alternativ kanal ────────────────────────
 // Backend Redis'ga `turon:event:*` channellariga JSON yozsa, biz ularni
 // tegishli room'larga forward qilamiz. Bu webhook'dan tezroq va tarmoq
 // hop'i kam (ikkala servis bir Redis'da bo'lsa).
 if (backendBus) {
-  void backendBus.subscribe('turon:assignment-new', 'turon:assignment-cancelled', 'turon:order-updated', 'turon:emit');
+  void backendBus.subscribe(
+    'turon:assignment-new',
+    'turon:assignment-cancelled',
+    'turon:order-updated',
+    'turon:emit',
+    'turon:chat-message',
+    'turon:chat-read',
+  );
   backendBus.on('message', (channel, raw) => {
     try {
       const data = JSON.parse(raw);
@@ -205,6 +268,10 @@ if (backendBus) {
         emitOrderUpdated(data.orderId, { orderId: data.orderId });
       } else if (channel === 'turon:emit' && data.userId && data.event) {
         emitToUser(data.userId, data.event, data.payload);
+      } else if (channel === 'turon:chat-message' && data.message) {
+        emitChatMessage({ userIds: data.userIds, roles: data.roles }, data.message);
+      } else if (channel === 'turon:chat-read' && data.read) {
+        emitChatRead({ userIds: data.userIds, roles: data.roles }, data.read);
       }
     } catch (e) {
       fastify.log.warn({ err: e, channel, raw }, 'Failed to parse redis message');
