@@ -20,8 +20,7 @@ export function OrderInterruptModal() {
   const pathname = usePathname() ?? '';
   const router = useRouter();
   const current = useCourierInterrupt((s) => s.current);
-  const dismiss = useCourierInterrupt((s) => s.dismissInterrupt);
-  const markSeen = useCourierInterrupt((s) => s.markSeen);
+  const snooze = useCourierInterrupt((s) => s.snooze);
   const accept = useAcceptOrder();
   const decline = useDeclineOrder();
   const [timeLeft, setTimeLeft] = useState(0);
@@ -60,13 +59,13 @@ export function OrderInterruptModal() {
       const remaining = Math.max(0, totalSec - elapsed);
       setTimeLeft(remaining);
       if (remaining <= 0) {
-        markSeen(current.id);
-        dismiss();
+        // Timeout — vaqtinchalik snooze; PENDING qolsa keyin yana chiqadi (C3-5)
+        snooze(current.id);
       }
     }, 200);
 
     return () => window.clearInterval(intervalId);
-  }, [current?.id, totalSec, dismiss, markSeen]);
+  }, [current?.id, totalSec, snooze]);
 
   if (!current) return null;
 
@@ -74,8 +73,8 @@ export function OrderInterruptModal() {
     setError(null);
     accept.mutate(current.id, {
       onSuccess: () => {
-        markSeen(current.id);
-        dismiss();
+        // Qabul qilindi — uzoq snooze (qayta pop bo'lmasin; baribir ACTIVE bo'ladi)
+        snooze(current.id, 5 * 60_000);
         // Qabul qilingach DARHOL xarita navigation boshlanadi
         router.push(`/courier/map/${current.id}`);
       },
@@ -89,8 +88,8 @@ export function OrderInterruptModal() {
     setError(null);
     decline.mutate(current.id, {
       onSuccess: () => {
-        markSeen(current.id);
-        dismiss();
+        // Rad etildi — uzoq snooze (qayta pop bo'lmasin)
+        snooze(current.id, 5 * 60_000);
       },
       onError: (err) => {
         setError(err instanceof Error ? err.message : "Rad etib bo'lmadi. Qayta urinib ko'ring.");

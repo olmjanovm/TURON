@@ -1,47 +1,58 @@
 import { create } from 'zustand';
 import type { CourierOrderPreview } from '@/hooks/use-courier';
 
+/** Modal yopilgach shu muddatga qayta ko'rsatmaymiz (PENDING qolsa keyin yana). */
+export const SNOOZE_MS = 45_000;
+
 interface InterruptState {
   /** Hozirda ko'rsatilayotgan interrupt buyurtmasi (yoki null). */
   current: CourierOrderPreview | null;
-  /** Bir marta ko'rsatilgan buyurtmalar — qayta interrupt qilmaslik uchun. */
-  seenIds: Set<string>;
-  /** Detector init bo'ldimi? (Birinchi yuklashda mavjud buyurtmalar pop qilmasin.) */
-  initialized: boolean;
+  /**
+   * orderId → millis (Date.now) shu vaqtgacha qayta ko'rsatmaymiz.
+   * MUHIM: "doimiy seen" EMAS — vaqtinchalik "snooze". Buyurtma PENDING
+   * (ASSIGNED) qolsa, snooze tugagach detektor uni QAYTA ko'rsatadi (C3-5
+   * catch-up: kuryer birinchi marta ko'rmasa/ulgurmasa yo'qolib qolmasin).
+   */
+  snoozedUntil: Record<string, number>;
 
   showInterrupt: (order: CourierOrderPreview) => void;
+  /** Modalni yashiradi (snooze qo'ymaydi — odatda boshqa joydan snooze keladi). */
   dismissInterrupt: () => void;
-  markSeen: (orderId: string) => void;
-  setInitialized: () => void;
+  /** Yashir + shu order'ni `ms` muddatga qayta ko'rsatmaslik. */
+  snooze: (orderId: string, ms?: number) => void;
+  isSnoozed: (orderId: string) => boolean;
   reset: () => void;
 }
 
 /**
- * Interrupt modali holati — faqat ram (persist emas).
- * Sahifa refresh bo'lsa seenIds tozalanadi (tabiiy — qayta ASSIGNED buyurtmalar
+ * Interrupt modali holati — faqat RAM (persist emas).
+ * Sahifa refresh bo'lsa snooze tozalanadi (tabiiy — qayta ASSIGNED buyurtmalar
  * yana interrupt qiladi). Detector va modal komponent shu store'ni o'qiydi.
  */
 export const useCourierInterrupt = create<InterruptState>((set, get) => ({
   current: null,
-  seenIds: new Set<string>(),
-  initialized: false,
+  snoozedUntil: {},
 
   showInterrupt: (order) => {
-    if (get().seenIds.has(order.id)) return;
+    const s = get();
+    if (s.current?.id === order.id) return; // allaqachon ko'rsatilyapti
+    const until = s.snoozedUntil[order.id];
+    if (until && until > Date.now()) return; // snooze davom etyapti
     set({ current: order });
   },
 
   dismissInterrupt: () => set({ current: null }),
 
-  markSeen: (orderId) =>
-    set((s) => {
-      if (s.seenIds.has(orderId)) return s;
-      const next = new Set(s.seenIds);
-      next.add(orderId);
-      return { seenIds: next };
-    }),
+  snooze: (orderId, ms = SNOOZE_MS) =>
+    set((s) => ({
+      current: s.current?.id === orderId ? null : s.current,
+      snoozedUntil: { ...s.snoozedUntil, [orderId]: Date.now() + ms },
+    })),
 
-  setInitialized: () => set({ initialized: true }),
+  isSnoozed: (orderId) => {
+    const until = get().snoozedUntil[orderId];
+    return !!until && until > Date.now();
+  },
 
-  reset: () => set({ current: null, seenIds: new Set(), initialized: false }),
+  reset: () => set({ current: null, snoozedUntil: {} }),
 }));

@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Bike, Car, CheckCircle2, Footprints, Loader2, Save, User, Phone } from 'lucide-react';
+import { ArrowLeft, Bell, BellOff, Bike, Car, CheckCircle2, Footprints, Loader2, Save, User, Phone } from 'lucide-react';
 import { useCourierProfile, useUpdateProfile, type CourierVehicle } from '@/hooks/use-courier';
+import { useCourierSound } from '@/stores/courier-sound-store';
 import { Skeleton } from '@/components/ui/skeleton';
 import { focusScrollIntoView } from '@/hooks/use-keyboard';
 
@@ -20,6 +21,14 @@ export default function CourierProfilePage() {
   const [phone, setPhone] = useState('');
   const [vehicleMode, setVehicleMode] = useState<CourierVehicle>('auto');
   const [saved, setSaved] = useState(false);
+
+  const soundEnabled = useCourierSound((s) => s.enabled);
+  const toggleSound = useCourierSound((s) => s.toggle);
+  const hydrateSound = useCourierSound((s) => s.hydrate);
+
+  useEffect(() => {
+    hydrateSound();
+  }, [hydrateSound]);
 
   useEffect(() => {
     if (profile) {
@@ -197,6 +206,37 @@ export default function CourierProfilePage() {
           className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-[#c62020] to-[#f97316] text-sm font-black text-white shadow-[0_8px_18px_-6px_rgba(198,32,32,0.5)] active:scale-[0.98] disabled:opacity-40"
         >
           {update.isPending ? <Loader2 size={16} className="animate-spin" /> : <><Save size={15} /> Saqlash</>}
+        </button>
+      </div>
+
+      {/* Bildirishnoma sozlamasi — yangi buyurtma tovushi (C3-5, localStorage) */}
+      <div className="flex items-center justify-between gap-3 rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
+        <div className="flex items-center gap-3">
+          <span className={`flex h-10 w-10 items-center justify-center rounded-2xl ${soundEnabled ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+            {soundEnabled ? <Bell size={18} /> : <BellOff size={18} />}
+          </span>
+          <div>
+            <p className="text-sm font-black text-slate-900">Yangi buyurtma tovushi</p>
+            <p className="text-xs text-slate-500">{soundEnabled ? 'Yoqilgan' : "O'chirilgan"}</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={soundEnabled}
+          aria-label="Yangi buyurtma tovushi"
+          onClick={toggleSound}
+          className={`relative inline-flex h-8 w-14 shrink-0 items-center rounded-full border transition-all duration-300 ${
+            soundEnabled
+              ? 'border-emerald-300 bg-emerald-500 shadow-[0_8px_18px_-6px_rgba(16,185,129,0.55)]'
+              : 'border-slate-200 bg-slate-200'
+          }`}
+        >
+          <span
+            className={`ml-1 inline-block h-6 w-6 rounded-full bg-white shadow-md transition-transform duration-300 ${
+              soundEnabled ? 'translate-x-6' : 'translate-x-0'
+            }`}
+          />
         </button>
       </div>
 
