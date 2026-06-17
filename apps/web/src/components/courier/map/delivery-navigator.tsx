@@ -183,6 +183,7 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
   const ymapsRef = useRef<Ymaps | null>(null);
   const courierMarkerRef = useRef<YmapObject | null>(null);
   const polylineGroupRef = useRef<YmapObject[]>([]);
+  const fallbackLineRef = useRef<YmapObject | null>(null);
   const snapDotRef = useRef<YmapObject | null>(null);
 
   const interactingRef = useRef(false);
@@ -327,6 +328,41 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
     });
   }, []);
 
+  // Fallback "navigatsiya chizig'i" — haqiqiy routed polyline hali yo'q bo'lsa
+  // (route yuklanmoqda yoki router API ishlamadi), kuryerdan maqsadga to'g'ri
+  // (dashed) chiziq chizamiz — kuryer DOIM yo'nalish chizig'ini ko'radi.
+  const clearFallbackLine = useCallback(() => {
+    const map = mapRef.current;
+    if (map && fallbackLineRef.current) {
+      try { map.geoObjects.remove(fallbackLineRef.current); } catch {/* */}
+    }
+    fallbackLineRef.current = null;
+  }, []);
+
+  const renderFallbackLine = useCallback((from: LatLng, to: LatLng) => {
+    const map = mapRef.current;
+    const ymaps = ymapsRef.current;
+    if (!map || !ymaps) return;
+    clearFallbackLine();
+    const line = new ymaps.Polyline(
+      [
+        [from.lat, from.lng],
+        [to.lat, to.lng],
+      ],
+      {},
+      {
+        strokeColor: '#2563eb',
+        strokeWidth: 5,
+        strokeOpacity: 0.85,
+        strokeStyle: 'dash',
+        zIndex: 390,
+        antialiasing: true,
+      } as Record<string, unknown>,
+    );
+    map.geoObjects.add(line);
+    fallbackLineRef.current = line;
+  }, [clearFallbackLine]);
+
   const renderSnapDot = useCallback((coords: [number, number]) => {
     const map = mapRef.current;
     const ymaps = ymapsRef.current;
@@ -346,11 +382,28 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
     const ymaps = ymapsRef.current;
     if (!ymaps) return;
     const result = await fetchRoute(from, to, vehicleMode, ymaps);
-    if (!result) return;
+    if (!result || result.segments.length === 0) {
+      // Router ishlamadi — kamida to'g'ri yo'nalish chizig'ini ko'rsatamiz
+      renderFallbackLine(from, to);
+      return;
+    }
+    clearFallbackLine();
     setRoute(result);
     renderPolylines(result.segments);
     renderSnapDot(result.snappedStart);
-  }, [vehicleMode, renderPolylines, renderSnapDot]);
+  }, [vehicleMode, renderPolylines, renderSnapDot, renderFallbackLine, clearFallbackLine]);
+
+  // Navigatsiya chizig'i DOIM ko'rinsin: haqiqiy route yo'q bo'lsa (yuklanmoqda/
+  // xato) kuryerdan maqsadga dashed chiziq; route kelganda olib tashlanadi.
+  useEffect(() => {
+    if (!mapReady || !smoothedCourier) return;
+    if (route && route.segments.length > 0) {
+      clearFallbackLine();
+      return;
+    }
+    renderFallbackLine(smoothedCourier, routeTo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route, smoothedCourier?.lat, smoothedCourier?.lng, routeTo.lat, routeTo.lng, mapReady]);
 
   // Map mount — bir marta, parent re-render xaritani buzmaydi
   useEffect(() => {
@@ -457,6 +510,7 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       ymapsRef.current = null;
       courierMarkerRef.current = null;
       polylineGroupRef.current = [];
+      fallbackLineRef.current = null;
       snapDotRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
