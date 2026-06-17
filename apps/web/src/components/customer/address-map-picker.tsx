@@ -46,6 +46,7 @@ export function AddressMapPicker({ initial, onConfirm, onClose }: AddressMapPick
   const [address, setAddress] = useState<string>('');
   const [resolvingAddress, setResolvingAddress] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [moving, setMoving] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
@@ -87,14 +88,16 @@ export function AddressMapPicker({ initial, onConfirm, onClose }: AddressMapPick
         );
         mapRef.current = map;
 
+        const onActionStart = () => setMoving(true);
         const onActionEnd = () => {
+          setMoving(false); // pin tushadi
           const m = mapRef.current as YmapInstance & { getCenter?: () => number[] };
           const newCenter = m?.getCenter?.();
           if (!newCenter || newCenter.length < 2) return;
           const c: LatLng = { lat: newCenter[0], lng: newCenter[1] };
-          setCenter(c);
+          setCenter(c); // koordinata DARHOL — saqlash tugmasi shu zahoti yoqiladi
 
-          // Debounced reverse geocode
+          // Debounced reverse geocode — faqat manzil MATNI uchun (saqlashни bloklamaydi)
           if (reverseTimerRef.current != null) {
             window.clearTimeout(reverseTimerRef.current);
           }
@@ -119,9 +122,10 @@ export function AddressMapPicker({ initial, onConfirm, onClose }: AddressMapPick
               })
               .catch(() => setAddress(''))
               .finally(() => setResolvingAddress(false));
-          }, 350);
+          }, 180);
         };
 
+        map.events.add('actionbegin', onActionStart);
         map.events.add('actionend', onActionEnd);
 
         // Initial reverse geocode (avval pin qaerda turibti)
@@ -215,8 +219,10 @@ export function AddressMapPicker({ initial, onConfirm, onClose }: AddressMapPick
   }, []);
 
   const handleConfirm = useCallback(() => {
-    if (!center || !address) return;
-    onConfirm({ lat: center.lat, lng: center.lng, address });
+    if (!center) return;
+    // Manzil matni hali kelmagan bo'lsa ham koordinata bilan saqlaymiz (kutmaymiz).
+    const text = address || `${center.lat.toFixed(5)}, ${center.lng.toFixed(5)}`;
+    onConfirm({ lat: center.lat, lng: center.lng, address: text });
   }, [center, address, onConfirm]);
 
   return (
@@ -229,29 +235,21 @@ export function AddressMapPicker({ initial, onConfirm, onClose }: AddressMapPick
         </div>
       )}
 
-      {/* Floating center pin — har doim markazda */}
-      <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-full">
-        <div className="flex flex-col items-center" style={{ transform: 'translateY(8px)' }}>
-          <svg width="40" height="48" viewBox="0 0 36 44">
-            <defs>
-              <linearGradient id="pickerPinGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#f97316" />
-                <stop offset="100%" stopColor="#c62020" />
-              </linearGradient>
-              <filter id="pickerPinShadow" x="-50%" y="-50%" width="200%" height="200%">
-                <feDropShadow dx="0" dy="3" stdDeviation="3" floodColor="rgba(0,0,0,0.4)" />
-              </filter>
-            </defs>
-            <path
-              d="M18 0C8.06 0 0 8.06 0 18c0 13.5 18 26 18 26s18-12.5 18-26C36 8.06 27.94 0 18 0z"
-              fill="url(#pickerPinGrad)"
-              stroke="#fff"
-              strokeWidth="2.5"
-              filter="url(#pickerPinShadow)"
-            />
-            <circle cx="18" cy="18" r="6" fill="#fff" />
-          </svg>
-          <div className="-mt-1 h-1.5 w-3 rounded-full bg-black/30 blur-sm" />
+      {/* Lollipop pin — markazda. Xarita harakatlanganda ko'tariladi (soya kichrayadi),
+          to'xtaganda tushadi. Uchи aniq markazni ko'rsatadi. */}
+      <div className="pointer-events-none absolute left-1/2 top-1/2 z-10">
+        {/* Soya — aniq markaz nuqtasida */}
+        <div
+          className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/45 blur-[2px] transition-all duration-200 ease-out"
+          style={{ width: moving ? 8 : 16, height: moving ? 3 : 5, opacity: moving ? 0.3 : 0.5 }}
+        />
+        {/* Bosh + dasta — uchи markazda, yuqoriga ko'tariladi */}
+        <div
+          className="absolute bottom-0 flex flex-col items-center transition-transform duration-200 ease-out"
+          style={{ transform: `translate(-50%, ${moving ? '-13px' : '-2px'})` }}
+        >
+          <div className="h-6 w-6 rounded-full border-[3px] border-white bg-gradient-to-br from-[#f97316] to-[#c62020] shadow-[0_4px_10px_rgba(198,32,32,0.5)]" />
+          <div className="-mt-0.5 h-3 w-[3px] rounded-full bg-[#c62020]" />
         </div>
       </div>
 
@@ -363,7 +361,7 @@ export function AddressMapPicker({ initial, onConfirm, onClose }: AddressMapPick
           )}
           <button
             type="button"
-            disabled={!address || resolvingAddress}
+            disabled={!center}
             onClick={handleConfirm}
             className="mt-4 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-[#c62020] to-[#f97316] text-base font-black text-white shadow-[0_12px_24px_-8px_rgba(198,32,32,0.55)] active:scale-[0.98] disabled:opacity-50"
           >

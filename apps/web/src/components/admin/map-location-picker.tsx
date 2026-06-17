@@ -76,17 +76,17 @@ export function MapLocationPicker({ initial, onCancel, onConfirm }: Props) {
         setLoading(false);
         void reverseGeocode(ymaps, [initial.lat, initial.lng]);
 
-        const onMove = () => {
-          setMoving(true);
-          if (moveTimer.current) clearTimeout(moveTimer.current);
-          moveTimer.current = setTimeout(() => {
-            setMoving(false);
-            const c = map.getCenter() as [number, number];
-            setCenter(c);
-            void reverseGeocode(ymaps, c);
-          }, 350);
+        // actionbegin/actionend — to'xtagan zahoti pin tushadi va saqlash yoqiladi
+        // (boundschange + 350ms debounce sekin edi). Geocode fonда — saqlashни kutdirmaydi.
+        const onStart = () => setMoving(true);
+        const onEnd = () => {
+          setMoving(false);
+          const c = map.getCenter() as [number, number];
+          setCenter(c); // koordinata DARHOL → saqlash shu zahoti
+          void reverseGeocode(ymaps, c); // manzil matni fonда keladi
         };
-        map.events.add('boundschange', onMove);
+        map.events.add('actionbegin', onStart);
+        map.events.add('actionend', onEnd);
       })
       .catch(() => {
         setError('Xaritani yuklab bo\'lmadi');
@@ -119,24 +119,22 @@ export function MapLocationPicker({ initial, onCancel, onConfirm }: Props) {
           </div>
         )}
 
-        {/* Markaziy lollipop pin + soya */}
+        {/* Markaziy lollipop pin — harakatda ko'tariladi (soya kichrayadi), to'xtaganda tushadi */}
         {!loading && !error && (
-          <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2">
+          <div className="pointer-events-none absolute left-1/2 top-1/2 z-10">
             {/* yerdagi soya (aniq nuqta) */}
-            <span
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 rounded-full bg-black/40 blur-[2px] transition-all duration-300"
-              style={{ width: moving ? 8 : 14, height: moving ? 3 : 5, opacity: moving ? 0.35 : 0.6 }}
+            <div
+              className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/45 blur-[2px] transition-all duration-200 ease-out"
+              style={{ width: moving ? 8 : 16, height: moving ? 3 : 5, opacity: moving ? 0.3 : 0.5 }}
             />
-            {/* pin (ko'tariladi/tushadi) */}
-            <span
-              className="absolute left-1/2 flex -translate-x-1/2 flex-col items-center transition-transform duration-300"
-              style={{ bottom: 2, transform: `translateX(-50%) translateY(${moving ? -16 : 0}px)` }}
+            {/* bosh + dasta (uchи markazda) */}
+            <div
+              className="absolute bottom-0 flex flex-col items-center transition-transform duration-200 ease-out"
+              style={{ transform: `translate(-50%, ${moving ? '-13px' : '-2px'})` }}
             >
-              <span className="flex h-9 w-9 items-center justify-center rounded-full border-[3px] border-white bg-gradient-to-br from-[#c62020] to-[#f97316] shadow-lg">
-                <MapPin size={16} className="text-white" />
-              </span>
-              <span className="-mt-0.5 h-3 w-1 rounded-full bg-[#c62020]" />
-            </span>
+              <div className="h-6 w-6 rounded-full border-[3px] border-white bg-gradient-to-br from-[#f97316] to-[#c62020] shadow-[0_4px_10px_rgba(198,32,32,0.5)]" />
+              <div className="-mt-0.5 h-3 w-[3px] rounded-full bg-[#c62020]" />
+            </div>
           </div>
         )}
       </div>
