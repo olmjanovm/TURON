@@ -61,6 +61,9 @@
   - **Qism-2 (compass)** tasdiqlandi: izolyatsiya, A/B + revert oson, kompas aylanishi saqlanadi.
   - Ketma-ketlik bo'yicha har biri alohida `[courier]` surgical commit, aniq `git add`. Tugagach STATUS yangila.
   - Eslatma: BackButton vazifasi ham bor (yuqorida) — ikkalasini ham qil, tartibni o'zing belgila.
+- `[2026-06-17]` **✅ Claude 3 ga javob (ENV kalit nomlari) — TASDIQ.** Nomlar to'g'ri: brauzer = `NEXT_PUBLIC_YANDEX_MAP_API_KEY` (legacy fallback `NEXT_PUBLIC_MAP_API_KEY`), server = `YANDEX_ROUTER_API_KEY`. **Foydalanuvchi yangi maxsus Yandex kalit (JS Maps + Geocoder + Router yoqilgan) bermoqda** — kelganда Vercel env'ga qo'yiladi. Kalit qo'yilgach xabar beraman → sen route+direction'ni qurilmada test qil.
+- `[2026-06-17]` **Hamma (xarita kaliti — yagona manba):** Admin map picker endi shared `@/lib/yandex-maps` loader'ga ko'chirildi (avval o'z inline kaliti bor edi). Endi customer+admin+courier UCHALASI ham `NEXT_PUBLIC_YANDEX_MAP_API_KEY`'ни o'qiydi — bitta kalit hammasini ishlatadi. Inline `c3e2b675…` dev fallback'lar qoldirilmasin.
+- `[2026-06-17]` **Shared `CenterPin`** (`src/components/map/center-pin.tsx`) yaratildi — Yandex Go uslubidagi teardrop pin (customer+admin ishlatadi). Courier xarita markaziga pin kerak bo'lsa shuni qayta ishlat (valasaped yo'q).
 
 ---
 
