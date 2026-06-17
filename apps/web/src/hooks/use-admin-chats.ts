@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api-client';
+import { useChatSocket, mergeChatMessage, markChatRead } from '@/lib/use-chat-socket';
 
 export interface AdminChatEntry {
   orderId: string;
@@ -43,16 +44,41 @@ export function useAdminInbox() {
   });
 }
 
+const CHAT_KEY = (chatId: string) => ['admin', 'chat', chatId] as const;
+
 export function useChatMessages(chatId: string) {
-  return useQuery<AdminChatMessage[]>({
-    queryKey: ['admin', 'chat', chatId],
+  const qc = useQueryClient();
+  // Support threads have no socket emit yet → keep faster polling (no regression).
+  const isSupport = chatId.startsWith('support:');
+
+  const query = useQuery<AdminChatMessage[]>({
+    queryKey: CHAT_KEY(chatId),
     queryFn: () => apiFetch<AdminChatMessage[]>(endpoints(chatId).list),
     enabled: Boolean(chatId),
-    refetchInterval: 5_000, // polling (Socket.io keyingi fazada)
+    // Order chats are socket-backed → slow safety net; support still polls fast.
+    refetchInterval: isSupport ? 5_000 : 30_000,
   });
-}
 
-const CHAT_KEY = (chatId: string) => ['admin', 'chat', chatId] as const;
+  // Realtime for order chats (admin auto-joins role:ADMIN on connect).
+  useChatSocket(isSupport ? null : chatId, {
+    onMessage: (msg) => {
+      qc.setQueryData<AdminChatMessage[]>(CHAT_KEY(chatId), (old) =>
+        mergeChatMessage(old, msg as AdminChatMessage),
+      );
+      qc.invalidateQueries({ queryKey: ['admin', 'chat-inbox'] });
+    },
+    onRead: (read) => {
+      qc.setQueryData<AdminChatMessage[]>(CHAT_KEY(chatId), (old) =>
+        markChatRead(old, read.readerRole),
+      );
+    },
+    onReconnect: () => {
+      qc.invalidateQueries({ queryKey: CHAT_KEY(chatId) });
+    },
+  });
+
+  return query;
+}
 
 /**
  * Xabar yuborish — OPTIMISTIC (Telegram singari):
