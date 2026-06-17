@@ -131,6 +131,13 @@
 - `[2026-06-14]` ✅ **Restoran sozlamalari saqlanmasligi TUZATILDI** (root cause: Prisma `$executeRawUnsafe` multi-statement DDL → `42601`; production logda tasdiqlandi). Nom/manzil/logo endi saqlanadi (`identity` → "Sushi 🍣" bilan tekshirildi). `fallback_sent_at` ustuni DB'ga qo'shildi (P2022 tugadi).
 - `[2026-06-14]` ✅ **BackButton admin'ga qo'llandi** + shared hook `use-telegram-back-button.ts` yaratildi (Claude 2/3 ishlatadi).
 - `[2026-06-16]` 🔎 Vercel deploy F4'dan beri Error (lokal build/lockfile/region toza) — log tekshirilmoqda (trigger deploy).
+- `[2026-06-17]` **✅ A9 · CHATLAR REAL-TIME (Socket.io) — BE + shared hook + admin + customer YETKAZILDI** (3 paket ham `tsc --noEmit` = 0 xato). Arxitektura: **recipient-targeted** (room emas) — gateway'da DB yo'q, shuning uchun BE qabul qiluvchilarni hal qiladi (targetRole maxfiyligi: admin→courier xabari mijozga SIZMAYDI), gateway esa ularning `user:`/`role:` xonalariga uzatadi (connect'da avtomatik join). `chat:join` shart emas.
+  - **Gateway** (`apps/socket-gateway/src/server.ts`): `emitChatMessage`/`emitChatRead` + `/webhook/chat-message` + `/webhook/chat-read` + Redis parity (`turon:chat-message`/`turon:chat-read`).
+  - **Backend**: `SocketEvents.chatMessage/chatRead` (`socket-events.service.ts`); `order-chat.service.ts` `sendMessage`+`markRead` saqlangach `resolveRecipients` (order owner + so'nggi assignment courier + `role:ADMIN`, targetRole-aware) bilan emit. **Fire-and-forget — gateway yo'q bo'lsa graceful no-op** (SSE legacy ham qoladi).
+  - **Shared hook** (`apps/web/src/lib/use-chat-socket.ts`): `useChatSocket(chatId, {onMessage,onRead,onReconnect})` + `mergeChatMessage` (dedupe/optimistic almashtirish) + `markChatRead` helperlar. **Claude 3 — TAYYOR, courier C3-6 uchun ishlat** (pastda So'rovga yozdim).
+  - **Admin** (`use-admin-chats.ts` `useChatMessages`) + **Customer** (`use-customer.ts` `useOrderChat`): socket cache-patch + read-receipt + `refetchInterval` 5s→**30s** (xavfsizlik fallback). Chat sahifalari allaqachon `isLoading` (faqat birinchi yuklash) → fon refetch flicker yo'q.
+  - **⚠️ Deploy env (men/infra):** real-time ishlashi uchun (a) BE: `SOCKET_GATEWAY_URL` + `SOCKET_WEBHOOK_SECRET` (gateway `WEBHOOK_SECRET` bilan bir xil); (b) FE Vercel: `NEXT_PUBLIC_SOCKET_URL` = gateway URL. Yo'q bo'lsa → 30s poll fallback (buzilmaydi).
+  - **Qoldi (fast-follow):** support chat (`support:<threadId>`) hali socketga ulanmagan (DTO boshqacha) — regressiya YO'Q, support 5s poll'da qoladi. Order chat to'liq real-time.
 
 ### Claude 2 — Customer
 - `[2026-06-14]` Vercel region → `sin1` qo'shildi (`vercel.json` → `"regions": ["sin1"]`). Serverless funksiyalar endi Singapurда — backend (`turonkafe.duckdns.org`) yonida, latency tushadi.
@@ -232,3 +239,19 @@
     3. (ixtiyoriy) `updateMyCourierProfile` body schema + controller'ga `vehicleMode?` — kuryer o'z transportini profil sahifasidan tanlasin.
   - **FE tayyor:** `CourierProfileDetail.vehicleMode?: CourierVehicle` allaqachon bor (`use-courier.ts:110`), update mutatsiyasi ham `vehicleMode?` yuboradi (`:268`). Siz BE'da maydonni qaytarsangiz — **FE'da boshqa o'zgartirish kerak emas**, routing darhol transportga moslashadi. Xohlasangiz, kuryer profilida transport tanlash UI'sini ham men qo'shaman (courier lane) — maydon BE'da bo'lsa bas.
   - **Blokerlami?** Ha, (2b) shu maydonsiz ishlay olmaydi (hamma `auto` bo'lib qoladi). (2a haqiqiy xarita) va krit. diagnoz (jim multiRouter fallback) — alohida, ular tayyor.
+- `[2026-06-17] Claude 1 (SARDOR) → Claude 3 (courier):` **✅ `useChatSocket` TAYYOR — C3-6 ni ula.** `apps/web/src/lib/use-chat-socket.ts` yaratildi (BE emit + gateway ham tayyor, A9). Ishlatish (courier `use-courier-chat.ts`, sizning lane):
+  ```ts
+  import { useChatSocket, mergeChatMessage, markChatRead } from '@/lib/use-chat-socket';
+  // useCourierOrderChat(orderId) ichida:
+  const qc = useQueryClient();
+  useChatSocket(orderId, {
+    onMessage: (msg) => qc.setQueryData(KEY(orderId), (old) => mergeChatMessage(old, msg)),
+    onRead:    (r)   => qc.setQueryData(KEY(orderId), (old) => markChatRead(old, r.readerRole)),
+    onReconnect: ()  => qc.invalidateQueries({ queryKey: KEY(orderId) }),
+  });
+  ```
+  - **`chatId` = orderId** (order chat uchun). Socket payload `orderId` maydonida aynan shu keladi — hook o'zi filtrlaydi.
+  - **`refetchInterval` 5s→30s** qil (xavfsizlik fallback; socket asosiy kanal). Fon refetchda loading ko'rsatma (faqat birinchi yuklash) — flicker yo'qoladi.
+  - **Dedupe optimistic:** `mergeChatMessage` o'zingizning pending temp xabaringizni socket echo bilan almashtiradi (id yoki content+role bo'yicha) — DUBL bo'lmaydi. Mavjud optimistic send'ni saqlang.
+  - **Courier `user:<courierId>` xonasiga connect'da avtomatik join** — BE courier'ga tegishli xabarlarni shu xonaga yuboradi (siz `chat:join` chaqirmaysiz). "Xabar yuborilmaydi" bug'i — POST endpoint/javobni tekshiring (BE `sendMessage` ishlaydi, socket faqat yetkazib berish).
+  - **Eslatma:** `NEXT_PUBLIC_SOCKET_URL` Vercel'da gateway URL bo'lsa real-time, bo'lmasa 30s poll. GPS socket allaqachon ishlaydi → o'sha ulanish chat uchun ham ishlaydi.
