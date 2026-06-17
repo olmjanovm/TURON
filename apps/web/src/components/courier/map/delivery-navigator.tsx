@@ -899,23 +899,27 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       if (absoluteFiredRef.current && !isAbsoluteEvent) return;
 
       let raw: number | null = null;
+      // Ekran orientatsiyasi (portret=0, landshaft=90/270). Kompensatsiya
+      // MAJBURIY — aks holda telefon yon aylanса heading 90° siljiydi.
+      const screenAngle = getScreenAngle();
 
-      // iOS — to'g'ridan-to'g'ri magnit heading beradi (clockwise from north)
+      // iOS — webkitCompassHeading: true-north'dan clockwise, ENG ANIQ manba.
+      // iOS qiymatni EKRAN ramkasiga nisbatan beradi → screenAngle AYIRILADI.
+      // (Android alpha'da esa QO'SHILADI — konvensiyalar teskari. Avval ikkala
+      //  tarmoqqa ham qo'shilardi → iOS landshaftда/offsetда kompas xato edi: C3-1.)
       if (typeof e.webkitCompassHeading === 'number') {
         // iOS accuracy < 0 → magnitometr kalibrlanmagan
         if (typeof e.webkitCompassAccuracy === 'number' && e.webkitCompassAccuracy < 0) return;
-        raw = e.webkitCompassHeading;
+        raw = e.webkitCompassHeading - screenAngle;
       } else if (isAbsoluteEvent && e.alpha != null) {
-        // Android Chrome — alpha: 0 = shimol, counter-clockwise yuqoridan
-        // True heading (clockwise from north) = (360 - alpha)
-        raw = (360 - e.alpha) % 360;
+        // Android Chrome — alpha: 0 = shimol, yuqoridan counter-clockwise.
+        // True heading (clockwise from north) = (360 - alpha), so'ng ekran burchagi.
+        raw = (360 - e.alpha) + screenAngle;
       } else {
         return;
       }
 
-      // Screen orientation correction — telefonni landshaftga aylantirsa
-      // brauzer alpha'ni screen ramkasiga nisbatan beradi. Compensate.
-      raw = (raw + getScreenAngle()) % 360;
+      // 0..360 normalizatsiya (manfiy qiymatni ham to'g'irlaydi)
       raw = ((raw % 360) + 360) % 360;
 
       // Birinchi o'qishni TO'G'RIDAN-TO'G'RI yozamiz — low-pass'ga shimol'dan
