@@ -74,6 +74,34 @@
      - `ymaps.multiRouter.MultiRoute` `params.routingMode`'ни kuryer transportiga bog'la. Transport maydoni qayerdan kelishini (courier profil/buyurtma) o'zing aniqla; bo'lmasa Sardordан (men) BE maydon so'ra.
   - Avval `/software-architect` bilan kichik reja → STATUS → implement. Surgical `[courier]` commitlar.
 - `[2026-06-17]` **✅ Claude 3 ga javob (vehicleMode BLOKERI YECHILDI) — BE maydon qo'shildi.** `User.vehicleMode` (`prisma/schema.prisma`) — **String, default `'auto'`**, qiymatlar `'auto'|'bicycle'|'pedestrian'` (KICHIK harf — FE `CourierVehicle` tipiga aynan mos, sen FE'da hech narsa o'zgartirmaysan). Tegilgan: `getProfile` serializer endi `vehicleMode` qaytaradi; `updateOwnProfile` + `UpdateCourierProfileSchema` (`z.enum`) + controller body uni qabul qiladi; migratsiya `prisma/sql/20260617000000_add_courier_vehicle_mode.sql` (idempotent ALTER, AWS'da `prisma:migrate` yoki to'g'ridan ALTER bilan qo'llanadi). ⇒ **Sen profil sahifasiga transport tanlash UI'sini qo'shsang bo'ladi** (courier lane) — `useUpdateCourierProfile` `vehicleMode` yuboradi, routing darhol moslashadi. Enum DDL emas, String tanladim (lowercase Yandex `routingMode` + pooler-safe).
+- `[2026-06-17]` 🧪 **TEST KAMCHILIKLARI — lane bo'yicha taqsimlandi (foydalanuvchi).** Har biri alohida surgical commit; KATTA bo'lsa `/software-architect` reja → STATUS → implement.
+
+  #### 🔵 CLAUDE 3 — COURIER (aniq texnik prompt, qadam-baqadam):
+  - **C3-1 · Kompas 100% aniqlik (BUG, YUQORI USTUVOR).** Muammo: qurilma usti SHARQqa qaratilsa kompas janub/g'arbni ko'rsatadi (heading eksa/offset xato).
+    - `delivery-navigator.tsx` heading handler:
+      - iOS: `event.webkitCompassHeading` (0=N, soat yo'nalishi, true-north) — BOR bo'lsa TO'G'RIDAN-TO'G'RI shu (eng aniq).
+      - Android: `event.absolute === true` → `heading = (360 - event.alpha) % 360`.
+      - **Ekran orientatsiyasi kompensatsiyasi MAJBURIY:** `screenAngle = screen.orientation?.angle ?? 0` → heading'ga qo'sh/ayir (webkit: `- screenAngle`, alpha: `+ screenAngle`), `% 360`.
+      - Low-pass filterни XOM emas, KOMPENSATSIYA qilingan heading'ga qo'lla. `DeviceOrientationEvent.requestPermission()` user gesture'dan.
+    - Tekshir: telefon ufqда tekis, usti N/E/S/W → kompas aynan shu (±5°).
+  - **C3-2 · Yangi Yandex xarita (eski QORA QOTGAN map o'rniga) + qotishni yo'qot.** Kerak: real Yandex (ko'chalar, svetafor/probka), smooth.
+    - Shared `@/lib/yandex-maps` `loadYandexMaps()` (`NEXT_PUBLIC_YANDEX_MAP_API_KEY`) ishlat — eski/alohida loader yoki dev-fallbackдан voz kech. `order-map.tsx`/`delivery-navigator.tsx` map type standart `yandex#map`. Traffic: `map.controls.add('trafficControl')` yoki `ymaps.control.TrafficControl` → svetafor/probka rangли.
+    - Qotish: map instance BIR marta (mount) yaratilsin, `useEffect` deps to'g'ri, cleanup `map.destroy()`. Har render'да qayta yaratilmasin; og'ir polyline qayta chizishни throttle.
+  - **C3-3 · Courier TARIX — eski buyurtma ustiga bosilsa "QABUL QILISH" emas, TO'LIQ READ-ONLY.** Muammo: 3-4 oy oldingi tarixда "qabul qilish" CTA chiqadi (xato).
+    - Status terminal (DELIVERED/CANCELLED) bo'lsa action bar / CTA KO'RINMASIN. Read-only ko'rsat: vaqt(lar), mahsulotlar (nomi×soni), qayerdan→qayerga, summa (mahsulot+yetkazish), qancha vaqtda yetkazilgani, to'lov turi, holati. Joy: `app/(courier)/courier/order/[orderId]` — status'ga qarab CTA yashir.
+  - **C3-4 · Ruxsatlar (courier ulushi).** OS'да bitta "allow" mumkin emas (GPS/kompas alohida tizim), LEKIN: courier ish boshlaganда BIR gesture'да ketma-ket so'ra (`DeviceOrientationEvent.requestPermission()` + `geolocation.getCurrentPosition()`) + natijani cache (store/localStorage) → QAYTA so'ramasin.
+
+  #### 🟠 CLAUDE 1 (men) TODO — admin/backend/customer (limit tugab qolgani uchun KEYINGI sessiyada men; Claude 3 TEGMASIN):
+  - **A1 (KRIT):** order-modification `Invalid prisma.orderModification…` — qo'shimcha taom + check, yoki to'lov usuli o'zgartirish + check yuklaganда xato. Backend `order-modification.service.ts` Prisma chaqiruvi.
+  - **A2:** promo — noto'g'ri bo'lsa "eng yaqin promo taklif" (did-you-mean, tilga qarab) yoki "muddati tugagan/amal qilmaydi" to'liq holat; + mavjud promolar ham ishlamayapti. Backend promo + customer FE.
+  - **A3:** buyurtma izohi (note) kelmayapti.
+  - **A4:** checkout — telefon yo'q bo'lsa Telegram `requestContact()` (bir martalik) → raqam + saqlash + keyingi buyurtmaларда qayta ishlatish ("shu raqammi?", bezovta qilmasdan).
+  - **A5:** admin restaurant settings — LOGO yuklash ishlamayapti.
+  - **A6:** telefon format — `907917699` → avtomatik `+998…` (agar `+998` bilan boshlanmasa). BARCHA telefon inputlarда (admin + customer) — shared util.
+  - **A7:** customer profil — Telegram profil rasmi real-time (saqlamasdan).
+  - **A8:** kichik ma'lumot uchun Telegram `CloudStorage` (telefon/sozlama).
+
+  *Eslatma (hammaga): Telegram `requestContact`/`CloudStorage`/`DeviceOrientation` — har biri alohida ruxsat tizimi. "Bitta allow" = bir gesture'да ketma-ket so'rab, natijani cache qilish.*
 
 ---
 
