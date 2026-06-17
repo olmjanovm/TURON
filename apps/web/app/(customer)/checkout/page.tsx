@@ -1,14 +1,24 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, ChevronRight, Loader2, MapPin, Plus, Wallet, CreditCard } from 'lucide-react';
+import { ArrowLeft, Check, ChevronRight, Copy, ImagePlus, Loader2, MapPin, Plus, Wallet, CreditCard } from 'lucide-react';
 import { useCartStore } from '@/stores/cart-store';
 import { useCustomerPrefs } from '@/stores/customer-prefs-store';
 import { useAddresses, useCreateOrder, useQuoteOrder, type QuoteResult } from '@/hooks/use-customer';
+import { useRestaurantIdentity } from '@/hooks/use-restaurant-identity';
 import { useT } from '@/lib/i18n/locale-context';
 import { useKeyboard } from '@/hooks/use-keyboard';
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 type PaymentMethod = 'CASH' | 'MANUAL_TRANSFER';
 // CASH = naqd, MANUAL_TRANSFER = bank o'tkazmasi (backend nomi)
@@ -38,6 +48,10 @@ function CheckoutInner() {
   const [quote, setQuote] = useState<QuoteResult | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [noteFocused, setNoteFocused] = useState(false);
+  const [receipt, setReceipt] = useState('');
+  const [copied, setCopied] = useState(false);
+  const receiptRef = useRef<HTMLInputElement>(null);
+  const { cardNumber } = useRestaurantIdentity();
   const { isOpen: kbOpen, height: kbHeight } = useKeyboard();
   // Izoh fokuslanganda — kartani klaviatura ustiga pin qilamiz (cart promokod kabi)
   const notePinned = noteFocused && kbOpen;
@@ -100,10 +114,32 @@ function CheckoutInner() {
 
   const selectedAddress = addresses.find((a) => a.id === selectedAddressId);
 
+  const onPickReceipt = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError(null);
+    try {
+      setReceipt(await fileToBase64(file));
+    } catch {
+      setError("Chek rasmi o'qilmadi");
+    }
+  };
+
+  const copyCard = () => {
+    if (!cardNumber) return;
+    navigator.clipboard?.writeText(cardNumber).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
   const handleClickSubmit = () => {
     setError(null);
     if (!selectedAddressId) {
       setError(t('checkout.error.no_address'));
+      return;
+    }
+    if (paymentMethod === 'MANUAL_TRANSFER' && !receipt) {
+      setError("Karta orqali to'lov uchun chek rasmini yuklang");
       return;
     }
     setShowConfirm(true);
@@ -118,6 +154,7 @@ function CheckoutInner() {
         promoCode: promoFromUrl,
         paymentMethod,
         note: note.trim() || undefined,
+        receiptImageBase64: paymentMethod === 'MANUAL_TRANSFER' ? receipt : undefined,
       },
       {
         onSuccess: (order) => {
@@ -195,6 +232,47 @@ function CheckoutInner() {
             label={t('checkout.payment.transfer')}
           />
         </div>
+
+        {/* Karta orqali — karta raqami (copy) + chek yuklash */}
+        {paymentMethod === 'MANUAL_TRANSFER' && (
+          <div className="mt-3 space-y-3 rounded-2xl bg-slate-50 p-3 dark:bg-slate-800/60">
+            {cardNumber ? (
+              <button
+                type="button"
+                onClick={copyCard}
+                className="flex w-full items-center justify-between gap-2 rounded-2xl bg-white px-4 py-3 active:scale-[0.99] dark:bg-slate-900"
+              >
+                <span className="font-black tracking-wider text-slate-900 tabular-nums dark:text-slate-100">{cardNumber}</span>
+                <span className="flex items-center gap-1 text-xs font-bold text-[#c62020]">
+                  {copied ? <><Check size={14} /> Olindi</> : <><Copy size={14} /> Nusxa</>}
+                </span>
+              </button>
+            ) : (
+              <p className="rounded-2xl bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+                Karta raqami sozlanmagan — admin bilan bog&apos;laning.
+              </p>
+            )}
+            <p className="text-xs text-slate-500">
+              Yuqoridagi kartaga to&apos;lov qiling, so&apos;ng chek rasmini yuklang.
+            </p>
+            <input ref={receiptRef} type="file" accept="image/*" hidden onChange={onPickReceipt} />
+            <button
+              type="button"
+              onClick={() => receiptRef.current?.click()}
+              className="relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-slate-200 bg-white text-slate-400 dark:border-slate-700 dark:bg-slate-900"
+            >
+              {receipt ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={receipt} alt="chek" className="h-full w-full object-contain" />
+              ) : (
+                <span className="flex flex-col items-center gap-2">
+                  <ImagePlus size={24} />
+                  <span className="text-xs font-semibold">To&apos;lov chekini yuklash</span>
+                </span>
+              )}
+            </button>
+          </div>
+        )}
       </Section>
 
       {/* Note — fokuslanganda klaviatura ustiga pin bo'ladi */}

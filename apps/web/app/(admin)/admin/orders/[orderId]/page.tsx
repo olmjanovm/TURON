@@ -187,7 +187,16 @@ function PaymentActions({ orderId, order }: { orderId: string; order: Order }) {
   return (
     <div className="admin-card admin-card-accent p-4 pt-5">
       <p className="text-sm font-bold text-slate-900">To'lovni tekshirish</p>
-      <p className="mt-0.5 text-xs text-slate-500">Bank o'tkazmasi tasdiqlanishi kutilmoqda</p>
+      <p className="mt-0.5 text-xs text-slate-500">Chekni tekshirib tasdiqlang</p>
+      {order.receiptImageUrl ? (
+        <a href={order.receiptImageUrl} target="_blank" rel="noopener noreferrer" className="mt-3 block">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={order.receiptImageUrl} alt="chek" className="max-h-72 w-full rounded-xl bg-white object-contain" />
+          <span className="mt-1 block text-center text-[11px] font-semibold text-sky-600">Chekni kattalashtirish</span>
+        </a>
+      ) : (
+        <p className="mt-2 text-xs text-rose-500">Chek yuklanmagan</p>
+      )}
       <div className="mt-3 flex gap-2">
         <button
           type="button"

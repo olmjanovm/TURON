@@ -62,6 +62,8 @@ export interface QuoteResult {
 
 export interface CreateOrderInput extends QuoteInput {
   note?: string;
+  /** MANUAL_TRANSFER (karta) uchun to'lov cheki — base64 dataURL. */
+  receiptImageBase64?: string;
 }
 
 export interface NotificationItem {
@@ -184,6 +186,7 @@ export function useCreateOrder() {
         paymentMethod: input.paymentMethod,
         promoCode: input.promoCode,
         note: input.note,
+        receiptImageBase64: input.receiptImageBase64,
       };
       return apiFetch<CustomerOrder>('/orders', {
         method: 'POST',

@@ -712,6 +712,8 @@ export async function handleCreateOrder(
       const uploadedUrl = await StorageService.uploadBase64(receiptImageBase64, 'receipts');
       if (uploadedUrl) {
         uploadedReceiptUrl = uploadedUrl;
+        // Xotira to'lmasligi uchun — faqat oxirgi IMG_LIMIT (default 30) chek qoladi.
+        void StorageService.pruneOldest('receipts');
       } else {
         console.warn('[Orders] Receipt storage upload returned null — falling back to inline base64 in DB.');
         uploadedReceiptUrl = receiptImageBase64;

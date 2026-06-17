@@ -92,4 +92,55 @@ export class StorageService {
       return null;
     }
   }
+
+  /**
+   * Bucket'da faqat oxirgi `keep` ta (eng yangi) fayl qoladi — qolganlari o'chiriladi.
+   * Xotira to'lib, ortiqcha xarajat bo'lmasligi uchun. Default IMG_LIMIT=30 (env'dan
+   * o'zgartirsa bo'ladi). Fayllar `Date.now()-uuid` nomli → created_at desc = yangi avval.
+   * Fire-and-forget chaqiriladi (asosiy oqimni bloklamaydi).
+   */
+  static async pruneOldest(
+    bucket: 'receipts' | 'deliveries' | 'menu',
+    keep: number = Number(process.env.IMG_LIMIT) || 30,
+  ): Promise<void> {
+    if (!SUPABASE_URL || !SUPABASE_KEY || keep <= 0) return;
+    try {
+      const listRes = await fetch(`${SUPABASE_URL}/storage/v1/object/list/${bucket}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          apikey: SUPABASE_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prefix: '',
+          limit: 1000,
+          sortBy: { column: 'created_at', order: 'desc' },
+        }),
+      });
+      if (!listRes.ok) return;
+
+      const files = (await listRes.json()) as Array<{ name?: string }>;
+      if (!Array.isArray(files) || files.length <= keep) return;
+
+      const toDelete = files
+        .slice(keep)
+        .map((f) => f.name)
+        .filter((n): n is string => Boolean(n));
+      if (toDelete.length === 0) return;
+
+      await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          apikey: SUPABASE_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prefixes: toDelete }),
+      });
+      console.log(`[StorageService] pruned ${toDelete.length} old file(s) from ${bucket} (keep=${keep})`);
+    } catch (err) {
+      console.error(`[StorageService] prune ${bucket} error:`, err);
+    }
+  }
 }

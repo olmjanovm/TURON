@@ -155,6 +155,7 @@ export class OrderModificationService {
       if (typeof base64 === 'string' && base64.trim()) {
         try {
           receiptUrl = await StorageService.uploadBase64(base64, 'receipts');
+          if (receiptUrl) void StorageService.pruneOldest('receipts');
         } catch {
           receiptUrl = null;
         }
@@ -212,6 +213,7 @@ export class OrderModificationService {
       if (typeof base64 === 'string' && base64.trim()) {
         try {
           receiptUrl = await StorageService.uploadBase64(base64, 'receipts');
+          if (receiptUrl) void StorageService.pruneOldest('receipts');
         } catch {
           receiptUrl = null;
         }

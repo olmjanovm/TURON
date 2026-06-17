@@ -33,6 +33,7 @@ export interface AdminOrder {
   courierName?: string;
   cancelledByRole?: 'customer' | 'admin' | 'courier' | null;
   cancellationReason?: string | null;
+  receiptImageUrl?: string | null;
 }
 
 /** GET /api/orders -> admin ro'yxati. */
