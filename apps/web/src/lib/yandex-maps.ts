@@ -190,22 +190,34 @@ export function getCurrentLocation(): Promise<LatLng> {
 
 /**
  * Reverse geocode — koordinatadan manzil matni.
+ *
+ * MUHIM: Yandex geocode promise'i ba'zan (kalit ruxsati/tarmoq) HECH QACHON
+ * resolve bo'lmaydi → UI "Aniqlanmoqda..."da qotib qoladi. Shuning uchun
+ * `timeoutMs` (default 5s) bilan poyga qilamiz — kechiksa null qaytadi va
+ * chaqiruvchi koordinatani fallback sifatida ishlatadi.
  */
-export async function reverseGeocode(point: LatLng): Promise<string | null> {
+export async function reverseGeocode(
+  point: LatLng,
+  timeoutMs = 5000,
+): Promise<string | null> {
   try {
     const ymaps = await loadYandexMaps();
     if (!ymaps.geocode) return null;
-    const result = (await ymaps.geocode([point.lat, point.lng], {
+    const geocodePromise = ymaps.geocode([point.lat, point.lng], {
       kind: 'house',
       results: 1,
-    })) as {
+    }) as Promise<{
       geoObjects: {
         get: (i: number) => {
           getAddressLine?: () => string;
           properties?: { get?: (k: string) => string };
         } | null;
       };
-    };
+    }>;
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('geocode-timeout')), timeoutMs),
+    );
+    const result = await Promise.race([geocodePromise, timeout]);
     const obj = result.geoObjects.get(0);
     if (!obj) return null;
     return obj.getAddressLine?.() ?? obj.properties?.get?.('text') ?? null;

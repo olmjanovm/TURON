@@ -17,11 +17,13 @@ import { Check, Crosshair, Loader2, MapPin, Search, X } from 'lucide-react';
 import {
   getCurrentLocation,
   loadYandexMaps,
+  reverseGeocode,
   RESTAURANT_DEFAULT,
   type LatLng,
   type Ymaps,
   type YmapInstance,
 } from '@/lib/yandex-maps';
+import { CenterPin } from '@/components/map/center-pin';
 
 interface SearchResult {
   id: string;
@@ -97,30 +99,15 @@ export function AddressMapPicker({ initial, onConfirm, onClose }: AddressMapPick
           const c: LatLng = { lat: newCenter[0], lng: newCenter[1] };
           setCenter(c); // koordinata DARHOL — saqlash tugmasi shu zahoti yoqiladi
 
-          // Debounced reverse geocode — faqat manzil MATNI uchun (saqlashни bloklamaydi)
+          // Debounced reverse geocode — faqat manzil MATNI uchun (saqlashни bloklamaydi).
+          // Lib'dagi reverseGeocode timeout'li → hech qachon "Aniqlanmoqda"da qotmaydi.
           if (reverseTimerRef.current != null) {
             window.clearTimeout(reverseTimerRef.current);
           }
           setResolvingAddress(true);
           reverseTimerRef.current = window.setTimeout(() => {
-            if (!ymaps.geocode) {
-              setResolvingAddress(false);
-              return;
-            }
-            (ymaps.geocode([c.lat, c.lng], { kind: 'house', results: 1 }) as Promise<{
-              geoObjects: {
-                get: (i: number) => {
-                  getAddressLine?: () => string;
-                  properties?: { get?: (k: string) => string };
-                } | null;
-              };
-            }>)
-              .then((result) => {
-                const obj = result.geoObjects.get(0);
-                const text = obj?.getAddressLine?.() ?? obj?.properties?.get?.('text') ?? '';
-                setAddress(text);
-              })
-              .catch(() => setAddress(''))
+            reverseGeocode(c)
+              .then((text) => setAddress(text ?? ''))
               .finally(() => setResolvingAddress(false));
           }, 180);
         };
@@ -235,23 +222,9 @@ export function AddressMapPicker({ initial, onConfirm, onClose }: AddressMapPick
         </div>
       )}
 
-      {/* Lollipop pin — markazda. Xarita harakatlanganda ko'tariladi (soya kichrayadi),
-          to'xtaganda tushadi. Uchи aniq markazni ko'rsatadi. */}
-      <div className="pointer-events-none absolute left-1/2 top-1/2 z-10">
-        {/* Soya — aniq markaz nuqtasida */}
-        <div
-          className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/45 blur-[2px] transition-all duration-200 ease-out"
-          style={{ width: moving ? 8 : 16, height: moving ? 3 : 5, opacity: moving ? 0.3 : 0.5 }}
-        />
-        {/* Bosh + dasta — uchи markazda, yuqoriga ko'tariladi */}
-        <div
-          className="absolute bottom-0 flex flex-col items-center transition-transform duration-200 ease-out"
-          style={{ transform: `translate(-50%, ${moving ? '-13px' : '-2px'})` }}
-        >
-          <div className="h-6 w-6 rounded-full border-[3px] border-white bg-gradient-to-br from-[#f97316] to-[#c62020] shadow-[0_4px_10px_rgba(198,32,32,0.5)]" />
-          <div className="-mt-0.5 h-3 w-[3px] rounded-full bg-[#c62020]" />
-        </div>
-      </div>
+      {/* Markaziy pin — Yandex Go uslubidagi teardrop (shared CenterPin).
+          Uchи aniq markazni ko'rsatadi; harakatda ko'tariladi, to'xtaganda tushadi. */}
+      {mapReady && <CenterPin moving={moving} />}
 
       {/* Top — search */}
       <div
