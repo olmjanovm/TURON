@@ -97,9 +97,23 @@ export default function CourierOrderDetailPage({ params }: { params: Promise<{ o
     );
   }
 
-  const isAssigned = order.courierAssignmentStatus === 'ASSIGNED';
+  // Terminal holatni FAQAT deliveryStage'dan emas, kanonik orderStatus +
+  // assignment'dan ham aniqlaymiz. Aks holda eski/bekor (CANCELLED) buyurtma
+  // tarixdan ochilganда advance/"qabul qilish" CTA chiqib ketadi (C3-3 bug).
+  const orderStatusUpper = (order.orderStatus ?? '').toUpperCase();
+  const assignmentUpper = (order.courierAssignmentStatus ?? '') as string;
   const stage = order.deliveryStage ?? 'IDLE';
-  const isDelivered = stage === 'DELIVERED';
+  const isDelivered =
+    stage === 'DELIVERED' || orderStatusUpper === 'DELIVERED' || assignmentUpper === 'DELIVERED';
+  const isCancelled =
+    !isDelivered &&
+    (orderStatusUpper === 'CANCELLED' ||
+      orderStatusUpper === 'REJECTED' ||
+      assignmentUpper === 'CANCELLED' ||
+      assignmentUpper === 'DECLINED');
+  const isTerminal = isDelivered || isCancelled;
+  // Yangi (hali qabul qilinmagan) buyurtma — faqat terminal BO'LMASA
+  const isAssigned = !isTerminal && assignmentUpper === 'ASSIGNED';
   const nextAct = getNextStageAction(stage);
   const isLastAction = nextAct?.next === 'DELIVERED';
   const total = (order.total ?? 0) + (order.deliveryFee ?? 0);
@@ -162,7 +176,7 @@ export default function CourierOrderDetailPage({ params }: { params: Promise<{ o
             <p className="truncate text-xs text-slate-500">{order.customerName}</p>
           )}
         </div>
-        {!isAssigned && !isDelivered ? (
+        {!isAssigned && !isTerminal ? (
           <Link
             href={`/courier/map/${order.id}`}
             aria-label="Xarita"
@@ -175,16 +189,48 @@ export default function CourierOrderDetailPage({ params }: { params: Promise<{ o
         )}
       </div>
 
-      {/* Stage tracker */}
-      {!isAssigned && (
+      {/* Stage tracker — bekor qilinganda ko'rsatilmaydi (chalg'itadi) */}
+      {!isAssigned && !isCancelled && (
         <div className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
           <p className="mb-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">Holat</p>
           <StageTracker current={stage} />
         </div>
       )}
 
-      {/* Accept / Decline (for new orders) */}
-      {isAssigned ? (
+      {/* Terminal (topshirildi / bekor) — READ-ONLY, hech qanday CTA yo'q (C3-3) */}
+      {isTerminal ? (
+        <div className="space-y-2">
+          {isCancelled ? (
+            <div className="flex items-center gap-3 rounded-3xl border border-slate-200 bg-slate-50 p-5">
+              <X size={26} className="shrink-0 text-slate-400" />
+              <div>
+                <p className="text-base font-black text-slate-700">Buyurtma bekor qilingan</p>
+                <p className="text-xs text-slate-500">Yakunlangan — faqat ko&apos;rish uchun</p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 rounded-3xl border border-emerald-200 bg-emerald-50 p-5">
+              <CheckCircle2 size={28} className="shrink-0 text-emerald-600" />
+              <div>
+                <p className="text-base font-black text-emerald-900">Buyurtma topshirildi</p>
+                <p className="text-xs text-emerald-700">Muvaffaqiyatli yakunlandi</p>
+              </div>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={openContact}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white py-3 text-sm font-black text-slate-700 shadow-sm active:scale-[0.99]"
+          >
+            <Headset size={16} className="text-[#c62020]" /> Bu buyurtma haqida admin bilan bog&apos;lanish
+            {unreadCount > 0 && (
+              <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#c62020] px-1.5 text-[11px] font-black text-white">
+                {unreadCount}
+              </span>
+            )}
+          </button>
+        </div>
+      ) : isAssigned ? (
         <div className="space-y-2">
           <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4">
             <p className="text-sm font-black text-amber-900">Yangi buyurtma keldi</p>
@@ -211,7 +257,7 @@ export default function CourierOrderDetailPage({ params }: { params: Promise<{ o
             </button>
           </div>
         </div>
-      ) : !isDelivered ? (
+      ) : (
         confirming ? (
           <div className="space-y-2 rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3.5">
@@ -300,28 +346,6 @@ export default function CourierOrderDetailPage({ params }: { params: Promise<{ o
             </button>
           )
         )
-      ) : (
-        <div className="space-y-2">
-          <div className="flex items-center gap-3 rounded-3xl border border-emerald-200 bg-emerald-50 p-5">
-            <CheckCircle2 size={28} className="shrink-0 text-emerald-600" />
-            <div>
-              <p className="text-base font-black text-emerald-900">Buyurtma topshirildi</p>
-              <p className="text-xs text-emerald-700">Muvaffaqiyatli yakunlandi</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={openContact}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white py-3 text-sm font-black text-slate-700 shadow-sm active:scale-[0.99]"
-          >
-            <Headset size={16} className="text-[#c62020]" /> Bu buyurtma haqida admin bilan bog&apos;lanish
-            {unreadCount > 0 && (
-              <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#c62020] px-1.5 text-[11px] font-black text-white">
-                {unreadCount}
-              </span>
-            )}
-          </button>
-        </div>
       )}
 
       {/* Customer */}
@@ -391,8 +415,8 @@ export default function CourierOrderDetailPage({ params }: { params: Promise<{ o
         </div>
       </div>
 
-      {/* Problem report */}
-      {!isDelivered && !isAssigned && (
+      {/* Problem report — faqat faol buyurtmada (terminal/yangi'da yo'q) */}
+      {!isTerminal && !isAssigned && (
         <div className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
             <AlertTriangle size={15} className="text-red-500" />
