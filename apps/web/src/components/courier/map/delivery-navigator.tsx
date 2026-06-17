@@ -185,6 +185,7 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
   const polylineGroupRef = useRef<YmapObject[]>([]);
   const fallbackLineRef = useRef<YmapObject | null>(null);
   const snapDotRef = useRef<YmapObject | null>(null);
+  const trafficProviderRef = useRef<{ setMap: (m: unknown) => void } | null>(null);
 
   const interactingRef = useRef(false);
   const autofocusTimerRef = useRef<number | null>(null);
@@ -491,6 +492,24 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
         };
         map.events.add(['actionbegin', 'wheel'], onInteract);
 
+        // Real Yandex traffic — ko'chalar svetafor/probka rangida (Navigator hissi).
+        // package.full traffic provider'ni beradi; xato bo'lsa jimgina o'tkazib yuboramiz.
+        try {
+          const TrafficProvider = (ymaps as unknown as {
+            traffic?: { provider?: { Actual?: new (p: object, o: object) => { setMap: (m: unknown) => void } } };
+          }).traffic?.provider?.Actual;
+          if (TrafficProvider) {
+            const tp = new TrafficProvider({}, { infoLayerShown: true });
+            tp.setMap(map);
+            trafficProviderRef.current = tp;
+          }
+        } catch {/* traffic ixtiyoriy — xaritani buzmasin */}
+
+        // Konteyner kech o'lchamlangan bo'lsa (0×0 → qora plitkalar) — majburan moslash.
+        try {
+          (map as YmapInstance & { container?: { fitToViewport?: () => void } }).container?.fitToViewport?.();
+        } catch {/* */}
+
         setMapReady(true);
 
         const from = courierProp ?? pickup;
@@ -505,6 +524,8 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       if (autofocusTimerRef.current != null) window.clearTimeout(autofocusTimerRef.current);
       compassListenerCleanupRef.current?.();
       compassListenerCleanupRef.current = null;
+      try { trafficProviderRef.current?.setMap(null); } catch {/* */}
+      trafficProviderRef.current = null;
       try { mapRef.current?.destroy(); } catch {/* */}
       mapRef.current = null;
       ymapsRef.current = null;
