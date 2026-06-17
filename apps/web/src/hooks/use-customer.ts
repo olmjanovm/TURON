@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api-client';
+import { useChatSocket, mergeChatMessage, markChatRead } from '@/lib/use-chat-socket';
 
 // ── Types ────────────────────────────────────────────────────────────────
 export interface Address {
@@ -285,12 +286,36 @@ export interface OrderChatMessage {
 const ORDER_CHAT_KEY = (orderId: string) => ['customer', 'order-chat', orderId] as const;
 
 export function useOrderChat(orderId: string) {
-  return useQuery<OrderChatMessage[]>({
+  const qc = useQueryClient();
+
+  const query = useQuery<OrderChatMessage[]>({
     queryKey: ORDER_CHAT_KEY(orderId),
     queryFn: () => apiFetch(`/orders/${orderId}/chat`),
     enabled: !!orderId,
-    refetchInterval: 5_000, // admin javobini tez ko'rish (real-time'ga yaqin)
+    // Socket.io real-time → 30s xavfsizlik fallback (socket tushsa). Avval 5s edi.
+    refetchInterval: 30_000,
   });
+
+  // Real-time: mijoz ulanganda o'z `user:` xonasiga avtomatik qo'shiladi →
+  // backend admin javobini darhol shu xonaga yuboradi. Flicker yo'q (faqat
+  // birinchi yuklashda loading, fon refetch sekin).
+  useChatSocket(orderId, {
+    onMessage: (msg) => {
+      qc.setQueryData<OrderChatMessage[]>(ORDER_CHAT_KEY(orderId), (old) =>
+        mergeChatMessage(old, msg as OrderChatMessage),
+      );
+    },
+    onRead: (read) => {
+      qc.setQueryData<OrderChatMessage[]>(ORDER_CHAT_KEY(orderId), (old) =>
+        markChatRead(old, read.readerRole),
+      );
+    },
+    onReconnect: () => {
+      qc.invalidateQueries({ queryKey: ORDER_CHAT_KEY(orderId) });
+    },
+  });
+
+  return query;
 }
 
 /**
