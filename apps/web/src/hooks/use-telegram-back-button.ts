@@ -13,20 +13,27 @@ import { getWebApp, haptic } from '@/lib/telegram';
  *
  * Telegram'da yo'q (oddiy brauzer / eski klient) bo'lsa — no-op (xavfsiz).
  *
+ * `homePath` bitta yo'l yoki yo'llar ro'yxati bo'lishi mumkin (masalan customer'da
+ * `['/', '/customer']` — chunki bot `/customer`ni ochadi, next.config uni `/`ga rewrite qiladi).
+ *
  * Har lane o'z layout'ida BIR MARTA chaqiradi:
- *   useTelegramBackButton('/admin/dashboard') // admin
- *   useTelegramBackButton('/')                // customer
- *   useTelegramBackButton('/courier')         // courier
+ *   useTelegramBackButton('/admin/dashboard')   // admin
+ *   useTelegramBackButton(['/', '/customer'])    // customer
+ *   useTelegramBackButton(['/courier'])          // courier
  */
-export function useTelegramBackButton(homePath: string): void {
+export function useTelegramBackButton(homePath: string | string[]): void {
   const pathname = usePathname();
   const router = useRouter();
+  // Barqaror kalit — inline array har render'da yangi ref bo'lib effect'ni qayta ishga
+  // tushirmasligi uchun.
+  const homeKey = Array.isArray(homePath) ? homePath.join('|') : homePath;
 
   useEffect(() => {
     const bb = getWebApp()?.BackButton;
     if (!bb) return;
 
-    const isHome = pathname === homePath;
+    const homes = homeKey.split('|');
+    const isHome = homes.includes(pathname);
 
     const onClick = () => {
       haptic.select();
@@ -44,5 +51,5 @@ export function useTelegramBackButton(homePath: string): void {
       // Har route o'zgarishida eski handler'ni olib tashlaymiz (leak/dubl bo'lmasin)
       bb.offClick?.(onClick);
     };
-  }, [pathname, homePath, router]);
+  }, [pathname, homeKey, router]);
 }

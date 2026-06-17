@@ -8,6 +8,7 @@ import { useTelegramBackButton } from '@/hooks/use-telegram-back-button';
  * customer sahifasida yuqori-chapda "ortga" tugmasi → 1 qadam orqaga. Render: null.
  */
 export function CustomerBackButton(): null {
-  useTelegramBackButton('/');
+  // `/` va `/customer` — ikkalasi ham home (bot `/customer`ni ochadi, next.config `/`ga rewrite).
+  useTelegramBackButton(['/', '/customer']);
   return null;
 }
