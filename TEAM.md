@@ -102,6 +102,14 @@
   - **A8:** kichik ma'lumot uchun Telegram `CloudStorage` (telefon/sozlama).
 
   *Eslatma (hammaga): Telegram `requestContact`/`CloudStorage`/`DeviceOrientation` — har biri alohida ruxsat tizimi. "Bitta allow" = bir gesture'да ketma-ket so'rab, natijani cache qilish.*
+- `[2026-06-17]` 🔵 **CLAUDE 3 — C3-5 · Yangi buyurtma kuryerga KELMAYDI (BUG) + tovushli bildirishnoma + profil toggle (foydalanuvchi test).**
+  - **Muammo:** admin buyurtmani kuryerga biriktirgach (ASSIGNED), kuryer app'ga kirsa "Qabul qiling" interrupt modal/banner **chiqmaydi**. Bir marta yuborilgach, kuryer ko'rmasa/ulgurmasa **qayta ko'rsatilmaydi**.
+  - **Yechim (texnik, courier lane):**
+    1. **Catch-up + qayta ko'rsatish:** kuryer app ochilganда / online bo'lganда va POLL'да (har ~10–15s) REST orqali **PENDING (hali qabul qilinmagan)** assignment'larni tekshir — socket event o'tkazib yuborilgan bo'lishi mumkin. Faqat socketga tayanma. PENDING bor va kuryer hali qabul/rad qilmagan bo'lsa → interrupt modal QAYTA ko'rsatilsin (idempotent: ko'rsatilgan id'ni store'да belgila, lekin assignment PENDING qolsa keyingi pollда yana chiqsin). Mavjud new-order detektor + interrupt modal + `useCourierOrders`'ни shu bilan ulang.
+    2. **Tovush:** yangi buyurtma kelganда bir martalik mos signal (`new Audio(...)`). ⚠️ Telegram WebView autoplay cheklovi — avval USER GESTURE'да (online toggle / app birinchi teginish) audioни "unlock" qil (silent `play()`/`load()`), keyin eventда `play()`. Bitta yagona ovoz.
+    3. **Profil toggle:** courier profil sahifasida "Yangi buyurtma tovushi" ON/OFF — `localStorage`/store yetarli (BE shart emas). Default ON.
+  - **BE kerakmi?** PENDING assignment'ni qaytaradigan REST endpoint bo'lsa ishlat; bo'lmasa Sardordан (men) so'ra. (Ixtiyoriy kelajak: Telegram bot ham kuryerга "yangi buyurtma" push qilsin — bu BE/men, app yopiq bo'lsa ham bildiradi; hozir asosiy = in-app fix.)
+  - Avval `/software-architect` reja → STATUS → surgical `[courier]` commit.
 
 ---
 
