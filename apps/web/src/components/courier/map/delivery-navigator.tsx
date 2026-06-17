@@ -717,12 +717,8 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
         }
 
         if (applied) {
-          const marker = courierMarkerRef.current;
-          marker?.properties?.set?.('iconRotateAngle', headingRef.current);
-          const map = mapRef.current as
-            | (YmapInstance & { setAzimuth?: (a: number, opts?: { duration?: number }) => void })
-            | null;
-          map?.setAzimuth?.(headingRef.current, { duration: 250 });
+          // Shimol-tepa: faqat strelka buriladi (xarita azimuth'i o'zgarmaydi)
+          courierMarkerRef.current?.properties?.set?.('iconRotateAngle', headingRef.current);
         }
       }
     }
@@ -965,12 +961,12 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       if (raf == null) {
         raf = window.requestAnimationFrame(() => {
           raf = null;
-          const marker = courierMarkerRef.current;
-          marker?.properties?.set?.('iconRotateAngle', headingRef.current);
-          const map = mapRef.current as
-            | (YmapInstance & { setAzimuth?: (a: number, opts?: { duration?: number }) => void })
-            | null;
-          map?.setAzimuth?.(headingRef.current, { duration: 200 });
+          // Xarita SHIMOL-TEPA qoladi; FAQAT strelka kompas heading'ga buriladi
+          // (CSS rotate — bir ma'noli). Avval xarita ham setAzimuth(heading) bilan
+          // burilardi, lekin Yandex azimuth birligi/yo'nalishi noaniq + strelka ham
+          // burilгani uchun IKKI MARTA aylanish → yo'nalish teskari/noto'g'ri edi.
+          // Endi: shimol-tepa + strelka = telefon qayoqqa qarasa o'sha tomon (aniq).
+          courierMarkerRef.current?.properties?.set?.('iconRotateAngle', headingRef.current);
         });
       }
     };
