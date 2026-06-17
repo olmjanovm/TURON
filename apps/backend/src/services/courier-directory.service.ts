@@ -342,6 +342,7 @@ export class CourierDirectoryService {
       telegramUsername: courier.telegramUsername || null,
       fullName: courier.fullName,
       phoneNumber: courier.phoneNumber || null,
+      vehicleMode: courier.vehicleMode ?? 'auto',
       isActive: courier.isActive,
       isOnline: courier.courierOperationalStatus?.isOnline ?? false,
       isAcceptingOrders: courier.courierOperationalStatus?.isAcceptingOrders ?? false,
@@ -380,6 +381,7 @@ export class CourierDirectoryService {
       fullName?: string;
       phoneNumber?: string | null;
       telegramUsername?: string | null;
+      vehicleMode?: string;
     },
     db: DbClient = prisma,
   ) {
@@ -406,6 +408,12 @@ export class CourierDirectoryService {
         telegramUsername:
           typeof input.telegramUsername === 'string'
             ? normalizeOptionalText(input.telegramUsername)
+            : undefined,
+        vehicleMode:
+          input.vehicleMode === 'auto' ||
+          input.vehicleMode === 'bicycle' ||
+          input.vehicleMode === 'pedestrian'
+            ? input.vehicleMode
             : undefined,
       },
     });

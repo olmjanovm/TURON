@@ -241,12 +241,14 @@ export const UpdateCourierProfileSchema = z
     fullName: z.string().trim().min(3).max(120).optional(),
     phoneNumber: z.string().trim().max(32).optional().or(z.literal('')),
     telegramUsername: z.string().trim().max(64).optional().or(z.literal('')),
+    vehicleMode: z.enum(['auto', 'bicycle', 'pedestrian']).optional(),
   })
   .refine(
     (value) =>
       typeof value.fullName === 'string' ||
       typeof value.phoneNumber === 'string' ||
-      typeof value.telegramUsername === 'string',
+      typeof value.telegramUsername === 'string' ||
+      typeof value.vehicleMode === 'string',
     {
       message: "Kamida bitta profil maydoni yuborilishi kerak",
     },

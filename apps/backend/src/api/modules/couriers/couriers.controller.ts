@@ -92,6 +92,7 @@ export async function updateMyCourierProfile(
       fullName?: string;
       phoneNumber?: string;
       telegramUsername?: string;
+      vehicleMode?: 'auto' | 'bicycle' | 'pedestrian';
     };
   }>,
   reply: FastifyReply,

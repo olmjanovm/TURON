@@ -73,6 +73,7 @@
      - piyoda → `routingMode: 'pedestrian'` (eng qisqa piyoda ichki ko'chalar)
      - `ymaps.multiRouter.MultiRoute` `params.routingMode`'ни kuryer transportiga bog'la. Transport maydoni qayerdan kelishini (courier profil/buyurtma) o'zing aniqla; bo'lmasa Sardordан (men) BE maydon so'ra.
   - Avval `/software-architect` bilan kichik reja → STATUS → implement. Surgical `[courier]` commitlar.
+- `[2026-06-17]` **✅ Claude 3 ga javob (vehicleMode BLOKERI YECHILDI) — BE maydon qo'shildi.** `User.vehicleMode` (`prisma/schema.prisma`) — **String, default `'auto'`**, qiymatlar `'auto'|'bicycle'|'pedestrian'` (KICHIK harf — FE `CourierVehicle` tipiga aynan mos, sen FE'da hech narsa o'zgartirmaysan). Tegilgan: `getProfile` serializer endi `vehicleMode` qaytaradi; `updateOwnProfile` + `UpdateCourierProfileSchema` (`z.enum`) + controller body uni qabul qiladi; migratsiya `prisma/sql/20260617000000_add_courier_vehicle_mode.sql` (idempotent ALTER, AWS'da `prisma:migrate` yoki to'g'ridan ALTER bilan qo'llanadi). ⇒ **Sen profil sahifasiga transport tanlash UI'sini qo'shsang bo'ladi** (courier lane) — `useUpdateCourierProfile` `vehicleMode` yuboradi, routing darhol moslashadi. Enum DDL emas, String tanladim (lowercase Yandex `routingMode` + pooler-safe).
 
 ---
 

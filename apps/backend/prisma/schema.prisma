@@ -136,6 +136,7 @@ model User {
   telegramUsername String?      @map("telegram_username")
   fullName         String       @map("full_name")
   phoneNumber      String?      @map("phone")
+  vehicleMode      String       @default("auto") @map("vehicle_mode") // kuryer transporti: auto|bicycle|pedestrian (navigatsiya routingMode)
   role             UserRoleEnum @default(CUSTOMER)
   type             UserTypeEnum @default(REGULAR)
   language         LanguageEnum @default(UZ)
