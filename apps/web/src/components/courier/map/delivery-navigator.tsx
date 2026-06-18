@@ -193,6 +193,7 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
   const polylineGroupRef = useRef<YmapObject[]>([]);
   const fallbackLineRef = useRef<YmapObject | null>(null);
   const snapDotRef = useRef<YmapObject | null>(null);
+  const maneuverArrowsRef = useRef<YmapObject[]>([]);
   const trafficProviderRef = useRef<{ setMap: (m: unknown) => void } | null>(null);
 
   const interactingRef = useRef(false);
@@ -403,6 +404,48 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
     base.style.transform = `rotateX(${NAV_TILT_DEG}deg) rotateZ(${(ROTATE_SIGN * norm).toFixed(1)}deg)`;
   }, []);
 
+  // Oq manyovr (burilish) strelkalari ROUTE USTIDA (C3-7 — Yandex uslubi).
+  // Har manyovr koordinatasiga oq chevron + to'q outline; yo'nalish = route
+  // bo'ylab oldinga (keyingi manyovr/route oxiriga bearing). Geografik burchak
+  // qo'yiladi → course-up konteyner rotatsiyasi uni yo'lga moslab aylantiradi.
+  const renderManeuverArrows = useCallback(
+    (maneuvers: RouteManeuver[], snappedEnd: [number, number]) => {
+      const map = mapRef.current;
+      const ymaps = ymapsRef.current;
+      if (!map || !ymaps) return;
+      // Eskilarini tozalaymiz
+      for (const a of maneuverArrowsRef.current) {
+        try { map.geoObjects.remove(a); } catch {/* */}
+      }
+      maneuverArrowsRef.current = [];
+      if (!maneuvers || maneuvers.length === 0) return;
+
+      const ArrowLayout = ymaps.templateLayoutFactory!.createClass(
+        '<div class="nav-maneuver-arrow" style="transform: rotate({{ properties.iconRotateAngle }}deg);">' +
+          '<svg viewBox="0 0 28 28" width="26" height="26">' +
+          '<path d="M14 4 L23 22 L14 17 L5 22 Z" fill="#FFFFFF" stroke="#13233A" stroke-width="2.4" stroke-linejoin="round"/>' +
+          '</svg></div>',
+      );
+
+      for (let i = 0; i < maneuvers.length; i++) {
+        const m = maneuvers[i];
+        if (!m.coords) continue;
+        const from = { lat: m.coords[1], lng: m.coords[0] };
+        const nextCoord = maneuvers[i + 1]?.coords ?? snappedEnd;
+        const to = { lat: nextCoord[1], lng: nextCoord[0] };
+        const bearing = gpsBearing(from, to);
+        const arrow = new ymaps.Placemark([from.lat, from.lng], { iconRotateAngle: bearing }, {
+          iconLayout: ArrowLayout as unknown as string,
+          iconShape: { type: 'Circle', coordinates: [0, 0], radius: 13 },
+          zIndex: 410, cursor: 'arrow',
+        });
+        map.geoObjects.add(arrow);
+        maneuverArrowsRef.current.push(arrow);
+      }
+    },
+    [],
+  );
+
   const refreshRoute = useCallback(async (from: LatLng, to: LatLng) => {
     const ymaps = ymapsRef.current;
     if (!ymaps) return;
@@ -415,8 +458,9 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
     clearFallbackLine();
     setRoute(result);
     renderPolylines(result.segments);
+    renderManeuverArrows(result.maneuvers, result.snappedEnd);
     renderSnapDot(result.snappedStart);
-  }, [vehicleMode, renderPolylines, renderSnapDot, renderFallbackLine, clearFallbackLine]);
+  }, [vehicleMode, renderPolylines, renderManeuverArrows, renderSnapDot, renderFallbackLine, clearFallbackLine]);
 
   // Navigatsiya chizig'i DOIM ko'rinsin: haqiqiy route yo'q bo'lsa (yuklanmoqda/
   // xato) kuryerdan maqsadga dashed chiziq; route kelganda olib tashlanadi.
@@ -563,6 +607,7 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       polylineGroupRef.current = [];
       fallbackLineRef.current = null;
       snapDotRef.current = null;
+      maneuverArrowsRef.current = [];
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -820,6 +865,7 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
         // Smooth morph — yangi polyline qo'yib eski o'chiriladi
         setRoute(fresh);
         renderPolylines(fresh.segments);
+        renderManeuverArrows(fresh.maneuvers, fresh.snappedEnd);
         renderSnapDot(fresh.snappedStart);
         // TTS dedup'larni reset — yangi maneuvers
         spokenManeuversRef.current.clear();
@@ -834,7 +880,7 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
         window.setTimeout(() => { reroutingRef.current = false; }, REROUTE_COOLDOWN_MS);
       }
     })();
-  }, [smoothedCourier?.lat, smoothedCourier?.lng, route, vehicleMode, routeTo.lat, routeTo.lng, mapReady, renderPolylines, renderSnapDot]);
+  }, [smoothedCourier?.lat, smoothedCourier?.lng, route, vehicleMode, routeTo.lat, routeTo.lng, mapReady, renderPolylines, renderManeuverArrows, renderSnapDot]);
 
   // ── FEATURE 2: Periodic traffic re-evaluation (har 2 daq) ───────────
   useEffect(() => {
@@ -859,6 +905,7 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
         if (savedSec >= TRAFFIC_IMPROVEMENT_SEC) {
           setRoute(fresh);
           renderPolylines(fresh.segments);
+          renderManeuverArrows(fresh.maneuvers, fresh.snappedEnd);
           renderSnapDot(fresh.snappedStart);
           spokenManeuversRef.current.clear();
           void speak(
@@ -875,7 +922,7 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
         trafficIntervalRef.current = null;
       }
     };
-  }, [mapReady, smoothedCourier?.lat, smoothedCourier?.lng, route?.totalDurationSec, routeTo.lat, routeTo.lng, vehicleMode, renderPolylines, renderSnapDot]);
+  }, [mapReady, smoothedCourier?.lat, smoothedCourier?.lng, route?.totalDurationSec, routeTo.lat, routeTo.lng, vehicleMode, renderPolylines, renderManeuverArrows, renderSnapDot]);
 
   // ── FEATURE 3: Network transition → TTS announce ────────────────────
   useEffect(() => {
@@ -1322,6 +1369,12 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
           width: 38px; height: 46px;
           transform: translate(-19px, -46px);
           filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.55));
+        }
+        .nav-maneuver-arrow {
+          width: 26px; height: 26px;
+          transform-origin: 50% 50%;
+          margin: -13px 0 0 -13px;
+          filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
         }
         .nav-snap-dot {
           width: 18px; height: 18px;
