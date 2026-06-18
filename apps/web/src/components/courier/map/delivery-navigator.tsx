@@ -89,11 +89,8 @@ const GPS_FUSION_PULL = 0.2;           // GPS course'ga tortish kuchi (drift tuz
 const VOICE_THRESHOLDS = [500, 150, 40] as const;
 const SPEED_BUFFER_KMH = 10;
 const HYPER_ZOOM_RADIUS_M = 100;
-const HYPER_ZOOM_LEVEL = 19;
-const CHASE_ZOOM_LEVEL = 18;           // chase-cam yaqin zoom (boshlang'ich + auto-focus)
-const DEG2RAD = Math.PI / 180;
-// Course-up azimuth belgisi — qurilmada teskari bo'lsa -1 ga o'zgartiriladi.
-const AZIMUTH_SIGN = 1;
+const HYPER_ZOOM_LEVEL = 20;
+const CHASE_ZOOM_LEVEL = 19;           // chase-cam yaqin zoom (boshlang'ich + auto-focus)
 const DEFAULT_SPEED_LIMIT: Record<VehicleMode, number> = {
   auto: 60,
   bicycle: 25,
@@ -385,23 +382,6 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
     snapDotRef.current = dot;
   }, []);
 
-  // COURSE-UP: xaritani heading bo'yicha aylantiramiz (strelka doim oldinga
-  // qaragan holda "harakat yo'nalishi tepada" — real navigatsiya). Yandex
-  // azimuth RADIANda; oldin daraja yuborilardi + strelka ham aylanardi (ikki
-  // marta) → teskari/noto'g'ri edi. Endi: strelka qotirilgan (rotate 0),
-  // FAQAT xarita aylanadi. Hyper-zoom (manzilga yaqin) — top-down, aylantirmaymiz.
-  const applyCourseUp = useCallback((heading: number) => {
-    if (hyperZoomActiveRef.current) return;
-    const map = mapRef.current as
-      | (YmapInstance & { setAzimuth?: (a: number, opts?: { duration?: number }) => void })
-      | null;
-    if (!map?.setAzimuth) return;
-    const norm = ((heading % 360) + 360) % 360;
-    try {
-      map.setAzimuth(norm * DEG2RAD * AZIMUTH_SIGN, { duration: 200 });
-    } catch {/* azimuth ixtiyoriy — xaritani buzmasin */}
-  }, []);
-
   const refreshRoute = useCallback(async (from: LatLng, to: LatLng) => {
     const ymaps = ymapsRef.current;
     if (!ymaps) return;
@@ -510,13 +490,12 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
             const m = mapRef.current;
             if (!marker || !m) return;
             const coords = marker.geometry?.getCoordinates?.();
-            // Auto-focus: kuryerga qaytib markazlash + chase-cam yaqin zoom + course-up
+            // Auto-focus: kuryerga qaytib markazlash + chase-cam yaqin zoom
             if (coords) void m.panTo(coords, { flying: true, duration: PAN_DURATION_MS });
             if (!hyperZoomActiveRef.current) {
               try {
                 if (m.getZoom?.() !== CHASE_ZOOM_LEVEL) void m.setZoom(CHASE_ZOOM_LEVEL, { duration: PAN_DURATION_MS });
               } catch {/* */}
-              applyCourseUp(headingRef.current);
             }
           }, AUTOFOCUS_MS);
         };
@@ -673,8 +652,6 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
     } else if (!shouldHyperZoom && hyperZoomActiveRef.current) {
       hyperZoomActiveRef.current = false;
       try { void map.setZoom(CHASE_ZOOM_LEVEL, { duration: 600 }); } catch {/* */}
-      // Top-down (hyperzoom) tugadi — course-up'ni qaytaramiz
-      applyCourseUp(headingRef.current);
     }
 
     if (!interactingRef.current) {
@@ -682,7 +659,7 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
         flying: true, duration: PAN_DURATION_MS,
       });
     }
-  }, [smoothedCourier?.lat, smoothedCourier?.lng, destination.lat, destination.lng, applyCourseUp]);
+  }, [smoothedCourier?.lat, smoothedCourier?.lng, destination.lat, destination.lng]);
 
   // Speed delta (parent prop based)
   const lastCourierRef = useRef<LatLng | null>(null);
@@ -749,16 +726,14 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
         }
 
         if (applied) {
-          // Course-up: strelka oldinda qotirilgan, xarita aylanadi
-          courierMarkerRef.current?.properties?.set?.('iconRotateAngle', 0);
-          applyCourseUp(headingRef.current);
+          courierMarkerRef.current?.properties?.set?.('iconRotateAngle', headingRef.current);
         }
       }
     }
 
     bearingPrevRef.current = smoothedCourier;
     bearingPrevTsRef.current = now;
-  }, [smoothedCourier?.lat, smoothedCourier?.lng, applyCourseUp]);
+  }, [smoothedCourier?.lat, smoothedCourier?.lng]);
 
   // Maneuver + TTS
   useEffect(() => {
@@ -994,11 +969,10 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       if (raf == null) {
         raf = window.requestAnimationFrame(() => {
           raf = null;
-          // COURSE-UP (real navigatsiya): strelka DOIM oldinga (rotate 0),
-          // FAQAT xarita heading bo'yicha aylanadi → strelka orqasida xarita
-          // moslashadi (mashina ortidan ketayotgandek, 45° tilt bilan).
-          courierMarkerRef.current?.properties?.set?.('iconRotateAngle', 0);
-          applyCourseUp(headingRef.current);
+          // Strelka kompas heading'ga buriladi. (Yandex RASTER xarita native
+          // rotatsiyani — setAzimuth — qo'llamaydi, shuning uchun xarita aylanmaydi;
+          // yo'nalishni STRELKA ko'rsatadi. Bu ishonchli ishlaydigan usul.)
+          courierMarkerRef.current?.properties?.set?.('iconRotateAngle', headingRef.current);
         });
       }
     };
@@ -1022,7 +996,7 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       }
       window.removeEventListener('deviceorientation', handler);
     };
-  }, [applyCourseUp]);
+  }, []);
 
   // Boshlang'ich aniqlash: iOS 13+ user-gesture so'raydi, qolganlari avtomatik.
   //
@@ -1296,10 +1270,10 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       )}
 
       <style jsx global>{`
-        .map-3d-wrap { perspective: 1400px; perspective-origin: 50% 65%; }
+        .map-3d-wrap { perspective: 1100px; perspective-origin: 50% 68%; }
         .map-base {
-          transform: rotateX(45deg) translateZ(0);
-          transform-origin: 50% 65%;
+          transform: rotateX(55deg) translateZ(0);
+          transform-origin: 50% 68%;
           transition: transform 400ms cubic-bezier(0.4, 0, 0.2, 1);
           will-change: transform;
           backface-visibility: hidden;
