@@ -501,12 +501,12 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
           '<div class="navigator-arrow-wrap" style="transform: rotate({{ properties.iconRotateAngle }}deg);">',
           '<svg viewBox="0 0 48 60" width="48" height="60" xmlns="http://www.w3.org/2000/svg">',
           '<defs><linearGradient id="navArrG" x1="0" y1="0" x2="0" y2="1">',
-          '<stop offset="0%" stop-color="#fb923c"/><stop offset="100%" stop-color="#9a3412"/>',
+          '<stop offset="0%" stop-color="#FFD60A"/><stop offset="100%" stop-color="#F5A300"/>',
           '</linearGradient>',
           '<filter id="navArrS" x="-50%" y="-50%" width="200%" height="200%">',
           '<feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="rgba(0,0,0,0.7)"/>',
           '</filter></defs>',
-          '<circle cx="24" cy="46" r="9" fill="rgba(251,146,60,0.25)"/>',
+          '<circle cx="24" cy="46" r="9" fill="rgba(255,214,10,0.28)"/>',
           '<path d="M 24 3 L 44 52 L 24 40 L 4 52 Z" fill="url(#navArrG)" stroke="#fff" stroke-width="3" stroke-linejoin="round" filter="url(#navArrS)"/>',
           '<circle cx="24" cy="28" r="4" fill="#fff"/>',
           '</svg></div>',
@@ -1287,18 +1287,19 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
           className="pointer-events-none absolute left-1/2 z-20 -translate-x-1/2"
           style={{ top: 'calc(env(safe-area-inset-top, 0px) + 90px)' }}
         >
-          <div className="flex max-w-[88vw] items-center gap-3 rounded-3xl bg-white/95 px-4 py-3 shadow-2xl shadow-black/70 backdrop-blur">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg">
-              <ManeuverIcon size={30} strokeWidth={3} />
+          {/* Yandex uslubidagi ko'k manyovr kartasi: katta oq burilish ikonasi +
+              prominent masofa, ostida ko'cha-nomli yo'riqnoma. */}
+          <div className="flex max-w-[90vw] items-center gap-3 rounded-3xl bg-[#1f6fe5] px-4 py-2.5 shadow-2xl shadow-black/50">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center text-white">
+              <ManeuverIcon size={42} strokeWidth={2.8} />
             </div>
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Keyingi</p>
-              <p className="line-clamp-2 text-lg font-black leading-tight text-slate-900">{maneuverText}</p>
               {maneuverDistance != null && (
-                <p className="text-sm font-bold text-[#c62020]">
+                <p className="text-2xl font-black leading-none text-white tabular-nums">
                   {maneuverDistance < 50 ? 'Hozir' : `${maneuverDistance} m`}
                 </p>
               )}
+              <p className="mt-1 line-clamp-2 text-sm font-bold leading-tight text-white/90">{maneuverText}</p>
             </div>
           </div>
         </div>
@@ -1462,7 +1463,7 @@ function NavigatorHUD({
 }) {
   const eta = formatTime(durationSec);
   const trafficGradient = useMemo(() => {
-    if (segments.length === 0) return 'linear-gradient(to right, #22c55e, #eab308, #ef4444)';
+    if (segments.length === 0) return 'linear-gradient(to right, #39C75A, #F5C518, #E8413A)';
     const stops: string[] = [];
     let acc = 0;
     const totalLen = segments.reduce((s, x) => s + Math.max(1, x.coords.length), 0);
