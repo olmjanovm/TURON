@@ -307,22 +307,23 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
 
       const color = trafficColor(seg.traffic);
 
-      // HD anti-aliased polyline — outline (oq) + asosiy chiziq
-      const outline = new ymaps.Polyline(yandexCoords, {}, {
-        strokeColor: '#FFFFFF',
-        strokeWidth: 10,
-        strokeOpacity: 0.55,
+      // Yandex uslubi (C3-7): to'q "casing" (kontrast) + ustida QALIN trafik-rangli
+      // asosiy chiziq. Har segment o'z trafik rangiga ega → yashil→sariq→qizil gradient.
+      const casing = new ymaps.Polyline(yandexCoords, {}, {
+        strokeColor: '#13233A',
+        strokeWidth: 12,
+        strokeOpacity: 0.9,
         strokeStyle: 'solid',
         zIndex: 400,
         antialiasing: true,
       } as Record<string, unknown>);
-      map.geoObjects.add(outline);
-      polylineGroupRef.current.push(outline);
+      map.geoObjects.add(casing);
+      polylineGroupRef.current.push(casing);
 
       const main = new ymaps.Polyline(yandexCoords, {}, {
         strokeColor: color,
-        strokeWidth: 7,
-        strokeOpacity: 0.95,
+        strokeWidth: 8,
+        strokeOpacity: 1,
         strokeStyle: 'solid',
         zIndex: 401,
         antialiasing: true,

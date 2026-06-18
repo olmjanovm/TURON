@@ -158,39 +158,42 @@ function fetchFromMultiRouter(
 
           const segments: RouteSegment[] = [];
 
-          // ASOSIY USUL: butun path geometry'dan to'liq coord olish (segment'dan emas)
-          // Yandex multiRouter segment'lar faqat maneuver atrofidagi qismni saqlaydi —
-          // butun polyline path.geometry.getCoordinates() orqali olinadi.
-          const fullPathCoords = path.geometry?.getCoordinates?.() as number[][] | undefined;
-          if (fullPathCoords && fullPathCoords.length >= 2) {
-            const coords: [number, number][] = fullPathCoords.map((p) => [p[1], p[0]]);
-            segments.push({ coords, traffic: null, speedLimitKmh: null });
-          } else {
-            // Fallback: segmentlardan yig'amiz (eski usul)
-            const pathSegments = (path.getSegments?.() ?? []) as Array<
-              YmapObject & {
-                properties?: { get?: (k: string) => unknown };
-                geometry?: { getCoordinates?: () => unknown };
-              }
-            >;
-            for (const seg of pathSegments) {
-              const c = seg.geometry?.getCoordinates?.() as number[][] | undefined;
-              if (!c || c.length === 0) continue;
-              const coords: [number, number][] = c.map((p) => [p[1], p[0]]);
-              const street = (seg.properties?.get?.('street') as string | undefined) ?? undefined;
-              const jam = seg.properties?.get?.('jams') as { severity?: number } | undefined;
-              const traffic =
-                typeof jam?.severity === 'number'
-                  ? Math.min(1, Math.max(0, jam.severity / 10))
-                  : null;
-              const speedRaw = seg.properties?.get?.('speedLimit') as number | undefined;
-              const speedLimitKmh =
-                typeof speedRaw === 'number'
-                  ? speedRaw < 50
-                    ? Math.round(speedRaw * 3.6)
-                    : Math.round(speedRaw)
-                  : null;
-              segments.push({ coords, traffic, street, speedLimitKmh });
+          // ASOSIY USUL (C3-7 — trafik gradient): har PATH-SEGMENT'ni alohida olamiz
+          // va `jams.severity` bo'yicha ranglaymiz → Yandex etalonidagi yashil→sariq→
+          // qizil yo'l chizig'i. (Ilgari butun path BITTA `traffic:null` segment qilinib
+          // jams TASHLAB yuborilardi → chiziq doim bitta rangda edi.)
+          const pathSegments = (path.getSegments?.() ?? []) as Array<
+            YmapObject & {
+              properties?: { get?: (k: string) => unknown };
+              geometry?: { getCoordinates?: () => unknown };
+            }
+          >;
+          for (const seg of pathSegments) {
+            const c = seg.geometry?.getCoordinates?.() as number[][] | undefined;
+            if (!c || c.length < 2) continue;
+            const coords: [number, number][] = c.map((p) => [p[1], p[0]]);
+            const street = (seg.properties?.get?.('street') as string | undefined) ?? undefined;
+            const jam = seg.properties?.get?.('jams') as { severity?: number } | undefined;
+            const traffic =
+              typeof jam?.severity === 'number'
+                ? Math.min(1, Math.max(0, jam.severity / 10))
+                : null;
+            const speedRaw = seg.properties?.get?.('speedLimit') as number | undefined;
+            const speedLimitKmh =
+              typeof speedRaw === 'number'
+                ? speedRaw < 50
+                  ? Math.round(speedRaw * 3.6)
+                  : Math.round(speedRaw)
+                : null;
+            segments.push({ coords, traffic, street, speedLimitKmh });
+          }
+
+          // FALLBACK: segmentlar coord bermasa — butun path BITTA chiziq (bo'sh qolmasin).
+          if (segments.length === 0) {
+            const fullPathCoords = path.geometry?.getCoordinates?.() as number[][] | undefined;
+            if (fullPathCoords && fullPathCoords.length >= 2) {
+              const coords: [number, number][] = fullPathCoords.map((p) => [p[1], p[0]]);
+              segments.push({ coords, traffic: null, speedLimitKmh: null });
             }
           }
 
@@ -253,11 +256,15 @@ function fetchFromMultiRouter(
   });
 }
 
-/** Trafik darajasiga qarab rang. */
+/**
+ * Trafik darajasiga qarab rang — Yandex Navigator etalon palitrasi (C3-7).
+ * free (yashil) → medium (sariq) → heavy (to'q-sariq) → jam (qizil) → severe (to'q-qizil).
+ */
 export function trafficColor(traffic: number | null): string {
-  if (traffic == null) return '#22c55e'; // default emerald — yo'l toza deb hisoblaymiz
-  if (traffic < 0.25) return '#22c55e'; // emerald
-  if (traffic < 0.55) return '#eab308'; // amber
-  if (traffic < 0.8) return '#f97316'; // orange
-  return '#ef4444'; // red
+  if (traffic == null) return '#39C75A'; // default — yo'l toza (yashil)
+  if (traffic < 0.2) return '#39C75A';   // free — yashil
+  if (traffic < 0.45) return '#F5C518';  // medium — sariq
+  if (traffic < 0.65) return '#F08229';  // heavy — to'q-sariq
+  if (traffic < 0.85) return '#E8413A';  // jam — qizil
+  return '#9E2B25';                       // severe — to'q-qizil
 }
