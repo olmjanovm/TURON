@@ -86,11 +86,13 @@ const SPEED_BUFFER_KMH = 10;
 const HYPER_ZOOM_RADIUS_M = 100;
 const HYPER_ZOOM_LEVEL = 19;
 const CHASE_ZOOM_LEVEL = 18;           // chase-cam zoom (boshlang'ich + auto-focus)
-// Course-up (CSS): xarita konteyneri rotateZ(ROTATE_SIGN·course) bilan aylanadi.
-// Yandex raster native setAzimuth'ni qo'llamaydi → CSS bilan qilamiz.
-// Qurilmada tasdiqlandi: +1 to'g'ri yo'nalish (kuryer yurgan tomon tepada).
+// Course-up: xarita NATIVE Yandex rotatsiya (map.setAzimuth) bilan aylanadi —
+// tiles qayta render bo'ladi (CSS rotateZ EMAS, u qotirardi+burchak bo'shatardi).
+// 3D tilt esa CSS rotateX (alohida, screen-space kamera qiyaligi). Course manbai
+// = GPS harakat yo'nalishi. ROTATE_SIGN teskari bo'lsa -1 ga flip.
 const NAV_TILT_DEG = 40;
 const ROTATE_SIGN = 1;
+const DEG2RAD = Math.PI / 180;
 const DEFAULT_SPEED_LIMIT: Record<VehicleMode, number> = {
   auto: 60,
   bicycle: 25,
@@ -388,18 +390,23 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
   }, []);
 
   // COURSE-UP (CSS): xarita konteynerini heading bo'yicha aylantiramiz + tilt.
-  // Strelka (iconRotateAngle=heading) konteyner rotateZ(-heading) bilan birga
-  // net 0 → oldinga qaragan; xarita esa yo'nalish bo'yicha aylanadi (real nav).
-  // Hyper-zoom (manzilga yaqin) — top-down, tilt/aylanish yo'q.
-  const applyMapTransform = useCallback((heading: number) => {
+  // Course-up: xarita NATIVE aylanadi (setAzimuth → tiles qayta render), strelka
+  // markazda OLDINGA qotirilgan (iconRotate=0, Yandex ikonani billboard qiladi —
+  // azimuth bilan aylanmaydi). 3D istiqbol = CSS rotateX tilt. Hyper-zoom (manzilga
+  // yaqin) — top-down (rotateX 0, azimuth 0).
+  const applyMapTransform = useCallback((course: number) => {
     const base = containerRef.current;
-    if (!base) return;
+    const map = mapRef.current as
+      | (YmapInstance & { setAzimuth?: (a: number, opts?: { duration?: number }) => void })
+      | null;
     if (hyperZoomActiveRef.current) {
-      base.style.transform = 'rotateX(0deg)';
+      if (base) base.style.transform = 'rotateX(0deg)';
+      try { map?.setAzimuth?.(0, { duration: 300 }); } catch {/* */}
       return;
     }
-    const norm = ((heading % 360) + 360) % 360;
-    base.style.transform = `rotateX(${NAV_TILT_DEG}deg) rotateZ(${(ROTATE_SIGN * norm).toFixed(1)}deg)`;
+    if (base) base.style.transform = `rotateX(${NAV_TILT_DEG}deg)`;
+    const norm = ((course % 360) + 360) % 360;
+    try { map?.setAzimuth?.(norm * DEG2RAD * ROTATE_SIGN, { duration: 250 }); } catch {/* */}
   }, []);
 
   // Oq manyovr (burilish) strelkalari ROUTE USTIDA (C3-7 — Yandex uslubi).
@@ -562,7 +569,6 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
               // Course-up'ni darhol qayta qo'llaymiz — autofocus'dan keyin to'xtab
               // qolmasin (har GPS tickда ham qaytariladi).
               if (courseInitedRef.current) {
-                courierMarkerRef.current?.properties?.set?.('iconRotateAngle', courseRef.current);
                 applyMapTransform(courseRef.current);
               }
             }
@@ -727,11 +733,9 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       });
     }
 
-    // Course-up'ni HAR tickда qayta qo'llaymiz — autofocus/zoom yoki pan'dan
-    // keyin ham saqlanib qoladi (avval autofocusдan keyin to'xtab qolardi) va
-    // kuryer harakatiga mos buriladi. Strelka oldinda (net up).
+    // Course-up'ni HAR tickда qayta qo'llaymiz — kuryer harakatiga mos xarita
+    // aylanadi (native setAzimuth). Strelka markazda oldinga qotirilgan.
     if (courseInitedRef.current && !hyperZoomActiveRef.current) {
-      courierMarkerRef.current?.properties?.set?.('iconRotateAngle', courseRef.current);
       applyMapTransform(courseRef.current);
     }
   }, [smoothedCourier?.lat, smoothedCourier?.lng, destination.lat, destination.lng, applyMapTransform]);
@@ -1154,7 +1158,7 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       data-no-ptr="true"
     >
       <div className="map-3d-wrap absolute inset-0">
-        <div ref={containerRef} className="map-base map-night-filter" />
+        <div ref={containerRef} className="map-base map-night-filter h-full w-full" />
       </div>
 
       <div
@@ -1322,15 +1326,13 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       )}
 
       <style jsx global>{`
-        .map-3d-wrap { perspective: 1200px; perspective-origin: 50% 56%; overflow: hidden; }
-        /* Course-up: konteyner viewport'dan KATTA (170%, markazda) — JS rotateZ bilan
-           aylanganда burchaklar bo'shamasin. JS inline transform'i bu default'ni
-           almashtiradi (rotateX tilt + rotateZ -heading). */
+        .map-3d-wrap { perspective: 1200px; perspective-origin: 50% 60%; }
+        /* Viewport-size konteyner (170% kattalashtirish OLIB TASHLANDI — u pan'ni
+           qotirardi). Aylanish NATIVE setAzimuth bilan (tiles qayta render) →
+           burchaklar muammosi yo'q. CSS rotateX faqat 3D tilt (kamera qiyaligi). */
         .map-base {
-          position: absolute;
-          width: 170%; height: 170%; left: -35%; top: -35%;
-          transform: rotateX(40deg);
-          transform-origin: 50% 50%;
+          transform: rotateX(40deg) translateZ(0);
+          transform-origin: 50% 60%;
           transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1);
           will-change: transform;
           backface-visibility: hidden;
