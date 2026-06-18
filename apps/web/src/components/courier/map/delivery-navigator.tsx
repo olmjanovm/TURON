@@ -87,10 +87,9 @@ const HYPER_ZOOM_RADIUS_M = 100;
 const HYPER_ZOOM_LEVEL = 19;
 const CHASE_ZOOM_LEVEL = 18;           // chase-cam zoom (boshlang'ich + auto-focus)
 // Course-up: xarita NATIVE Yandex rotatsiya (map.setAzimuth) bilan aylanadi —
-// tiles qayta render bo'ladi (CSS rotateZ EMAS, u qotirardi+burchak bo'shatardi).
-// 3D tilt esa CSS rotateX (alohida, screen-space kamera qiyaligi). Course manbai
-// = GPS harakat yo'nalishi. ROTATE_SIGN teskari bo'lsa -1 ga flip.
-const NAV_TILT_DEG = 40;
+// tiles qayta render bo'ladi. CSS transform (tilt/rotate) ISHLATILMAYDI
+// (foydalanuvchi so'rovi — u xaritani qotirardi/quticha qilardi). Xarita TEKIS,
+// to'liq ekran. Course manbai = GPS harakat yo'nalishi. ROTATE_SIGN teskari → -1.
 const ROTATE_SIGN = 1;
 const DEG2RAD = Math.PI / 180;
 const DEFAULT_SPEED_LIMIT: Record<VehicleMode, number> = {
@@ -392,21 +391,16 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
   // COURSE-UP (CSS): xarita konteynerini heading bo'yicha aylantiramiz + tilt.
   // Course-up: xarita NATIVE aylanadi (setAzimuth → tiles qayta render), strelka
   // markazda OLDINGA qotirilgan (iconRotate=0, Yandex ikonani billboard qiladi —
-  // azimuth bilan aylanmaydi). 3D istiqbol = CSS rotateX tilt. Hyper-zoom (manzilga
-  // yaqin) — top-down (rotateX 0, azimuth 0).
+  // azimuth bilan aylanmaydi). Xarita TEKIS (CSS tilt yo'q). Hyper-zoom (manzilga
+  // yaqin) — shimol-tepa (azimuth 0).
   const applyMapTransform = useCallback((course: number) => {
-    const base = containerRef.current;
     const map = mapRef.current as
       | (YmapInstance & { setAzimuth?: (a: number, opts?: { duration?: number }) => void })
       | null;
-    if (hyperZoomActiveRef.current) {
-      if (base) base.style.transform = 'rotateX(0deg)';
-      try { map?.setAzimuth?.(0, { duration: 300 }); } catch {/* */}
-      return;
-    }
-    if (base) base.style.transform = `rotateX(${NAV_TILT_DEG}deg)`;
-    const norm = ((course % 360) + 360) % 360;
-    try { map?.setAzimuth?.(norm * DEG2RAD * ROTATE_SIGN, { duration: 250 }); } catch {/* */}
+    if (!map?.setAzimuth) return;
+    // Hyper-zoom (manzilga yaqin) → shimol-tepa; aks holda course-up.
+    const norm = hyperZoomActiveRef.current ? 0 : ((course % 360) + 360) % 360;
+    try { map.setAzimuth(norm * DEG2RAD * ROTATE_SIGN, { duration: 250 }); } catch {/* */}
   }, []);
 
   // Oq manyovr (burilish) strelkalari ROUTE USTIDA (C3-7 — Yandex uslubi).
@@ -1157,22 +1151,18 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       className={`relative h-full w-full overflow-hidden bg-[#0a0a0c] ${!isOnline ? 'offline-crimson-border' : ''}`}
       data-no-ptr="true"
     >
-      <div className="map-3d-wrap absolute inset-0">
-        <div ref={containerRef} className="map-base map-night-filter h-full w-full" />
+      {/* To'liq ekran TEKIS xarita — CSS tilt/perspektiva YO'Q (foydalanuvchi so'rovi).
+          Aylanish faqat native setAzimuth orqali. Dark rejim = map-night-filter. */}
+      <div className="absolute inset-0">
+        <div ref={containerRef} className="map-night-filter h-full w-full" />
       </div>
 
+      {/* Yuqori scrim — faqat tepadagi belgilar (tezlik/karta) o'qilishi uchun.
+          Radial "atrof qora" vignette OLIB TASHLANDI — xarita to'liq ekran. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 z-[5]"
-        style={{
-          background:
-            'radial-gradient(ellipse at 50% 65%, transparent 0%, transparent 35%, rgba(10,10,12,0.5) 100%)',
-        }}
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 z-[5] h-24"
-        style={{ background: 'linear-gradient(to bottom, rgba(10,10,12,0.85), transparent)' }}
+        className="pointer-events-none absolute inset-x-0 top-0 z-[5] h-20"
+        style={{ background: 'linear-gradient(to bottom, rgba(10,10,12,0.55), transparent)' }}
       />
 
       {!mapReady && (
@@ -1326,23 +1316,14 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       )}
 
       <style jsx global>{`
-        .map-3d-wrap { perspective: 1200px; perspective-origin: 50% 60%; }
-        /* Viewport-size konteyner (170% kattalashtirish OLIB TASHLANDI — u pan'ni
-           qotirardi). Aylanish NATIVE setAzimuth bilan (tiles qayta render) →
-           burchaklar muammosi yo'q. CSS rotateX faqat 3D tilt (kamera qiyaligi). */
-        .map-base {
-          transform: rotateX(40deg) translateZ(0);
-          transform-origin: 50% 60%;
-          transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1);
-          will-change: transform;
-          backface-visibility: hidden;
-          -webkit-backface-visibility: hidden;
-        }
+        /* CSS tilt/perspektiva/170%-konteyner OLIB TASHLANDI (foydalanuvchi:
+           "css bilan qilma" + xarita qotgan/kichik quticha edi). Endi xarita
+           TEKIS, to'liq ekran; aylanish faqat native setAzimuth. */
         .map-night-filter {
-          filter: invert(0.92) hue-rotate(190deg) saturate(0.85) brightness(1.05) contrast(1.05);
+          filter: invert(0.9) hue-rotate(200deg) saturate(0.75) brightness(0.92) contrast(1.05);
         }
-        .map-base ymaps[class*="copyright"],
-        .map-base ymaps[class*="controls__toolbar"] { display: none !important; }
+        .map-night-filter ymaps[class*="copyright"],
+        .map-night-filter ymaps[class*="controls__toolbar"] { display: none !important; }
 
         .navigator-arrow-wrap {
           width: 48px;
