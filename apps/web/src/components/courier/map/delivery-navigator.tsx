@@ -81,11 +81,6 @@ const PAN_DURATION_MS = 650;
 const HEADING_ALPHA_MIN = 0.15;
 const HEADING_ALPHA_MAX = 0.4;
 const COMPASS_DEADZONE_DEG = 1.5;      // turganda mikro-jitter'ni e'tiborsiz qoldir
-// Kompas DRIFT'ni tuzatish uchun harakatда GPS-yo'nalishiga kuchliroq tortamiz
-// ("boshida aniq, keyin noto'g'ri" — magnitometr drifti; GPS course drift qilmaydi).
-const GPS_FUSION_MIN_KMH = 8;          // bu tezlikdan yuqorida GPS-bearing fusion yoqiladi
-const GPS_FUSION_DISAGREE_DEG = 30;    // kompas GPS'dan shuncha farq qilsa, GPS'ga moyil
-const GPS_FUSION_PULL = 0.2;           // GPS course'ga tortish kuchi (drift tuzatish)
 const VOICE_THRESHOLDS = [500, 150, 40] as const;
 const SPEED_BUFFER_KMH = 10;
 const HYPER_ZOOM_RADIUS_M = 100;
@@ -199,6 +194,9 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
   const interactingRef = useRef(false);
   const autofocusTimerRef = useRef<number | null>(null);
   const headingRef = useRef(0);
+  // Course-up manbai = GPS HARAKAT yo'nalishi (kuryer yurgan tomon), kompas EMAS.
+  const courseRef = useRef(0);
+  const courseInitedRef = useRef(false);
   const compassListenerCleanupRef = useRef<(() => void) | null>(null);
   const compassRequestedRef = useRef(false);
   const hyperZoomActiveRef = useRef(false);
@@ -561,6 +559,12 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
               try {
                 if (m.getZoom?.() !== CHASE_ZOOM_LEVEL) void m.setZoom(CHASE_ZOOM_LEVEL, { duration: PAN_DURATION_MS });
               } catch {/* */}
+              // Course-up'ni darhol qayta qo'llaymiz — autofocus'dan keyin to'xtab
+              // qolmasin (har GPS tickда ham qaytariladi).
+              if (courseInitedRef.current) {
+                courierMarkerRef.current?.properties?.set?.('iconRotateAngle', courseRef.current);
+                applyMapTransform(courseRef.current);
+              }
             }
           }, AUTOFOCUS_MS);
         };
@@ -722,6 +726,14 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
         flying: true, duration: PAN_DURATION_MS,
       });
     }
+
+    // Course-up'ni HAR tickда qayta qo'llaymiz — autofocus/zoom yoki pan'dan
+    // keyin ham saqlanib qoladi (avval autofocusдan keyin to'xtab qolardi) va
+    // kuryer harakatiga mos buriladi. Strelka oldinda (net up).
+    if (courseInitedRef.current && !hyperZoomActiveRef.current) {
+      courierMarkerRef.current?.properties?.set?.('iconRotateAngle', courseRef.current);
+      applyMapTransform(courseRef.current);
+    }
   }, [smoothedCourier?.lat, smoothedCourier?.lng, destination.lat, destination.lng, applyMapTransform]);
 
   // Speed delta (parent prop based)
@@ -743,10 +755,10 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
     lastCourierTsRef.current = now;
   }, [smoothedCourier?.lat, smoothedCourier?.lng, courierProp]);
 
-  // ── GPS-bearing FALLBACK ──────────────────────────────────────────────
-  // Magnitometr yo'q / ruxsat berilmagan / kalibrlanmagan holatlarda
-  // ketma-ket GPS nuqtalardan heading hisoblaymiz. Compass ishlayotgan
-  // bo'lsa (3s ichida tick kelgan), bu fallback URINMAYDI.
+  // ── COURSE-UP manbai: GPS HARAKAT yo'nalishi (kompas EMAS) ─────────────
+  // Xarita kuryer YURGAN tomonga buriladi (real navigatsiya). Ilgari kompas
+  // (telefon orientatsiyasi) boshqarardi → telefonni burganда xarita bekorга
+  // aylanardi. Endi faqat harakat yo'nalishi; turganда oxirgi course SAQLANADI.
   const bearingPrevRef = useRef<LatLng | null>(null);
   const bearingPrevTsRef = useRef<number>(0);
   useEffect(() => {
@@ -755,49 +767,25 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
     const prev = bearingPrevRef.current;
     const prevTs = bearingPrevTsRef.current;
 
-    if (prev && prevTs > 0) {
-      const ageMs = now - prevTs;
-      const compassFresh = now - lastCompassAtRef.current < 3_000;
+    if (prev && prevTs > 0 && !hyperZoomActiveRef.current) {
       const movedM = haversineM(prev, smoothedCourier);
-      const ms = movedM / Math.max(0.001, ageMs / 1000);
-      const kmh = ms * 3.6;
-
-      // Harakat aniq (jitter emas) + tezlik o'rtacha bo'lsa
-      if (movedM >= 5 && kmh > 5 && kmh < 250 && !hyperZoomActiveRef.current) {
+      const kmh = (movedM / Math.max(0.001, (now - prevTs) / 1000)) * 3.6;
+      // Aniq harakat (jitter emas) bo'lsa — course'ни GPS yo'nalishidan yangilaymiz
+      if (movedM >= 4 && kmh > 3 && kmh < 250) {
         const gpsB = gpsBearing(prev, smoothedCourier);
-        let applied = false;
-
-        if (!compassFresh) {
-          // Kompas yo'q/eskirgan — GPS-bearing birlamchi heading manbai
-          if (!headingInitedRef.current) {
-            headingRef.current = gpsB;
-            headingInitedRef.current = true;
-          } else {
-            const delta = deltaAngle(headingRef.current, gpsB);
-            // GPS bearing ko'proq shovqinli — chuqurroq low-pass (0.12)
-            headingRef.current = ((headingRef.current + delta * 0.12) + 360) % 360;
-          }
-          applied = true;
-        } else if (kmh > GPS_FUSION_MIN_KMH) {
-          // Kompas bor, lekin tez ketyapmiz — kuchli kelishmovchilikda GPS yo'nalishiga
-          // yengil tortamiz (magnit shovqin / noto'g'ri mount holatini tuzatadi)
-          const disagree = deltaAngle(headingRef.current, gpsB);
-          if (Math.abs(disagree) > GPS_FUSION_DISAGREE_DEG) {
-            headingRef.current = ((headingRef.current + disagree * GPS_FUSION_PULL) + 360) % 360;
-            applied = true;
-          }
-        }
-
-        if (applied) {
-          courierMarkerRef.current?.properties?.set?.('iconRotateAngle', headingRef.current);
-          applyMapTransform(headingRef.current);
+        if (!courseInitedRef.current) {
+          courseRef.current = gpsB;
+          courseInitedRef.current = true;
+        } else {
+          const delta = deltaAngle(courseRef.current, gpsB);
+          courseRef.current = ((courseRef.current + delta * 0.28) + 360) % 360;
         }
       }
     }
 
     bearingPrevRef.current = smoothedCourier;
     bearingPrevTsRef.current = now;
-  }, [smoothedCourier?.lat, smoothedCourier?.lng, applyMapTransform]);
+  }, [smoothedCourier?.lat, smoothedCourier?.lng]);
 
   // Maneuver + TTS
   useEffect(() => {
@@ -1031,16 +1019,12 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       }
 
       lastCompassAtRef.current = Date.now();
-
+      // DIQQAT: kompas endi xaritani/strelkani AYLANTIRMAYDI. Course-up faqat
+      // GPS HARAKAT yo'nalishidan boshqariladi (yuqoridagi course effekti) —
+      // aks holda telefon burilganда xarita bekorга aylanardi. headingRef faqat
+      // ehtiyot uchun yangilanib turadi (vizualga ta'sir qilmaydi).
       if (raf == null) {
-        raf = window.requestAnimationFrame(() => {
-          raf = null;
-          // Course-up: strelka iconRotate(heading) + konteyner rotateZ(-heading)
-          // → strelka net oldinga, xarita yo'nalish bo'yicha aylanadi (CSS bilan,
-          // chunki Yandex raster native setAzimuth'ni qo'llamaydi).
-          courierMarkerRef.current?.properties?.set?.('iconRotateAngle', headingRef.current);
-          applyMapTransform(headingRef.current);
-        });
+        raf = window.requestAnimationFrame(() => { raf = null; });
       }
     };
 
