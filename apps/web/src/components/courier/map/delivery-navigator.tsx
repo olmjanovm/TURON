@@ -89,8 +89,13 @@ const GPS_FUSION_PULL = 0.2;           // GPS course'ga tortish kuchi (drift tuz
 const VOICE_THRESHOLDS = [500, 150, 40] as const;
 const SPEED_BUFFER_KMH = 10;
 const HYPER_ZOOM_RADIUS_M = 100;
-const HYPER_ZOOM_LEVEL = 20;
-const CHASE_ZOOM_LEVEL = 19;           // chase-cam yaqin zoom (boshlang'ich + auto-focus)
+const HYPER_ZOOM_LEVEL = 19;
+const CHASE_ZOOM_LEVEL = 18;           // chase-cam zoom (boshlang'ich + auto-focus)
+// Course-up (CSS): xarita konteyneri rotateZ(ROTATE_SIGN·heading) bilan aylanadi.
+// Yandex raster native setAzimuth'ni qo'llamaydi → CSS bilan qilamiz. Yo'nalish
+// teskari bo'lsa ROTATE_SIGN'ни +1 ga o'zgartiriladi (1-belgi).
+const NAV_TILT_DEG = 40;
+const ROTATE_SIGN = -1;
 const DEFAULT_SPEED_LIMIT: Record<VehicleMode, number> = {
   auto: 60,
   bicycle: 25,
@@ -383,6 +388,21 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
     snapDotRef.current = dot;
   }, []);
 
+  // COURSE-UP (CSS): xarita konteynerini heading bo'yicha aylantiramiz + tilt.
+  // Strelka (iconRotateAngle=heading) konteyner rotateZ(-heading) bilan birga
+  // net 0 → oldinga qaragan; xarita esa yo'nalish bo'yicha aylanadi (real nav).
+  // Hyper-zoom (manzilga yaqin) — top-down, tilt/aylanish yo'q.
+  const applyMapTransform = useCallback((heading: number) => {
+    const base = containerRef.current;
+    if (!base) return;
+    if (hyperZoomActiveRef.current) {
+      base.style.transform = 'rotateX(0deg)';
+      return;
+    }
+    const norm = ((heading % 360) + 360) % 360;
+    base.style.transform = `rotateX(${NAV_TILT_DEG}deg) rotateZ(${(ROTATE_SIGN * norm).toFixed(1)}deg)`;
+  }, []);
+
   const refreshRoute = useCallback(async (from: LatLng, to: LatLng) => {
     const ymaps = ymapsRef.current;
     if (!ymaps) return;
@@ -639,20 +659,17 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
 
     const distToDest = haversineM(smoothedCourier, destination);
     const shouldHyperZoom = distToDest <= HYPER_ZOOM_RADIUS_M;
-    const mapWithExt = map as YmapInstance & {
-      setAzimuth?: (a: number, opts?: { duration?: number }) => void;
-    };
-
     if (shouldHyperZoom && !hyperZoomActiveRef.current) {
       hyperZoomActiveRef.current = true;
       try { void map.setZoom(HYPER_ZOOM_LEVEL, { duration: 800 }); } catch {/* */}
-      mapWithExt.setAzimuth?.(0, { duration: 800 });
+      applyMapTransform(headingRef.current); // top-down (tilt/aylanish yo'q)
       void speak('Manzilga yaqin keldingiz, kirish joyini topshiring', {
         key: `hyperzoom_${destination.lat}_${destination.lng}`,
       });
     } else if (!shouldHyperZoom && hyperZoomActiveRef.current) {
       hyperZoomActiveRef.current = false;
       try { void map.setZoom(CHASE_ZOOM_LEVEL, { duration: 600 }); } catch {/* */}
+      applyMapTransform(headingRef.current); // course-up + tilt qaytadi
     }
 
     if (!interactingRef.current) {
@@ -660,7 +677,7 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
         flying: true, duration: PAN_DURATION_MS,
       });
     }
-  }, [smoothedCourier?.lat, smoothedCourier?.lng, destination.lat, destination.lng]);
+  }, [smoothedCourier?.lat, smoothedCourier?.lng, destination.lat, destination.lng, applyMapTransform]);
 
   // Speed delta (parent prop based)
   const lastCourierRef = useRef<LatLng | null>(null);
@@ -728,13 +745,14 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
 
         if (applied) {
           courierMarkerRef.current?.properties?.set?.('iconRotateAngle', headingRef.current);
+          applyMapTransform(headingRef.current);
         }
       }
     }
 
     bearingPrevRef.current = smoothedCourier;
     bearingPrevTsRef.current = now;
-  }, [smoothedCourier?.lat, smoothedCourier?.lng]);
+  }, [smoothedCourier?.lat, smoothedCourier?.lng, applyMapTransform]);
 
   // Maneuver + TTS
   useEffect(() => {
@@ -970,10 +988,11 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       if (raf == null) {
         raf = window.requestAnimationFrame(() => {
           raf = null;
-          // Strelka kompas heading'ga buriladi. (Yandex RASTER xarita native
-          // rotatsiyani — setAzimuth — qo'llamaydi, shuning uchun xarita aylanmaydi;
-          // yo'nalishni STRELKA ko'rsatadi. Bu ishonchli ishlaydigan usul.)
+          // Course-up: strelka iconRotate(heading) + konteyner rotateZ(-heading)
+          // → strelka net oldinga, xarita yo'nalish bo'yicha aylanadi (CSS bilan,
+          // chunki Yandex raster native setAzimuth'ni qo'llamaydi).
           courierMarkerRef.current?.properties?.set?.('iconRotateAngle', headingRef.current);
+          applyMapTransform(headingRef.current);
         });
       }
     };
@@ -997,7 +1016,7 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       }
       window.removeEventListener('deviceorientation', handler);
     };
-  }, []);
+  }, [applyMapTransform]);
 
   // Boshlang'ich aniqlash: iOS 13+ user-gesture so'raydi, qolganlari avtomatik.
   //
@@ -1104,7 +1123,7 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       data-no-ptr="true"
     >
       <div className="map-3d-wrap absolute inset-0">
-        <div ref={containerRef} className="map-base map-night-filter h-full w-full" />
+        <div ref={containerRef} className="map-base map-night-filter" />
       </div>
 
       <div
@@ -1271,11 +1290,16 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       )}
 
       <style jsx global>{`
-        .map-3d-wrap { perspective: 1100px; perspective-origin: 50% 68%; }
+        .map-3d-wrap { perspective: 1200px; perspective-origin: 50% 56%; overflow: hidden; }
+        /* Course-up: konteyner viewport'dan KATTA (170%, markazda) — JS rotateZ bilan
+           aylanganда burchaklar bo'shamasin. JS inline transform'i bu default'ni
+           almashtiradi (rotateX tilt + rotateZ -heading). */
         .map-base {
-          transform: rotateX(55deg) translateZ(0);
-          transform-origin: 50% 68%;
-          transition: transform 400ms cubic-bezier(0.4, 0, 0.2, 1);
+          position: absolute;
+          width: 170%; height: 170%; left: -35%; top: -35%;
+          transform: rotateX(40deg);
+          transform-origin: 50% 50%;
+          transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1);
           will-change: transform;
           backface-visibility: hidden;
           -webkit-backface-visibility: hidden;
