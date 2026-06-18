@@ -62,8 +62,9 @@ export default function OrderChatPage({ params }: { params: Promise<{ orderId: s
         ) : (
           (messages ?? []).map((m) => {
             const mine = m.senderRole === 'CUSTOMER';
+            const failed = mine && m.status === 'failed';
             return (
-              <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+              <div key={m.id} className={`flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
                 <div
                   className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm ${
                     mine
@@ -87,9 +88,7 @@ export default function OrderChatPage({ params }: { params: Promise<{ orderId: s
                       })}
                     </span>
                     {mine && m.status === 'pending' && <Clock size={11} aria-label="Yuborilmoqda" />}
-                    {mine && m.status === 'failed' && (
-                      <AlertCircle size={11} className="text-amber-200" aria-label="Yuborilmadi" />
-                    )}
+                    {failed && <AlertCircle size={11} className="text-amber-200" aria-label="Yuborilmadi" />}
                     {mine && !m.status &&
                       (m.isRead ? (
                         <CheckCheck size={13} aria-label="O'qildi" />
@@ -98,6 +97,16 @@ export default function OrderChatPage({ params }: { params: Promise<{ orderId: s
                       ))}
                   </p>
                 </div>
+                {failed && (
+                  <button
+                    type="button"
+                    onClick={() => submit(m.content)}
+                    className="mt-0.5 flex items-center gap-1 px-1 text-[10px] font-semibold text-rose-500 active:scale-95"
+                  >
+                    <AlertCircle size={10} />
+                    <span>{m.errorMessage || 'Yuborilmadi'} · Qayta yuborish</span>
+                  </button>
+                )}
               </div>
             );
           })

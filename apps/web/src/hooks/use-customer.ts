@@ -281,6 +281,8 @@ export interface OrderChatMessage {
   createdAt: string;
   /** Faqat optimistic (klient) holat. Yo'q = serverdan kelgan (yuborilgan). */
   status?: 'pending' | 'failed';
+  /** Faqat 'failed' bo'lganda — nima uchun yuborilmaganini ko'rsatamiz. */
+  errorMessage?: string;
 }
 
 const ORDER_CHAT_KEY = (orderId: string) => ['customer', 'order-chat', orderId] as const;
@@ -346,13 +348,19 @@ export function useSendOrderMessage(orderId: string) {
         createdAt: new Date().toISOString(),
         status: 'pending',
       };
-      qc.setQueryData<OrderChatMessage[]>(key, (old) => [...(old ?? []), optimistic]);
+      // Qayta yuborishda: shu matnli avvalgi "failed" xabarni olib tashlaymiz
+      // (dublikat bo'lmasin) → yangi pending qo'shamiz.
+      qc.setQueryData<OrderChatMessage[]>(key, (old) => [
+        ...(old ?? []).filter((m) => !(m.status === 'failed' && m.content === content)),
+        optimistic,
+      ]);
       return { tempId };
     },
-    onError: (_err, _content, ctx) => {
+    onError: (err, _content, ctx) => {
       if (ctx?.tempId) {
+        const reason = err instanceof Error ? err.message : 'Yuborilmadi';
         qc.setQueryData<OrderChatMessage[]>(key, (old) =>
-          (old ?? []).map((m) => (m.id === ctx.tempId ? { ...m, status: 'failed' } : m)),
+          (old ?? []).map((m) => (m.id === ctx.tempId ? { ...m, status: 'failed', errorMessage: reason } : m)),
         );
       }
     },
