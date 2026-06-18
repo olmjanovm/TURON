@@ -25,6 +25,8 @@ export interface AdminChatMessage {
   createdAt: string;
   /** Faqat optimistic (klient) holat — serverdan kelgan xabarda bo'lmaydi (= yuborilgan). */
   status?: 'pending' | 'failed';
+  /** Faqat 'failed' bo'lganda — sabab (masalan "Ruxsat yo'q", "Server xatosi"). */
+  errorMessage?: string;
 }
 
 /** Order-chat va support thread endpointlarini hal qiladi. */
@@ -109,14 +111,19 @@ export function useSendChat(chatId: string, targetRole: 'COURIER' | 'CUSTOMER') 
         createdAt: new Date().toISOString(),
         status: 'pending',
       };
-      qc.setQueryData<AdminChatMessage[]>(CHAT_KEY(chatId), (old) => [...(old ?? []), optimistic]);
+      // Qayta yuborishda shu matnli avvalgi "failed"ni olib tashlaymiz (dubl yo'q).
+      qc.setQueryData<AdminChatMessage[]>(CHAT_KEY(chatId), (old) => [
+        ...(old ?? []).filter((m) => !(m.status === 'failed' && m.content === content)),
+        optimistic,
+      ]);
       return { tempId };
     },
-    onError: (_err, _content, ctx) => {
-      // Optimistic xabarni "failed" deb belgilaymiz (yo'qotmaymiz)
+    onError: (err, _content, ctx) => {
+      // Optimistic xabarni "failed" + sabab bilan belgilaymiz (yo'qotmaymiz)
       if (ctx?.tempId) {
+        const reason = err instanceof Error ? err.message : 'Yuborilmadi';
         qc.setQueryData<AdminChatMessage[]>(CHAT_KEY(chatId), (old) =>
-          (old ?? []).map((m) => (m.id === ctx.tempId ? { ...m, status: 'failed' } : m)),
+          (old ?? []).map((m) => (m.id === ctx.tempId ? { ...m, status: 'failed', errorMessage: reason } : m)),
         );
       }
     },

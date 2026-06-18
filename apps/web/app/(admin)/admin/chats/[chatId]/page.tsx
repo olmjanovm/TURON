@@ -45,18 +45,29 @@ export default function AdminChatThreadPage({ params }: { params: Promise<{ chat
         ) : (
           (messages ?? []).map((m) => {
             const mine = m.senderRole === 'ADMIN';
+            const failed = mine && m.status === 'failed';
             return (
-              <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+              <div key={m.id} className={`flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
                 <div className={`max-w-[78%] rounded-2xl px-3.5 py-2 text-sm ${mine ? 'bg-gradient-to-br from-ember to-orange-500 text-white' : 'border border-slate-200 bg-white text-slate-800'}`}>
                   {!mine && <p className="mb-0.5 text-[10px] font-bold text-slate-400">{m.senderName}</p>}
                   <p className="whitespace-pre-wrap break-words">{m.content}</p>
                   <p className={`mt-0.5 flex items-center justify-end gap-1 text-[9px] ${mine ? 'text-white/70' : 'text-slate-300'}`}>
                     <span>{new Date(m.createdAt).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}</span>
                     {mine && m.status === 'pending' && <Clock size={11} aria-label="Yuborilmoqda" />}
-                    {mine && m.status === 'failed' && <AlertCircle size={11} className="text-rose-200" aria-label="Yuborilmadi" />}
+                    {failed && <AlertCircle size={11} className="text-rose-200" aria-label="Yuborilmadi" />}
                     {mine && !m.status && <Check size={11} aria-label="Yuborildi" />}
                   </p>
                 </div>
+                {failed && (
+                  <button
+                    type="button"
+                    onClick={() => send.mutate(m.content)}
+                    className="mt-0.5 flex items-center gap-1 px-1 text-[10px] font-semibold text-rose-500 active:scale-95"
+                  >
+                    <AlertCircle size={10} />
+                    <span>{m.errorMessage || 'Yuborilmadi'} · Qayta yuborish</span>
+                  </button>
+                )}
               </div>
             );
           })
