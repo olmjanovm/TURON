@@ -86,11 +86,11 @@ const SPEED_BUFFER_KMH = 10;
 const HYPER_ZOOM_RADIUS_M = 100;
 const HYPER_ZOOM_LEVEL = 19;
 const CHASE_ZOOM_LEVEL = 18;           // chase-cam zoom (boshlang'ich + auto-focus)
-// Course-up (CSS): xarita konteyneri rotateZ(ROTATE_SIGN·heading) bilan aylanadi.
-// Yandex raster native setAzimuth'ni qo'llamaydi → CSS bilan qilamiz. Yo'nalish
-// teskari bo'lsa ROTATE_SIGN'ни +1 ga o'zgartiriladi (1-belgi).
+// Course-up (CSS): xarita konteyneri rotateZ(ROTATE_SIGN·course) bilan aylanadi.
+// Yandex raster native setAzimuth'ni qo'llamaydi → CSS bilan qilamiz.
+// Qurilmada tasdiqlandi: +1 to'g'ri yo'nalish (kuryer yurgan tomon tepada).
 const NAV_TILT_DEG = 40;
-const ROTATE_SIGN = -1;
+const ROTATE_SIGN = 1;
 const DEFAULT_SPEED_LIMIT: Record<VehicleMode, number> = {
   auto: 60,
   bicycle: 25,
