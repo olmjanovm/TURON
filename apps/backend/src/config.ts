@@ -17,7 +17,9 @@ const configSchema = z.object({
   BOT_TOKEN: z.string().min(1),
   JWT_SECRET: z.string().min(8),
   CORS_ORIGIN: z.string().default('*'),
-  RATE_LIMIT_MAX: z.coerce.number().default(100),
+  // Endi rate-limit HAR FOYDALANUVCHI bo'yicha (security plugin keyGenerator).
+  // 100 juda past edi (polling+GPS) — per-user 240/daq (~4/s) bemalol yetadi.
+  RATE_LIMIT_MAX: z.coerce.number().default(240),
   WEB_APP_URL: z.string().url().optional(),
   ADMIN_CHAT_ID: z.string().optional(),
   ADMIN_IDS: z.string().optional(),

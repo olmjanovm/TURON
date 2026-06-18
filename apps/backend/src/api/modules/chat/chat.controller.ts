@@ -46,10 +46,15 @@ export async function sendOrderChat(
   reply: FastifyReply,
 ) {
   const { id: orderId } = request.params;
-  const { content } = request.body;
   const requester = getRequester(request);
   if (!requester) return reply.status(401).send({ error: 'Unauthorized' });
   const role = getReaderRole(requester);
+
+  // Body guard — content-type yo'q bo'lsa request.body undefined bo'lib,
+  // destructuring 500 berardi. Endi aniq 400.
+  const body = request.body as { content?: unknown } | undefined;
+  const content = typeof body?.content === 'string' ? body.content : '';
+  if (!content.trim()) return reply.status(400).send({ error: 'Xabar bo\'sh' });
 
   const hasAccess = await OrderChatService.verifyAccess(orderId, requester.id, role);
   if (!hasAccess) return reply.status(403).send({ error: 'Ruxsat yo\'q' });

@@ -12,6 +12,11 @@ import { closeRedisConnection } from '../lib/redis.js';
 const server = fastify({
   logger: true,
   bodyLimit: 12 * 1024 * 1024,
+  // Backend Vercel proxy + reverse-proxy (HTTPS) ortida turadi. trustProxy'siz
+  // `request.ip` DOIM upstream proxy IP'si bo'ladi → rate-limit hamma
+  // foydalanuvchini BITTA bucket'ga qo'shib 429 ("Yuborilmadi") beradi.
+  // trustProxy → X-Forwarded-For'dan haqiqiy klient IP olinadi.
+  trustProxy: true,
 });
 
 async function main() {

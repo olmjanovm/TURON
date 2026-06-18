@@ -63,10 +63,13 @@ export async function sendAdminOrderChat(
   reply: FastifyReply,
 ) {
   const { id: orderId } = request.params;
-  const { content, targetRole = null } = request.body;
+  const body = request.body as { content?: unknown; targetRole?: 'COURIER' | 'CUSTOMER' | null } | undefined;
+  const content = typeof body?.content === 'string' ? body.content : '';
+  const targetRole = body?.targetRole ?? null;
   const adminId = getAdminId(request);
 
   if (!adminId) return reply.status(401).send({ error: 'Unauthorized' });
+  if (!content.trim()) return reply.status(400).send({ error: 'Xabar bo\'sh' });
   touchAdminPresence(adminId);
 
   try {
