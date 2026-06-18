@@ -146,6 +146,18 @@
   - **(4) zoom/strelka/tezlik-limit/summary bar refine.**
   - Har biri alohida surgical `[courier]` commit, `tsc --noEmit` toza. **Qurilmada test SHART** (course-up/kompas/GPS). Kalit: `NEXT_PUBLIC_YANDEX_MAP_API_KEY` brauzerda ishlaydi (JS Maps + multiRouter) — server router kaliti hozir yo'q, shuning uchun trafik route multiRouter'dan olinadi (yuqorida (1)).
   - **Sardordan (Claude 1) kerak bo'lsa** (HTTP router billing kaliti / Places POI) → So'rovlar bo'limiga yoz, men hal qilaman.
+- `[2026-06-18]` 🟣 **GLOBAL QOIDA (foydalanuvchi talabi) — HAR TASKDA SKILL-FIRST (MAJBURIY, hammaga).** Endi har bir vazifani bajarishda tegishli skill'larni MAKSIMAL ishlatamiz (Claude 3 ham — "o'zicha qilma"). Vazifa turi → skill:
+  - Reja/arxitektura → `/software-architect`, `/orchestrator`
+  - Backend/API/biznes-logika → `/backend-architect`
+  - Frontend/UI integratsiya/holat → `/frontend-developer`
+  - UI/UX dizayn, foydalanuvchi oqimi → `/ui-ux-designer`
+  - DB sxema/index/so'rov → `/database-optimizer`
+  - Xavfsizlik (audit/zaiflik) → `/security-engineer`, `/security-review`, `/security-tester`
+  - Test (UI/API/E2E/perf) → `/ui-tester`, `/api-tester`, `/performance-tester`, `/test-orchestrator`
+  - **Tartib:** KATTA task → skill bilan reja → STATUS → implement → tugagach `/security-review` + tegishli `*-tester`. Kichik tuzatishda ham hech bo'lmasa tegishli bitta skill methodikasini ishlat. **Maqsad:** valasaped emas, optimizatsiya + kerakmas kod/fayl olib tashlash + zaiflik/UX/security muammolarini bartaraf etish.
+- `[2026-06-18]` 🔴 **CHAT "Yuborilmadi" — ROOT CAUSE TOPILDI va TUZATILDI (Claude 1, infra/BE).** Sabab: backend `trustProxy`siz edi → reverse-proxy ortida HAMMA so'rov bitta `request.ip` ko'rinardi, `@fastify/rate-limit` (100/daq) butun ilova uchun BITTA bucket bo'lib qolgan → chat polling (5s) + GPS limitни yorib **429 → "Yuborilmadi"** berardi (tasodifiy, hamma tomonда). Tuzatildi (`0b9a627`): `trustProxy:true` + rate-limit kaliti **per JWT user id** + limit 100→240 + Vercel proxy `x-forwarded-for` uzatadi + chat controller body guard (500→400). **BE qayta deploy qilinishi kerak** (Singapore server) — deploydan keyin chat yuborish to'g'ri ishlaydi.
+  - **🔵 CLAUDE 3 (courier ulushi — chat hardening):** courier chat'da ham "failed" xabarga **haqiqiy sabab + qayta-yuborish** qo'sh (men admin+customer'da qildim: `9336ec1`/`eefeafc`). `use-courier-chat.ts` `useSendOrderChat` `onError`'da `err.message`'ni `errorMessage`'ga yoz + `onMutate`'da shu matnli avvalgi "failed"ni filtrla (dubl yo'q); `admin-contact-sheet.tsx`/order chat UI'da failed bubble'ni tap→retry qil + sababni ko'rsat. Shablon: `apps/web/src/hooks/use-customer.ts` `useSendOrderMessage` + `app/(customer)/orders/[orderId]/chat/page.tsx`. (Rate-limit fix BE'da — sen FE faqat UX hardening qil; `/frontend-developer` + `/ui-tester` ishlat.)
+  - **Test:** BE deploydan keyin courier→admin, customer→admin, admin→courier/customer — hammasi yuborilsin, 429 bo'lmasin. Socket realtime (A9) allaqachon ulangan (sen C3-6'да ulagansan).
 
 ---
 
@@ -158,6 +170,7 @@
 - `[2026-06-14]` ✅ **Restoran sozlamalari saqlanmasligi TUZATILDI** (root cause: Prisma `$executeRawUnsafe` multi-statement DDL → `42601`; production logda tasdiqlandi). Nom/manzil/logo endi saqlanadi (`identity` → "Sushi 🍣" bilan tekshirildi). `fallback_sent_at` ustuni DB'ga qo'shildi (P2022 tugadi).
 - `[2026-06-14]` ✅ **BackButton admin'ga qo'llandi** + shared hook `use-telegram-back-button.ts` yaratildi (Claude 2/3 ishlatadi).
 - `[2026-06-16]` 🔎 Vercel deploy F4'dan beri Error (lokal build/lockfile/region toza) — log tekshirilmoqda (trigger deploy).
+- `[2026-06-18]` **🔴→✅ CHAT "Yuborilmadi" ROOT CAUSE (rate-limit) TUZATILDI** (`backend-architect` skill bilan). Backend `trustProxy`siz → reverse-proxy ortida hamma bitta IP → `@fastify/rate-limit` 100/daq butun ilovaga BITTA bucket → 429 = "Yuborilmadi". Fix: `trustProxy:true` + per-user (JWT id) rate-limit kaliti + 240/daq + proxy XFF uzatish + chat controller body-guard (`0b9a627`). + admin/customer chat'da failed→sabab+retry (`9336ec1`/`eefeafc`). **BE redeploy kerak.** Courier UX hardening Claude 3'da (direktiva).
 - `[2026-06-17]` **✅ A9 · CHATLAR REAL-TIME (Socket.io) — BE + shared hook + admin + customer YETKAZILDI** (3 paket ham `tsc --noEmit` = 0 xato). Arxitektura: **recipient-targeted** (room emas) — gateway'da DB yo'q, shuning uchun BE qabul qiluvchilarni hal qiladi (targetRole maxfiyligi: admin→courier xabari mijozga SIZMAYDI), gateway esa ularning `user:`/`role:` xonalariga uzatadi (connect'da avtomatik join). `chat:join` shart emas.
   - **Gateway** (`apps/socket-gateway/src/server.ts`): `emitChatMessage`/`emitChatRead` + `/webhook/chat-message` + `/webhook/chat-read` + Redis parity (`turon:chat-message`/`turon:chat-read`).
   - **Backend**: `SocketEvents.chatMessage/chatRead` (`socket-events.service.ts`); `order-chat.service.ts` `sendMessage`+`markRead` saqlangach `resolveRecipients` (order owner + so'nggi assignment courier + `role:ADMIN`, targetRole-aware) bilan emit. **Fire-and-forget — gateway yo'q bo'lsa graceful no-op** (SSE legacy ham qoladi).
