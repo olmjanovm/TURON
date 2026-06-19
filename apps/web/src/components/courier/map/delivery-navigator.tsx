@@ -55,6 +55,7 @@ import { pipManager } from '@/lib/pip-manager';
 import { GpsWatcher, type GpsTick } from '@/lib/gps-watcher';
 import { PositionSmoother } from '@/lib/kalman-filter';
 import { distanceToRoute, haversineMeters } from '@/lib/route-geometry';
+import { useCourierPermissions } from '@/hooks/use-courier-permissions';
 
 export type VehicleMode = 'auto' | 'bicycle' | 'pedestrian';
 
@@ -86,12 +87,11 @@ const SPEED_BUFFER_KMH = 10;
 const HYPER_ZOOM_RADIUS_M = 100;
 const HYPER_ZOOM_LEVEL = 19;
 const CHASE_ZOOM_LEVEL = 18;           // chase-cam zoom (boshlang'ich + auto-focus)
-// Course-up: xarita NATIVE Yandex rotatsiya (map.setAzimuth) bilan aylanadi —
-// tiles qayta render bo'ladi. CSS transform (tilt/rotate) ISHLATILMAYDI
-// (foydalanuvchi so'rovi — u xaritani qotirardi/quticha qilardi). Xarita TEKIS,
-// to'liq ekran. Course manbai = GPS harakat yo'nalishi. ROTATE_SIGN teskari → -1.
-const ROTATE_SIGN = 1;
-const DEG2RAD = Math.PI / 180;
+// Yo'nalish: xarita SHIMOL-TEPA (barqaror, tekis, to'liq ekran), STRELKA esa
+// kompas yo'nalishiga buriladi (chapga→chap, o'ngga→o'ng). Kompas birlamchi
+// (responsive), tez harakatда GPS-course bilan drift tuzatiladi.
+const GPS_DRIFT_MIN_KMH = 8;           // bundan tez yurganда GPS drift-tuzatish
+const GPS_DRIFT_PULL = 0.15;           // GPS yo'nalishiga tortish kuchi
 const DEFAULT_SPEED_LIMIT: Record<VehicleMode, number> = {
   auto: 60,
   bicycle: 25,
@@ -195,9 +195,9 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
   const interactingRef = useRef(false);
   const autofocusTimerRef = useRef<number | null>(null);
   const headingRef = useRef(0);
-  // Course-up manbai = GPS HARAKAT yo'nalishi (kuryer yurgan tomon), kompas EMAS.
-  const courseRef = useRef(0);
-  const courseInitedRef = useRef(false);
+  // Ruxsat cache (bir marta berilган bo'lsa qayta so'ramaymiz — ish boshlash
+  // gesturida olinadi: use-courier-permissions, localStorage).
+  const { getCached: getCachedPermissions } = useCourierPermissions();
   const compassListenerCleanupRef = useRef<(() => void) | null>(null);
   const compassRequestedRef = useRef(false);
   const hyperZoomActiveRef = useRef(false);
@@ -388,21 +388,6 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
     snapDotRef.current = dot;
   }, []);
 
-  // COURSE-UP (CSS): xarita konteynerini heading bo'yicha aylantiramiz + tilt.
-  // Course-up: xarita NATIVE aylanadi (setAzimuth → tiles qayta render), strelka
-  // markazda OLDINGA qotirilgan (iconRotate=0, Yandex ikonani billboard qiladi —
-  // azimuth bilan aylanmaydi). Xarita TEKIS (CSS tilt yo'q). Hyper-zoom (manzilga
-  // yaqin) — shimol-tepa (azimuth 0).
-  const applyMapTransform = useCallback((course: number) => {
-    const map = mapRef.current as
-      | (YmapInstance & { setAzimuth?: (a: number, opts?: { duration?: number }) => void })
-      | null;
-    if (!map?.setAzimuth) return;
-    // Hyper-zoom (manzilga yaqin) → shimol-tepa; aks holda course-up.
-    const norm = hyperZoomActiveRef.current ? 0 : ((course % 360) + 360) % 360;
-    try { map.setAzimuth(norm * DEG2RAD * ROTATE_SIGN, { duration: 250 }); } catch {/* */}
-  }, []);
-
   // Oq manyovr (burilish) strelkalari ROUTE USTIDA (C3-7 — Yandex uslubi).
   // Har manyovr koordinatasiga oq chevron + to'q outline; yo'nalish = route
   // bo'ylab oldinga (keyingi manyovr/route oxiriga bearing). Geografik burchak
@@ -560,11 +545,6 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
               try {
                 if (m.getZoom?.() !== CHASE_ZOOM_LEVEL) void m.setZoom(CHASE_ZOOM_LEVEL, { duration: PAN_DURATION_MS });
               } catch {/* */}
-              // Course-up'ni darhol qayta qo'llaymiz — autofocus'dan keyin to'xtab
-              // qolmasin (har GPS tickда ham qaytariladi).
-              if (courseInitedRef.current) {
-                applyMapTransform(courseRef.current);
-              }
             }
           }, AUTOFOCUS_MS);
         };
@@ -711,28 +691,22 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
     if (shouldHyperZoom && !hyperZoomActiveRef.current) {
       hyperZoomActiveRef.current = true;
       try { void map.setZoom(HYPER_ZOOM_LEVEL, { duration: 800 }); } catch {/* */}
-      applyMapTransform(headingRef.current); // top-down (tilt/aylanish yo'q)
       void speak('Manzilga yaqin keldingiz, kirish joyini topshiring', {
         key: `hyperzoom_${destination.lat}_${destination.lng}`,
       });
     } else if (!shouldHyperZoom && hyperZoomActiveRef.current) {
       hyperZoomActiveRef.current = false;
       try { void map.setZoom(CHASE_ZOOM_LEVEL, { duration: 600 }); } catch {/* */}
-      applyMapTransform(headingRef.current); // course-up + tilt qaytadi
     }
 
+    // Xarita kuryerni MARKAZDA tutadi (follow). Aylanmaydi — barqaror shimol-tepa;
+    // yo'nalishni STRELKA ko'rsatadi (kompas, pastdagi effekt).
     if (!interactingRef.current) {
       void map.panTo([smoothedCourier.lat, smoothedCourier.lng], {
         flying: true, duration: PAN_DURATION_MS,
       });
     }
-
-    // Course-up'ni HAR tickда qayta qo'llaymiz — kuryer harakatiga mos xarita
-    // aylanadi (native setAzimuth). Strelka markazda oldinga qotirilgan.
-    if (courseInitedRef.current && !hyperZoomActiveRef.current) {
-      applyMapTransform(courseRef.current);
-    }
-  }, [smoothedCourier?.lat, smoothedCourier?.lng, destination.lat, destination.lng, applyMapTransform]);
+  }, [smoothedCourier?.lat, smoothedCourier?.lng, destination.lat, destination.lng]);
 
   // Speed delta (parent prop based)
   const lastCourierRef = useRef<LatLng | null>(null);
@@ -753,10 +727,10 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
     lastCourierTsRef.current = now;
   }, [smoothedCourier?.lat, smoothedCourier?.lng, courierProp]);
 
-  // ── COURSE-UP manbai: GPS HARAKAT yo'nalishi (kompas EMAS) ─────────────
-  // Xarita kuryer YURGAN tomonga buriladi (real navigatsiya). Ilgari kompas
-  // (telefon orientatsiyasi) boshqarardi → telefonni burganда xarita bekorга
-  // aylanardi. Endi faqat harakat yo'nalishi; turganда oxirgi course SAQLANADI.
+  // ── Kompas DRIFT tuzatish (GPS harakat yo'nalishi bilan) ───────────────
+  // Strelka birlamchi KOMPAS bilan buriladi (responsive). Lekin magnitometr
+  // vaqt o'tib drift qiladi — tez yurganда (GPS yo'nalishi ishonchli) headingRef'ni
+  // GPS-course'ga yengil tortib tuzatamiz. Turganда / sekin — sof kompas.
   const bearingPrevRef = useRef<LatLng | null>(null);
   const bearingPrevTsRef = useRef<number>(0);
   useEffect(() => {
@@ -765,19 +739,19 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
     const prev = bearingPrevRef.current;
     const prevTs = bearingPrevTsRef.current;
 
-    if (prev && prevTs > 0 && !hyperZoomActiveRef.current) {
+    if (prev && prevTs > 0) {
       const movedM = haversineM(prev, smoothedCourier);
       const kmh = (movedM / Math.max(0.001, (now - prevTs) / 1000)) * 3.6;
-      // Aniq harakat (jitter emas) bo'lsa — course'ни GPS yo'nalishidan yangilaymiz
-      if (movedM >= 4 && kmh > 3 && kmh < 250) {
+      if (movedM >= 5 && kmh > GPS_DRIFT_MIN_KMH && kmh < 250) {
         const gpsB = gpsBearing(prev, smoothedCourier);
-        if (!courseInitedRef.current) {
-          courseRef.current = gpsB;
-          courseInitedRef.current = true;
+        if (!headingInitedRef.current) {
+          headingRef.current = gpsB;
+          headingInitedRef.current = true;
         } else {
-          const delta = deltaAngle(courseRef.current, gpsB);
-          courseRef.current = ((courseRef.current + delta * 0.28) + 360) % 360;
+          const disagree = deltaAngle(headingRef.current, gpsB);
+          headingRef.current = ((headingRef.current + disagree * GPS_DRIFT_PULL) + 360) % 360;
         }
+        courierMarkerRef.current?.properties?.set?.('iconRotateAngle', headingRef.current);
       }
     }
 
@@ -1017,12 +991,15 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       }
 
       lastCompassAtRef.current = Date.now();
-      // DIQQAT: kompas endi xaritani/strelkani AYLANTIRMAYDI. Course-up faqat
-      // GPS HARAKAT yo'nalishidan boshqariladi (yuqoridagi course effekti) —
-      // aks holda telefon burilganда xarita bekorга aylanardi. headingRef faqat
-      // ehtiyot uchun yangilanib turadi (vizualga ta'sir qilmaydi).
+
+      // STRELKA kompas yo'nalishiga buriladi (shimol-tepa xarita ustida):
+      // chapga bursang chapga, o'ngga→o'ng, ortga→ortga. Doimiy, responsive.
+      // (Xarita aylanmaydi — barqaror; bu telefon burganда "spin" muammosini oldini oladi.)
       if (raf == null) {
-        raf = window.requestAnimationFrame(() => { raf = null; });
+        raf = window.requestAnimationFrame(() => {
+          raf = null;
+          courierMarkerRef.current?.properties?.set?.('iconRotateAngle', headingRef.current);
+        });
       }
     };
 
@@ -1045,7 +1022,7 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       }
       window.removeEventListener('deviceorientation', handler);
     };
-  }, [applyMapTransform]);
+  }, []);
 
   // Boshlang'ich aniqlash: iOS 13+ user-gesture so'raydi, qolganlari avtomatik.
   //
@@ -1064,8 +1041,17 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       return;
     }
     const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
+    // Ruxsat ALLAQACHON berilган (ish boshlash gesturida, localStorage cache) —
+    // qayta SO'RAMAYMIZ, darrov attach. (Foydalanuvchi: "bitta sorasin, keyin doim
+    // berilgan bo'lsin".) iOS sessiya ruxsati go-online toggle'da olinadi.
+    if (getCachedPermissions()?.compass === 'granted') {
+      attachCompass();
+      compassRequestedRef.current = true;
+      setCompassPermState('granted');
+      return;
+    }
     if (typeof DOE.requestPermission === 'function') {
-      // iOS 13+ — UI prompt'ni ko'rsatamiz, foydalanuvchi click qilsa permission so'raymiz
+      // iOS 13+ — birinchi marta: UI prompt (gesture kerak)
       setCompassPermState('prompt');
       compassRequestedRef.current = false;
     } else {
@@ -1074,7 +1060,7 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       compassRequestedRef.current = true;
       setCompassPermState('granted');
     }
-  }, [attachCompass]);
+  }, [attachCompass, getCachedPermissions]);
 
   // iOS permission — to'g'ridan-to'g'ri click handler ichida chaqiriladi.
   // ASYNC bo'lsa-da, DOE.requestPermission() chaqiruvi SYNCHRON ravishda
@@ -1092,6 +1078,15 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
         attachCompass();
         compassRequestedRef.current = true;
         setCompassPermState('granted');
+        // Cache'ga saqlaymiz — keyingi safar QAYTA so'ramaymiz (localStorage).
+        try {
+          const raw = localStorage.getItem('courier:permissions');
+          const obj = raw ? JSON.parse(raw) : {};
+          localStorage.setItem(
+            'courier:permissions',
+            JSON.stringify({ geo: obj?.geo ?? 'unavailable', compass: 'granted' }),
+          );
+        } catch {/* kvota/private — e'tiborsiz */}
       } else {
         setCompassPermState('denied');
       }
