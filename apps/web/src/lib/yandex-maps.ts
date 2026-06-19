@@ -16,11 +16,14 @@
 
 const SCRIPT_ID = 'turon-yandex-maps-script';
 
-// Browserda yuklanadigan kalit — NEXT_PUBLIC_ majburiy
+// Browserda yuklanadigan kalit — NEXT_PUBLIC_ majburiy.
+// Fallback: foydalanuvchining YANGI JS API kaliti (multiRouter routing yoqilgan) —
+// Vercel env qo'yilmasa ham xarita + yo'l hisoblash ishlasin. Eski `c3e2b675`
+// (faqat display) o'rniga. Vercel env qo'yilsa o'sha ustun (env-first).
 const API_KEY =
   process.env.NEXT_PUBLIC_YANDEX_MAP_API_KEY?.trim() ||
   process.env.NEXT_PUBLIC_MAP_API_KEY?.trim() || // legacy
-  'c3e2b675-cbbf-4886-b77a-3ed4e0d4f3f8'; // dev fallback (mavjud kalit)
+  '0fa7de6b-b53e-4257-8626-02c9082bb2c2'; // YANGI JS API kalit (routing yoqilgan)
 
 const LANG = process.env.NEXT_PUBLIC_MAP_LANGUAGE?.trim() || 'uz_UZ';
 

@@ -316,3 +316,9 @@
     - **TAVSIYA:** ② **API Геокодер** (manzil↔koordinata) · ⑩ **АПИ Получения деталей маршрута** (turn-by-turn sifati).
     - **KERAK EMAS:** ③ MapKit (mobil SDK — biz web) · ⑤ Матрица расстояний · ⑥ Локатор · ⑦ Статик API · ⑧ Isochrone · ⑨ Tiles API.
     - Ya'ni: bitta kalitда **JS API + Router (Получения маршрута) + Геокодер** yoqilsa — `NEXT_PUBLIC_YANDEX_MAP_API_KEY` (brauzer) hammasini qoplaydi; server HTTP router uchun esa o'sha kalit `YANDEX_ROUTER_API_KEY`'ga ham.
+  - **✅ `[2026-06-19]` KALITLAR KELDI (foydalanuvchi 5 ta alohida kalit berdi). Men `.env.example`'ga yozdim + brauzer dev-fallback'ni YANGI JS kalitga yangiladim (`yandex-maps.ts` — C3-7 ruxsati). 🔴 SIZDAN (Vercel env) — men hardcode qila olmaydigan SERVER kalitlar:**
+    - `NEXT_PUBLIC_YANDEX_MAP_API_KEY` = `0fa7de6b-b53e-4257-8626-02c9082bb2c2` (JS API — brauzer; fallback'da bor, lekin Vercel'ga ham qo'ying)
+    - `YANDEX_ROUTER_API_KEY` = `2749c1ae-7c94-492d-aadc-bfb5b0b1e246` (Marshrutniki — server `/api/maps/route`, **eng yaxshi yo'l sifati**)
+    - `YANDEX_GEOCODER_API_KEY` = `6b1bd2aa-bcb7-4ead-89c8-7e6d7bd4305a` (yoki `80065ebc-fba6-4a34-b663-9f91ea1cc2c8` — ikkitasi keldi, biri JS-ichi geocoder, biri HTTP; HTTP server uchun shuni)
+    - `YANDEX_GEOSUGGEST_API_KEY` = `06980126-8c64-4d5e-8acf-1548e5136e09` (manzil takliflari)
+    - **Holat:** brauzer multiRouter routing endi YANGI JS kalit bilan ishlashi kerak (deploy bo'lgach). Server HTTP router (yuqori sifat) `YANDEX_ROUTER_API_KEY` Vercel'ga qo'yilgach ishlaydi. Geocoder/Geosuggest — sizning/customer lane (manzil tanlash) uchun, courier nav'ga shart emas.
