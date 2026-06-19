@@ -33,10 +33,12 @@ export interface RouteResult {
 
 type Mode = 'auto' | 'pedestrian' | 'bicycle';
 
-const MODE_HTTP_MAP: Record<Mode, 'driving' | 'walking' | 'cycling'> = {
+// Yandex Router API v2 mode qiymatlari (rasmiy hujjat): driving | walking | bicycle | scooter.
+// (Ilgari bicycle→'cycling' edi — Yandex uni qabul qilmaydi.)
+const MODE_HTTP_MAP: Record<Mode, 'driving' | 'walking' | 'bicycle'> = {
   auto: 'driving',
   pedestrian: 'walking',
-  bicycle: 'cycling',
+  bicycle: 'bicycle',
 };
 
 /**

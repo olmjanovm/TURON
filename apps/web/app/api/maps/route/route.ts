@@ -166,9 +166,15 @@ function normalize(raw: unknown): Omit<NormalizedRoute, 'ok' | 'source'> | null 
     for (const stepRaw of stepsRaw) {
       const step = stepRaw as Record<string, unknown>;
 
-      // Coords — polyline, points yoki geometry
+      // Coords — Yandex Router API v2 ASOSIY format: step.polyline = { points: [[lat,lng],...] }
+      // (rasmiy hujjatdan tasdiqlandi). So'ng eski/boshqa formatlar (defensive).
       let coords: [number, number][] = [];
-      if (typeof step.polyline === 'string') {
+      const polyObj = step.polyline as { points?: unknown } | undefined;
+      if (polyObj && typeof polyObj === 'object' && Array.isArray(polyObj.points)) {
+        coords = (polyObj.points as unknown[])
+          .map((p) => (Array.isArray(p) && p.length >= 2 ? ([Number(p[0]), Number(p[1])] as [number, number]) : null))
+          .filter((x): x is [number, number] => x != null);
+      } else if (typeof step.polyline === 'string') {
         coords = decodePolyline(step.polyline);
       } else if (Array.isArray(step.points)) {
         coords = (step.points as unknown[])
@@ -202,10 +208,13 @@ function normalize(raw: unknown): Omit<NormalizedRoute, 'ok' | 'source'> | null 
       snappedEnd = coords[coords.length - 1];
 
       const durationVal =
-        (step.duration as { value?: number })?.value ??
-        (typeof step.duration === 'number' ? step.duration : 0);
+        (typeof step.duration === 'number' ? step.duration : undefined) ??
+        (step.duration as { value?: number } | undefined)?.value ??
+        0;
+      // Yandex Router v2: masofa = step.length (metr). Eski 'distance' fallback.
       const distanceVal =
-        (step.distance as { value?: number })?.value ??
+        (typeof step.length === 'number' ? step.length : undefined) ??
+        (step.distance as { value?: number } | undefined)?.value ??
         (typeof step.distance === 'number' ? step.distance : 0);
 
       totalDistance += distanceVal;
@@ -280,7 +289,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<NormalizedRout
   const sp = req.nextUrl.searchParams;
   const from = parseLatLng(sp.get('from'));
   const to = parseLatLng(sp.get('to'));
-  const mode = (sp.get('mode') ?? 'driving') as 'driving' | 'walking' | 'cycling' | 'truck';
+  const mode = (sp.get('mode') ?? 'driving') as 'driving' | 'walking' | 'bicycle' | 'scooter' | 'truck';
 
   if (!from || !to) {
     return NextResponse.json(
@@ -301,8 +310,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<NormalizedRout
   url.searchParams.set('apikey', ROUTER_API_KEY);
   url.searchParams.set('waypoints', waypoints);
   url.searchParams.set('mode', mode);
-  url.searchParams.set('traffic', 'true');
-  url.searchParams.set('lang', 'uz_UZ');
+  // traffic FAQAT driving/truck uchun (rasmiy hujjat) — walking/bicycle'da yuborilmaydi.
+  if (mode === 'driving' || mode === 'truck') url.searchParams.set('traffic', 'true');
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8_000);
