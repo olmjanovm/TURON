@@ -256,6 +256,15 @@ function fetchFromMultiRouter(
       multiRoute.model?.events?.add?.('requestsuccess', onSuccess);
       multiRoute.model?.events?.add?.('requestfail', () => resolve(null));
 
+      // MUSTAHKAMLIK: route bog'lashdan OLDIN hisoblanган bo'lishi mumkin (cache/
+      // sinxron) — event o'tkazib yuborilmasin. Allaqachon route bor bo'lsa darrov.
+      try {
+        const already = (multiRoute as YmapObject & {
+          getRoutes?: () => { getLength?: () => number };
+        }).getRoutes?.();
+        if (already && (already.getLength?.() ?? 0) > 0) onSuccess();
+      } catch {/* */}
+
       // Timeout — 8s
       setTimeout(() => resolve(null), 8_000);
     } catch {
