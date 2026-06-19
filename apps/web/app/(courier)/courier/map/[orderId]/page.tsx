@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import {
   useCourierOrder,
-  useCourierProfile,
   useAdvanceStage,
   getNextStageAction,
   getStageIndex,
@@ -45,7 +44,6 @@ export default function CourierMapPage({ params }: { params: Promise<{ orderId: 
   const { orderId } = use(params);
   const router = useRouter();
   const { data: order, isLoading, isError } = useCourierOrder(orderId);
-  const { data: profile } = useCourierProfile();
   const advance = useAdvanceStage();
   useCourierSocket();
 
@@ -77,7 +75,7 @@ export default function CourierMapPage({ params }: { params: Promise<{ orderId: 
   return (
     <MapView
       order={order}
-      vehicleMode={profile?.vehicleMode ?? 'auto'}
+      vehicleMode="pedestrian"
       onBack={() => router.replace(`/courier/order/${orderId}`)}
       onAdvance={(next) => advance.mutate({ orderId, nextStage: next })}
       advancing={advance.isPending}

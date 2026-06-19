@@ -157,44 +157,43 @@ function fetchFromMultiRouter(
           };
 
           const segments: RouteSegment[] = [];
+          const fullPathCoords = path.geometry?.getCoordinates?.() as number[][] | undefined;
 
-          // ASOSIY USUL (C3-7 — trafik gradient): har PATH-SEGMENT'ni alohida olamiz
-          // va `jams.severity` bo'yicha ranglaymiz → Yandex etalonidagi yashil→sariq→
-          // qizil yo'l chizig'i. (Ilgari butun path BITTA `traffic:null` segment qilinib
-          // jams TASHLAB yuborilardi → chiziq doim bitta rangda edi.)
-          const pathSegments = (path.getSegments?.() ?? []) as Array<
-            YmapObject & {
-              properties?: { get?: (k: string) => unknown };
-              geometry?: { getCoordinates?: () => unknown };
+          // PIYODA/VELOSIPED — trafik yo'q → butun path BITTA UZLUKSIZ chiziq (aniq
+          // yo'l, gap yo'q; piyoda yo'lakchalari to'liq ko'rinadi). AUTO — har
+          // path-segment'ni `jams.severity` bilan ranglaymiz (trafik gradient).
+          if (mode === 'auto') {
+            const pathSegments = (path.getSegments?.() ?? []) as Array<
+              YmapObject & {
+                properties?: { get?: (k: string) => unknown };
+                geometry?: { getCoordinates?: () => unknown };
+              }
+            >;
+            for (const seg of pathSegments) {
+              const c = seg.geometry?.getCoordinates?.() as number[][] | undefined;
+              if (!c || c.length < 2) continue;
+              const coords: [number, number][] = c.map((p) => [p[1], p[0]]);
+              const street = (seg.properties?.get?.('street') as string | undefined) ?? undefined;
+              const jam = seg.properties?.get?.('jams') as { severity?: number } | undefined;
+              const traffic =
+                typeof jam?.severity === 'number'
+                  ? Math.min(1, Math.max(0, jam.severity / 10))
+                  : null;
+              const speedRaw = seg.properties?.get?.('speedLimit') as number | undefined;
+              const speedLimitKmh =
+                typeof speedRaw === 'number'
+                  ? speedRaw < 50
+                    ? Math.round(speedRaw * 3.6)
+                    : Math.round(speedRaw)
+                  : null;
+              segments.push({ coords, traffic, street, speedLimitKmh });
             }
-          >;
-          for (const seg of pathSegments) {
-            const c = seg.geometry?.getCoordinates?.() as number[][] | undefined;
-            if (!c || c.length < 2) continue;
-            const coords: [number, number][] = c.map((p) => [p[1], p[0]]);
-            const street = (seg.properties?.get?.('street') as string | undefined) ?? undefined;
-            const jam = seg.properties?.get?.('jams') as { severity?: number } | undefined;
-            const traffic =
-              typeof jam?.severity === 'number'
-                ? Math.min(1, Math.max(0, jam.severity / 10))
-                : null;
-            const speedRaw = seg.properties?.get?.('speedLimit') as number | undefined;
-            const speedLimitKmh =
-              typeof speedRaw === 'number'
-                ? speedRaw < 50
-                  ? Math.round(speedRaw * 3.6)
-                  : Math.round(speedRaw)
-                : null;
-            segments.push({ coords, traffic, street, speedLimitKmh });
           }
 
-          // FALLBACK: segmentlar coord bermasa — butun path BITTA chiziq (bo'sh qolmasin).
-          if (segments.length === 0) {
-            const fullPathCoords = path.geometry?.getCoordinates?.() as number[][] | undefined;
-            if (fullPathCoords && fullPathCoords.length >= 2) {
-              const coords: [number, number][] = fullPathCoords.map((p) => [p[1], p[0]]);
-              segments.push({ coords, traffic: null, speedLimitKmh: null });
-            }
+          // Piyoda/velosiped YOKI auto-segmentlar bo'sh bo'lsa — butun UZLUKSIZ path.
+          if (segments.length === 0 && fullPathCoords && fullPathCoords.length >= 2) {
+            const coords: [number, number][] = fullPathCoords.map((p) => [p[1], p[0]]);
+            segments.push({ coords, traffic: null, speedLimitKmh: null });
           }
 
           // Maneuvers — har segment'da
