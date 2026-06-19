@@ -311,3 +311,8 @@
     - `YANDEX_ROUTER_API_KEY` — server `/api/maps/route` (HTTP Router API) uchun (eng yaxshi: aniq yo'l + traffic + turn-by-turn).
     - VA/YOKI `NEXT_PUBLIC_YANDEX_MAP_API_KEY` — brauzer `multiRouter` ishlashi uchun kalitда **"JavaScript API va Geocoder" + Router/Routing** yoqilgan bo'lsin (hozirgi `c3e2b675…` faqat Maps display'da ishlayapti, multiRouter rad etilyapti).
   - **FE tomon TAYYOR:** kalit kelishi bilan piyoda (`pedestrian`) yo'li real ko'cha/yo'lakcha bo'ylab chiziladi — kod o'zgartirish kerak emas. Hozir mustahkamlik qo'shdim (2-manba + already-computed check), lekin kalitsiz routing umuman ishlamaydi. Kalit qo'yilgach ayting — qurilmada tasdiqlayman.
+  - **🎯 YANDEX KONSOLDA AYNAN QAYSI API'LARNI YOQISH (foydalanuvchi ro'yxatdan so'radi):**
+    - **MAJBURIY:** ① **JavaScript API** (xarita+multiRouter, allaqachon bor) · ④ **АПИ Получения маршрута** (Router/Marshrutizator — 🔴 AYNAN SHU YETISHMAYAPTI, yo'l to'g'ri chiziq sababi).
+    - **TAVSIYA:** ② **API Геокодер** (manzil↔koordinata) · ⑩ **АПИ Получения деталей маршрута** (turn-by-turn sifati).
+    - **KERAK EMAS:** ③ MapKit (mobil SDK — biz web) · ⑤ Матрица расстояний · ⑥ Локатор · ⑦ Статик API · ⑧ Isochrone · ⑨ Tiles API.
+    - Ya'ni: bitta kalitда **JS API + Router (Получения маршрута) + Геокодер** yoqilsa — `NEXT_PUBLIC_YANDEX_MAP_API_KEY` (brauzer) hammasini qoplaydi; server HTTP router uchun esa o'sha kalit `YANDEX_ROUTER_API_KEY`'ga ham.
