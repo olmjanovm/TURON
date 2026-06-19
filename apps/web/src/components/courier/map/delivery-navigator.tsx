@@ -1041,25 +1041,34 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       return;
     }
     const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
-    // Ruxsat ALLAQACHON berilган (ish boshlash gesturida, localStorage cache) —
-    // qayta SO'RAMAYMIZ, darrov attach. (Foydalanuvchi: "bitta sorasin, keyin doim
-    // berilgan bo'lsin".) iOS sessiya ruxsati go-online toggle'da olinadi.
-    if (getCachedPermissions()?.compass === 'granted') {
+    const isIOS = typeof DOE.requestPermission === 'function';
+
+    // Android / desktop — ruxsat tizimi yo'q, DARROV attach.
+    if (!isIOS) {
       attachCompass();
       compassRequestedRef.current = true;
       setCompassPermState('granted');
       return;
     }
-    if (typeof DOE.requestPermission === 'function') {
-      // iOS 13+ — birinchi marta: UI prompt (gesture kerak)
-      setCompassPermState('prompt');
-      compassRequestedRef.current = false;
-    } else {
-      // Android / desktop — permission yo'q, darrov attach
+
+    // iOS — ruxsat oldin berilган (cache) bo'lsa DARROV attach (qayta so'ramaymiz).
+    // LEKIN iOS sessiya ruxsati har sahifa-yuklanишда yo'qoladi (gesture'siz event
+    // KELMAYDI). Shuning uchun: attach + 2.6s ichida kompas eventi kelmasa → prompt
+    // ko'rsatamiz (shu sessiya uchun bir marta tap). Bu "kompas o'lik" bug'ini tuzatadi.
+    if (getCachedPermissions()?.compass === 'granted') {
       attachCompass();
-      compassRequestedRef.current = true;
       setCompassPermState('granted');
+      const t = window.setTimeout(() => {
+        if (Date.now() - lastCompassAtRef.current > 2400) {
+          setCompassPermState('prompt'); // sessiya ruxsati yo'q — qayta tap kerak
+        }
+      }, 2600);
+      return () => window.clearTimeout(t);
     }
+
+    // iOS birinchi marta — UI prompt (gesture kerak)
+    setCompassPermState('prompt');
+    compassRequestedRef.current = false;
   }, [attachCompass, getCachedPermissions]);
 
   // iOS permission — to'g'ridan-to'g'ri click handler ichida chaqiriladi.
