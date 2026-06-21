@@ -1145,18 +1145,18 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       className={`relative h-full w-full overflow-hidden bg-[#0a0a0c] ${!isOnline ? 'offline-crimson-border' : ''}`}
       data-no-ptr="true"
     >
-      {/* To'liq ekran TEKIS xarita — CSS tilt/perspektiva YO'Q (foydalanuvchi so'rovi).
-          Aylanish faqat native setAzimuth orqali. Dark rejim = map-night-filter. */}
-      <div className="absolute inset-0">
-        <div ref={containerRef} className="map-night-filter h-full w-full" />
+      {/* FIRST-PERSON navigator — yengil 3D tilt (yuqoridan emas, yo'l oldinda).
+          Konteyner viewport-size (170% YO'Q — "quticha" bug shundan edi),
+          filter YO'Q (qotish shundan edi). Faqat toza rotateX tilt. */}
+      <div className="nav-3d-wrap absolute inset-0">
+        <div ref={containerRef} className="map-night-filter nav-3d-tilt h-full w-full" />
       </div>
 
-      {/* Yuqori scrim — faqat tepadagi belgilar (tezlik/karta) o'qilishi uchun.
-          Radial "atrof qora" vignette OLIB TASHLANDI — xarita to'liq ekran. */}
+      {/* Yuqori scrim — tilt'da uzoqlashgan tepa chetini berkitadi + belgilar o'qilishi. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 z-[5] h-20"
-        style={{ background: 'linear-gradient(to bottom, rgba(10,10,12,0.55), transparent)' }}
+        className="pointer-events-none absolute inset-x-0 top-0 z-[5] h-28"
+        style={{ background: 'linear-gradient(to bottom, rgba(10,10,12,0.8), rgba(10,10,12,0.25) 55%, transparent)' }}
       />
 
       {!mapReady && (
@@ -1308,12 +1308,16 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       )}
 
       <style jsx global>{`
-        /* CSS tilt/perspektiva/170%-konteyner OLIB TASHLANDI (foydalanuvchi:
-           "css bilan qilma" + xarita qotgan/kichik quticha edi). Endi xarita
-           TEKIS, to'liq ekran; aylanish faqat native setAzimuth. */
-        /* DIQQAT: butun xaritaga CSS filter (invert/hue-rotate) past quvvatli
-           telefonlarda (1GB RAM) har kadrда GPU'ni QOTIRADI — OLIB TASHLANDI.
-           Endi normal yorug' xarita (tez). Class faqat copyright yashirish uchun. */
+        /* FIRST-PERSON 3D tilt — yengil, toza. Filter YO'Q (qotish), 170% YO'Q
+           (quticha). Viewport-size konteyner + rotateX = yo'l oldinda ko'rinadi. */
+        .nav-3d-wrap { perspective: 1700px; perspective-origin: 50% 52%; overflow: hidden; }
+        .nav-3d-tilt {
+          transform: rotateX(28deg) translateZ(0);
+          transform-origin: 50% 52%;
+          will-change: transform;
+          backface-visibility: hidden;
+          -webkit-backface-visibility: hidden;
+        }
         .map-night-filter ymaps[class*="copyright"],
         .map-night-filter ymaps[class*="controls__toolbar"] { display: none !important; }
 
