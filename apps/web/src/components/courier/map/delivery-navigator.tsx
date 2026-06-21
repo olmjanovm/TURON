@@ -550,18 +550,9 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
         };
         map.events.add(['actionbegin', 'wheel'], onInteract);
 
-        // Real Yandex traffic — ko'chalar svetafor/probka rangida (Navigator hissi).
-        // package.full traffic provider'ni beradi; xato bo'lsa jimgina o'tkazib yuboramiz.
-        try {
-          const TrafficProvider = (ymaps as unknown as {
-            traffic?: { provider?: { Actual?: new (p: object, o: object) => { setMap: (m: unknown) => void } } };
-          }).traffic?.provider?.Actual;
-          if (TrafficProvider) {
-            const tp = new TrafficProvider({}, { infoLayerShown: true });
-            tp.setMap(map);
-            trafficProviderRef.current = tp;
-          }
-        } catch {/* traffic ixtiyoriy — xaritani buzmasin */}
+        // QO'YILMADI: Yandex traffic provider (butun shahar probkasi + ikonkalar)
+        // past quvvatli telefonlarni (1GB RAM, iPhone eski) QOTIRADI — uzluksiz
+        // tile/ikonka yuklash. Yo'l trafigi ORS/route'da yetarli. (Performance.)
 
         // Konteyner kech o'lchamlangan bo'lsa (0×0 → qora plitkalar) — majburan moslash.
         try {
@@ -1322,9 +1313,9 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
         /* CSS tilt/perspektiva/170%-konteyner OLIB TASHLANDI (foydalanuvchi:
            "css bilan qilma" + xarita qotgan/kichik quticha edi). Endi xarita
            TEKIS, to'liq ekran; aylanish faqat native setAzimuth. */
-        .map-night-filter {
-          filter: invert(0.9) hue-rotate(200deg) saturate(0.75) brightness(0.92) contrast(1.05);
-        }
+        /* DIQQAT: butun xaritaga CSS filter (invert/hue-rotate) past quvvatli
+           telefonlarda (1GB RAM) har kadrда GPU'ni QOTIRADI — OLIB TASHLANDI.
+           Endi normal yorug' xarita (tez). Class faqat copyright yashirish uchun. */
         .map-night-filter ymaps[class*="copyright"],
         .map-night-filter ymaps[class*="controls__toolbar"] { display: none !important; }
 
