@@ -938,9 +938,8 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
         webkitCompassAccuracy?: number;
       },
     ) => {
-      // Hyper-zoom (top-down) — xarita aylanmasin
-      if (hyperZoomActiveRef.current) return;
-
+      // Kompas DOIM ishlaydi — manzilga yaqin (hyper-zoom) bo'lsa ham strelka
+      // yo'nalishni ko'rsataveradi (foydalanuvchi: "kompasni o'chirma, doim ishlasin").
       const isAbsoluteEvent =
         e.type === 'deviceorientationabsolute' || e.absolute === true;
       if (isAbsoluteEvent) absoluteFiredRef.current = true;
