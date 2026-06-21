@@ -162,6 +162,71 @@ export function loadYandexMaps(): Promise<Ymaps> {
   return loadPromise;
 }
 
+// ── Yandex Maps API v3 (VEKTOR — zamonaviy "yangi Yandex map" ko'rinishi) ──────
+// v3 obyektlari (YMap, YMapMarker, YMapFeature, ...) `window.ymaps3` global'da.
+// Rasmiy TS tip paketi o'rnatilmagan → loose tip (runtime'da to'liq mavjud).
+export type Ymaps3 = {
+  ready: Promise<void>;
+  YMap: new (el: HTMLElement, props: Record<string, unknown>, children?: unknown[]) => unknown;
+  YMapDefaultSchemeLayer: new (props?: Record<string, unknown>) => unknown;
+  YMapDefaultFeaturesLayer: new (props?: Record<string, unknown>) => unknown;
+  YMapMarker: new (props: Record<string, unknown>, element?: HTMLElement) => unknown;
+  YMapFeature: new (props: Record<string, unknown>) => unknown;
+  YMapListener: new (props: Record<string, unknown>) => unknown;
+  [k: string]: unknown;
+};
+
+const SCRIPT_ID_V3 = 'turon-yandex-maps-v3-script';
+let loadPromiseV3: Promise<Ymaps3> | null = null;
+
+declare global {
+  interface Window {
+    ymaps3?: Ymaps3;
+  }
+}
+
+/** Yandex Maps v3 (vektor) yuklash — `ymaps3` global'ini qaytaradi. */
+export function loadYandexMapsV3(): Promise<Ymaps3> {
+  if (typeof window === 'undefined') {
+    return Promise.reject(new Error('Yandex Maps v3 faqat client-side ishlaydi'));
+  }
+  if (window.ymaps3?.YMap) {
+    return window.ymaps3.ready.then(() => window.ymaps3 as Ymaps3);
+  }
+  if (loadPromiseV3) return loadPromiseV3;
+
+  loadPromiseV3 = new Promise<Ymaps3>((resolve, reject) => {
+    const onReady = () => {
+      const y = window.ymaps3;
+      if (!y) { loadPromiseV3 = null; reject(new Error('ymaps3 yuklanmadi')); return; }
+      y.ready.then(() => resolve(window.ymaps3 as Ymaps3)).catch(() => {
+        loadPromiseV3 = null;
+        reject(new Error('ymaps3.ready xato'));
+      });
+    };
+    const onError = () => { loadPromiseV3 = null; reject(new Error("v3 skriptini yuklab bo'lmadi")); };
+
+    const existing = document.getElementById(SCRIPT_ID_V3) as HTMLScriptElement | null;
+    if (existing) {
+      existing.addEventListener('load', onReady, { once: true });
+      existing.addEventListener('error', onError, { once: true });
+      if (window.ymaps3) onReady();
+      return;
+    }
+    const script = document.createElement('script');
+    script.id = SCRIPT_ID_V3;
+    script.src =
+      `https://api-maps.yandex.ru/v3/?apikey=${encodeURIComponent(API_KEY)}` +
+      `&lang=${encodeURIComponent(LANG)}`;
+    script.async = true;
+    script.onload = onReady;
+    script.onerror = onError;
+    document.head.appendChild(script);
+  });
+
+  return loadPromiseV3;
+}
+
 export const RESTAURANT_DEFAULT: LatLng = { lat: 41.2995, lng: 69.2401 };
 
 /**
