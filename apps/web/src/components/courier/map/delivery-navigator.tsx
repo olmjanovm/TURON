@@ -1272,22 +1272,20 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
       {nextManeuver && ManeuverIcon && (
         <div
           ref={pipContentRef}
-          className="pointer-events-none absolute left-1/2 z-20 -translate-x-1/2"
-          style={{ top: 'calc(env(safe-area-inset-top, 0px) + 90px)' }}
+          className="pointer-events-none absolute left-3 z-20"
+          style={{ top: 'calc(env(safe-area-inset-top, 0px) + 84px)' }}
         >
-          {/* Yandex uslubidagi ko'k manyovr kartasi: katta oq burilish ikonasi +
-              prominent masofa, ostida ko'cha-nomli yo'riqnoma. */}
-          <div className="flex max-w-[90vw] items-center gap-3 rounded-3xl bg-[#1f6fe5] px-4 py-2.5 shadow-2xl shadow-black/50">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center text-white">
-              <ManeuverIcon size={42} strokeWidth={2.8} />
-            </div>
+          {/* IXCHAM chap-yuqori manyovr ko'rsatkichi: strelka + qolgan masofa +
+              kichik ko'cha nomi. Ekran/yo'lni BERKITMAYDI (real navigator). */}
+          <div className="flex max-w-[58vw] items-center gap-2 rounded-2xl bg-[#1f6fe5]/95 px-2.5 py-1.5 shadow-xl shadow-black/40 backdrop-blur-sm">
+            <ManeuverIcon size={26} strokeWidth={3} className="shrink-0 text-white" />
             <div className="min-w-0">
               {maneuverDistance != null && (
-                <p className="text-2xl font-black leading-none text-white tabular-nums">
+                <p className="text-lg font-black leading-none text-white tabular-nums">
                   {maneuverDistance < 50 ? 'Hozir' : `${maneuverDistance} m`}
                 </p>
               )}
-              <p className="mt-1 line-clamp-2 text-sm font-bold leading-tight text-white/90">{maneuverText}</p>
+              <p className="truncate text-[11px] font-bold leading-tight text-white/85">{maneuverText}</p>
             </div>
           </div>
         </div>
