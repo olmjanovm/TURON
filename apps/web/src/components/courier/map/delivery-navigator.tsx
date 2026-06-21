@@ -1190,7 +1190,7 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
           <div className="rounded-2xl bg-white/95 px-3 py-1.5 shadow-2xl shadow-black/60">
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
               {vehicleMode === 'pedestrian' ? 'Piyoda' : vehicleMode === 'bicycle' ? 'Skuter' : 'Mashina'}
-              {route?.source === 'yandex-http' && <span className="ml-1 text-emerald-500">●</span>}
+              {(route?.source === 'yandex-http' || route?.source === 'ors') && <span className="ml-1 text-emerald-500">●</span>}
               {isOfflineRoute && <span className="ml-1 text-amber-500">●</span>}
             </p>
             <p className="text-sm font-black leading-tight text-slate-900">#{orderNumber}</p>

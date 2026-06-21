@@ -28,10 +28,36 @@ export interface RouteResult {
   totalDurationSec: number;
   snappedStart: [number, number];
   snappedEnd: [number, number];
-  source: 'yandex-http' | 'multirouter' | 'cache';
+  source: 'yandex-http' | 'multirouter' | 'ors' | 'cache';
 }
 
 type Mode = 'auto' | 'pedestrian' | 'bicycle';
+
+// ── OpenRouteService (BEPUL routing — Yandex routing pullik/rad etilgani uchun) ──
+// Brauzerdan to'g'ridan-to'g'ri chaqiriladi (CORS yoqilgan). Kalit BEPUL:
+// openrouteservice.org → ro'yxatdan o'tish → NEXT_PUBLIC_ORS_API_KEY Vercel env.
+const ORS_API_KEY =
+  (typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_ORS_API_KEY?.trim() : '') || '';
+const ORS_PROFILE: Record<Mode, string> = {
+  auto: 'driving-car',
+  pedestrian: 'foot-walking',
+  bicycle: 'cycling-regular',
+};
+
+/** ORS step.type (0-13) → ichki maneuver type. */
+function orsManeuverType(t: number | undefined): string {
+  switch (t) {
+    case 0: return 'left';
+    case 1: return 'right';
+    case 2: return 'sharp-left';
+    case 3: return 'sharp-right';
+    case 4: case 12: return 'slight-left';
+    case 5: case 13: return 'slight-right';
+    case 7: case 8: return 'roundabout';
+    case 9: return 'u-turn';
+    default: return 'straight';
+  }
+}
 
 // Yandex Router API v2 mode qiymatlari (rasmiy hujjat): driving | walking | bicycle | scooter.
 // (Ilgari bicycle→'cycling' edi — Yandex uni qabul qilmaydi.)
@@ -62,14 +88,21 @@ export async function fetchRoute(
     return null;
   }
 
-  // 1) HTTP Router API orqali
+  // 1) OpenRouteService — BIRLAMCHI (bepul, aniq yo'l; Yandex routing rad etilgan)
+  const orsResult = await fetchFromORS(from, to, mode);
+  if (orsResult) {
+    saveRoute(from, to, mode, orsResult);
+    return orsResult;
+  }
+
+  // 2) Yandex HTTP Router API (kalit Router'ga ruxsatli bo'lsa)
   const httpResult = await fetchFromHttp(from, to, mode);
   if (httpResult) {
     saveRoute(from, to, mode, httpResult);
     return httpResult;
   }
 
-  // 2) Fallback — multiRouter
+  // 3) Fallback — Yandex multiRouter (JS API)
   const multiResult = await fetchFromMultiRouter(from, to, mode, ymaps);
   if (multiResult) {
     saveRoute(from, to, mode, multiResult);
@@ -80,6 +113,69 @@ export async function fetchRoute(
   const stale = loadRoute(from, to, mode);
   if (stale) return { ...stale, source: 'cache' };
   return null;
+}
+
+/**
+ * OpenRouteService — bepul yo'l hisoblash (foot-walking / driving-car / cycling).
+ * GeoJSON qaytaradi: features[0].geometry.coordinates = [[lng,lat],...] (bizning
+ * ichki [lng,lat] formatga AYNAN mos — swap kerak emas).
+ */
+async function fetchFromORS(from: LatLng, to: LatLng, mode: Mode): Promise<RouteResult | null> {
+  if (!ORS_API_KEY) return null;
+  try {
+    const profile = ORS_PROFILE[mode];
+    const url =
+      `https://api.openrouteservice.org/v2/directions/${profile}` +
+      `?api_key=${encodeURIComponent(ORS_API_KEY)}` +
+      `&start=${from.lng},${from.lat}&end=${to.lng},${to.lat}`;
+    const res = await fetch(url, { headers: { accept: 'application/geo+json' }, cache: 'no-store' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const feat = data?.features?.[0];
+    const coordsRaw = feat?.geometry?.coordinates as number[][] | undefined;
+    if (!coordsRaw || coordsRaw.length < 2) return null;
+
+    const coords: [number, number][] = coordsRaw
+      .filter((c) => Array.isArray(c) && c.length >= 2)
+      .map((c) => [Number(c[0]), Number(c[1])]); // [lng, lat] — ichki formatga mos
+    if (coords.length < 2) return null;
+
+    const summary = (feat?.properties?.summary ?? {}) as { distance?: number; duration?: number };
+    const segs = feat?.properties?.segments as
+      | Array<{ steps?: Array<{ instruction?: string; type?: number; way_points?: number[]; distance?: number }> }>
+      | undefined;
+
+    const maneuvers: RouteManeuver[] = [];
+    let cum = 0;
+    if (Array.isArray(segs)) {
+      for (const s of segs) {
+        for (const st of s.steps ?? []) {
+          const wp = st.way_points?.[0];
+          if (typeof wp === 'number' && coordsRaw[wp]?.length >= 2) {
+            maneuvers.push({
+              coords: [Number(coordsRaw[wp][0]), Number(coordsRaw[wp][1])],
+              type: orsManeuverType(st.type),
+              instruction: typeof st.instruction === 'string' ? st.instruction : undefined,
+              distanceFromStartMeters: cum,
+            });
+          }
+          cum += typeof st.distance === 'number' ? st.distance : 0;
+        }
+      }
+    }
+
+    return {
+      segments: [{ coords, traffic: null, speedLimitKmh: null }],
+      maneuvers,
+      totalDistanceMeters: Number(summary.distance) || 0,
+      totalDurationSec: Number(summary.duration) || 0,
+      snappedStart: coords[0],
+      snappedEnd: coords[coords.length - 1],
+      source: 'ors',
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function fetchFromHttp(from: LatLng, to: LatLng, mode: Mode): Promise<RouteResult | null> {
