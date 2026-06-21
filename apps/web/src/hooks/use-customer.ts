@@ -369,13 +369,24 @@ export function useSendOrderMessage(orderId: string) {
 }
 
 // ── Promo ────────────────────────────────────────────────────────────────
+export interface PromoValidationResult {
+  /** Backend `isValid` qaytaradi (avval FE `valid` o'qigan — mos emas edi). */
+  isValid: boolean;
+  message?: string;
+  discountAmount?: number;
+  promo?: { id: string; code: string; discountType: string; discountValue: number; minOrderValue: number };
+  /** "Did you mean?" — noto'g'ri/muddati tugagan bo'lsa taklif qilingan kod. */
+  suggestion?: string | null;
+}
+
 export function useValidatePromo() {
   return useMutation({
-    mutationFn: (code: string) =>
-      apiFetch<{ valid: boolean; message?: string; discountPercent?: number; discountAmount?: number }>(
-        '/promos/validate',
-        { method: 'POST', body: JSON.stringify({ code }) },
-      ),
+    // MUHIM: subtotal YUBORILADI — aks holda backend 400 berardi (har promo fail).
+    mutationFn: ({ code, subtotal }: { code: string; subtotal: number }) =>
+      apiFetch<PromoValidationResult>('/promos/validate', {
+        method: 'POST',
+        body: JSON.stringify({ code, subtotal }),
+      }),
   });
 }
 

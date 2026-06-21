@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Check, Loader2, Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Check, Loader2, Minus, Plus, ShoppingBag, Tag, Trash2, X } from 'lucide-react';
 import { useCartStore, type CartLine } from '@/stores/cart-store';
 import { useValidatePromo } from '@/hooks/use-customer';
 import { useT } from '@/lib/i18n/locale-context';
@@ -21,6 +21,7 @@ export default function CartPage() {
   const [promoInput, setPromoInput] = useState('');
   const [promo, setPromo] = useState<AppliedPromo | null>(null);
   const [promoError, setPromoError] = useState<string | null>(null);
+  const [promoSuggestion, setPromoSuggestion] = useState<string | null>(null);
   const [promoFocused, setPromoFocused] = useState(false);
   const validate = useValidatePromo();
   const promoRef = useRef<HTMLDivElement>(null);
@@ -63,24 +64,31 @@ export default function CartPage() {
     };
   }, [promoFocused]);
 
-  const handleApplyPromo = () => {
+  const handleApplyPromo = (rawCode?: string) => {
     setPromoError(null);
-    const code = promoInput.trim().toUpperCase();
+    setPromoSuggestion(null);
+    // Bo'shliq/registr normalizatsiya (backend ham qiladi, lekin UI ham toza ko'rsatsin)
+    const code = (rawCode ?? promoInput).trim().toUpperCase().replace(/\s+/g, '');
     if (!code) return;
-    validate.mutate(code, {
-      onSuccess: (data) => {
-        if (data.valid) {
-          const discount =
-            data.discountAmount ??
-            (data.discountPercent ? Math.round((total * data.discountPercent) / 100) : 0);
-          setPromo({ code, discountAmount: discount });
-          setPromoInput('');
-        } else {
-          setPromoError(data.message ?? t('cart.promo.invalid'));
-        }
+    if (rawCode) setPromoInput(code);
+    // MUHIM: subtotal yuboriladi (aks holda backend 400 → har promo "ishlamaydi")
+    validate.mutate(
+      { code, subtotal: total },
+      {
+        onSuccess: (data) => {
+          if (data.isValid) {
+            setPromo({ code: data.promo?.code ?? code, discountAmount: data.discountAmount ?? 0 });
+            setPromoInput('');
+            setPromoSuggestion(null);
+          } else {
+            setPromoError(data.message ?? t('cart.promo.invalid'));
+            setPromoSuggestion(data.suggestion ?? null); // "Did you mean?" taklifi
+          }
+        },
+        onError: (err) =>
+          setPromoError(err instanceof Error ? err.message : t('cart.promo.invalid')),
       },
-      onError: () => setPromoError(t('cart.promo.invalid')),
-    });
+    );
   };
 
   if (items.length === 0) {
@@ -188,7 +196,7 @@ export default function CartPage() {
               />
               <button
                 type="button"
-                onClick={handleApplyPromo}
+                onClick={() => handleApplyPromo()}
                 disabled={validate.isPending || !promoInput.trim()}
                 className="rounded-2xl bg-slate-900 px-5 text-sm font-black text-white active:scale-95 disabled:opacity-50 dark:bg-white dark:text-slate-900"
               >
@@ -196,6 +204,16 @@ export default function CartPage() {
               </button>
             </div>
             {promoError && <p className="mt-2 text-xs text-red-500">{promoError}</p>}
+            {promoSuggestion && (
+              <button
+                type="button"
+                onClick={() => handleApplyPromo(promoSuggestion)}
+                className="mt-2 inline-flex items-center gap-1.5 rounded-xl border border-[#c62020]/30 bg-[#c62020]/5 px-3 py-1.5 text-xs font-bold text-[#c62020] active:scale-95 dark:border-[#f97316]/40 dark:bg-[#f97316]/10 dark:text-[#f97316]"
+              >
+                <Tag size={12} />
+                {promoSuggestion} ni sinab ko&apos;rish
+              </button>
+            )}
           </>
         )}
       </div>
