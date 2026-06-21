@@ -4,16 +4,19 @@ import { AuditService } from '../../../services/audit.service.js';
 import {
   evaluatePromoForSubtotal,
   serializePromoForAdmin,
+  normalizePromoCode,
+  suggestPromoCode,
 } from './promo-helpers.js';
 
 export async function validatePromoCode(
-  request: FastifyRequest<{ Body: { code: string; subtotal: number; userId?: string } }>,
+  request: FastifyRequest<{ Body: { code: string; subtotal?: number; userId?: string } }>,
   reply: FastifyReply
 ) {
-  const { code, subtotal, userId } = request.body;
-  const promo = await prisma.promoCode.findFirst({
-    where: { code: code.toUpperCase() },
-  });
+  const { userId } = request.body;
+  const subtotal = request.body.subtotal ?? 0;
+  const code = normalizePromoCode(request.body.code); // bo'shliq/registr xatosini yo'q qiladi
+
+  const promo = await prisma.promoCode.findFirst({ where: { code } });
 
   // Build user context for target/first-order checks when userId provided
   let previousOrderCount: number | undefined;
@@ -23,9 +26,38 @@ export async function validatePromoCode(
     });
   }
 
-  return reply.send(
-    evaluatePromoForSubtotal(promo, subtotal, { userId, previousOrderCount }),
-  );
+  const result = evaluatePromoForSubtotal(promo, subtotal, { userId, previousOrderCount }) as
+    ReturnType<typeof evaluatePromoForSubtotal> & { suggestion?: string | null };
+
+  // ── "Did you mean?" — noto'g'ri/muddati tugagan/topilmadi bo'lsa, hozir amal
+  //    qiladigan eng yaqin promokodni taklif qil ("SALOM20" → "SALOM30").
+  if (!result.isValid) {
+    const now = new Date();
+    const usable = await prisma.promoCode.findMany({
+      where: {
+        isActive: true,
+        startDate: { lte: now },
+        OR: [{ endDate: null }, { endDate: { gte: now } }],
+        AND: [{ OR: [{ targetUserId: null }, ...(userId ? [{ targetUserId: userId }] : [])] }],
+      },
+      select: { code: true, usageLimit: true, timesUsed: true, isFirstOrderOnly: true },
+      take: 200,
+    });
+    const candidateCodes = usable
+      .filter((p) => !p.usageLimit || p.timesUsed < p.usageLimit)
+      .filter((p) => !(p.isFirstOrderOnly && (previousOrderCount ?? 0) > 0))
+      .map((p) => p.code);
+
+    const suggestion = suggestPromoCode(code, candidateCodes);
+    if (suggestion) {
+      result.suggestion = suggestion;
+      result.message = promo
+        ? `${result.message}. "${suggestion}" ni sinab ko'ring`
+        : `"${code}" topilmadi. "${suggestion}" ni sinab ko'ring`;
+    }
+  }
+
+  return reply.send(result);
 }
 
 export async function getAllPromos(request: FastifyRequest, reply: FastifyReply) {

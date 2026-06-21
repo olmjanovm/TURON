@@ -281,8 +281,10 @@ export const PromoCodeSchema = z.object({
 });
 
 export const ValidatePromoSchema = z.object({
-  code: z.string().min(1).transform(val => val.toUpperCase()),
-  subtotal: z.number().min(0),
+  code: z.string().min(1),
+  // Ixtiyoriy + default 0: FE subtotal yubormaganда ham 400 BERMASIN (mavjud
+  // bug — har promo 400 qaytarardi). subtotal bo'lsa min-order tekshiriladi.
+  subtotal: z.coerce.number().min(0).optional().default(0),
   userId: UuidSchema.optional(),
 });
 

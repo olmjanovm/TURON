@@ -4,6 +4,67 @@ function roundCurrency(value: number) {
   return Math.max(0, Math.round(value * 100) / 100);
 }
 
+/** Promokodni normallashtirish: bo'shliqlarni olib tashlash + katta harf.
+ *  "salom 30" / " SALOM30 " → "SALOM30". Bo'shliq xatosi endi muammo emas. */
+export function normalizePromoCode(raw: string | null | undefined): string {
+  return (raw ?? '').trim().toUpperCase().replace(/\s+/g, '');
+}
+
+/** Levenshtein masofa (typo o'lchovi). */
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  const prev = new Array<number>(n + 1);
+  const curr = new Array<number>(n + 1);
+  for (let j = 0; j <= n; j++) prev[j] = j;
+  for (let i = 1; i <= m; i++) {
+    curr[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost);
+    }
+    for (let j = 0; j <= n; j++) prev[j] = curr[j];
+  }
+  return prev[n];
+}
+
+function commonPrefixLen(a: string, b: string): number {
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  return i;
+}
+
+/**
+ * "Did you mean?" — kiritilgan (noto'g'ri/muddati tugagan) kodga eng yaqin
+ * HOZIR AMAL QILADIGAN promokodni topadi. Misol: "SALOM20" → "SALOM30".
+ * Faqat yetarlicha yaqin bo'lsa taklif qiladi (tasodifiy emas).
+ */
+export function suggestPromoCode(input: string, candidateCodes: string[]): string | null {
+  const norm = normalizePromoCode(input);
+  if (!norm || candidateCodes.length === 0) return null;
+  let best: { code: string; dist: number; prefix: number } | null = null;
+  for (const code of candidateCodes) {
+    if (code === norm) continue;
+    const dist = levenshtein(norm, code);
+    const prefix = commonPrefixLen(norm, code);
+    if (
+      !best ||
+      dist < best.dist ||
+      (dist === best.dist && prefix > best.prefix)
+    ) {
+      best = { code, dist, prefix };
+    }
+  }
+  if (!best) return null;
+  const maxLen = Math.max(norm.length, best.code.length);
+  // Yaqinlik mezoni: kichik masofa YOKI uzun umumiy prefiks (SALOM20→SALOM30).
+  const closeEnough =
+    best.dist <= Math.max(2, Math.ceil(maxLen * 0.34)) ||
+    (best.prefix >= 3 && best.dist <= 4);
+  return closeEnough ? best.code : null;
+}
+
 export function serializePromoForValidation(promo: any) {
   return {
     id: promo.id,
