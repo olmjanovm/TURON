@@ -28,7 +28,7 @@ git reset --hard "origin/$BRANCH"
 
 # 2) Rol → kerakli workspace'lar va PM2 jarayonlari
 case "$ROLE" in
-  customer) FILTERS=(--filter "@turon/backend..." --filter "@turon/socket-gateway..."); PROCS=(turon-backend turon-socket) ;;
+  customer) FILTERS=(--filter "@turon/backend..." --filter "@turon/socket-gateway..."); PROCS=(turon-backend turon-socket turon-bot) ;;
   bot)      FILTERS=(--filter "@turon/backend...");                                      PROCS=(turon-bot) ;;
   admin)    FILTERS=(--filter "@turon/backend...");                                      PROCS=(turon-backend) ;;
   all|*)    FILTERS=();                                                                  PROCS=(turon-backend turon-socket turon-bot) ;;
