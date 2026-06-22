@@ -1508,48 +1508,70 @@ function SlideToConfirm({
   busy?: boolean;
 }) {
   const trackRef = useRef<HTMLDivElement | null>(null);
-  const [progress, setProgress] = useState(0);
+  const knobRef = useRef<HTMLDivElement | null>(null);
+  const fillRef = useRef<HTMLDivElement | null>(null);
+  // Faqat rang/ikona uchun (threshold kesib o'tganda 1 marta) + yakuniy ✓.
+  const [reached, setReached] = useState(false);
+  const [done, setDone] = useState(false);
+  const reachedRef = useRef(false);
   const progressRef = useRef(0);
   const draggingRef = useRef(false);
   const startXRef = useRef(0);
   const KNOB = 64; // gloves-friendly
   const TH = 0.85;
 
-  const setP = (p: number) => {
-    progressRef.current = p;
-    setProgress(p);
-  };
   const maxTravel = () => Math.max(40, (trackRef.current?.clientWidth ?? 320) - KNOB - 8);
+
+  // DOM'ga BEVOSITA — re-render yo'q (smooth)
+  const paint = (p: number) => {
+    if (knobRef.current) knobRef.current.style.transform = `translateX(${(p * maxTravel()).toFixed(1)}px)`;
+    if (fillRef.current) fillRef.current.style.width = `${(4 + p * 96).toFixed(1)}%`;
+  };
+  const setSnap = (on: boolean) => {
+    if (knobRef.current) knobRef.current.style.transition = on ? 'transform 240ms cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none';
+    if (fillRef.current) fillRef.current.style.transition = on ? 'width 160ms ease-out' : 'none';
+  };
+
+  useEffect(() => { paint(0); setSnap(true); /* eslint-disable-next-line */ }, []);
+  useEffect(() => {
+    if (!busy) { progressRef.current = 0; reachedRef.current = false; setReached(false); setDone(false); setSnap(true); paint(0); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busy]);
 
   const onStart = (clientX: number) => {
     if (busy) return;
     draggingRef.current = true;
     startXRef.current = clientX;
+    setSnap(false); // drag — instant
   };
   const onMove = (clientX: number) => {
     if (!draggingRef.current) return;
-    const dx = clientX - startXRef.current;
-    setP(Math.max(0, Math.min(1, dx / maxTravel())));
+    const p = Math.max(0, Math.min(1, (clientX - startXRef.current) / maxTravel()));
+    progressRef.current = p;
+    paint(p); // DOM — darhol
+    const r = p >= TH;
+    if (r !== reachedRef.current) { reachedRef.current = r; setReached(r); } // faqat kesishda
   };
   const onEnd = () => {
     if (!draggingRef.current) return;
     draggingRef.current = false;
+    setSnap(true);
     if (progressRef.current >= TH) {
-      setP(1);
+      progressRef.current = 1;
+      paint(1);
+      setDone(true);
       try {
-        const tg = (window as Window & { Telegram?: { WebApp?: { HapticFeedback?: { impactOccurred?: (s: string) => void } } } })
-          .Telegram?.WebApp?.HapticFeedback;
-        tg?.impactOccurred?.('heavy');
+        (window as Window & { Telegram?: { WebApp?: { HapticFeedback?: { impactOccurred?: (s: string) => void } } } })
+          .Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('heavy');
       } catch {/* */}
       onConfirm();
     } else {
-      setP(0);
+      progressRef.current = 0;
+      reachedRef.current = false;
+      setReached(false);
+      paint(0);
     }
   };
-
-  useEffect(() => {
-    if (!busy) setP(0);
-  }, [busy]);
 
   return (
     <div
@@ -1576,32 +1598,27 @@ function SlideToConfirm({
       onTouchCancel={onEnd}
     >
       <div
-        className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-500 to-emerald-600 transition-[width] duration-150 ease-out"
-        style={{ width: `${4 + progress * 96}%` }}
+        ref={fillRef}
+        className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-500 to-emerald-600"
+        style={{ width: '4%', willChange: 'width' }}
       />
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-2 text-center text-[13px] font-black uppercase tracking-wider text-white">
         {busy
           ? <Loader2 size={20} className="animate-spin" />
-          : progress === 1
+          : done
             ? '✓'
             : `▶▶ SURGURIB TASDIQLANG · ${label}`}
       </div>
       <div
+        ref={knobRef}
         className={`pointer-events-none absolute left-1 top-1 flex items-center justify-center rounded-2xl shadow-xl ${
-          progress >= TH ? 'bg-emerald-500 text-white' : 'bg-white text-slate-900'
+          reached ? 'bg-emerald-500 text-white' : 'bg-white text-slate-900'
         }`}
-        style={{
-          width: KNOB,
-          height: KNOB,
-          transform: `translateX(${progress * maxTravel()}px)`,
-          transition: draggingRef.current
-            ? 'none'
-            : 'transform 240ms cubic-bezier(0.34, 1.56, 0.64, 1)',
-        }}
+        style={{ width: KNOB, height: KNOB, willChange: 'transform' }}
       >
         {busy
           ? <Loader2 size={28} className="animate-spin" />
-          : progress >= TH
+          : reached
             ? <Check size={28} strokeWidth={3} />
             : <ChevronsRight size={28} strokeWidth={3} />}
       </div>

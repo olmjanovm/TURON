@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, Loader2, X } from 'lucide-react';
 
 interface DualSwipeProps {
@@ -15,13 +15,10 @@ interface DualSwipeProps {
 /**
  * Ikki tomonlama slider — chap=rad, o'ng=qabul.
  *
- * Muhim texnik nuanslar (qaytib ulashmaslik uchun):
- *   1. touch-action:none — brauzer swipe'ni page scroll deb tushunmasligi
- *   2. progressRef — state stale o'qish bug'i (React render kechikishi)
- *      eski versiyada `onEnd` `progress` state'ni o'qigan, lekin tezda
- *      release qilsa, state hali yangilanib ulgurmagan bo'lishi mumkin
- *   3. Butun TRACK sudraladi (faqat knob emas) — qulayroq
- *   4. Pointer + Touch event hammasi qo'llab-quvvatlanadi
+ * SMOOTH (jank yo'q): drag paytida knob/fill DOM orqali (ref) bevosita
+ * yangilanadi — React RE-RENDER QILMAYDI. Rang/ikona uchun setState faqat
+ * requestAnimationFrame bilan throttle qilinadi (kadr/safar 1 marta).
+ * Fill'lardagi CSS transition drag paytida O'CHIQ (lag yo'q), snap'da yoqiq.
  */
 export function DualSwipe({
   acceptLabel,
@@ -32,62 +29,91 @@ export function DualSwipe({
   disabled,
 }: DualSwipeProps) {
   const trackRef = useRef<HTMLDivElement | null>(null);
+  const knobRef = useRef<HTMLDivElement | null>(null);
+  const declineFillRef = useRef<HTMLDivElement | null>(null);
+  const acceptFillRef = useRef<HTMLDivElement | null>(null);
+
+  // `progress` faqat RANG/IKONA uchun (rAF-throttled). Pozitsiya — ref orqali.
   const [progress, setProgress] = useState(0); // -1..+1
-  const progressRef = useRef(0); // state stale fix uchun mirror
+  const progressRef = useRef(0);
   const draggingRef = useRef(false);
   const startXRef = useRef(0);
+  const rafRef = useRef<number | null>(null);
 
-  const trackWidth = () => trackRef.current?.clientWidth ?? 320;
-  const knobSize = 56;
-  const halfTravel = () => Math.max(40, (trackWidth() - knobSize - 8) / 2);
+  const KNOB = 56;
+  const halfTravel = () => Math.max(40, ((trackRef.current?.clientWidth ?? 320) - KNOB - 8) / 2);
 
   const haptic = (kind: 'heavy' | 'light') => {
     try {
-      const tg = (window as Window & { Telegram?: { WebApp?: { HapticFeedback?: { impactOccurred?: (s: string) => void } } } })
-        .Telegram?.WebApp?.HapticFeedback;
-      tg?.impactOccurred?.(kind);
-    } catch {/* ignore */}
+      (window as Window & { Telegram?: { WebApp?: { HapticFeedback?: { impactOccurred?: (s: string) => void } } } })
+        .Telegram?.WebApp?.HapticFeedback?.impactOccurred?.(kind);
+    } catch {/* */}
   };
 
-  const updateProgress = (p: number) => {
-    progressRef.current = p;
-    setProgress(p);
+  // DOM'ga BEVOSITA yozish — re-render yo'q (smooth)
+  const paint = (p: number) => {
+    const max = halfTravel();
+    if (knobRef.current) knobRef.current.style.transform = `translateX(calc(-50% + ${(p * max).toFixed(1)}px))`;
+    if (declineFillRef.current) declineFillRef.current.style.width = `${(p < 0 ? Math.min(1, -p * 1.5) : 0) * 50}%`;
+    if (acceptFillRef.current) acceptFillRef.current.style.width = `${(p > 0 ? Math.min(1, p * 1.5) : 0) * 50}%`;
   };
+
+  const setSnapTransition = (on: boolean) => {
+    if (knobRef.current) {
+      knobRef.current.style.transition = on
+        ? 'transform 240ms cubic-bezier(0.34, 1.56, 0.64, 1), background-color 150ms'
+        : 'none';
+    }
+    const fillT = on ? 'width 160ms ease-out' : 'none';
+    if (declineFillRef.current) declineFillRef.current.style.transition = fillT;
+    if (acceptFillRef.current) acceptFillRef.current.style.transition = fillT;
+  };
+
+  // Boshlang'ich joylash
+  useEffect(() => {
+    paint(0);
+    setSnapTransition(true);
+    return () => { if (rafRef.current != null) cancelAnimationFrame(rafRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onStart = (clientX: number) => {
     if (disabled || busy) return;
     draggingRef.current = true;
     startXRef.current = clientX;
+    setSnapTransition(false); // drag — transition O'CHIQ (instant, lag yo'q)
   };
 
   const onMove = (clientX: number) => {
     if (!draggingRef.current) return;
     const dx = clientX - startXRef.current;
-    const max = halfTravel();
-    const p = Math.max(-1, Math.min(1, dx / max));
-    updateProgress(p);
+    const p = Math.max(-1, Math.min(1, dx / halfTravel()));
+    progressRef.current = p;
+    paint(p); // DOM — DARHOL
+    // Rang/ikona — rAF throttled (kadr/safar 1 marta setState)
+    if (rafRef.current == null) {
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null;
+        setProgress(progressRef.current);
+      });
+    }
+  };
+
+  const settle = (target: number) => {
+    progressRef.current = target;
+    setSnapTransition(true);
+    paint(target);
+    setProgress(target);
   };
 
   const onEnd = () => {
     if (!draggingRef.current) return;
     draggingRef.current = false;
-    const finalP = progressRef.current; // REF'dan o'qiymiz — stale state yo'q
-    if (finalP >= 0.6) {
-      updateProgress(1);
-      haptic('heavy');
-      onAccept();
-    } else if (finalP <= -0.6) {
-      updateProgress(-1);
-      haptic('heavy');
-      onDecline();
-    } else {
-      updateProgress(0);
-    }
+    const finalP = progressRef.current;
+    if (finalP >= 0.6) { haptic('heavy'); settle(1); onAccept(); }
+    else if (finalP <= -0.6) { haptic('heavy'); settle(-1); onDecline(); }
+    else { settle(0); }
   };
-
-  // Track ranglari — progressga qarab interpolate
-  const accentAccept = progress > 0 ? Math.min(1, progress * 1.5) : 0;
-  const accentDecline = progress < 0 ? Math.min(1, -progress * 1.5) : 0;
 
   return (
     <div
@@ -116,23 +142,25 @@ export function DualSwipe({
       onTouchCancel={onEnd}
       style={{ touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none' }}
     >
-      {/* Decline fill — chap tomondan o'ngga */}
+      {/* Decline fill — ref orqali (width drag'da bevosita) */}
       <div
-        className="absolute inset-y-0 left-0 bg-gradient-to-r from-red-500 to-red-600 transition-[width] duration-150 ease-out"
-        style={{ width: `${accentDecline * 50}%` }}
+        ref={declineFillRef}
+        className="absolute inset-y-0 left-0 bg-gradient-to-r from-red-500 to-red-600"
+        style={{ width: 0, willChange: 'width' }}
       />
-      {/* Accept fill — o'ng tomondan chapga */}
+      {/* Accept fill */}
       <div
-        className="absolute inset-y-0 right-0 bg-gradient-to-l from-emerald-500 to-emerald-600 transition-[width] duration-150 ease-out"
-        style={{ width: `${accentAccept * 50}%` }}
+        ref={acceptFillRef}
+        className="absolute inset-y-0 right-0 bg-gradient-to-l from-emerald-500 to-emerald-600"
+        style={{ width: 0, willChange: 'width' }}
       />
 
-      {/* Labels (knob orqasida ko'rinadi) */}
+      {/* Labels */}
       <div className="pointer-events-none absolute inset-0 flex items-center">
         <div className="flex-1 pl-5">
           <span
             className={`flex items-center gap-1.5 text-[12px] font-black uppercase tracking-wider transition-colors ${
-              accentDecline > 0.3 ? 'text-white' : 'text-slate-400'
+              progress < -0.2 ? 'text-white' : 'text-slate-400'
             }`}
           >
             <ChevronLeft size={14} />
@@ -142,7 +170,7 @@ export function DualSwipe({
         <div className="flex-1 pr-5 text-right">
           <span
             className={`inline-flex items-center gap-1.5 text-[12px] font-black uppercase tracking-wider transition-colors ${
-              accentAccept > 0.3 ? 'text-white' : 'text-slate-400'
+              progress > 0.2 ? 'text-white' : 'text-slate-400'
             }`}
           >
             {acceptLabel}
@@ -151,20 +179,17 @@ export function DualSwipe({
         </div>
       </div>
 
-      {/* Knob — markazdan ikki tomonga, pointer-events:none (track o'zi ushlaydi) */}
+      {/* Knob — pozitsiya ref orqali (transform), rang state orqali */}
       <div
-        className={`pointer-events-none absolute top-1 flex h-[56px] w-[56px] items-center justify-center rounded-xl shadow-lg ${
+        ref={knobRef}
+        className={`pointer-events-none absolute left-1/2 top-1 flex h-[56px] w-[56px] items-center justify-center rounded-xl shadow-lg ${
           progress > 0.3
             ? 'bg-emerald-500 text-white'
             : progress < -0.3
               ? 'bg-red-500 text-white'
               : 'bg-white text-slate-900 dark:bg-slate-100'
         }`}
-        style={{
-          left: '50%',
-          transform: `translateX(calc(-50% + ${progress * halfTravel()}px))`,
-          transition: draggingRef.current ? 'none' : 'transform 240ms cubic-bezier(0.34, 1.56, 0.64, 1), background-color 150ms',
-        }}
+        style={{ willChange: 'transform' }}
         aria-label="swipe"
       >
         {busy ? (
