@@ -5,6 +5,7 @@ import {
   getProducts,
   getAdminProducts,
   getProductById,
+  getAdminProductById,
   handleCreateCategory,
   handleUpdateCategory,
   handleSetCategoryActive,
@@ -39,6 +40,10 @@ export default async function menuRoutes(fastify: FastifyInstance) {
 
     admin.get('/admin/categories', getAdminCategories);
     admin.get('/admin/products', getAdminProducts);
+    // Admin detal — filtrsiz (inaktiv taomni ham ochish uchun; public 404 bermasin)
+    admin.get('/admin/products/:id', {
+      schema: { params: IdParamSchema }
+    }, getAdminProductById);
 
     admin.post('/categories', {
       schema: { body: CategorySchema }

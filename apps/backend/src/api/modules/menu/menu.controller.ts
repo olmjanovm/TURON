@@ -228,6 +228,27 @@ export async function getProductById(
   return reply.send(serializeProduct(product));
 }
 
+/**
+ * Admin detal — FILTRSIZ (inaktiv/tugagan/inaktiv-kategoriyali taomni ham qaytaradi).
+ * Admin ro'yxat hamma taomni ko'rsatadi; bosganda public (filtrlangan) endpoint
+ * 404 berardi — bu admin uchun noto'g'ri. Admin tahrir uchun shu ishlatiladi.
+ */
+export async function getAdminProductById(
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply
+) {
+  const product = await prisma.menuItem.findUnique({
+    where: { id: request.params.id },
+    include: { category: true },
+  });
+
+  if (!product) {
+    return reply.status(404).send({ error: 'Maxsulot topilmadi' });
+  }
+
+  return reply.send(serializeProduct(product));
+}
+
 export async function handleCreateCategory(
   request: FastifyRequest<{ Body: any }>,
   reply: FastifyReply
@@ -614,13 +635,19 @@ export async function handleDeleteProduct(
 
   const oldValue = serializeProduct(existingProduct);
 
-  await prisma.menuItem.update({
-    where: { id: request.params.id },
-    data: {
-      isActive: false,
-      availabilityStatus: ProductAvailabilityEnum.TEMPORARILY_UNAVAILABLE as any,
-    },
-  });
+  // HARD delete — to'liq o'chadi (soft emas, hech qayerda qolmaydi).
+  // O'tgan buyurtmalar buzilmaydi: order_items snapshot (item_name/price) saqlaydi,
+  // FK defensiv ravishda null qilinadi (DB onDelete SetNull bo'lsa ham, bo'lmasa ham).
+  await prisma.$transaction([
+    prisma.orderItem.updateMany({
+      where: { menuItemId: request.params.id },
+      data: { menuItemId: null },
+    }),
+    prisma.menuItem.delete({ where: { id: request.params.id } }),
+  ]);
+
+  // Rasmni storage'dan ham o'chir (xotirada qolmasin)
+  if (existingProduct.imageUrl) void StorageService.deleteByUrl(existingProduct.imageUrl);
 
   menuCache.clear();
   menuBroadcastService.publish();
@@ -632,7 +659,7 @@ export async function handleDeleteProduct(
     entity: 'MenuItem',
     entityId: request.params.id,
     oldValue,
-    newValue: { isActive: false },
+    newValue: { deleted: true },
   });
 
   return reply.status(204).send();
