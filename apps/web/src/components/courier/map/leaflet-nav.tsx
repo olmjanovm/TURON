@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
+import 'leaflet/dist/leaflet.css'; // MAJBURIY — busiz tiles joylashmaydi (bo'sh xarita)
 import { ArrowLeft, ArrowRight, ArrowUp, CornerUpLeft, CornerUpRight, Loader2, Volume2, VolumeX, X } from 'lucide-react';
 import { fetchRoute, trafficColor, type RouteManeuver, type RouteResult } from '@/lib/route-fetcher';
 import { speak, setVoiceEnabled, isVoiceEnabled } from '@/lib/nav-audio';
