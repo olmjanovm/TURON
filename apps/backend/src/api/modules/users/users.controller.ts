@@ -133,6 +133,22 @@ export async function updateMyProfile(
  * Returns the authenticated user's live profile snapshot so the mini app can
  * reconcile Telegram-originated changes such as shared phone contacts.
  */
+/**
+ * GET /users/me/socket-token
+ * Returns a short-lived JWT for the Socket.io gateway handshake.
+ *
+ * The Mini App (vercel.app) and the gateway (duckdns.org) are CROSS-ORIGIN, so
+ * the httpOnly `turon_token` cookie is NOT sent to the gateway. The client must
+ * pass a token via `handshake.auth.token`. We mint a short-lived token here
+ * (signed with the same JWT_SECRET the gateway verifies) so the long-lived 7d
+ * session cookie itself is never exposed to client JS.
+ */
+export async function getSocketToken(request: FastifyRequest, reply: FastifyReply) {
+  const user = request.user as { id: string; role: string };
+  const token = await reply.jwtSign({ id: user.id, role: user.role }, { expiresIn: '12h' });
+  return reply.send({ token });
+}
+
 export async function getCurrentUserProfile(
   request: FastifyRequest,
   reply: FastifyReply,
