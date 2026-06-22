@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { MessageCircle, X } from 'lucide-react';
 import { useAdminInbox } from '@/hooks/use-admin-chats';
+import { getSocket } from '@/lib/socket';
 
 /**
  * App-wide admin "yangi xabar" bildirishnomasi (Telegram uslubi).
@@ -36,9 +38,19 @@ const AUTO_DISMISS_MS = 7_000;
 
 export function AdminMessageNotifier() {
   const router = useRouter();
+  const qc = useQueryClient();
   const { data } = useAdminInbox();
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [overflow, setOverflow] = useState(0);
+
+  // ── Realtime: socket 'chat:message' kelganda inbox'ni DARHOL yangilaymiz
+  //    (12s poll'ni kutmasdan → lahzali banner). Admin role:ADMIN xonasida.
+  useEffect(() => {
+    const socket = getSocket();
+    const onMsg = () => qc.invalidateQueries({ queryKey: ['admin', 'chat-inbox'] });
+    socket.on('chat:message', onMsg);
+    return () => { socket.off('chat:message', onMsg); };
+  }, [qc]);
 
   // key (`role:orderId`) → oxirgi ko'rilgan {count, at}. null = hali seed bo'lmagan.
   const seenRef = useRef<Map<string, { count: number; at: string }> | null>(null);
