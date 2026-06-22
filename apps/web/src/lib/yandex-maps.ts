@@ -25,7 +25,10 @@ const API_KEY =
   process.env.NEXT_PUBLIC_MAP_API_KEY?.trim() || // legacy
   '0fa7de6b-b53e-4257-8626-02c9082bb2c2'; // YANGI JS API kalit (routing yoqilgan)
 
-const LANG = process.env.NEXT_PUBLIC_MAP_LANGUAGE?.trim() || 'uz_UZ';
+// Til — O'ZBEKCHA majburiy (foydalanuvchi: Yandex Toshkentда o'zbekcha gapiradi).
+// Env'ga tayanmaymiz (Vercel'da ru bo'lib qolgan bo'lishi mumkin). Agar Yandex JS
+// API uz_UZ'ni qo'llamasa — ruscha'ga tushadi (zarari yo'q).
+const LANG = 'uz_UZ';
 
 export interface LatLng {
   lat: number;
