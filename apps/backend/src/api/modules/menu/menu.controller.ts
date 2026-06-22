@@ -4,6 +4,7 @@ import { prisma } from '../../../lib/prisma.js';
 import { AuditService } from '../../../services/audit.service.js';
 import { menuCache } from '../../../lib/cache.js';
 import { menuBroadcastService } from '../../../services/menu-broadcast.service.js';
+import { StorageService } from '../../../services/storage.service.js';
 
 function slugify(value: string) {
   return value
@@ -298,6 +299,12 @@ export async function handleUpdateCategory(
     },
   });
 
+  // Eski ikona/rasm almashtirilsa — eskisini o'chir (xotira tejash).
+  const newIconUrl = data.iconUrl ?? existingCategory.iconUrl;
+  if (existingCategory.iconUrl && existingCategory.iconUrl !== newIconUrl) {
+    void StorageService.deleteByUrl(existingCategory.iconUrl);
+  }
+
   menuCache.clear();
   menuBroadcastService.publish();
 
@@ -519,6 +526,12 @@ export async function handleUpdateProduct(
       availabilityStatus: normalizeAvailability({ isActive, stockQuantity }) as any,
     },
   });
+
+  // Eski rasm yangisiga almashtirilsa — eskisini DARHOL o'chir (xotira tejash).
+  const newImageUrl = data.imageUrl || null;
+  if (existingProduct.imageUrl && existingProduct.imageUrl !== newImageUrl) {
+    void StorageService.deleteByUrl(existingProduct.imageUrl);
+  }
 
   menuCache.clear();
   menuBroadcastService.publish();

@@ -35,9 +35,16 @@ export async function uploadLogo(
     return reply.code(400).send({ message: 'Rasm yuborilmadi' });
   }
 
+  // Aniq sabab (avval "Yuklanmadi" sababsiz edi).
+  if (!StorageService.isConfigured()) {
+    return reply.code(503).send({
+      message: 'Rasm xizmati sozlanmagan (server SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY yo\'q).',
+    });
+  }
+
   const url = await StorageService.uploadBase64(imageBase64, 'menu');
   if (!url) {
-    return reply.code(500).send({ message: 'Logo yuklab bo‘lmadi' });
+    return reply.code(502).send({ message: 'Rasm storage\'ga yuklanmadi (Supabase xatosi).' });
   }
 
   return reply.send({ url });

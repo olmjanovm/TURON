@@ -9,6 +9,37 @@ const SUPABASE_KEY =
  * Uploads a base64-encoded image and returns its public URL, or null on failure.
  */
 export class StorageService {
+  /** Supabase storage sozlanganmi (URL + kalit bor)? Controller aniq xato beradi. */
+  static isConfigured(): boolean {
+    return Boolean(SUPABASE_URL && SUPABASE_KEY);
+  }
+
+  /**
+   * Public URL bo'yicha bitta faylni o'chiradi (eski rasm yangisiga almashtirilsa
+   * darhol chaqiriladi — xotira tejash). Faqat o'zimizning Supabase URL'larini
+   * tegadi; tashqi/relyativ URL'larga teginmaydi. Fire-and-forget (xato yutiladi).
+   */
+  static async deleteByUrl(publicUrl: string | null | undefined): Promise<void> {
+    if (!publicUrl || !SUPABASE_URL || !SUPABASE_KEY) return;
+    try {
+      const marker = '/storage/v1/object/public/';
+      const idx = publicUrl.indexOf(marker);
+      if (idx === -1 || !publicUrl.startsWith(SUPABASE_URL)) return; // bizniki emas
+      const path = publicUrl.slice(idx + marker.length); // "{bucket}/{filename}"
+      if (!path || path.includes('..')) return;
+      const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${path}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${SUPABASE_KEY}`, apikey: SUPABASE_KEY },
+      });
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        console.warn(`[StorageService] deleteByUrl ${res.status}:`, body.slice(0, 200));
+      }
+    } catch (err) {
+      console.error('[StorageService] deleteByUrl error:', err);
+    }
+  }
+
   /**
    * Frontend to'g'ridan-to'g'ri rasm yuklashi uchun Pre-signed URL yaratish.
    * Buni API orqali frontendga beramiz, frontend o'zi Supabase-ga PUT qiladi.

@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma.js';
 import { RESTAURANT_COORDINATES } from '@turon/shared';
+import { StorageService } from './storage.service.js';
 
 export interface WorkingHoursDay {
   open: string;  // "HH:MM"
@@ -256,8 +257,13 @@ export async function patchRestaurantSettings(
     tasks.push(setSetting('is_open', String(patch.isOpen), 'boolean', updatedById));
   if (patch.autoSchedule !== undefined)
     tasks.push(setSetting('auto_schedule', String(patch.autoSchedule), 'boolean', updatedById));
-  if (patch.logoUrl !== undefined)
-    tasks.push(setSetting('logo_url', patch.logoUrl ?? '', 'string', updatedById));
+  if (patch.logoUrl !== undefined) {
+    // Eski logo yangisiga almashtirilsa — eskisini o'chir (xotira tejash).
+    const oldLogo = await getSetting('logo_url');
+    const newLogo = patch.logoUrl ?? '';
+    tasks.push(setSetting('logo_url', newLogo, 'string', updatedById));
+    if (oldLogo && oldLogo !== newLogo) void StorageService.deleteByUrl(oldLogo);
+  }
   if (patch.cardNumber !== undefined)
     tasks.push(setSetting('card_number', patch.cardNumber, 'string', updatedById));
   if (patch.deliveryFee !== undefined)
