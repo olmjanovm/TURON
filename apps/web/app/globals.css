@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import 'leaflet/dist/leaflet.css';
 
 /* Tailwind v4: dark: variantni `.dark` klassiga bog'laymiz (media query emas).
    Aks holda Telegram tizim qorong'i bo'lsa, foydalanuvchi "Light" tanlasa ham

@@ -17,13 +17,14 @@ import { useDeliverFlow } from '@/hooks/use-courier-deliver';
 import { RESTAURANT_DEFAULT } from '@/lib/yandex-maps';
 import { AlertTriangle } from 'lucide-react';
 
-// DeliveryNavigator faqat client'da — Yandex Maps SSR'da ishlamaydi
+// Leaflet navigator (DARK Carto map) — faqat client'da. Eski Yandex versiya
+// (delivery-navigator) saqlanган, kerak bo'lsa qaytariladi.
 const DeliveryNavigator = dynamic(
-  () => import('@/components/courier/map/delivery-navigator').then((m) => m.DeliveryNavigator),
+  () => import('@/components/courier/map/leaflet-nav').then((m) => m.LeafletNav),
   {
     ssr: false,
     loading: () => (
-      <div className="absolute inset-0 flex items-center justify-center bg-[#0d0d0f]">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0a0a0c]">
         <Loader2 size={28} className="animate-spin text-amber-400" />
       </div>
     ),

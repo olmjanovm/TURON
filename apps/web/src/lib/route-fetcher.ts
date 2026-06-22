@@ -78,7 +78,7 @@ export async function fetchRoute(
   from: LatLng,
   to: LatLng,
   mode: Mode,
-  ymaps: Ymaps,
+  ymaps?: Ymaps | null, // Leaflet'dan chaqirilsa null (multiRouter ishlatilmaydi)
 ): Promise<RouteResult | null> {
   // OFFLINE — cache'dan o'qish (agar internet yo'q bo'lsa)
   const online = typeof navigator === 'undefined' ? true : navigator.onLine;
@@ -102,11 +102,13 @@ export async function fetchRoute(
     return httpResult;
   }
 
-  // 3) Fallback — Yandex multiRouter (JS API)
-  const multiResult = await fetchFromMultiRouter(from, to, mode, ymaps);
-  if (multiResult) {
-    saveRoute(from, to, mode, multiResult);
-    return multiResult;
+  // 3) Fallback — Yandex multiRouter (JS API) — faqat ymaps berilsa
+  if (ymaps) {
+    const multiResult = await fetchFromMultiRouter(from, to, mode, ymaps);
+    if (multiResult) {
+      saveRoute(from, to, mode, multiResult);
+      return multiResult;
+    }
   }
 
   // 3) Eng oxirgi — eski cache (yangi marshrut yo'q bo'lsa)
