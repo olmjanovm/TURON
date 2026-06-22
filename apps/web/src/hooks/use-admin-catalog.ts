@@ -12,11 +12,12 @@ export function useAdminCategories() {
   });
 }
 
-/** Bitta mahsulot (edit uchun). */
+/** Bitta mahsulot (edit uchun) — ADMIN filtrsiz endpoint (inaktiv/tugagan taomni ham
+ *  ochadi; public /products/:id inaktivda 404 "topilmadi" berardi — bug). */
 export function useProduct(id: string) {
   return useQuery<MenuProduct>({
     queryKey: ['admin', 'product', id],
-    queryFn: () => apiFetch<MenuProduct>(`/api/menu/products/${id}`),
+    queryFn: () => apiFetch<MenuProduct>(`/api/menu/admin/products/${id}`),
     enabled: Boolean(id),
   });
 }
@@ -78,13 +79,17 @@ export function useToggleProduct() {
   });
 }
 
-/** O'chirish. */
+/** O'chirish — HARD delete (backend butunlay o'chiradi). Cache'dan ham tozalaymiz. */
 export function useDeleteProduct() {
   const invalidate = useCatalogInvalidate();
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
       apiFetch(`/api/menu/products/${id}`, { method: 'DELETE' }),
-    onSuccess: invalidate,
+    onSuccess: (_data, id) => {
+      invalidate();
+      qc.removeQueries({ queryKey: ['admin', 'product', id] }); // detal cache'ini ham o'chir
+    },
   });
 }
 
