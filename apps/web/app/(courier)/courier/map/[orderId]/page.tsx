@@ -17,11 +17,11 @@ import { useDeliverFlow } from '@/hooks/use-courier-deliver';
 import { RESTAURANT_DEFAULT } from '@/lib/yandex-maps';
 import { AlertTriangle } from 'lucide-react';
 
-// REAL Yandex navigator (yandex#map — haqiqiy Yandex xaritasi + yo'l polyline +
-// kuryer strelkasi). Mijoz/admin xaritalari bilan bir xil loader/kalit
-// (NEXT_PUBLIC_YANDEX_MAP_API_KEY). (Leaflet/Carto versiyasi leaflet-nav'da saqlangan.)
+// REAL Yandex DARK 3D navigator (ymaps3 vektor — tilt 55, dark theme, yashil yo'l).
+// Skrinshotdagi eski ko'rinish. Kalit v3 uchun ishlaydi (referer-cheklovli, vercel
+// domeni). v3 yuklanmasa avtomatik v2.1 (delivery-navigator) ga qaytadi → xavfsiz.
 const DeliveryNavigator = dynamic(
-  () => import('@/components/courier/map/delivery-navigator').then((m) => m.DeliveryNavigator),
+  () => import('@/components/courier/map/yandex-v3-navigator').then((m) => m.YandexV3Navigator),
   {
     ssr: false,
     loading: () => (
