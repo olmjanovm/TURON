@@ -17,10 +17,11 @@ import { useDeliverFlow } from '@/hooks/use-courier-deliver';
 import { RESTAURANT_DEFAULT } from '@/lib/yandex-maps';
 import { AlertTriangle } from 'lucide-react';
 
-// Leaflet navigator (DARK Carto map) — faqat client'da. Eski Yandex versiya
-// (delivery-navigator) saqlanган, kerak bo'lsa qaytariladi.
+// REAL Yandex navigator (yandex#map — haqiqiy Yandex xaritasi + yo'l polyline +
+// kuryer strelkasi). Mijoz/admin xaritalari bilan bir xil loader/kalit
+// (NEXT_PUBLIC_YANDEX_MAP_API_KEY). (Leaflet/Carto versiyasi leaflet-nav'da saqlangan.)
 const DeliveryNavigator = dynamic(
-  () => import('@/components/courier/map/leaflet-nav').then((m) => m.LeafletNav),
+  () => import('@/components/courier/map/delivery-navigator').then((m) => m.DeliveryNavigator),
   {
     ssr: false,
     loading: () => (
