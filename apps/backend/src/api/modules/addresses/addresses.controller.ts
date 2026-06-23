@@ -21,7 +21,7 @@ function serializeAddress(address: any) {
 export async function getAddresses(request: FastifyRequest, reply: FastifyReply) {
   const user = request.user as any;
   const addresses = await prisma.deliveryAddress.findMany({
-    where: { userId: user.id },
+    where: { userId: user.id, deletedAt: null },
     orderBy: { updatedAt: 'desc' }
   });
 
@@ -68,7 +68,7 @@ export async function handleUpdateAddress(
     where: { id }
   });
 
-  if (!existingAddress || existingAddress.userId !== user.id) {
+  if (!existingAddress || existingAddress.userId !== user.id || existingAddress.deletedAt) {
     return reply.status(404).send({ error: 'Manzil topilmadi' });
   }
 
@@ -110,15 +110,18 @@ export async function handleDeleteAddress(
     return reply.status(403).send({ error: 'Ruxsat etilmadi' });
   }
 
-  try {
-    await prisma.deliveryAddress.delete({ where: { id } });
-  } catch (error: any) {
-    if (error?.code === 'P2003') {
-      return reply.status(409).send({ error: 'Bu manzil buyurtmalarda ishlatilgan va hozircha o\'chirib bo\'lmaydi' });
-    }
-
-    throw error;
+  // Allaqachon o'chirilgan bo'lsa — idempotent 204
+  if (address.deletedAt) {
+    return reply.status(204).send();
   }
+
+  // SOFT-DELETE: qatorni o'chirmaymiz (aks holda unga bog'liq buyurtmalar yetim
+  // qoladi va order detail/admin ro'yxati 500 beradi). Faqat deleted_at to'ldiriladi
+  // → foydalanuvchi ro'yxatida ko'rinmaydi, lekin order FK yaroqli qoladi.
+  await prisma.deliveryAddress.update({
+    where: { id },
+    data: { deletedAt: new Date() },
+  });
 
   await AuditService.record({
     userId: user.id,

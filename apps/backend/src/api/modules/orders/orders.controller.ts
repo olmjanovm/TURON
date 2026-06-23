@@ -242,7 +242,7 @@ async function getOwnedDeliveryAddress(userId: string, deliveryAddressId: string
     where: { id: deliveryAddressId },
   });
 
-  if (!deliveryAddress || deliveryAddress.userId !== userId) {
+  if (!deliveryAddress || deliveryAddress.userId !== userId || deliveryAddress.deletedAt) {
     throw new Error('Tanlangan manzil sizga tegishli emas');
   }
 

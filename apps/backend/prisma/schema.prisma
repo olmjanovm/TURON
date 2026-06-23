@@ -186,11 +186,12 @@ model DeliveryAddress {
   latitude  Decimal  @db.Decimal(10, 7)
   longitude Decimal  @db.Decimal(10, 7)
   note      String?
-  isDefault Boolean  @default(false) @map("is_default")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  orders    Order[]  @relation("OrderAddress")
+  isDefault Boolean   @default(false) @map("is_default")
+  deletedAt DateTime? @map("deleted_at") // soft-delete: o'chirilgan manzil order FK'ini buzmaydi
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders    Order[]   @relation("OrderAddress")
 
   @@index([userId])
   @@index([userId, createdAt(sort: Desc)])
@@ -288,7 +289,7 @@ model PromoCode {
 model Order {
   id                     String            @id @default(uuid())
   userId                 String            @map("user_id")
-  deliveryAddressId      String            @map("address_id")
+  deliveryAddressId      String?           @map("address_id")
   courierId              String?           @map("courier_id")
   promoCodeId            String?           @map("promo_code_id")
   orderNumber            BigInt            @unique @default(autoincrement()) @map("order_number")
@@ -332,7 +333,7 @@ model Order {
   user            User            @relation("CustomerOrders", fields: [userId], references: [id], onDelete: Restrict)
   courier         User?           @relation("CourierOrders", fields: [courierId], references: [id], onDelete: SetNull)
   promoCode       PromoCode?      @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
-  deliveryAddress DeliveryAddress @relation("OrderAddress", fields: [deliveryAddressId], references: [id], onDelete: Restrict)
+  deliveryAddress DeliveryAddress? @relation("OrderAddress", fields: [deliveryAddressId], references: [id], onDelete: SetNull)
   approvedBy      User?           @relation("OrderApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
 
   items                    OrderItem[]
