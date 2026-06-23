@@ -30,8 +30,10 @@ interface LeafletNavProps {
 const CHASE_ZOOM = 18;
 const HYPER_ZOOM = 19;
 const HYPER_RADIUS_M = 100;
-// Carto DARK raster — bepul, dark Navigator rangida, raster (qotmaydi).
-const DARK_TILES = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+// Carto LIGHT raster (oq baza) + tile-pane CSS filter → NAVY-BLUE (Yandex Navigator
+// rangi). OSM o'rniga Carto (tijorat ruxsati + ishonchli, bloklanmaydi). Filter
+// faqat tile-pane'ga, marker/overlay'ga TEGMAYDI (route/strelka rangi saqlanadi).
+const DARK_TILES = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
 
 function haversineM(a: LatLng, b: LatLng): number {
   const R = 6371000, toR = Math.PI / 180;
@@ -108,6 +110,7 @@ export function LeafletNav({
       zoom: CHASE_ZOOM,
       zoomControl: false,
       attributionControl: false,
+      scrollWheelZoom: false,
       preferCanvas: true, // past quvvat uchun
     });
     L.tileLayer(DARK_TILES, { subdomains: 'abcd', maxZoom: 20, detectRetina: true }).addTo(map);
@@ -116,14 +119,14 @@ export function LeafletNav({
     // Pickup pin (amber)
     L.marker([pickup.lat, pickup.lng], {
       icon: L.divIcon({
-        html: '<div class="lnav-pin lnav-pin-pickup"><svg width="34" height="42" viewBox="0 0 36 44"><path d="M18 0C8 0 0 8 0 18c0 13.5 18 26 18 26s18-12.5 18-26C36 8 28 0 18 0z" fill="#f59e0b" stroke="#fff" stroke-width="3"/><circle cx="18" cy="18" r="6" fill="#fff"/></svg></div>',
+        html: '<div class="lnav-pin lnav-pin-pickup"><svg width="34" height="42" viewBox="0 0 36 44"><path d="M18 0C8 0 0 8 0 18c0 13.5 18 26 18 26s18-12.5 18-26C36 8 28 0 18 0z" fill="#FFD600" stroke="#fff" stroke-width="3"/><circle cx="18" cy="18" r="6" fill="#fff"/></svg></div>',
         className: '', iconSize: [34, 42], iconAnchor: [17, 42],
       }),
     }).addTo(map);
     // Destination pin (red)
     L.marker([destination.lat, destination.lng], {
       icon: L.divIcon({
-        html: '<div class="lnav-pin lnav-pin-dest"><svg width="34" height="42" viewBox="0 0 36 44"><path d="M18 0C8 0 0 8 0 18c0 13.5 18 26 18 26s18-12.5 18-26C36 8 28 0 18 0z" fill="#c62020" stroke="#fff" stroke-width="3"/><path d="M12 19v-3l6-5 6 5v3h-2v6h-3v-4h-2v4h-3v-6z" fill="#fff"/></svg></div>',
+        html: '<div class="lnav-pin lnav-pin-dest"><svg width="34" height="42" viewBox="0 0 36 44"><path d="M18 0C8 0 0 8 0 18c0 13.5 18 26 18 26s18-12.5 18-26C36 8 28 0 18 0z" fill="#E53935" stroke="#fff" stroke-width="3"/><path d="M12 19v-3l6-5 6 5v3h-2v6h-3v-4h-2v4h-3v-6z" fill="#fff"/></svg></div>',
         className: '', iconSize: [34, 42], iconAnchor: [17, 42],
       }),
     }).addTo(map);
@@ -202,7 +205,7 @@ export function LeafletNav({
       if (!seg.coords || seg.coords.length < 2) continue;
       const latlngs = seg.coords.map(([lng, lat]) => [lat, lng]) as [number, number][];
       const color = trafficColor(seg.traffic);
-      const casing = L.polyline(latlngs, { color: '#0b1220', weight: 12, opacity: 0.9, lineCap: 'round', lineJoin: 'round' }).addTo(map);
+      const casing = L.polyline(latlngs, { color: 'rgba(255,255,255,0.22)', weight: 16, opacity: 1, lineCap: 'round', lineJoin: 'round' }).addTo(map);
       const main = L.polyline(latlngs, { color, weight: 8, opacity: 1, lineCap: 'round', lineJoin: 'round' }).addTo(map);
       routeLayersRef.current.push(casing, main);
     }
@@ -386,22 +389,24 @@ export function LeafletNav({
             </div>
           )}
         </div>
-        <button type="button" onClick={toggleVoice}
-          className={`flex h-10 w-10 items-center justify-center rounded-2xl shadow-xl active:scale-95 ${voiceOn ? 'bg-emerald-500 text-white' : 'bg-white/95 text-slate-500'}`}>
-          {voiceOn ? <Volume2 size={16} /> : <VolumeX size={16} />}
-        </button>
       </div>
 
+      {/* Voice — o'ng markaz (Navigator uslubi) */}
+      <button type="button" onClick={toggleVoice}
+        className={`absolute right-3 top-1/2 z-20 flex h-[50px] w-[50px] -translate-y-1/2 items-center justify-center rounded-full shadow-[0_4px_18px_rgba(0,200,83,0.5)] active:scale-95 ${voiceOn ? 'bg-[#00C853] text-white' : 'bg-[#1e2a45] text-white/70'}`}>
+        {voiceOn ? <Volume2 size={20} /> : <VolumeX size={20} />}
+      </button>
+
       {/* Tezlik indikatori — joriy (qora) + chegara (qizil halqa), Navigator uslubi */}
-      <div className="pointer-events-none absolute right-3 z-20 flex items-center"
-        style={{ top: 'calc(env(safe-area-inset-top, 0px) + 60px)' }}>
-        <div className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-black text-white shadow-xl tabular-nums"
-          style={{ fontSize: 21, fontWeight: 900 }}>
-          {curSpeed}
+      <div className="pointer-events-none absolute right-3 z-30 flex items-center drop-shadow-[0_4px_10px_rgba(0,0,0,0.6)]"
+        style={{ top: 'calc(env(safe-area-inset-top, 0px) + 14px)' }}>
+        <div className="z-[2] flex h-[58px] w-[58px] flex-col items-center justify-center rounded-full border-[2.5px] border-[#333] bg-[#111] text-white tabular-nums">
+          <span style={{ fontSize: 23, fontWeight: 900, lineHeight: 1 }}>{curSpeed}</span>
+          <span style={{ fontSize: 8 }} className="text-white/55">km/h</span>
         </div>
         {speedLimit != null && (
-          <div className="-ml-3.5 flex h-[56px] w-[56px] items-center justify-center rounded-full border-[5px] border-red-500 bg-white text-red-600 shadow-xl tabular-nums"
-            style={{ fontSize: 21, fontWeight: 900 }}>
+          <div className="z-[1] -ml-4 flex h-[62px] w-[62px] items-center justify-center rounded-full border-4 border-[#E53935] bg-white text-[#E53935] tabular-nums"
+            style={{ fontSize: 23, fontWeight: 900 }}>
             {speedLimit}
           </div>
         )}
@@ -411,7 +416,7 @@ export function LeafletNav({
       {nextManeuver && ManeuverIcon && (
         <div className="pointer-events-none absolute left-3 z-20"
           style={{ top: 'calc(env(safe-area-inset-top, 0px) + 84px)' }}>
-          <div className="flex max-w-[58vw] items-center gap-2 rounded-2xl bg-[#1f6fe5]/95 px-2.5 py-1.5 shadow-xl backdrop-blur-sm">
+          <div className="flex max-w-[58vw] items-center gap-2 rounded-2xl bg-[#1565C0] px-2.5 py-1.5 shadow-[0_5px_24px_rgba(0,0,0,0.55)]">
             <ManeuverIcon size={26} strokeWidth={3} className="shrink-0 text-white" />
             <div className="min-w-0">
               {maneuverDist != null && (
@@ -428,7 +433,7 @@ export function LeafletNav({
       {/* Pastki HUD */}
       <div className="absolute inset-x-0 bottom-0 z-20 mx-auto w-full max-w-[480px]"
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-        <div className="bg-[#0f0f12] px-5 pb-3 pt-3 text-white shadow-[0_-12px_24px_-4px_rgba(0,0,0,0.6)]">
+        <div className="border-t-[1.5px] border-[#2d3f60] bg-[#1e2a45] px-5 pb-3 pt-3 text-white shadow-[0_-12px_24px_-4px_rgba(0,0,0,0.6)]">
           {stageLabel && <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-amber-400">{stageLabel}</p>}
           <div className="flex items-center justify-between">
             <div>
@@ -458,10 +463,18 @@ export function LeafletNav({
       </div>
 
       <style jsx global>{`
-        .lnav-tilt { /* yengil first-person tilt (raster — qotmaydi) */ }
+        /* NAVY-BLUE: oq Carto tile'larini Yandex Navigator navy rangiga aylantirish.
+           Faqat tile-pane'ga — marker/route/overlay'ga TEGMAYDI (rangi saqlanadi). */
+        .leaflet-tile-pane {
+          filter: invert(93%) hue-rotate(195deg) brightness(0.78) saturate(0.9) contrast(0.95);
+        }
+        .leaflet-marker-pane,
+        .leaflet-overlay-pane,
+        .leaflet-popup-pane,
+        .leaflet-tooltip-pane { filter: none !important; }
         .lnav-arrow { width: 44px; height: 55px; transform-origin: 50% 60%; transition: transform 200ms ease-out; will-change: transform; }
         .lnav-mvr { width: 24px; height: 24px; transform-origin: 50% 50%; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.6)); }
-        .leaflet-container { background: #0a0a0c; font-family: inherit; }
+        .leaflet-container { background: #1a2035; font-family: inherit; }
         .leaflet-container .leaflet-control-attribution { display: none; }
       `}</style>
     </div>
