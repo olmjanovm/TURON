@@ -24,13 +24,14 @@ import {
   listOrderModifications,
   listPendingModifications,
 } from './modifications.controller.js';
-import { 
+import {
   AssignCourierSchema,
-  CreateOrderSchema, 
-  IdParamSchema, 
+  CreateOrderSchema,
+  IdParamSchema,
+  OrderModificationDecideParamSchema,
   QuoteOrderSchema,
   RejectPaymentSchema,
-  UpdateOrderStatusSchema 
+  UpdateOrderStatusSchema
 } from '../../utils/schemas.js';
 import { UserRoleEnum } from '@turon/shared';
 
@@ -125,7 +126,7 @@ export default async function orderRoutes(fastify: FastifyInstance) {
     admin.post(
       '/:id/modifications/:reqId/decide',
       {
-        schema: { params: IdParamSchema },
+        schema: { params: OrderModificationDecideParamSchema },
       },
       decideOrderModification,
     );
