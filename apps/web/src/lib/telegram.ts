@@ -107,7 +107,12 @@ export function initTelegram(): void {
   document.documentElement.dataset.tgColorScheme = wa.colorScheme || 'light';
 
   syncSafeArea();
-  const onViewport = () => syncSafeArea();
+  const onViewport = () => {
+    syncSafeArea();
+    // Fullsize/expand o'tishlarida Telegram vertikal swipe'ni QAYTA yoqishi mumkin —
+    // pull-to-refresh ishlashi uchun har viewport o'zgarishida qayta o'chiramiz.
+    safeCall(wa.disableVerticalSwipes);
+  };
   wa.onEvent?.('viewportChanged', onViewport);
   wa.onEvent?.('themeChanged', onViewport);
 }

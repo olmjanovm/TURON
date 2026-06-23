@@ -134,7 +134,20 @@ export function useDeleteAddress() {
   return useMutation({
     mutationFn: (id: string) =>
       apiFetch(`/addresses/${id}`, { method: 'DELETE' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['customer', 'addresses'] }),
+    // OPTIMISTIC: ro'yxatdan DARHOL olib tashlaymiz (ekranda osilib qolmasin),
+    // xato bo'lsa qaytaramiz, yakunda serverdan tasdiqlaymiz.
+    onMutate: async (id: string) => {
+      await qc.cancelQueries({ queryKey: ['customer', 'addresses'] });
+      const prev = qc.getQueryData<Address[]>(['customer', 'addresses']);
+      qc.setQueryData<Address[]>(['customer', 'addresses'], (old) =>
+        (old ?? []).filter((a) => a.id !== id),
+      );
+      return { prev };
+    },
+    onError: (_e, _id, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['customer', 'addresses'], ctx.prev);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['customer', 'addresses'] }),
   });
 }
 

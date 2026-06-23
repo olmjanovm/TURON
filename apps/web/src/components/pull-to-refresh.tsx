@@ -17,6 +17,13 @@ export function PullToRefresh() {
   // Spinner aylanishi: pull paytida progress'ga bog'liq, refresh paytida CSS animatsiya
   const rotation = refreshing ? 0 : progress * 360;
 
+  // Tushunarli matn: torting → qo'yib yuboring → yangilanmoqda
+  const label = refreshing
+    ? 'Yangilanmoqda…'
+    : progress >= 1
+      ? 'Qo‘yib yuboring'
+      : 'Yangilash uchun torting';
+
   return (
     <div
       aria-hidden
@@ -29,14 +36,22 @@ export function PullToRefresh() {
         willChange: 'transform, opacity',
       }}
     >
-      <div
-        className="-mt-12 flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-[0_8px_20px_-4px_rgba(15,23,42,0.25)] dark:bg-slate-900 dark:shadow-[0_8px_20px_-4px_rgba(0,0,0,0.55)]"
-        style={{
-          transform: `rotate(${rotation}deg) scale(${0.7 + progress * 0.3})`,
-          transition: refreshing ? 'transform 220ms ease-out' : 'none',
-        }}
-      >
-        <IPhoneSpinner spinning={refreshing} progress={progress} />
+      <div className="-mt-12 flex flex-col items-center gap-1.5">
+        <div
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-[0_8px_20px_-4px_rgba(15,23,42,0.25)] dark:bg-slate-900 dark:shadow-[0_8px_20px_-4px_rgba(0,0,0,0.55)]"
+          style={{
+            transform: `rotate(${rotation}deg) scale(${0.7 + progress * 0.3})`,
+            transition: refreshing ? 'transform 220ms ease-out' : 'none',
+          }}
+        >
+          <IPhoneSpinner spinning={refreshing} progress={progress} />
+        </div>
+        <span
+          className="whitespace-nowrap rounded-full bg-white/95 px-2.5 py-0.5 text-[10px] font-bold text-slate-500 shadow-sm dark:bg-slate-900/95 dark:text-slate-300"
+          style={{ opacity: refreshing || progress > 0.1 ? 1 : 0, transition: 'opacity 150ms' }}
+        >
+          {label}
+        </span>
       </div>
     </div>
   );

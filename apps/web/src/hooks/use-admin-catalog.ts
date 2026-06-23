@@ -86,10 +86,22 @@ export function useDeleteProduct() {
   return useMutation({
     mutationFn: (id: string) =>
       apiFetch(`/api/menu/products/${id}`, { method: 'DELETE' }),
+    // OPTIMISTIC: ro'yxatdan DARHOL olib tashlaymiz (ekranda osilib qolmasin).
+    onMutate: async (id: string) => {
+      await qc.cancelQueries({ queryKey: ['admin', 'products'] });
+      const prev = qc.getQueryData<MenuProduct[]>(['admin', 'products']);
+      qc.setQueryData<MenuProduct[]>(['admin', 'products'], (old) =>
+        (old ?? []).filter((p) => p.id !== id),
+      );
+      return { prev };
+    },
+    onError: (_e, _id, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['admin', 'products'], ctx.prev);
+    },
     onSuccess: (_data, id) => {
-      invalidate();
       qc.removeQueries({ queryKey: ['admin', 'product', id] }); // detal cache'ini ham o'chir
     },
+    onSettled: () => invalidate(),
   });
 }
 
