@@ -482,4 +482,35 @@ export class OrderChatService {
              where ca.order_id = o.id order by ca.assigned_at desc limit 1) = ${courierId}::uuid
     `);
   }
+
+  /** Foydalanuvchi O'Z xabarini tahrirlaydi (faqat o'ziniki). */
+  static async editMessage(messageId: string, userId: string, content: string): Promise<ChatMessageDto> {
+    const trimmed = content.trim();
+    if (!trimmed || trimmed.length > 500) {
+      throw new Error("Xabar 1–500 belgi bo'lishi kerak");
+    }
+    const existing = await prisma.orderChatMessage.findUnique({ where: { id: messageId } });
+    if (!existing || existing.senderId !== userId) {
+      throw new Error('Xabar topilmadi');
+    }
+    const updated = await prisma.orderChatMessage.update({
+      where: { id: messageId },
+      data: { content: trimmed },
+      include: { sender: { select: { id: true, fullName: true } } },
+    });
+    const dto = serializeChatMessage(updated);
+    // Boshqa tomon keyingi yangilanishda ko'radi (poll/refetch).
+    orderTrackingService.publishChatMessage(existing.orderId, dto);
+    return dto;
+  }
+
+  /** Foydalanuvchi O'Z xabarini o'chiradi (faqat o'ziniki). */
+  static async deleteMessage(messageId: string, userId: string): Promise<{ orderId: string }> {
+    const existing = await prisma.orderChatMessage.findUnique({ where: { id: messageId } });
+    if (!existing || existing.senderId !== userId) {
+      throw new Error('Xabar topilmadi');
+    }
+    await prisma.orderChatMessage.delete({ where: { id: messageId } });
+    return { orderId: existing.orderId };
+  }
 }

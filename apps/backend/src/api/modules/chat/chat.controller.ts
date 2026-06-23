@@ -68,6 +68,46 @@ export async function sendOrderChat(
 }
 
 /**
+ * PATCH /orders/:id/chat/:messageId — foydalanuvchi O'Z xabarini tahrirlaydi.
+ */
+export async function editOrderChat(
+  request: FastifyRequest<{ Params: { id: string; messageId: string }; Body: SendBody }>,
+  reply: FastifyReply,
+) {
+  const requester = getRequester(request);
+  if (!requester) return reply.status(401).send({ error: 'Unauthorized' });
+
+  const body = request.body as { content?: unknown } | undefined;
+  const content = typeof body?.content === 'string' ? body.content : '';
+  if (!content.trim()) return reply.status(400).send({ error: 'Xabar bo\'sh' });
+
+  try {
+    const msg = await OrderChatService.editMessage(request.params.messageId, requester.id, content);
+    return reply.send(msg);
+  } catch (err) {
+    return reply.status(400).send({ error: err instanceof Error ? err.message : 'Xatolik' });
+  }
+}
+
+/**
+ * DELETE /orders/:id/chat/:messageId — foydalanuvchi O'Z xabarini o'chiradi.
+ */
+export async function deleteOrderChat(
+  request: FastifyRequest<{ Params: { id: string; messageId: string } }>,
+  reply: FastifyReply,
+) {
+  const requester = getRequester(request);
+  if (!requester) return reply.status(401).send({ error: 'Unauthorized' });
+
+  try {
+    await OrderChatService.deleteMessage(request.params.messageId, requester.id);
+    return reply.status(204).send();
+  } catch (err) {
+    return reply.status(400).send({ error: err instanceof Error ? err.message : 'Xatolik' });
+  }
+}
+
+/**
  * GET /courier/order/:id/chat/unread  — unread count for courier
  * GET /orders/:id/chat/unread         — unread count for customer
  */

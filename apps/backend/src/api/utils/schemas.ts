@@ -19,6 +19,15 @@ export const OrderModificationDecideParamSchema = z.object({
   id: UuidSchema,
   reqId: UuidSchema,
 });
+// Chat xabarini tahrirlash/o'chirish: id (order) + messageId — ikkalasi ham kerak.
+export const OrderChatMessageParamSchema = z.object({
+  id: UuidSchema,
+  messageId: UuidSchema,
+});
+// Support xabarini tahrirlash/o'chirish.
+export const SupportMessageIdParamSchema = z.object({
+  messageId: UuidSchema,
+});
 export const AdminSupportSendSchema = z.object({
   content: z.string().trim().min(1).max(2000),
 });

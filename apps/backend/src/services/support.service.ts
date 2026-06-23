@@ -166,6 +166,39 @@ export class SupportService {
     });
   }
 
+  /** Mijoz O'Z support xabarini tahrirlaydi (faqat o'z thread'idagi CUSTOMER xabari). */
+  static async editCustomerMessage(userId: string, messageId: string, text: string) {
+    const trimmed = text.trim();
+    if (!trimmed) throw new Error("Xabar bo'sh bo'lishi mumkin emas");
+    if (trimmed.length > 2000) throw new Error("Xabar 2000 belgidan oshmasligi kerak");
+
+    const rows = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+      update public.support_messages sm
+      set message_text = ${trimmed}
+      from public.support_threads st
+      where sm.id = ${messageId}::uuid
+        and st.id = sm.thread_id
+        and st.user_id = ${userId}::uuid
+        and sm.sender_role = 'CUSTOMER'::public.user_role_enum
+      returning sm.id
+    `);
+    if (rows.length === 0) throw new Error('Xabar topilmadi');
+  }
+
+  /** Mijoz O'Z support xabarini o'chiradi (faqat o'z thread'idagi CUSTOMER xabari). */
+  static async deleteCustomerMessage(userId: string, messageId: string) {
+    const rows = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+      delete from public.support_messages sm
+      using public.support_threads st
+      where sm.id = ${messageId}::uuid
+        and st.id = sm.thread_id
+        and st.user_id = ${userId}::uuid
+        and sm.sender_role = 'CUSTOMER'::public.user_role_enum
+      returning sm.id
+    `);
+    if (rows.length === 0) throw new Error('Xabar topilmadi');
+  }
+
   static async attachTelegramMetadata(
     supportMessageId: string,
     params: {

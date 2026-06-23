@@ -132,3 +132,36 @@ export async function getCourierThread(
   await OrderChatService.markCustomerCourierRead(requester.id, courierId);
   return reply.send(thread);
 }
+
+/** PATCH /support/messages/:messageId — mijoz O'Z admin-chat xabarini tahrirlaydi. */
+export async function editSupportMessage(
+  request: FastifyRequest<{ Params: { messageId: string }; Body: { text?: unknown } }>,
+  reply: FastifyReply,
+) {
+  const requester = request.user as any;
+  const body = request.body as { text?: unknown } | undefined;
+  const text = typeof body?.text === 'string' ? body.text : '';
+  if (!text.trim()) return reply.status(400).send({ error: 'Xabar bo\'sh' });
+
+  try {
+    await SupportService.editCustomerMessage(requester.id, request.params.messageId, text);
+    const thread = await SupportService.getCustomerThread(requester.id, null);
+    return reply.send(thread);
+  } catch (err) {
+    return reply.status(400).send({ error: err instanceof Error ? err.message : 'Xatolik' });
+  }
+}
+
+/** DELETE /support/messages/:messageId — mijoz O'Z admin-chat xabarini o'chiradi. */
+export async function deleteSupportMessage(
+  request: FastifyRequest<{ Params: { messageId: string } }>,
+  reply: FastifyReply,
+) {
+  const requester = request.user as any;
+  try {
+    await SupportService.deleteCustomerMessage(requester.id, request.params.messageId);
+    return reply.status(204).send();
+  } catch (err) {
+    return reply.status(400).send({ error: err instanceof Error ? err.message : 'Xatolik' });
+  }
+}

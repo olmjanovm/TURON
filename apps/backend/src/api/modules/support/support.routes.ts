@@ -4,6 +4,8 @@ import {
   postSupportMessage,
   getCourierThreads,
   getCourierThread,
+  editSupportMessage,
+  deleteSupportMessage,
 } from './support.controller.js';
 import {
   getAdminSupportThread,
@@ -13,6 +15,7 @@ import {
 import {
   AdminSupportSendSchema,
   SupportMessageSchema,
+  SupportMessageIdParamSchema,
   SupportThreadQuerySchema,
   ThreadIdParamSchema,
 } from '../../utils/schemas.js';
@@ -30,6 +33,14 @@ export default async function supportRoutes(fastify: FastifyInstance) {
       body: SupportMessageSchema,
     },
   }, postSupportMessage);
+
+  // O'z admin-chat xabarini tahrirlash / o'chirish
+  fastify.patch('/messages/:messageId', {
+    schema: { params: SupportMessageIdParamSchema },
+  }, editSupportMessage);
+  fastify.delete('/messages/:messageId', {
+    schema: { params: SupportMessageIdParamSchema },
+  }, deleteSupportMessage);
 
   // ── Kuryer chatlar (xabarlar markazi #5) — KURYER bo'yicha guruhlangan ──────
   fastify.get('/courier-threads', getCourierThreads);

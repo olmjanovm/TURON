@@ -16,7 +16,7 @@ import {
   handleRejectPayment,
   rateOrder,
 } from './orders.controller.js';
-import { getOrderChat, sendOrderChat, getUnreadCount } from '../chat/chat.controller.js';
+import { getOrderChat, sendOrderChat, getUnreadCount, editOrderChat, deleteOrderChat } from '../chat/chat.controller.js';
 import { getAdminInbox, getAdminOrderChat, sendAdminOrderChat, markAdminOrderChatRead } from '../chat/admin-chat.controller.js';
 import {
   createOrderModification,
@@ -28,6 +28,7 @@ import {
   AssignCourierSchema,
   CreateOrderSchema,
   IdParamSchema,
+  OrderChatMessageParamSchema,
   OrderModificationDecideParamSchema,
   QuoteOrderSchema,
   RejectPaymentSchema,
@@ -53,6 +54,9 @@ export default async function orderRoutes(fastify: FastifyInstance) {
   fastify.get('/:id/chat', { schema: { params: IdParamSchema } }, getOrderChat);
   fastify.post('/:id/chat', { schema: { params: IdParamSchema } }, sendOrderChat);
   fastify.get('/:id/chat/unread', { schema: { params: IdParamSchema } }, getUnreadCount);
+  // O'z xabarini tahrirlash / o'chirish (id+messageId schema — param o'chmasligi uchun)
+  fastify.patch('/:id/chat/:messageId', { schema: { params: OrderChatMessageParamSchema } }, editOrderChat);
+  fastify.delete('/:id/chat/:messageId', { schema: { params: OrderChatMessageParamSchema } }, deleteOrderChat);
 
   // ── Customer modification requests (cancel / address change / other) ─────
   fastify.get(
