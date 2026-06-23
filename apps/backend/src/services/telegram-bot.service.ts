@@ -15,6 +15,8 @@ import { orderTrackingService } from './order-tracking.service.js';
 import { OrderReassignmentQueue } from './order-reassignment-queue.service.js';
 import { SupportService } from './support.service.js';
 import { ORDER_INCLUDE, serializeOrder } from '../api/modules/orders/order-helpers.js';
+import { handleInlineQuery } from './bot/inline-query.service.js';
+import { handleChatJoinRequest } from './bot/guard-mode.service.js';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -1361,6 +1363,12 @@ function bindHandlers(bot: Telegraf) {
     await ctx.reply(`Chat ID: ${ctx.chat.id}`);
   });
 
+  // ── Inline query — @turonkafebot <qidiruv> (menyu qidiruvi, paginatsiya, kesh) ──
+  bot.on('inline_query', (ctx) => handleInlineQuery(ctx));
+
+  // ── Guard Mode — VIP kanal/guruhga qo'shilish so'rovi (chat_join_request) ──────
+  bot.on('chat_join_request', (ctx) => handleChatJoinRequest(ctx));
+
   // Admin-only: trigger broadcast immediately (for testing)
   bot.command('broadcastnow', async (ctx) => {
     const adminIds = parseConfiguredChatIds(env.ADMIN_IDS);
@@ -1766,7 +1774,22 @@ export async function launchTelegramBot(context: BotLaunchContext): Promise<Tele
 
   state.launched = true;
   void state.bot
-    .launch(() => {
+    .launch(
+      {
+        // allowedUpdates — OQ RO'YXAT: berilsa, sanab o'tilmagan turlar KELMAYDI.
+        // chat_join_request va chat_member default'da kelmaydi → aniq qo'shamiz.
+        // Mavjud handlerlar (message/channel_post/edited*/callback_query) + yangilar.
+        allowedUpdates: [
+          'message',
+          'edited_message',
+          'channel_post',
+          'edited_channel_post',
+          'callback_query',
+          'inline_query',
+          'chat_join_request',
+        ],
+      },
+      () => {
       console.log(`[Bot] Turon Bot launched (${context}). Web App URL: ${resolveStableWebAppBaseUrl()}`);
 
       // Warm up DB connection pool immediately after launch so the first /start

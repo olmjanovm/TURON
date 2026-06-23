@@ -21,6 +21,7 @@ import reportsRoutes from './modules/reports/reports.routes.js';
 import usersRoutes from './modules/users/users.routes.js';
 import restaurantRoutes from './modules/restaurant/restaurant.routes.js';
 import restaurantPublicRoutes from './modules/restaurant/restaurant-public.routes.js';
+import guardRoutes from './modules/guard/guard.routes.js';
 
 export default fp(async function (fastify: FastifyInstance, opts: FastifyPluginOptions) {
   // 1. Core Plugins
@@ -65,6 +66,7 @@ export default fp(async function (fastify: FastifyInstance, opts: FastifyPluginO
     authenticated.register(reportsRoutes, { prefix: '/reports' });
     authenticated.register(usersRoutes, { prefix: '/users' });
     authenticated.register(restaurantRoutes, { prefix: '/admin/restaurant' });
+    authenticated.register(guardRoutes, { prefix: '/guard' });
   });
 
   // 4. Health Check

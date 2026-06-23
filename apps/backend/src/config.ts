@@ -24,6 +24,12 @@ const configSchema = z.object({
   ADMIN_CHAT_ID: z.string().optional(),
   ADMIN_IDS: z.string().optional(),
   REDIS_URL: z.string().url().optional(), // BullMQ: e.g. redis://localhost:6379 or upstash URL
+  // Bot username — inline natijalardagi t.me/<bot>?startapp=... deep-link uchun
+  // (web_app tugma inline natijada RUXSAT ETILMAYDI → Direct Link Mini App ishlatamiz).
+  BOT_USERNAME: z.string().default('turonkafebot'),
+  // Guard Mode: chat_join_request gatekeeping qilinadigan VIP kanal/guruh id'si
+  // (manfiy, masalan -1001234567890). Bo'sh bo'lsa — barcha join so'rovlari kuzatiladi.
+  VIP_CHANNEL_ID: z.string().optional(),
 });
 
 const _env = configSchema.safeParse(process.env);

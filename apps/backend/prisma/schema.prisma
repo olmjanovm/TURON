@@ -575,6 +575,24 @@ model Notification {
   @@map("notifications")
 }
 
+// Guard Mode — VIP kanal/guruhga qo'shilish so'rovlari (chat_join_request).
+// Mini App'da ro'yxatdan/loyallikdan o'tgach approveChatJoinRequest bilan tasdiqlanadi.
+model ChannelJoinRequest {
+  id             String    @id @default(uuid())
+  chatId         BigInt    @map("chat_id")
+  userTelegramId BigInt    @map("user_telegram_id")
+  userId         String?   @map("user_id") // ma'lum bo'lsa — ilova foydalanuvchisi
+  status         String    @default("PENDING") // PENDING | APPROVED | DECLINED | DM_FAILED
+  username       String?
+  fullName       String?   @map("full_name")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  decidedAt      DateTime? @map("decided_at")
+
+  @@unique([chatId, userTelegramId])
+  @@index([userTelegramId, status])
+  @@map("channel_join_requests")
+}
+
 model AuditLog {
   id        String        @id @default(uuid())
   userId    String?       @map("actor_user_id")
