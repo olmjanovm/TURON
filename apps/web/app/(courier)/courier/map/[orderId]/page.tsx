@@ -17,11 +17,11 @@ import { useDeliverFlow } from '@/hooks/use-courier-deliver';
 import { RESTAURANT_DEFAULT } from '@/lib/yandex-maps';
 import { AlertTriangle } from 'lucide-react';
 
-// REAL Yandex DARK 3D navigator (ymaps3 vektor — tilt 55, dark theme, yashil yo'l).
-// Skrinshotdagi eski ko'rinish. Kalit v3 uchun ishlaydi (referer-cheklovli, vercel
-// domeni). v3 yuklanmasa avtomatik v2.1 (delivery-navigator) ga qaytadi → xavfsiz.
+// DARK Leaflet navigator (CartoDB dark tiles — kalit/referer KERAK EMAS, ishonchli):
+// traffic-rangli yo'l + oltin aylanuvchi strelka + maneuver banner + tezlik indikatori
+// + voice + swipe-confirm + dark HUD. (Yandex v2.1/v3 versiyalari saqlangan.)
 const DeliveryNavigator = dynamic(
-  () => import('@/components/courier/map/yandex-v3-navigator').then((m) => m.YandexV3Navigator),
+  () => import('@/components/courier/map/leaflet-nav').then((m) => m.LeafletNav),
   {
     ssr: false,
     loading: () => (

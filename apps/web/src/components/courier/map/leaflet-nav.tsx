@@ -82,6 +82,9 @@ export function LeafletNav({
   const [nextManeuver, setNextManeuver] = useState<RouteManeuver | null>(null);
   const [maneuverDist, setManeuverDist] = useState<number | null>(null);
   const [voiceOn, setVoiceOn] = useState<boolean>(() => isVoiceEnabled());
+  const [speedKmh, setSpeedKmh] = useState<number | null>(null);
+  // Boshlang'ich umumiy masofa (progress bar foizi uchun) — birinchi route'da o'rnatiladi
+  const initialTotalRef = useRef<number | null>(null);
 
   const courier = useMemo<LatLng | null>(
     () => internalCourier ?? courierProp ?? null,
@@ -170,7 +173,11 @@ export function LeafletNav({
   useEffect(() => {
     const watcher = new GpsWatcher();
     watcher.start({
-      onTick: (tick) => { setInternalCourier({ lat: tick.lat, lng: tick.lng }); onGpsTick?.(tick); },
+      onTick: (tick) => {
+        setInternalCourier({ lat: tick.lat, lng: tick.lng });
+        setSpeedKmh(tick.speedKmh != null && tick.speedKmh >= 0 ? tick.speedKmh : null);
+        onGpsTick?.(tick);
+      },
       onError: () => {/* */},
     });
     return () => watcher.stop();
@@ -333,6 +340,18 @@ export function LeafletNav({
   const maneuverText = nextManeuver ? (nextManeuver.instruction?.trim() || 'Davom eting') : null;
   const totalDist = route ? Math.round(route.totalDistanceMeters) : null;
   const totalMin = route ? Math.round(route.totalDurationSec / 60) : null;
+  // Progress bar foizi (boshlang'ich masofaga nisbatan bosib o'tilgan)
+  if (totalDist != null && initialTotalRef.current == null) initialTotalRef.current = totalDist;
+  const progressPct = totalDist != null && initialTotalRef.current
+    ? Math.max(0, Math.min(1, 1 - totalDist / initialTotalRef.current))
+    : 0;
+  // Tezlik chegarasi — yo'l segmentidan yoki transport turi bo'yicha default
+  let speedLimit: number | null = null;
+  if (route) {
+    for (const s of route.segments) { if (s.speedLimitKmh != null) { speedLimit = Math.round(s.speedLimitKmh); break; } }
+    if (speedLimit == null) speedLimit = vehicleMode === 'auto' ? 60 : vehicleMode === 'bicycle' ? 25 : 20;
+  }
+  const curSpeed = speedKmh != null ? Math.max(0, Math.round(speedKmh)) : 0;
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-[#0a0a0c]">
@@ -373,6 +392,21 @@ export function LeafletNav({
         </button>
       </div>
 
+      {/* Tezlik indikatori — joriy (qora) + chegara (qizil halqa), Navigator uslubi */}
+      <div className="pointer-events-none absolute right-3 z-20 flex items-center"
+        style={{ top: 'calc(env(safe-area-inset-top, 0px) + 60px)' }}>
+        <div className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-black text-white shadow-xl tabular-nums"
+          style={{ fontSize: 21, fontWeight: 900 }}>
+          {curSpeed}
+        </div>
+        {speedLimit != null && (
+          <div className="-ml-3.5 flex h-[56px] w-[56px] items-center justify-center rounded-full border-[5px] border-red-500 bg-white text-red-600 shadow-xl tabular-nums"
+            style={{ fontSize: 21, fontWeight: 900 }}>
+            {speedLimit}
+          </div>
+        )}
+      </div>
+
       {/* Manyovr karta — ixcham chap-yuqori */}
       {nextManeuver && ManeuverIcon && (
         <div className="pointer-events-none absolute left-3 z-20"
@@ -408,6 +442,15 @@ export function LeafletNav({
               <p className="text-base font-black tabular-nums leading-tight">{totalMin != null ? `${totalMin} daq` : '—'}</p>
             </div>
           </div>
+          {/* Progress bar — yo'l bosib o'tilgani (yashil→sariq→qizil gradient) */}
+          {route && (
+            <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-white/12">
+              <div
+                className="h-full rounded-full transition-[width] duration-700"
+                style={{ width: `${Math.round(progressPct * 100)}%`, background: 'linear-gradient(to right, #00c853, #ffeb3b, #f44336)' }}
+              />
+            </div>
+          )}
           {confirmLabel && onConfirm && (
             <div className="mt-3"><SwipeConfirm label={confirmLabel} busy={confirmBusy} onConfirm={onConfirm} /></div>
           )}
