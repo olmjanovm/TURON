@@ -1,4 +1,4 @@
-import { ChatSenderRoleEnum } from '@prisma/client';
+import { ChatSenderRoleEnum, Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { orderTrackingService } from './order-tracking.service.js';
 import { scheduleFallback, cancelFallbacksForOrder, getFallbackDelayMs } from './admin-chat-fallback.service.js';
@@ -334,5 +334,152 @@ export class OrderChatService {
         (a, b) => new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime(),
       ),
     };
+  }
+
+  // ── Customer messages hub: kuryerlar bo'yicha guruhlangan chatlar (#5) ──────
+  // Mijozning barcha buyurtmalaridagi kuryer suhbatlarini KURYER bo'yicha
+  // birlashtiradi (bir kuryer bilan turli buyurtmalardagi xabarlar = bitta thread).
+
+  /** Mijoz yozishган kuryerlar ro'yxati (oxirgi xabar, o'qilmaganlar soni, faol buyurtma). */
+  static async getCustomerCourierThreads(customerId: string): Promise<Array<{
+    courierId: string;
+    courierName: string;
+    courierPhone: string | null;
+    lastMessage: string;
+    lastAt: string;
+    unreadCount: number;
+    activeOrderId: string | null;
+  }>> {
+    const rows = await prisma.$queryRaw<Array<{
+      courier_id: string;
+      courier_name: string | null;
+      courier_phone: string | null;
+      last_message: string | null;
+      last_at: Date;
+      unread_count: bigint;
+      active_order_id: string | null;
+    }>>(Prisma.sql`
+      with cust_orders as (
+        select o.id as order_id, o.status::text as order_status,
+               (select ca.courier_id from public.courier_assignments ca
+                where ca.order_id = o.id order by ca.assigned_at desc limit 1) as courier_id
+        from public.orders o
+        where o.user_id = ${customerId}::uuid
+      ),
+      msgs as (
+        select co.courier_id, co.order_id, co.order_status,
+               m.content, m.created_at, m.sender_role::text as sender_role, m.is_read
+        from cust_orders co
+        join public.order_chat_messages m on m.order_id = co.order_id
+        where co.courier_id is not null
+          and m.sender_role in ('COURIER','CUSTOMER')
+      ),
+      agg as (
+        select courier_id, max(created_at) as last_at,
+               count(*) filter (where sender_role = 'COURIER' and is_read = false) as unread_count
+        from msgs group by courier_id
+      ),
+      last_msg as (
+        select distinct on (courier_id) courier_id, content
+        from msgs order by courier_id, created_at desc
+      ),
+      active as (
+        select distinct on (courier_id) courier_id, order_id
+        from msgs where order_status not in ('DELIVERED','CANCELLED')
+        order by courier_id, created_at desc
+      )
+      select a.courier_id, u.full_name as courier_name, u.phone as courier_phone,
+             a.last_at, a.unread_count, lm.content as last_message, ac.order_id as active_order_id
+      from agg a
+      join public.users u on u.id = a.courier_id
+      left join last_msg lm on lm.courier_id = a.courier_id
+      left join active ac on ac.courier_id = a.courier_id
+      order by a.last_at desc
+    `);
+
+    return rows.map((r) => ({
+      courierId: r.courier_id,
+      courierName: r.courier_name || 'Kuryer',
+      courierPhone: r.courier_phone,
+      lastMessage: (r.last_message || '').slice(0, 120),
+      lastAt: r.last_at.toISOString(),
+      unreadCount: Number(r.unread_count),
+      activeOrderId: r.active_order_id,
+    }));
+  }
+
+  /** Bitta kuryer bilan to'liq suhbat tarixi (barcha buyurtmalar bo'ylab) + faol buyurtma. */
+  static async getCustomerCourierThread(customerId: string, courierId: string): Promise<{
+    courierId: string;
+    courierName: string;
+    courierPhone: string | null;
+    activeOrderId: string | null;
+    messages: ChatMessageDto[];
+  } | null> {
+    const courierRows = await prisma.$queryRaw<Array<{
+      full_name: string | null;
+      phone: string | null;
+      active_order_id: string | null;
+    }>>(Prisma.sql`
+      select u.full_name, u.phone,
+        (select co.id from public.orders co
+         where co.user_id = ${customerId}::uuid
+           and co.status not in ('DELIVERED','CANCELLED')
+           and (select ca.courier_id from public.courier_assignments ca
+                where ca.order_id = co.id order by ca.assigned_at desc limit 1) = ${courierId}::uuid
+         order by co.created_at desc limit 1) as active_order_id
+      from public.users u where u.id = ${courierId}::uuid limit 1
+    `);
+    const courier = courierRows[0];
+    if (!courier) return null;
+
+    const msgRows = await prisma.$queryRaw<Array<{
+      id: string; order_id: string; sender_id: string; sender_role: string;
+      content: string; is_read: boolean; created_at: Date; sender_name: string | null;
+    }>>(Prisma.sql`
+      select m.id, m.order_id, m.sender_id, m.sender_role::text as sender_role,
+             m.content, m.is_read, m.created_at, s.full_name as sender_name
+      from public.order_chat_messages m
+      join public.orders o on o.id = m.order_id
+      join public.users s on s.id = m.sender_id
+      where o.user_id = ${customerId}::uuid
+        and m.sender_role in ('COURIER','CUSTOMER')
+        and (select ca.courier_id from public.courier_assignments ca
+             where ca.order_id = o.id order by ca.assigned_at desc limit 1) = ${courierId}::uuid
+      order by m.created_at asc
+    `);
+
+    return {
+      courierId,
+      courierName: courier.full_name || 'Kuryer',
+      courierPhone: courier.phone,
+      activeOrderId: courier.active_order_id,
+      messages: msgRows.map((m) => ({
+        id: m.id,
+        orderId: m.order_id,
+        senderId: m.sender_id,
+        senderRole: m.sender_role as 'COURIER' | 'CUSTOMER' | 'ADMIN',
+        senderName: m.sender_name || 'Foydalanuvchi',
+        content: m.content,
+        isRead: m.is_read,
+        createdAt: m.created_at.toISOString(),
+        targetRole: null,
+      })),
+    };
+  }
+
+  /** Mijoz kuryer thread'ini ochganda — o'sha kuryerning o'qilmagan xabarlarini read qiladi. */
+  static async markCustomerCourierRead(customerId: string, courierId: string): Promise<void> {
+    await prisma.$executeRaw(Prisma.sql`
+      update public.order_chat_messages m
+      set is_read = true
+      from public.orders o
+      where m.order_id = o.id
+        and o.user_id = ${customerId}::uuid
+        and m.sender_role = 'COURIER'
+        and m.is_read = false
+        and (select ca.courier_id from public.courier_assignments ca
+             where ca.order_id = o.id order by ca.assigned_at desc limit 1) = ${courierId}::uuid
+    `);
   }
 }

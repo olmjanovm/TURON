@@ -1,5 +1,10 @@
 import { FastifyInstance } from 'fastify';
-import { getSupportThread, postSupportMessage } from './support.controller.js';
+import {
+  getSupportThread,
+  postSupportMessage,
+  getCourierThreads,
+  getCourierThread,
+} from './support.controller.js';
 import {
   getAdminSupportThread,
   sendAdminSupportMessage,
@@ -25,6 +30,10 @@ export default async function supportRoutes(fastify: FastifyInstance) {
       body: SupportMessageSchema,
     },
   }, postSupportMessage);
+
+  // ── Kuryer chatlar (xabarlar markazi #5) — KURYER bo'yicha guruhlangan ──────
+  fastify.get('/courier-threads', getCourierThreads);
+  fastify.get('/courier-threads/:courierId/messages', getCourierThread);
 
   // ── Admin support endpoints ─────────────────────────────────────────────
   // Lets admin read/reply to support threads from the panel.

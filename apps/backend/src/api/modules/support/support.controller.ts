@@ -2,6 +2,9 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { prisma } from '../../../lib/prisma.js';
 import { forwardSupportMessageToAdmin } from '../../../services/telegram-bot.service.js';
 import { SupportService } from '../../../services/support.service.js';
+import { OrderChatService } from '../../../services/order-chat.service.js';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function ensureOwnedOrder(orderId: string, requester: any) {
   const order = await prisma.order.findUnique({
@@ -98,4 +101,34 @@ export async function postSupportMessage(
 
   const thread = await SupportService.getCustomerThread(requester.id, orderId);
   return reply.status(201).send(thread);
+}
+
+// ── Kuryer chatlar (xabarlar markazi #5) ────────────────────────────────────
+
+/** GET /support/courier-threads — mijoz yozishган kuryerlar ro'yxati. */
+export async function getCourierThreads(request: FastifyRequest, reply: FastifyReply) {
+  const requester = request.user as any;
+  const threads = await OrderChatService.getCustomerCourierThreads(requester.id);
+  return reply.send(threads);
+}
+
+/** GET /support/courier-threads/:courierId/messages — bitta kuryer bilan suhbat tarixi. */
+export async function getCourierThread(
+  request: FastifyRequest<{ Params: { courierId: string } }>,
+  reply: FastifyReply,
+) {
+  const requester = request.user as any;
+  const { courierId } = request.params;
+  if (!UUID_RE.test(courierId)) {
+    return reply.status(404).send({ error: 'Kuryer topilmadi' });
+  }
+
+  const thread = await OrderChatService.getCustomerCourierThread(requester.id, courierId);
+  if (!thread || thread.messages.length === 0) {
+    return reply.status(404).send({ error: 'Kuryer bilan suhbat topilmadi' });
+  }
+
+  // Ochilganda kuryerning o'qilmagan xabarlarini read qilamiz
+  await OrderChatService.markCustomerCourierRead(requester.id, courierId);
+  return reply.send(thread);
 }
