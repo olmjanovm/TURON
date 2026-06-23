@@ -1,9 +1,9 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Check, Loader2, MapPin, Pencil, Plus, Star, Trash2 } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Check, Loader2, MapPin, Pencil, Plus, Star, Trash2 } from 'lucide-react';
 import { useAddresses, useDeleteAddress, type Address } from '@/hooks/use-customer';
 import { useCustomerPrefs } from '@/stores/customer-prefs-store';
 import { useT } from '@/lib/i18n/locale-context';
@@ -26,6 +26,8 @@ function AddressesPageInner() {
   const selectedId = useCustomerPrefs((s) => s.selectedAddressId);
   const setSelected = useCustomerPrefs((s) => s.setSelectedAddress);
   const del = useDeleteAddress();
+  // Telegram WebView'da window.confirm() ishonchsiz → in-app modal ishlatamiz
+  const [confirmAddr, setConfirmAddr] = useState<Address | null>(null);
 
   const handleSelect = (a: Address) => {
     setSelected({
@@ -120,9 +122,7 @@ function AddressesPageInner() {
                   </Link>
                   <button
                     type="button"
-                    onClick={() => {
-                      if (confirm(t('address.delete_confirm'))) del.mutate(a.id);
-                    }}
+                    onClick={() => setConfirmAddr(a)}
                     className="flex h-9 items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 text-xs font-bold text-red-600 active:scale-95 dark:border-red-500/30 dark:bg-red-500/15 dark:text-red-300"
                   >
                     <Trash2 size={12} /> {t('common.delete')}
@@ -131,6 +131,53 @@ function AddressesPageInner() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* O'chirishni tasdiqlash — Telegram WebView native confirm() o'rniga in-app modal */}
+      {confirmAddr && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
+          onClick={() => !del.isPending && setConfirmAddr(null)}
+        >
+          <div
+            className="w-full max-w-[360px] rounded-3xl bg-white p-5 shadow-xl dark:bg-slate-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-500 dark:bg-red-500/15">
+              <AlertTriangle size={22} />
+            </div>
+            <p className="text-center text-base font-black text-slate-900 dark:text-slate-50">
+              {t('address.delete_confirm')}
+            </p>
+            <p className="mt-1 text-center text-sm text-slate-500">«{confirmAddr.label}»</p>
+            <div className="mt-5 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmAddr(null)}
+                disabled={del.isPending}
+                className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-bold text-slate-600 active:scale-95 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  del.mutate(confirmAddr.id, {
+                    onSuccess: () => setConfirmAddr(null),
+                  })
+                }
+                disabled={del.isPending}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-2xl bg-red-500 py-3 text-sm font-black text-white active:scale-95 disabled:opacity-60"
+              >
+                {del.isPending ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}{' '}
+                {t('common.delete')}
+              </button>
+            </div>
+            {del.isError && (
+              <p className="mt-2 text-center text-xs text-red-500">{t('common.error')}</p>
+            )}
+          </div>
         </div>
       )}
     </div>
