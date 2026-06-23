@@ -100,7 +100,13 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
     resHeaders.set('cache-control', 'private, no-store, max-age=0');
   }
 
-  return new NextResponse(buf, {
+  // 204/304/205 = "null body status" — bularda body BO'LMASLIGI kerak. Bo'sh
+  // buffer bilan ham NextResponse(buf, {status:204}) konstruktori xato tashlaydi
+  // → proxy 500 → FE "Xatolik" (aslida backend muvaffaqiyatli 204 qaytargan).
+  const isNullBody =
+    upstream.status === 204 || upstream.status === 205 || upstream.status === 304;
+
+  return new NextResponse(isNullBody ? null : buf, {
     status: upstream.status,
     headers: resHeaders,
   });

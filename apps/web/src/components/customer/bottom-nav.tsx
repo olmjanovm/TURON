@@ -14,8 +14,14 @@ export function CustomerBottomNav() {
   const favCount = useCustomerPrefs((s) => s.favorites.length);
   const cartCount = useCartStore((s) => s.items.reduce((n, i) => n + i.quantity, 0));
   const { isOpen: kbOpen } = useKeyboard();
-  // Chat va savat sahifalarida nav yashirin — ularning o'z pastki paneli (input/CTA) bor
-  const focusedFlow = pathname.includes('/chat') || pathname.startsWith('/cart');
+  // Chat va savat sahifalarida nav yashirin — ularning o'z pastki paneli (input/CTA) bor.
+  // Xabarlar markazidagi suhbatlar (admin / kuryer) ham chat — nav composer'ni
+  // yopib qo'ymasligi uchun yashiramiz. ('/messages' hub'i — ro'yxat, nav qoladi.)
+  const focusedFlow =
+    pathname.includes('/chat') ||
+    pathname.startsWith('/cart') ||
+    pathname.startsWith('/messages/admin') ||
+    pathname.startsWith('/messages/courier');
   const hideNav = kbOpen || focusedFlow;
 
   const ITEMS = [
