@@ -43,12 +43,24 @@ function AddressesPageInner() {
   return (
     <div className="space-y-4 px-4 pb-6 pt-4">
       <div className="flex items-center justify-between">
-        <Link
-          href={isSelectMode ? '/' : '/profile'}
-          className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-        >
-          <ArrowLeft size={18} />
-        </Link>
+        {isSelectMode ? (
+          // Tanlash rejimida orqaga = oldingi sahifa (checkout) — '/' uyga emas (#6)
+          <button
+            type="button"
+            onClick={() => router.back()}
+            aria-label={t('common.back')}
+            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+          >
+            <ArrowLeft size={18} />
+          </button>
+        ) : (
+          <Link
+            href="/profile"
+            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+          >
+            <ArrowLeft size={18} />
+          </Link>
+        )}
         <h1 className="text-lg font-black text-slate-900 dark:text-slate-50">{t('address.title')}</h1>
         <Link
           href="/addresses/new"

@@ -8,18 +8,15 @@ import { useValidatePromo } from '@/hooks/use-customer';
 import { useT } from '@/lib/i18n/locale-context';
 import { useKeyboard } from '@/hooks/use-keyboard';
 
-interface AppliedPromo {
-  code: string;
-  discountAmount: number;
-}
-
 export default function CartPage() {
   const t = useT();
   const items = useCartStore((s) => s.items);
   const total = useCartStore((s) => s.items.reduce((sum, i) => sum + i.price * i.quantity, 0));
   const clear = useCartStore((s) => s.clear);
+  // Promokod persist-store'da — ilova qayta ochilsa saqlanib qoladi (#6)
+  const promo = useCartStore((s) => s.appliedPromo);
+  const setPromo = useCartStore((s) => s.setPromo);
   const [promoInput, setPromoInput] = useState('');
-  const [promo, setPromo] = useState<AppliedPromo | null>(null);
   const [promoError, setPromoError] = useState<string | null>(null);
   const [promoSuggestion, setPromoSuggestion] = useState<string | null>(null);
   const [promoFocused, setPromoFocused] = useState(false);

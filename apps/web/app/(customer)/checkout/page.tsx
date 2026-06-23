@@ -23,8 +23,7 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
-type PaymentMethod = 'CASH' | 'MANUAL_TRANSFER';
-// CASH = naqd, MANUAL_TRANSFER = bank o'tkazmasi (backend nomi)
+// CASH = naqd, MANUAL_TRANSFER = bank o'tkazmasi (backend nomi) — tur cart-store'da
 
 export default function CheckoutPage() {
   return (
@@ -42,11 +41,18 @@ function CheckoutInner() {
 
   const items = useCartStore((s) => s.items);
   const clearCart = useCartStore((s) => s.clear);
+  // #6 — checkout qoralamasi persist-store'dan: promokod, to'lov usuli, izoh
+  //      ilova yopilib qayta ochilsa ham saqlanadi → to'xtagan joydan davom.
+  const appliedPromo = useCartStore((s) => s.appliedPromo);
+  const paymentMethod = useCartStore((s) => s.paymentMethod);
+  const setPaymentMethod = useCartStore((s) => s.setPaymentMethod);
+  const note = useCartStore((s) => s.note);
+  const setNote = useCartStore((s) => s.setNote);
   const selectedAddressId = useCustomerPrefs((s) => s.selectedAddressId);
   const setSelectedAddress = useCustomerPrefs((s) => s.setSelectedAddress);
   const { data: addresses = [] } = useAddresses();
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
-  const [note, setNote] = useState('');
+  // URL'dagi ?promo= (eski havolalar uchun) yoki persist qilingan promokod
+  const promoCode = appliedPromo?.code ?? promoFromUrl;
   const [error, setError] = useState<string | null>(null);
   const [quote, setQuote] = useState<QuoteResult | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -99,7 +105,7 @@ function CheckoutInner() {
     const payload = {
       items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
       addressId: selectedAddressId ?? undefined,
-      promoCode: promoFromUrl,
+      promoCode,
       paymentMethod,
     };
     quoteMutation.mutate(payload, {
@@ -114,7 +120,7 @@ function CheckoutInner() {
       },
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, selectedAddressId, promoFromUrl, paymentMethod]);
+  }, [items, selectedAddressId, promoCode, paymentMethod]);
 
   if (items.length === 0) {
     return (
@@ -170,7 +176,7 @@ function CheckoutInner() {
       {
         items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
         addressId: selectedAddressId,
-        promoCode: promoFromUrl,
+        promoCode,
         paymentMethod,
         note: note.trim() || undefined,
         receiptImageBase64: paymentMethod === 'MANUAL_TRANSFER' ? receipt : undefined,
