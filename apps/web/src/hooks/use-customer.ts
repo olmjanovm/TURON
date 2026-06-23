@@ -469,6 +469,37 @@ export function useSendSupportMessage() {
   });
 }
 
+export function useEditSupportMessage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, text }: { id: string; text: string }) =>
+      apiFetch<SupportThread>(`/support/messages/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ text }),
+      }),
+    onSuccess: (thread) => qc.setQueryData(['customer', 'support-thread'], thread),
+  });
+}
+
+export function useDeleteSupportMessage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiFetch(`/support/messages/${id}`, { method: 'DELETE' }),
+    onMutate: async (id: string) => {
+      await qc.cancelQueries({ queryKey: ['customer', 'support-thread'] });
+      const prev = qc.getQueryData<SupportThread>(['customer', 'support-thread']);
+      qc.setQueryData<SupportThread>(['customer', 'support-thread'], (old) =>
+        old ? { ...old, messages: old.messages.filter((m) => m.id !== id) } : old,
+      );
+      return { prev };
+    },
+    onError: (_e, _id, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['customer', 'support-thread'], ctx.prev);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['customer', 'support-thread'] }),
+  });
+}
+
 // ── Kuryer chatlar (KURYER bo'yicha guruhlangan, barcha buyurtmalar bo'ylab) #5 ─
 export interface CourierThreadSummary {
   courierId: string;

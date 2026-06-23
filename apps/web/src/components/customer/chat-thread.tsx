@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Send, Check, CheckCheck, Clock, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Send, Check, CheckCheck, Clock, AlertCircle, Pencil, Trash2, X } from 'lucide-react';
 import { useKeyboard } from '@/hooks/use-keyboard';
 
 /** Chat thread'dagi bitta xabar (admin/kuryer suhbatlari uchun umumiy shakl). */
@@ -30,6 +30,8 @@ export function ChatThread({
   loading,
   onSend,
   onRetry,
+  onEditMessage,
+  onDeleteMessage,
   quickReplies,
   emptyHint = 'Hali xabar yo‘q.',
   composerDisabled = false,
@@ -42,6 +44,10 @@ export function ChatThread({
   loading?: boolean;
   onSend?: (text: string) => void;
   onRetry?: (text: string) => void;
+  /** O'z xabarini tahrirlash (id, yangi matn). Berilmasa — tahrirlash UI yo'q. */
+  onEditMessage?: (id: string, text: string) => void;
+  /** O'z xabarini o'chirish. Berilmasa — o'chirish UI yo'q. */
+  onDeleteMessage?: (id: string) => void;
   quickReplies?: string[];
   emptyHint?: string;
   composerDisabled?: boolean;
@@ -50,19 +56,39 @@ export function ChatThread({
 }) {
   const router = useRouter();
   const [text, setText] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [actionFor, setActionFor] = useState<string | null>(null);
   const { isOpen: kbOpen, height: kbHeight } = useKeyboard();
   const bottomRef = useRef<HTMLDivElement>(null);
+  const canModify = Boolean(onEditMessage || onDeleteMessage);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length, kbOpen]);
 
   const submit = (value?: string) => {
-    if (!onSend) return;
     const content = (value ?? text).trim();
     if (!content) return;
+    // Tahrirlash rejimida — yangilash
+    if (editingId) {
+      onEditMessage?.(editingId, content);
+      setEditingId(null);
+      setText('');
+      return;
+    }
+    if (!onSend) return;
     if (value === undefined) setText('');
     onSend(content);
+  };
+
+  const startEdit = (m: ThreadMessage) => {
+    setEditingId(m.id);
+    setText(m.text);
+    setActionFor(null);
+  };
+  const cancelEdit = () => {
+    setEditingId(null);
+    setText('');
   };
 
   return (
@@ -92,14 +118,18 @@ export function ChatThread({
         ) : (
           messages.map((m) => {
             const failed = m.mine && m.status === 'failed';
+            // O'z (yuborilgan) xabarini bosib — tahrirlash/o'chirish ochiladi
+            const editable = m.mine && canModify && !m.status;
+            const open = actionFor === m.id;
             return (
               <div key={m.id} className={`flex flex-col ${m.mine ? 'items-end' : 'items-start'}`}>
                 <div
-                  className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm ${
+                  onClick={editable ? () => setActionFor(open ? null : m.id) : undefined}
+                  className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm ${editable ? 'cursor-pointer' : ''} ${
                     m.mine
                       ? 'bg-gradient-to-br from-[#c62020] to-[#f97316] text-white'
                       : 'border border-slate-200 bg-white text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100'
-                  }`}
+                  } ${editingId === m.id ? 'ring-2 ring-amber-300' : ''}`}
                 >
                   {!m.mine && m.senderName && (
                     <p className="mb-0.5 text-[10px] font-bold text-slate-400">{m.senderName}</p>
@@ -126,6 +156,29 @@ export function ChatThread({
                       ))}
                   </p>
                 </div>
+                {/* Tahrirlash / O'chirish (o'z xabari bosilganda) */}
+                {editable && open && (
+                  <div className="mt-1 flex items-center gap-1.5">
+                    {onEditMessage && (
+                      <button
+                        type="button"
+                        onClick={() => startEdit(m)}
+                        className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-600 active:scale-95 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                      >
+                        <Pencil size={11} /> Tahrirlash
+                      </button>
+                    )}
+                    {onDeleteMessage && (
+                      <button
+                        type="button"
+                        onClick={() => { onDeleteMessage(m.id); setActionFor(null); }}
+                        className="flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-bold text-red-500 active:scale-95 dark:border-red-500/30 dark:bg-red-500/15"
+                      >
+                        <Trash2 size={11} /> O'chirish
+                      </button>
+                    )}
+                  </div>
+                )}
                 {failed && (
                   <button
                     type="button"
@@ -161,7 +214,15 @@ export function ChatThread({
             paddingBottom: kbOpen ? 8 : 'calc(env(safe-area-inset-bottom, 0px) + 12px)',
           }}
         >
-          {quickReplies && quickReplies.length > 0 && (
+          {editingId && (
+            <div className="mb-2 flex items-center justify-between rounded-xl bg-amber-50 px-3 py-1.5 text-[11px] font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+              <span className="flex items-center gap-1"><Pencil size={11} /> Xabar tahrirlanmoqda</span>
+              <button type="button" onClick={cancelEdit} className="flex items-center gap-1 active:scale-95">
+                <X size={12} /> Bekor
+              </button>
+            </div>
+          )}
+          {!editingId && quickReplies && quickReplies.length > 0 && (
             <div className="mb-2 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {quickReplies.map((q) => (
                 <button
@@ -180,7 +241,7 @@ export function ChatThread({
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && submit()}
-              placeholder="Xabar yozing..."
+              placeholder={editingId ? 'Xabarni tahrirlang...' : 'Xabar yozing...'}
               className="flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#c62020] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
             />
             <button
@@ -189,7 +250,7 @@ export function ChatThread({
               onClick={() => submit()}
               className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#c62020] to-[#f97316] text-white shadow-lg shadow-[#c62020]/30 active:scale-90 disabled:opacity-50"
             >
-              <Send size={18} />
+              {editingId ? <Check size={18} /> : <Send size={18} />}
             </button>
           </div>
         </div>

@@ -2,7 +2,12 @@
 
 import { useMemo, useState } from 'react';
 import { ChatThread, type ThreadMessage } from '@/components/customer/chat-thread';
-import { useSupportThread, useSendSupportMessage } from '@/hooks/use-customer';
+import {
+  useSupportThread,
+  useSendSupportMessage,
+  useEditSupportMessage,
+  useDeleteSupportMessage,
+} from '@/hooks/use-customer';
 
 const QUICK_REPLIES = [
   'Buyurtmam holati qanday?',
@@ -14,6 +19,8 @@ const QUICK_REPLIES = [
 export default function AdminChatPage() {
   const { data: thread, isLoading } = useSupportThread();
   const send = useSendSupportMessage();
+  const edit = useEditSupportMessage();
+  const del = useDeleteSupportMessage();
   // Optimistic: server javobigacha o'z xabarimiz darhol ko'rinadi
   const [pending, setPending] = useState<Array<{ id: string; text: string; failed?: boolean }>>([]);
 
@@ -57,6 +64,8 @@ export default function AdminChatPage() {
       loading={isLoading}
       onSend={handleSend}
       onRetry={handleRetry}
+      onEditMessage={(id, text) => edit.mutate({ id, text })}
+      onDeleteMessage={(id) => del.mutate(id)}
       quickReplies={QUICK_REPLIES}
       emptyHint="Hali xabar yo‘q. Savolingizni yozing yoki tezkor javoblardan tanlang 👇"
     />

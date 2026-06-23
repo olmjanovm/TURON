@@ -5,7 +5,7 @@ import { Phone } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api-client';
 import { ChatThread, type ThreadMessage } from '@/components/customer/chat-thread';
-import { useCourierThread } from '@/hooks/use-customer';
+import { useCourierThread, type CourierThread } from '@/hooks/use-customer';
 
 export default function CourierChatPage({ params }: { params: Promise<{ courierId: string }> }) {
   const { courierId } = use(params);
@@ -62,6 +62,31 @@ export default function CourierChatPage({ params }: { params: Promise<{ courierI
     handleSend(text);
   };
 
+  const orderIdOf = (msgId: string) =>
+    thread?.messages.find((m) => m.id === msgId)?.orderId;
+
+  const handleEdit = (id: string, text: string) => {
+    const oid = orderIdOf(id);
+    if (!oid) return;
+    qc.setQueryData<CourierThread>(key, (old) =>
+      old ? { ...old, messages: old.messages.map((m) => (m.id === id ? { ...m, content: text } : m)) } : old,
+    );
+    apiFetch(`/orders/${oid}/chat/${id}`, { method: 'PATCH', body: JSON.stringify({ content: text }) })
+      .catch(() => {})
+      .finally(() => qc.invalidateQueries({ queryKey: key }));
+  };
+
+  const handleDelete = (id: string) => {
+    const oid = orderIdOf(id);
+    if (!oid) return;
+    qc.setQueryData<CourierThread>(key, (old) =>
+      old ? { ...old, messages: old.messages.filter((m) => m.id !== id) } : old,
+    );
+    apiFetch(`/orders/${oid}/chat/${id}`, { method: 'DELETE' })
+      .catch(() => {})
+      .finally(() => qc.invalidateQueries({ queryKey: key }));
+  };
+
   const phone = thread?.courierPhone;
 
   return (
@@ -72,6 +97,8 @@ export default function CourierChatPage({ params }: { params: Promise<{ courierI
       loading={isLoading}
       onSend={activeOrderId ? handleSend : undefined}
       onRetry={handleRetry}
+      onEditMessage={handleEdit}
+      onDeleteMessage={handleDelete}
       emptyHint="Bu kuryer bilan suhbat tarixi bo‘sh."
       composerDisabled={!activeOrderId}
       disabledHint="Faol yetkazish yo‘q — kuryerga faqat buyurtma yetkazilayotganda yozish mumkin."
