@@ -432,7 +432,7 @@ export async function handleDeleteCategory(
     newValue: { isActive: false },
   });
 
-  return reply.status(204).send();
+  return reply.status(200).send({ success: true });
 }
 
 export async function handleCreateProduct(
@@ -662,7 +662,7 @@ export async function handleDeleteProduct(
     newValue: { deleted: true },
   });
 
-  return reply.status(204).send();
+  return reply.status(200).send({ success: true });
 }
 
 export async function streamMenuUpdates(request: FastifyRequest, reply: FastifyReply) {

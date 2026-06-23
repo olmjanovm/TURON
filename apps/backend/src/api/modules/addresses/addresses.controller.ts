@@ -112,7 +112,7 @@ export async function handleDeleteAddress(
 
   // Allaqachon o'chirilgan bo'lsa — idempotent 204
   if (address.deletedAt) {
-    return reply.status(204).send();
+    return reply.status(200).send({ success: true });
   }
 
   // SOFT-DELETE: qatorni o'chirmaymiz (aks holda unga bog'liq buyurtmalar yetim
@@ -131,5 +131,5 @@ export async function handleDeleteAddress(
     oldValue: serializeAddress(address)
   });
 
-  return reply.status(204).send();
+  return reply.status(200).send({ success: true });
 }

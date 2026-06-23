@@ -140,7 +140,7 @@ export async function handleDeletePromo(
     oldValue: serializePromoForAdmin(promo),
   });
 
-  return reply.status(204).send();
+  return reply.status(200).send({ success: true });
 }
 
 export async function handleUpdatePromo(

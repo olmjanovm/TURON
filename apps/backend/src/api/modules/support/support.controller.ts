@@ -160,7 +160,7 @@ export async function deleteSupportMessage(
   const requester = request.user as any;
   try {
     await SupportService.deleteCustomerMessage(requester.id, request.params.messageId);
-    return reply.status(204).send();
+    return reply.status(200).send({ success: true });
   } catch (err) {
     return reply.status(400).send({ error: err instanceof Error ? err.message : 'Xatolik' });
   }

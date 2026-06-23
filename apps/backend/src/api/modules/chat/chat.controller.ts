@@ -101,7 +101,7 @@ export async function deleteOrderChat(
 
   try {
     await OrderChatService.deleteMessage(request.params.messageId, requester.id);
-    return reply.status(204).send();
+    return reply.status(200).send({ success: true });
   } catch (err) {
     return reply.status(400).send({ error: err instanceof Error ? err.message : 'Xatolik' });
   }
