@@ -1,9 +1,31 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { initTelegram, getInitData, isTelegramEnvironment } from '@/lib/telegram';
+import { useRouter } from 'next/navigation';
+import { initTelegram, getInitData, getWebApp, isTelegramEnvironment } from '@/lib/telegram';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import { useAuthStore, type AuthUser } from '@/stores/auth-store';
+
+/**
+ * Deep-link ishlovi (auth'dan keyin — cookie o'rnatilgan bo'lishi uchun):
+ *  - ?guard=1  → Guard Mode: kutilayotgan VIP join so'rovini tasdiqlaydi.
+ *  - startapp=product_<id> (inline natija deep-link) → mahsulot sahifasiga.
+ */
+function handleDeepLink(router: ReturnType<typeof useRouter>) {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('guard') === '1') {
+      void apiFetch('/api/guard/approve', { method: 'POST' }).catch(() => {});
+    }
+    const startParam = (getWebApp()?.initDataUnsafe as { start_param?: string } | undefined)?.start_param;
+    if (startParam?.startsWith('product_')) {
+      const id = startParam.slice('product_'.length);
+      if (id) router.replace(`/product/${id}`);
+    }
+  } catch {
+    /* deep-link best-effort */
+  }
+}
 
 /**
  * FAZA A2 — auth bootstrap.
@@ -14,6 +36,7 @@ export function TelegramAuthProvider({ children }: { children: React.ReactNode }
   const setUser = useAuthStore((s) => s.setUser);
   const setStatus = useAuthStore((s) => s.setStatus);
   const setError = useAuthStore((s) => s.setError);
+  const router = useRouter();
   const startedRef = useRef(false);
 
   useEffect(() => {
@@ -39,13 +62,16 @@ export function TelegramAuthProvider({ children }: { children: React.ReactNode }
       method: 'POST',
       body: JSON.stringify({ initData }),
     })
-      .then(({ user }) => setUser(user))
+      .then(({ user }) => {
+        setUser(user);
+        handleDeepLink(router); // auth'dan keyin: guard tasdiqlash + inline product deep-link
+      })
       .catch((err) => {
         const message =
           err instanceof ApiError ? err.message : 'Kirishda xatolik yuz berdi';
         setError(message);
       });
-  }, [setUser, setStatus, setError]);
+  }, [setUser, setStatus, setError, router]);
 
   return <>{children}</>;
 }
