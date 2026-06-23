@@ -1,8 +1,18 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch, ApiError } from '@/lib/api-client';
 import type { MenuCategory, MenuProduct } from './use-menu';
+
+/** DELETE — 404 ("allaqachon o'chgan") ham MUVAFFAQIYAT (idempotent, soxta xato yo'q). */
+async function deleteIdempotent(path: string): Promise<void> {
+  try {
+    await apiFetch(path, { method: 'DELETE' });
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return;
+    throw e;
+  }
+}
 
 /** Admin menyu — kategoriyalar (faol+nofaol). */
 export function useAdminCategories() {
@@ -84,8 +94,7 @@ export function useDeleteProduct() {
   const invalidate = useCatalogInvalidate();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) =>
-      apiFetch(`/api/menu/products/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: string) => deleteIdempotent(`/api/menu/products/${id}`),
     // OPTIMISTIC: ro'yxatdan DARHOL olib tashlaymiz (ekranda osilib qolmasin).
     onMutate: async (id: string) => {
       await qc.cancelQueries({ queryKey: ['admin', 'products'] });
@@ -143,7 +152,7 @@ export function useSaveCategory(id?: string) {
 export function useDeleteCategory() {
   const invalidate = useCategoryInvalidate();
   return useMutation({
-    mutationFn: (id: string) => apiFetch(`/api/menu/categories/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: string) => deleteIdempotent(`/api/menu/categories/${id}`),
     onSuccess: invalidate,
   });
 }
@@ -199,7 +208,7 @@ export function useSavePromo(id?: string) {
 export function useDeletePromo() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => apiFetch(`/api/promos/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: string) => deleteIdempotent(`/api/promos/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'promos'] }),
   });
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch, ApiError } from '@/lib/api-client';
 import { useChatSocket, mergeChatMessage, markChatRead } from '@/lib/use-chat-socket';
 
 // ── Types ────────────────────────────────────────────────────────────────
@@ -132,8 +132,15 @@ export function useUpdateAddress() {
 export function useDeleteAddress() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) =>
-      apiFetch(`/addresses/${id}`, { method: 'DELETE' }),
+    // 404 ("allaqachon o'chgan") ham muvaffaqiyat — soxta xato chiqmasin
+    mutationFn: async (id: string) => {
+      try {
+        await apiFetch(`/addresses/${id}`, { method: 'DELETE' });
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 404) return;
+        throw e;
+      }
+    },
     // OPTIMISTIC: ro'yxatdan DARHOL olib tashlaymiz (ekranda osilib qolmasin),
     // xato bo'lsa qaytaramiz, yakunda serverdan tasdiqlaymiz.
     onMutate: async (id: string) => {
