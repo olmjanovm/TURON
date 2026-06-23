@@ -409,6 +409,88 @@ export function useMarkNotificationRead() {
   });
 }
 
+export function useMarkAllNotificationsRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiFetch('/notifications/read-all', { method: 'POST' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['customer', 'notifications'] }),
+  });
+}
+
+// ── Admin chat (support thread — buyurtmaga bog'liq emas, doimiy) #5 ─────────
+export interface SupportMessage {
+  id: string;
+  senderRole: 'CUSTOMER' | 'ADMIN' | 'COURIER';
+  senderLabel: string;
+  text: string;
+  channel: 'MINI_APP' | 'TELEGRAM';
+  createdAt: string;
+}
+export interface SupportThread {
+  id: string;
+  orderId?: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  lastMessageAt: string;
+  messages: SupportMessage[];
+}
+
+export function useSupportThread() {
+  return useQuery<SupportThread>({
+    queryKey: ['customer', 'support-thread'],
+    queryFn: () => apiFetch('/support/thread'),
+    refetchInterval: 20_000,
+  });
+}
+
+export function useSendSupportMessage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (text: string) =>
+      apiFetch<SupportThread>('/support/messages', {
+        method: 'POST',
+        body: JSON.stringify({ text }),
+      }),
+    onSuccess: (thread) => qc.setQueryData(['customer', 'support-thread'], thread),
+  });
+}
+
+// ── Kuryer chatlar (KURYER bo'yicha guruhlangan, barcha buyurtmalar bo'ylab) #5 ─
+export interface CourierThreadSummary {
+  courierId: string;
+  courierName: string;
+  courierPhone: string | null;
+  lastMessage: string;
+  lastAt: string;
+  unreadCount: number;
+  activeOrderId: string | null;
+}
+export interface CourierThread {
+  courierId: string;
+  courierName: string;
+  courierPhone: string | null;
+  activeOrderId: string | null;
+  messages: OrderChatMessage[];
+}
+
+export function useCourierThreads() {
+  return useQuery<CourierThreadSummary[]>({
+    queryKey: ['customer', 'courier-threads'],
+    queryFn: () => apiFetch('/support/courier-threads'),
+    refetchInterval: 20_000,
+  });
+}
+
+export function useCourierThread(courierId: string) {
+  return useQuery<CourierThread>({
+    queryKey: ['customer', 'courier-thread', courierId],
+    queryFn: () => apiFetch(`/support/courier-threads/${courierId}/messages`),
+    enabled: !!courierId,
+    refetchInterval: 15_000,
+  });
+}
+
 // ── Profile ──────────────────────────────────────────────────────────────
 export function useUpdateMyProfile() {
   const qc = useQueryClient();

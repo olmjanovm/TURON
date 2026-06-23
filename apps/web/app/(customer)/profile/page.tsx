@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getTelegramUser } from '@/lib/telegram';
-import { Bell, ChevronRight, Globe, HelpCircle, Info, Loader2, MapPin, Moon, Save, Sun } from 'lucide-react';
+import { Bell, ChevronRight, Globe, Info, Loader2, MapPin, MessageCircle, Moon, Save, Sun } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useUpdateMyProfile } from '@/hooks/use-customer';
 import { useLocale } from '@/lib/i18n/locale-context';
@@ -174,11 +174,11 @@ export default function ProfilePage() {
       </Section>
 
       <div className="rounded-3xl border border-slate-100 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <ProfileLink href="/messages" icon={MessageCircle} label="Xabarlar" />
+        <Divider />
         <ProfileLink href="/addresses" icon={MapPin} label={t('profile.addresses')} />
         <Divider />
         <ProfileLink href="/notifications" icon={Bell} label={t('profile.notifications')} />
-        <Divider />
-        <ProfileLink href="/support" icon={HelpCircle} label={t('profile.support')} />
         <Divider />
         <ProfileLink href="#" icon={Info} label={t('profile.about')} />
       </div>
