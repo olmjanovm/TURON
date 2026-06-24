@@ -17,11 +17,11 @@ import { useDeliverFlow } from '@/hooks/use-courier-deliver';
 import { RESTAURANT_DEFAULT } from '@/lib/yandex-maps';
 import { AlertTriangle } from 'lucide-react';
 
-// Mapbox GL navigator (navigation-night-v1 — QORONG'I navy vektor, Uber/Yandex uslubi).
-// turonkafe O'Z token'i (50k/oy bepul, sinab ko'rilgan: style+tile 200). WebGL/token
-// ishlamasa → avtomatik real Yandex (delivery-navigator) ga qaytadi — qora ekran yo'q.
+// HAQIQIY Yandex Maps v3 (ymaps3) — QORONG'I 3D vektor "Navigator" ko'rinishi.
+// TURON JS API kaliti (referer: turon-miniapp.vercel.app). v3 yuklanmasa →
+// avtomatik real Yandex v2.1 (delivery-navigator) ga qaytadi — qora ekran yo'q.
 const DeliveryNavigator = dynamic(
-  () => import('@/components/courier/map/mapbox-nav').then((m) => m.MapboxNav),
+  () => import('@/components/courier/map/yandex-v3-navigator').then((m) => m.YandexV3Navigator),
   {
     ssr: false,
     loading: () => (
