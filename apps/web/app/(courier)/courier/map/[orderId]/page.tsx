@@ -17,11 +17,11 @@ import { useDeliverFlow } from '@/hooks/use-courier-deliver';
 import { RESTAURANT_DEFAULT } from '@/lib/yandex-maps';
 import { AlertTriangle } from 'lucide-react';
 
-// DARK Leaflet navigator (CartoDB dark tiles — kalit/referer KERAK EMAS, ishonchli):
-// traffic-rangli yo'l + oltin aylanuvchi strelka + maneuver banner + tezlik indikatori
-// + voice + swipe-confirm + dark HUD. (Yandex v2.1/v3 versiyalari saqlangan.)
+// Mapbox GL navigator (navigation-night-v1 — HAQIQIY navy-blue vektor, CSS filter
+// YO'Q, Uber/Yandex uslubi). WebGL/token ishlamasa → avtomatik Leaflet navigatorga
+// qaytadi (fallback). Demo token (NEXT_PUBLIC_MAPBOX_TOKEN bilan almashtirish mumkin).
 const DeliveryNavigator = dynamic(
-  () => import('@/components/courier/map/leaflet-nav').then((m) => m.LeafletNav),
+  () => import('@/components/courier/map/mapbox-nav').then((m) => m.MapboxNav),
   {
     ssr: false,
     loading: () => (

@@ -21,6 +21,7 @@
     "@turon/shared": "workspace:*",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.363.0",
+    "mapbox-gl": "^3.25.0",
     "motion": "^11.11.17",
     "next": "^15.5.4",
     "next-themes": "^0.4.4",
@@ -32,6 +33,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.2",
     "@types/leaflet": "^1.9.12",
+    "@types/mapbox-gl": "^3.5.0",
     "@types/node": "^25.5.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
