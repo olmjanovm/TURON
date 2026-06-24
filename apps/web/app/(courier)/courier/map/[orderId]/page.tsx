@@ -17,11 +17,11 @@ import { useDeliverFlow } from '@/hooks/use-courier-deliver';
 import { RESTAURANT_DEFAULT } from '@/lib/yandex-maps';
 import { AlertTriangle } from 'lucide-react';
 
-// Mapbox GL navigator (navigation-night-v1 — HAQIQIY navy-blue vektor, CSS filter
-// YO'Q, Uber/Yandex uslubi). WebGL/token ishlamasa → avtomatik Leaflet navigatorga
-// qaytadi (fallback). Demo token (NEXT_PUBLIC_MAPBOX_TOKEN bilan almashtirish mumkin).
+// REAL Yandex map (yandex#map v2.1) + ORS yo'l chizig'i — CSS FILTER YO'Q.
+// Kalit ishlaydi (mijoz/admin xaritalari ham shu loader). Mapbox (WebGL/token)
+// va Leaflet+filter (qora chiqardi) variantlari rad etildi — bu ishonchli + real Yandex.
 const DeliveryNavigator = dynamic(
-  () => import('@/components/courier/map/mapbox-nav').then((m) => m.MapboxNav),
+  () => import('@/components/courier/map/delivery-navigator').then((m) => m.DeliveryNavigator),
   {
     ssr: false,
     loading: () => (
