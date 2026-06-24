@@ -23,7 +23,7 @@ const SCRIPT_ID = 'turon-yandex-maps-script';
 const API_KEY =
   process.env.NEXT_PUBLIC_YANDEX_MAP_API_KEY?.trim() ||
   process.env.NEXT_PUBLIC_MAP_API_KEY?.trim() || // legacy
-  '0fa7de6b-b53e-4257-8626-02c9082bb2c2'; // YANGI JS API kalit (routing yoqilgan)
+  'bac13d42-e5dd-42f1-b337-1d78a752426d'; // foydalanuvchining O'Z JS API kaliti (2026-06-24)
 
 // Til — O'ZBEKCHA majburiy (foydalanuvchi: Yandex Toshkentда o'zbekcha gapiradi).
 // Env'ga tayanmaymiz (Vercel'da ru bo'lib qolgan bo'lishi mumkin). Agar Yandex JS
