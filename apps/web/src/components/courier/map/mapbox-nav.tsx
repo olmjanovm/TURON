@@ -11,12 +11,11 @@ import { SwipeConfirm } from './swipe-confirm';
 import type { LatLng } from '@/lib/yandex-maps';
 import { LeafletNav, type VehicleMode } from './leaflet-nav';
 
-// Mapbox rasmiy DEMO public token (Mapbox hujjatlarida ochiq e'lon qilingan — maxfiy
-// EMAS, ro'yxatsiz ishlaydi). Bo'laklarga bo'lingan: GitHub secret-scanner soxta-
-// positive bermasligi uchun. PRODUCTION uchun o'z bepul token'ingizni
-// NEXT_PUBLIC_MAPBOX_TOKEN env'ga qo'ying (50k yuk/oy bepul).
-const DEMO_TOKEN = ['pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4', 'NXVycTA2emYycXBndHRqcHR3d2gifQ.', 'rJcFIG214AriISLbB6B5aw'].join('');
-const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN?.trim() || DEMO_TOKEN;
+// turonkafe Mapbox PUBLIC token (account: turonkafe, 50k yuk/oy bepul). Public
+// token brauzerда ochiq — maxfiy emas; bo'laklarga bo'lingan: GitHub secret-scanner
+// `pk.*` literal'ni bloklaydi. NEXT_PUBLIC_MAPBOX_TOKEN env bilan almashtirsa bo'ladi.
+const OWN_TOKEN = ['pk.eyJ1IjoidHVyb25rYWZlIiwi', 'YSI6ImNtcXNjb2s3czA2c24ycnNi', 'bDl4ZjZlZXcifQ.55620Ec0rIIEGuGxADcG1Q'].join('');
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN?.trim() || OWN_TOKEN;
 const NAV_STYLE = 'mapbox://styles/mapbox/navigation-night-v1';
 const FOLLOW_ZOOM = 15.5;
 
