@@ -483,6 +483,23 @@ export function DeliveryNavigator(props: DeliveryNavigatorProps) {
         } as Record<string, unknown>);
         mapRef.current = map;
 
+        // ── DARK navy (foydalanuvchi talabi): FAQAT ground (tile) pane'ga CSS filter.
+        // Markerlar/yo'l/strelka/manyovr alohida pane'da → normal rangli qoladi.
+        // ESLATMA: RASTER tile'larda POI/svetofor/bino-raqami tile RASMIGA pishган →
+        // ular ham rang oladi (lekin ko'rinadi). Qiymatlarni sozlash mumkin.
+        const applyDarkFilter = () => {
+          try {
+            const groundEl = (map as YmapInstance & {
+              panes?: { get?: (k: string) => { getElement?: () => HTMLElement } | undefined };
+            }).panes?.get?.('ground')?.getElement?.();
+            if (groundEl) {
+              groundEl.style.filter = 'invert(93%) hue-rotate(195deg) brightness(0.78) saturate(0.9)';
+            }
+          } catch {/* pane hali tayyor emas */}
+        };
+        applyDarkFilter();
+        window.setTimeout(applyDarkFilter, 400); // pane kech tayyor bo'lsa qayta
+
         const CourierArrowLayout = ymaps.templateLayoutFactory!.createClass([
           '<div class="navigator-arrow-wrap" style="transform: rotate({{ properties.iconRotateAngle }}deg);">',
           '<svg viewBox="0 0 48 60" width="48" height="60" xmlns="http://www.w3.org/2000/svg">',
