@@ -30,6 +30,11 @@ const configSchema = z.object({
   // Guard Mode: chat_join_request gatekeeping qilinadigan VIP kanal/guruh id'si
   // (manfiy, masalan -1001234567890). Bo'sh bo'lsa — barcha join so'rovlari kuzatiladi.
   VIP_CHANNEL_ID: z.string().optional(),
+  // AI yo'l-yo'riq yordamchisi (kuryer) — BEPUL modellar, FAQAT server-side.
+  // Gemini birlamchi (o'zbekchada kuchli), Groq zaxira (tez). Ikkalasi ham bo'sh
+  // bo'lsa — ORS burilishlaridan mahalliy o'zbekcha qadamlar (AIsiz) qaytariladi.
+  GEMINI_API_KEY: z.string().optional(),
+  GROQ_API_KEY: z.string().optional(),
 });
 
 const _env = configSchema.safeParse(process.env);

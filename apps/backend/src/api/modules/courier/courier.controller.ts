@@ -27,6 +27,7 @@ import {
   serializeOrder,
 } from '../orders/order-helpers.js';
 import { eligibleCourierCache } from '../../../services/courier-assignment.service.js';
+import { getCourierGuidance, type AiGuidanceInput } from '../../../services/ai-guidance.service.js';
 
 const COURIER_LIST_ASSIGNMENT_STATUSES = [
   'ASSIGNED',
@@ -982,4 +983,14 @@ export async function getCourierCashTransactions(
   return reply.status(501).send({
     error: "Kuryer kassa tranzaksiyalari hali Prisma sxemasiga ulanmagan. Avval schema va migration qo'shilishi kerak.",
   });
+}
+
+// AI yo'l-yo'riq yordamchisi — FE marshrut burilishlarini yuboradi, bepul LLM
+// (Gemini→Groq→mahalliy) sodda o'zbekcha qadamlar qaytaradi. Kalitlar server-side.
+export async function getAiGuidance(
+  request: FastifyRequest<{ Body: AiGuidanceInput }>,
+  reply: FastifyReply,
+) {
+  const result = await getCourierGuidance(request.body ?? {});
+  return reply.send(result);
 }

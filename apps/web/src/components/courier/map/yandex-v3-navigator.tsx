@@ -12,6 +12,7 @@ import { startCompass } from '@/lib/compass';
 import { speak, setVoiceEnabled, isVoiceEnabled, maneuverPhrase } from '@/lib/nav-audio';
 import { SwipeConfirm } from './swipe-confirm';
 import { DeliveryNavigator } from './delivery-navigator';
+import { AiGuidanceSheet } from './ai-guidance-sheet';
 
 type VehicleMode = 'auto' | 'pedestrian' | 'bicycle';
 
@@ -24,6 +25,8 @@ interface Props {
   onClose?: () => void;
   orderNumber?: string | number;
   stageLabel?: string;
+  pickupLabel?: string;
+  destinationLabel?: string;
   confirmLabel?: string;
   onConfirm?: () => void;
   confirmBusy?: boolean;
@@ -88,7 +91,7 @@ function pinSvg(color: string): string {
 export function YandexV3Navigator(props: Props) {
   const {
     pickup, destination, courier: courierProp, routeTo, vehicleMode = 'pedestrian',
-    onClose, orderNumber, stageLabel, confirmLabel, onConfirm, confirmBusy, onGpsTick,
+    onClose, orderNumber, stageLabel, pickupLabel, destinationLabel, confirmLabel, onConfirm, confirmBusy, onGpsTick,
   } = props;
 
   const [failed, setFailed] = useState(false);
@@ -363,6 +366,16 @@ export function YandexV3Navigator(props: Props) {
         className={`absolute right-3.5 top-1/2 z-[1000] flex h-[50px] w-[50px] -translate-y-1/2 items-center justify-center rounded-full active:scale-95 ${voiceOn ? 'bg-[#00C853] text-white shadow-[0_4px_18px_rgba(0,200,83,0.5)]' : 'bg-[#243354] text-white/70'}`}>
         {voiceOn ? <Volume2 size={20} /> : <VolumeX size={20} />}
       </button>
+
+      {/* AI yo'l-yo'riq yordamchisi (chap markaz FAB + sheet) */}
+      <AiGuidanceSheet
+        orderNumber={orderNumber}
+        stageLabel={stageLabel}
+        pickupLabel={pickupLabel}
+        destinationLabel={destinationLabel}
+        vehicleMode={vehicleMode}
+        route={route}
+      />
 
       {/* Pastki panel (navy) */}
       <div className="absolute inset-x-0 bottom-0 z-[1000] mx-auto w-full max-w-[480px]"

@@ -183,6 +183,36 @@ export function useCourierOrder(orderId: string | undefined) {
   });
 }
 
+// ── AI yo'l-yo'riq yordamchisi (bepul LLM: Gemini→Groq→mahalliy) ───────────
+export interface AiGuidanceManeuverInput {
+  type: string;
+  instruction?: string;
+  distanceFromStartMeters?: number;
+}
+export interface AiGuidanceRequest {
+  orderNumber?: string;
+  stageLabel?: string;
+  pickupLabel?: string;
+  destinationLabel?: string;
+  totalDistanceMeters?: number;
+  totalDurationSec?: number;
+  vehicleMode?: 'auto' | 'pedestrian' | 'bicycle';
+  maneuvers?: AiGuidanceManeuverInput[];
+}
+export interface AiGuidanceResult {
+  guidance: string;
+  source: 'gemini' | 'groq' | 'local';
+}
+export function useAiGuidance() {
+  return useMutation<AiGuidanceResult, Error, AiGuidanceRequest>({
+    mutationFn: (body) =>
+      apiFetch<AiGuidanceResult>('/courier/ai-guidance', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+  });
+}
+
 export function useCourierProfile() {
   return useQuery<CourierProfileDetail>({
     queryKey: ['courier', 'profile'],

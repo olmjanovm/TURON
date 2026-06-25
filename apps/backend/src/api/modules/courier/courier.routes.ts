@@ -18,9 +18,11 @@ import {
   updateCourierLocation,
   updateCourierStatus,
   updateOrderStage,
+  getAiGuidance,
 } from './courier.controller.js';
 import { getOrderChat, sendOrderChat, getUnreadCount } from '../chat/chat.controller.js';
 import {
+  CourierAiGuidanceSchema,
   CourierProblemSchema,
   DeliverOrderSchema,
   IdParamSchema,
@@ -128,6 +130,11 @@ export default async function courierRoutes(fastify: FastifyInstance) {
   fastify.post('/orders/:id/notify-customer', {
     schema: { params: IdParamSchema },
   }, notifyCustomer);
+
+  // ── AI yo'l-yo'riq yordamchisi (bepul LLM: Gemini→Groq→mahalliy) ─────────
+  fastify.post('/ai-guidance', {
+    schema: { body: CourierAiGuidanceSchema },
+  }, getAiGuidance);
 
   // ── In-app chat (courier ↔ customer) ─────────────────────────────────────
   fastify.get('/order/:id/chat', { schema: { params: IdParamSchema } }, getOrderChat);

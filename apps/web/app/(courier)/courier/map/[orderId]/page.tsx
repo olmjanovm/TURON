@@ -178,6 +178,10 @@ function MapView({
         orderNumber={order.orderNumber}
         onClose={onBack}
         stageLabel={STAGE_LABELS[stage] ?? stage}
+        pickupLabel="Restoran (TURON)"
+        destinationLabel={
+          order.customerAddress?.addressText ?? order.deliveryAddress ?? order.destinationAddress ?? undefined
+        }
         confirmLabel={!isDelivered && next ? next.label : undefined}
         onConfirm={
           !isDelivered && next

@@ -117,6 +117,28 @@ export const MapDistanceMatrixSchema = z.object({
   traffic: MapTrafficSchema.optional(),
 });
 
+// AI yo'l-yo'riq yordamchisi (kuryer) — FE marshrut burilishlarini yuboradi,
+// backend bepul LLM (Gemini/Groq) orqali sodda o'zbekcha qadamlarga aylantiradi.
+export const CourierAiGuidanceSchema = z.object({
+  orderNumber: z.string().max(40).optional(),
+  stageLabel: z.string().max(80).optional(),
+  pickupLabel: z.string().max(200).optional(),
+  destinationLabel: z.string().max(200).optional(),
+  totalDistanceMeters: z.number().min(0).max(2_000_000).optional(),
+  totalDurationSec: z.number().min(0).max(200_000).optional(),
+  vehicleMode: z.enum(['auto', 'pedestrian', 'bicycle']).optional(),
+  maneuvers: z
+    .array(
+      z.object({
+        type: z.string().max(40),
+        instruction: z.string().max(300).optional(),
+        distanceFromStartMeters: z.number().min(0).max(2_000_000).optional(),
+      }),
+    )
+    .max(60)
+    .optional(),
+});
+
 // Orders
 export const CreateOrderSchema = z.object({
   idempotencyKey: z.string().uuid('Invalid idempotency key format'),
