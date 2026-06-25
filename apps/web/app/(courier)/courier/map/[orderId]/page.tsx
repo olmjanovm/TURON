@@ -17,12 +17,11 @@ import { useDeliverFlow } from '@/hooks/use-courier-deliver';
 import { RESTAURANT_DEFAULT } from '@/lib/yandex-maps';
 import { AlertTriangle } from 'lucide-react';
 
-// REAL Yandex Maps v2.1 RASTER (type:'yandex#map') — svetofor, POI ikonkalar,
-// parking (P), 3D binolar, bino raqami, ko'cha ierarxiyasi TO'LIQ ko'rinadi.
-// ground (tile) pane'ga DARK navy CSS filter qo'yiladi (markerlar/yo'l alohida
-// pane'da → normal rangli qoladi). TURON kaliti. (v3 vektor minimal edi — tashlandi.)
+// HAQIQIY Yandex Maps v3 (ymaps3) — QORONG'I 3D vektor "Navigator" ko'rinishi.
+// TURON JS API kaliti (referer: turon-miniapp.vercel.app). v3 yuklanmasa →
+// avtomatik real Yandex v2.1 (delivery-navigator) ga qaytadi — qora ekran yo'q.
 const DeliveryNavigator = dynamic(
-  () => import('@/components/courier/map/delivery-navigator').then((m) => m.DeliveryNavigator),
+  () => import('@/components/courier/map/yandex-v3-navigator').then((m) => m.YandexV3Navigator),
   {
     ssr: false,
     loading: () => (
