@@ -88,6 +88,11 @@ function pinSvg(color: string): string {
     <circle cx="18" cy="16" r="6" fill="#fff" opacity="0.92"/></svg>`;
 }
 
+// Burilish nuqtasi (xaritada "shu yerda buriling") — aylanish shart emas (nuqta).
+function turnDotSvg(color: string, size: number): string {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg"><circle cx="11" cy="11" r="7" fill="${color}" stroke="#ffffff" stroke-width="2.8"/></svg>`;
+}
+
 export function YandexV3Navigator(props: Props) {
   const {
     pickup, destination, courier: courierProp, routeTo, vehicleMode = 'pedestrian',
@@ -116,10 +121,18 @@ export function YandexV3Navigator(props: Props) {
   const lastPanTickRef = useRef(0);
   const initialTotalRef = useRef<number | null>(null);
   const routeReqRef = useRef('');
+  const connectorFeatureRef = useRef<any>(null); // turgan joy → marshrut boshi
+  const maneuverMarkersRef = useRef<any[]>([]);   // burilish nuqtalari
 
   const courier = internalCourier ?? courierProp ?? null;
 
-  // ── Yo'nalish (heading) → xarita azimuti (silliq, threshold bilan) ──────────
+  // ╔══════════════════════════════════════════════════════════════════════════╗
+  // ║  ⚠️  KOMPAS + KAMERA AYLANISHI — ISHLAYDI, O'ZGARTIRMA  ⚠️                  ║
+  // ║  Bu blok (applyHeading + kompas effekti + GPS apply'dagi heading qismi)    ║
+  // ║  barqaror sozlangan. Har o'zgartirishда kompas buzilgan — endi tegMA.      ║
+  // ║  Yangi funksiya qo'shsang — ALOHIDA effektда qil, bunga teGMA.             ║
+  // ╚══════════════════════════════════════════════════════════════════════════╝
+  // Yo'nalish (heading) → xarita azimuti (silliq low-pass + threshold).
   const applyHeading = useCallback((target: number) => {
     if (Number.isNaN(target)) return;
     const cur = smoothedHeadingRef.current;
@@ -180,7 +193,8 @@ export function YandexV3Navigator(props: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Qurilma kompasi → xarita aylanishi (turganda ham ishlaydi) ──────────────
+  // ⚠️ KOMPAS EFFEKTI — ISHLAYDI, O'ZGARTIRMA (yuqoridagi blokka qara).
+  // Qurilma kompasi (DeviceOrientation) → xarita aylanishi (turganda ham).
   useEffect(() => {
     if (!ready) return;
     const stop = startCompass((h) => applyHeading(h));
@@ -252,7 +266,7 @@ export function YandexV3Navigator(props: Props) {
         if (typeof r.totalDistanceMeters === 'number' && initialTotalRef.current == null) {
           initialTotalRef.current = r.totalDistanceMeters;
         }
-        const { YMapFeature } = ymapsRef.current as any;
+        const { YMapFeature, YMapMarker } = ymapsRef.current as any;
         const coords: [number, number][] = r.segments.flatMap((s) => s.coords);
         if (coords.length < 2) return;
         if (routeFeatureRef.current) {
@@ -270,6 +284,54 @@ export function YandexV3Navigator(props: Props) {
         });
         mapRef.current.addChild(feature);
         routeFeatureRef.current = feature;
+
+        // ── FAOL XARITA: connector (turgan joy → yo'lga chiqish) ───────────────
+        // Marshrut yo'lga "yopishtirilgan" boshlanadi; kuryer turgan joydan yo'lgacha
+        // ko'k punktir chiziq — "shu yerdan yo'lga chiqing". (Best-effort, route'ni buzmaydi.)
+        try {
+          if (connectorFeatureRef.current) {
+            try { mapRef.current.removeChild(connectorFeatureRef.current); } catch { /* noop */ }
+            connectorFeatureRef.current = null;
+          }
+          const startPt = coords[0];
+          const cpos: [number, number] = [c.lng, c.lat];
+          if (startPt && haversine(cpos, startPt) > 8) {
+            const conn = new YMapFeature({
+              geometry: { type: 'LineString', coordinates: [cpos, startPt] },
+              style: { stroke: [{ color: '#3B82F6', width: 5, dash: [7, 7] }] },
+            });
+            mapRef.current.addChild(conn);
+            connectorFeatureRef.current = conn;
+          }
+        } catch { /* connector best-effort */ }
+
+        // ── FAOL XARITA: burilish nuqtalari (keyingisi = sariq+kattaroq) ───────
+        try {
+          for (const mk of maneuverMarkersRef.current) {
+            try { mapRef.current.removeChild(mk); } catch { /* noop */ }
+          }
+          maneuverMarkersRef.current = [];
+          const mans = r.maneuvers.slice(0, 25);
+          let nearestIdx = -1;
+          let nearestD = Infinity;
+          mans.forEach((m, i) => {
+            const d = haversine([c.lng, c.lat], [m.coords[0], m.coords[1]]);
+            if (d < nearestD) { nearestD = d; nearestIdx = i; }
+          });
+          mans.forEach((m, i) => {
+            const isNext = i === nearestIdx;
+            const size = isNext ? 26 : 15;
+            const el = document.createElement('div');
+            el.style.cssText = `width:${size}px;height:${size}px;`;
+            el.innerHTML = turnDotSvg(isNext ? '#FFB300' : '#3B82F6', size);
+            const mk = new YMapMarker(
+              { coordinates: [m.coords[0], m.coords[1]], anchor: [0.5, 0.5], zIndex: isNext ? 185 : 160 },
+              el,
+            );
+            mapRef.current.addChild(mk);
+            maneuverMarkersRef.current.push(mk);
+          });
+        } catch { /* maneuver dots best-effort */ }
       })
       .catch(() => { routeReqRef.current = ''; /* keyingi tick qayta urinadi */ });
     return () => { cancelled = true; };
