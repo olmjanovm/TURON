@@ -2,17 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ArrowLeft, ArrowRight, ArrowUp, CornerUpLeft, CornerUpRight,
-  Loader2, Volume2, VolumeX, X,
+  ArrowLeft, ArrowRight, ArrowUp, CornerUpLeft, CornerUpRight, Loader2, X,
 } from 'lucide-react';
 import { loadYandexMapsV3, type Ymaps3, type LatLng } from '@/lib/yandex-maps';
 import { fetchRoute, type RouteManeuver, type RouteResult } from '@/lib/route-fetcher';
 import { GpsWatcher, type GpsTick } from '@/lib/gps-watcher';
 import { startCompass } from '@/lib/compass';
-import { speak, setVoiceEnabled, isVoiceEnabled, maneuverPhrase } from '@/lib/nav-audio';
 import { SwipeConfirm } from './swipe-confirm';
 import { DeliveryNavigator } from './delivery-navigator';
-import { AiGuidanceSheet } from './ai-guidance-sheet';
 
 type VehicleMode = 'auto' | 'pedestrian' | 'bicycle';
 
@@ -33,15 +30,15 @@ interface Props {
   onGpsTick?: (t: GpsTick) => void;
 }
 
-// ── Navigatsiya sozlamalari (eski miniapp CourierMap'dan — isbotlangan "live nav") ─
+// ── Navigatsiya sozlamalari (course-up "live nav") ──────────────────────────
 const NAV_ZOOM = 18.2;
 const NAV_TILT = 55;            // 3D yo'l perspektivasi (GRADUSDA — ymaps3 qabul qiladi)
 const CENTER_OFFSET_DEG = 0.00045; // strelka past-uchdan, yo'l oldinda
-const PAN_MS = 850;
-const CAMERA_ROTATE_MS = 350;
-const MIN_PAN_M = 1.8;
-const MIN_PAN_INTERVAL_MS = 500;
-const AZIMUTH_MIN_DELTA = 2;    // mayda aylanishlarni o'tkazib yuborish (sensor shovqini)
+const PAN_MS = 600;
+const CAMERA_ROTATE_MS = 300;
+const CAM_MIN_INTERVAL_MS = 160; // kamera yangilanishlari orasidagi min interval
+const AUTO_FOCUS_MS = 3000;       // swipe'dan keyin shuncha sokinlikда qayta markazlanadi
+const MOVE_BEARING_MIN_M = 4;     // harakat bearing'i uchun min siljish
 
 function offsetAhead(lng: number, lat: number, headingDeg: number): [number, number] {
   const rad = (headingDeg * Math.PI) / 180;
@@ -96,7 +93,7 @@ function turnDotSvg(color: string, size: number): string {
 export function YandexV3Navigator(props: Props) {
   const {
     pickup, destination, courier: courierProp, routeTo, vehicleMode = 'pedestrian',
-    onClose, orderNumber, stageLabel, pickupLabel, destinationLabel, confirmLabel, onConfirm, confirmBusy, onGpsTick,
+    onClose, orderNumber, stageLabel, confirmLabel, onConfirm, confirmBusy, onGpsTick,
   } = props;
 
   const [failed, setFailed] = useState(false);
@@ -106,7 +103,6 @@ export function YandexV3Navigator(props: Props) {
   const [maneuverDist, setManeuverDist] = useState<number | null>(null);
   const [speedKmh, setSpeedKmh] = useState<number | null>(null);
   const [remainingM, setRemainingM] = useState<number | null>(null);
-  const [voiceOn, setVoiceOn] = useState<boolean>(() => isVoiceEnabled());
   const [internalCourier, setInternalCourier] = useState<LatLng | null>(null);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -116,33 +112,46 @@ export function YandexV3Navigator(props: Props) {
   const routeFeatureRef = useRef<any>(null);
   const posRef = useRef<[number, number]>([courierProp?.lng ?? pickup.lng, courierProp?.lat ?? pickup.lat]);
   const smoothedHeadingRef = useRef(0);
-  const lastAzimuthRef = useRef(0);
-  const lastPanRef = useRef<[number, number] | null>(null);
-  const lastPanTickRef = useRef(0);
   const initialTotalRef = useRef<number | null>(null);
   const routeReqRef = useRef('');
-  const connectorFeatureRef = useRef<any>(null); // turgan joy → marshrut boshi
-  const maneuverMarkersRef = useRef<any[]>([]);   // burilish nuqtalari
+  const connectorFeatureRef = useRef<any>(null);    // turgan joy → marshrut boshi
+  const endConnectorRef = useRef<any>(null);         // marshrut oxiri → aniq eshik
+  const maneuverMarkersRef = useRef<any[]>([]);      // burilish nuqtalari
+  // Auto-focus (swipe paytida to'xtaydi, 3s sokinlikдан keyin qaytadi)
+  const interactingRef = useRef(false);
+  const interactTimerRef = useRef<number | null>(null);
+  const lastCamRef = useRef(0);
 
   const courier = internalCourier ?? courierProp ?? null;
 
   // ╔══════════════════════════════════════════════════════════════════════════╗
-  // ║  ⚠️  KOMPAS + KAMERA AYLANISHI — ISHLAYDI, O'ZGARTIRMA  ⚠️                  ║
-  // ║  Bu blok (applyHeading + kompas effekti + GPS apply'dagi heading qismi)    ║
-  // ║  barqaror sozlangan. Har o'zgartirishда kompas buzilgan — endi tegMA.      ║
-  // ║  Yangi funksiya qo'shsang — ALOHIDA effektда qil, bunga teGMA.             ║
+  // ║  ⚠️  KOMPAS + KAMERA (course-up) — ISHLAYDI, O'ZGARTIRMA  ⚠️                ║
+  // ║  setHeading + applyCamera + kompas effekti + GPS apply heading qismi —     ║
+  // ║  birgalikda xaritani DOIM OLDINGA qaratadi (kuryer yursa/burilsa aylanadi).║
+  // ║  KAFOLAT: applyCamera HAR SAFAR to'liq location (center+zoom+AZIMUT+tilt)  ║
+  // ║  beradi → azimut hech qachon 0 ga tushmaydi. Bu blokка TEGMA — boshqa AI'  ║
+  // ║  lar uchun ham: yaxshi ishlayapti, o'zgartirmang. Yangi narsa ALOHIDA.     ║
   // ╚══════════════════════════════════════════════════════════════════════════╝
-  // Yo'nalish (heading) → xarita azimuti (silliq low-pass + threshold).
-  const applyHeading = useCallback((target: number) => {
+  const setHeading = useCallback((target: number) => {
     if (Number.isNaN(target)) return;
     const cur = smoothedHeadingRef.current;
     const diff = ((target - cur + 540) % 360) - 180; // qisqa yoy
-    const next = (cur + diff * 0.3 + 360) % 360;      // low-pass silliqlash
-    smoothedHeadingRef.current = next;
-    const azDelta = Math.abs(((next - lastAzimuthRef.current + 540) % 360) - 180);
-    if (azDelta < AZIMUTH_MIN_DELTA) return;
-    lastAzimuthRef.current = next;
-    mapRef.current?.update?.({ location: { azimuth: next, duration: CAMERA_ROTATE_MS } });
+    smoothedHeadingRef.current = (cur + diff * 0.25 + 360) % 360; // low-pass silliqlash
+  }, []);
+
+  const applyCamera = useCallback((duration: number) => {
+    const map = mapRef.current;
+    if (!map || interactingRef.current) return;        // swipe paytida follow YO'Q
+    const now = Date.now();
+    if (now - lastCamRef.current < CAM_MIN_INTERVAL_MS) return;
+    lastCamRef.current = now;
+    const [lng, lat] = posRef.current;
+    const heading = smoothedHeadingRef.current;
+    const center = offsetAhead(lng, lat, heading);
+    try {
+      // To'liq location → course-up + 3D KAFOLATLI (azimut/tilt hech qachon tushmaydi).
+      map.update({ location: { center, zoom: NAV_ZOOM, azimuth: heading, tilt: NAV_TILT, duration } });
+    } catch { /* noop */ }
   }, []);
 
   // ── Map init (v3 dark 3D) ──────────────────────────────────────────────────
@@ -179,6 +188,20 @@ export function YandexV3Navigator(props: Props) {
         pEl.innerHTML = pinSvg('#FFD600');
         map.addChild(new YMapMarker({ coordinates: [pickup.lng, pickup.lat], anchor: [0.5, 1], zIndex: 90 }, pEl));
 
+        // ⚠️ AUTO-FOCUS: foydalanuvchi xaritani surса (swipe/zoom) follow to'xtaydi;
+        // 3s hech qanday teginish bo'lmasa — qayta kuryerga markazlanadi. O'ZGARTIRMA.
+        const onInteract = () => {
+          interactingRef.current = true;
+          if (interactTimerRef.current) window.clearTimeout(interactTimerRef.current);
+          interactTimerRef.current = window.setTimeout(() => {
+            interactingRef.current = false;
+            applyCamera(PAN_MS);
+          }, AUTO_FOCUS_MS);
+        };
+        const el = containerRef.current;
+        el.addEventListener('pointerdown', onInteract, { passive: true });
+        el.addEventListener('wheel', onInteract, { passive: true });
+
         setReady(true);
       })
       .catch((e) => {
@@ -187,6 +210,7 @@ export function YandexV3Navigator(props: Props) {
       });
     return () => {
       cancelled = true;
+      if (interactTimerRef.current) window.clearTimeout(interactTimerRef.current);
       try { mapRef.current?.destroy?.(); } catch { /* noop */ }
       mapRef.current = null;
     };
@@ -194,14 +218,15 @@ export function YandexV3Navigator(props: Props) {
   }, []);
 
   // ⚠️ KOMPAS EFFEKTI — ISHLAYDI, O'ZGARTIRMA (yuqoridagi blokka qara).
-  // Qurilma kompasi (DeviceOrientation) → xarita aylanishi (turganda ham).
+  // Qurilma kompasi (DeviceOrientation) → heading → xarita aylanishi (turganda ham).
   useEffect(() => {
     if (!ready) return;
-    const stop = startCompass((h) => applyHeading(h));
+    const stop = startCompass((h) => { setHeading(h); applyCamera(CAMERA_ROTATE_MS); });
     return stop;
-  }, [ready, applyHeading]);
+  }, [ready, setHeading, applyCamera]);
 
-  // ── GPS → marker + tezlik + kamera follow (center) ─────────────────────────
+  // ── GPS → marker + tezlik + course-up follow ───────────────────────────────
+  // ⚠️ heading + applyCamera qismi yuqoridagi qulflangan blokка tegishli.
   useEffect(() => {
     if (!ready) return;
     const watcher = new GpsWatcher();
@@ -215,22 +240,12 @@ export function YandexV3Navigator(props: Props) {
       setRemainingM(haversine([lng, lat], [routeTo.lng, routeTo.lat]));
       onGpsTick?.(tick);
 
-      // Heading: GPS heading bo'lsa o'sha; bo'lmasa harakatdan bearing
-      // (kompas alohida effektda — eng aniq manba turganda ham).
-      if (headingDeg != null && !Number.isNaN(headingDeg)) applyHeading(headingDeg);
-      else if (prev) { const m = haversine(prev, [lng, lat]); if (m >= 3) applyHeading(bearing(prev, [lng, lat])); }
+      // Heading manbai: GPS course bo'lsa o'sha; bo'lmasa harakat bearing'i
+      // (kompas alohida effektда — turganда ham aylantiradi).
+      if (headingDeg != null && !Number.isNaN(headingDeg)) setHeading(headingDeg);
+      else if (prev) { const m = haversine(prev, [lng, lat]); if (m >= MOVE_BEARING_MIN_M) setHeading(bearing(prev, [lng, lat])); }
 
-      const now = Date.now();
-      const last = lastPanRef.current;
-      const moved = last ? haversine(last, [lng, lat]) : Infinity;
-      if (moved < MIN_PAN_M && now - lastPanTickRef.current < 2500) return;
-      if (now - lastPanTickRef.current < MIN_PAN_INTERVAL_MS) return;
-
-      // Faqat center yangilanadi — tilt/azimut init/rotate'dan saqlanadi (3D buzilmaydi)
-      const center = offsetAhead(lng, lat, smoothedHeadingRef.current);
-      mapRef.current?.update?.({ location: { center, duration: PAN_MS } });
-      lastPanRef.current = [lng, lat];
-      lastPanTickRef.current = now;
+      applyCamera(PAN_MS); // course-up follow (swipe paytida ichida to'xtaydi)
     };
 
     watcher.start({
@@ -245,15 +260,14 @@ export function YandexV3Navigator(props: Props) {
 
     return () => watcher.stop();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, routeTo.lat, routeTo.lng, applyHeading]);
+  }, [ready, routeTo.lat, routeTo.lng, setHeading, applyCamera]);
 
-  // ── Route fetch (courier pozitsiyasidan) + chizish (sariq Yandex uslubi) ───
+  // ── Route fetch (courier pozitsiyasidan) + FAOL xarita qatlamlari ──────────
   useEffect(() => {
     if (!ready || !ymapsRef.current || !mapRef.current) return;
     const c = courier ?? { lat: posRef.current[1], lng: posRef.current[0] };
-    // juda yaqin (≈yetib keldi) — yo'l shart emas
-    if (haversine([c.lng, c.lat], [routeTo.lng, routeTo.lat]) < 12) return;
-    // Throttle: routeTo + ~100m grid courier — qayta so'ramaymiz (ORS kvota)
+    if (haversine([c.lng, c.lat], [routeTo.lng, routeTo.lat]) < 12) return; // ≈yetib keldi
+    // Throttle: routeTo + ~100m grid courier — ORS kvota
     const key = `${routeTo.lat.toFixed(4)},${routeTo.lng.toFixed(4)}|${c.lat.toFixed(3)},${c.lng.toFixed(3)}`;
     if (key === routeReqRef.current) return;
     routeReqRef.current = key;
@@ -285,9 +299,7 @@ export function YandexV3Navigator(props: Props) {
         mapRef.current.addChild(feature);
         routeFeatureRef.current = feature;
 
-        // ── FAOL XARITA: connector (turgan joy → yo'lga chiqish) ───────────────
-        // Marshrut yo'lga "yopishtirilgan" boshlanadi; kuryer turgan joydan yo'lgacha
-        // ko'k punktir chiziq — "shu yerdan yo'lga chiqing". (Best-effort, route'ni buzmaydi.)
+        // ── FAOL XARITA: connector (turgan joy → yo'lga chiqish) — ko'k punktir ─
         try {
           if (connectorFeatureRef.current) {
             try { mapRef.current.removeChild(connectorFeatureRef.current); } catch { /* noop */ }
@@ -304,6 +316,25 @@ export function YandexV3Navigator(props: Props) {
             connectorFeatureRef.current = conn;
           }
         } catch { /* connector best-effort */ }
+
+        // ── FAOL XARITA: OXIRGI QADAM (yo'l tugaydi → aniq eshik) — yashil punktir
+        // ORS yo'lni yaqin yo'lga yopishtiradi; oxirgi metrlar piyoda → eshikkacha.
+        try {
+          if (endConnectorRef.current) {
+            try { mapRef.current.removeChild(endConnectorRef.current); } catch { /* noop */ }
+            endConnectorRef.current = null;
+          }
+          const endPt = coords[coords.length - 1];
+          const dest: [number, number] = [routeTo.lng, routeTo.lat];
+          if (endPt && haversine(endPt, dest) > 8) {
+            const ec = new YMapFeature({
+              geometry: { type: 'LineString', coordinates: [endPt, dest] },
+              style: { stroke: [{ color: '#22C55E', width: 5, dash: [7, 7] }] },
+            });
+            mapRef.current.addChild(ec);
+            endConnectorRef.current = ec;
+          }
+        } catch { /* end-connector best-effort */ }
 
         // ── FAOL XARITA: burilish nuqtalari (keyingisi = sariq+kattaroq) ───────
         try {
@@ -338,7 +369,7 @@ export function YandexV3Navigator(props: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, routeTo.lat, routeTo.lng, vehicleMode, courier?.lat, courier?.lng]);
 
-  // ── Keyingi burilish (maneuver) + ovozli ko'rsatma ─────────────────────────
+  // ── Keyingi burilish (maneuver) — banner uchun (ovoz YO'Q) ─────────────────
   useEffect(() => {
     if (!route || !courier) { setNextManeuver(null); setManeuverDist(null); return; }
     let best: { m: RouteManeuver; d: number } | null = null;
@@ -348,13 +379,8 @@ export function YandexV3Navigator(props: Props) {
     }
     setNextManeuver(best?.m ?? null);
     setManeuverDist(best ? Math.round(best.d) : null);
-    if (best && voiceOn) {
-      speak(maneuverPhrase(best.m.type, best.d), { key: `${best.m.type}:${best.m.coords.join(',')}` });
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route, courier?.lat, courier?.lng]);
-
-  const toggleVoice = () => { const n = !voiceOn; setVoiceOn(n); setVoiceEnabled(n); };
 
   // v3 ishlamasa — ishlaydigan v2.1 navigatorga qaytamiz (launch xavfsiz)
   if (failed) return <DeliveryNavigator {...props} orderNumber={orderNumber != null ? String(orderNumber) : undefined} />;
@@ -422,22 +448,6 @@ export function YandexV3Navigator(props: Props) {
           <X size={16} />
         </button>
       )}
-
-      {/* Voice (o'ng markaz) */}
-      <button type="button" onClick={toggleVoice}
-        className={`absolute right-3.5 top-1/2 z-[1000] flex h-[50px] w-[50px] -translate-y-1/2 items-center justify-center rounded-full active:scale-95 ${voiceOn ? 'bg-[#00C853] text-white shadow-[0_4px_18px_rgba(0,200,83,0.5)]' : 'bg-[#243354] text-white/70'}`}>
-        {voiceOn ? <Volume2 size={20} /> : <VolumeX size={20} />}
-      </button>
-
-      {/* AI yo'l-yo'riq yordamchisi (chap markaz FAB + sheet) */}
-      <AiGuidanceSheet
-        orderNumber={orderNumber}
-        stageLabel={stageLabel}
-        pickupLabel={pickupLabel}
-        destinationLabel={destinationLabel}
-        vehicleMode={vehicleMode}
-        route={route}
-      />
 
       {/* Pastki panel (navy) */}
       <div className="absolute inset-x-0 bottom-0 z-[1000] mx-auto w-full max-w-[480px]"
