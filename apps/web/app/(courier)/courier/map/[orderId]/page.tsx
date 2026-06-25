@@ -16,6 +16,8 @@ import { useCourierSocket } from '@/hooks/use-courier-socket';
 import { useDeliverFlow } from '@/hooks/use-courier-deliver';
 import { RESTAURANT_DEFAULT } from '@/lib/yandex-maps';
 import { AlertTriangle } from 'lucide-react';
+import { useAuthStore } from '@/stores/auth-store';
+import { isTelegramEnvironment } from '@/lib/telegram';
 
 // HAQIQIY Yandex Maps v3 (ymaps3) — QORONG'I 3D vektor "Navigator" ko'rinishi.
 // TURON JS API kaliti (referer: turon-miniapp.vercel.app). v3 yuklanmasa →
@@ -45,14 +47,39 @@ const STAGE_LABELS: Record<string, string> = {
 export default function CourierMapPage({ params }: { params: Promise<{ orderId: string }> }) {
   const { orderId } = use(params);
   const router = useRouter();
-  const { data: order, isLoading, isError } = useCourierOrder(orderId);
+  const authStatus = useAuthStore((s) => s.status);
+  const { data: order, isLoading, isError, refetch } = useCourierOrder(orderId);
   const advance = useAdvanceStage();
   useCourierSocket();
 
-  if (isLoading) {
+  // Auth hali tayyor emas (refresh'da cookie qayta o'rnatilmoqda) → LOADING (xato EMAS).
+  // Bu "Buyurtma topilmadi" soxta xatosini oldini oladi (query auth'ni kutadi).
+  const authPending =
+    authStatus === 'authenticating' || (authStatus === 'idle' && isTelegramEnvironment());
+
+  if (authPending || isLoading) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0d0f]">
         <Loader2 size={32} className="animate-spin text-amber-400" />
+      </div>
+    );
+  }
+
+  // Auth XATO (initData yo'q / kirish muvaffaqiyatsiz) — qayta ochishni so'raymiz
+  if (authStatus === 'error') {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0d0f] px-6 text-center">
+        <div className="rounded-3xl border border-white/10 bg-white/5 p-8">
+          <p className="text-base font-bold text-white">Kirish amalga oshmadi</p>
+          <p className="mt-1.5 text-xs text-white/60">Ilovani Telegram orqali qayta oching.</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mt-3 rounded-2xl bg-white px-5 py-2.5 text-sm font-black text-slate-900 active:scale-95"
+          >
+            Qayta urinish
+          </button>
+        </div>
       </div>
     );
   }
@@ -62,13 +89,23 @@ export default function CourierMapPage({ params }: { params: Promise<{ orderId: 
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0d0f] px-6 text-center">
         <div className="rounded-3xl border border-white/10 bg-white/5 p-8">
           <p className="text-base font-bold text-white">Buyurtma topilmadi</p>
-          <button
-            type="button"
-            onClick={() => router.replace('/courier/orders')}
-            className="mt-3 rounded-2xl bg-white px-5 py-2.5 text-sm font-black text-slate-900 active:scale-95"
-          >
-            Ro&apos;yxatga qaytish
-          </button>
+          <p className="mt-1.5 text-xs text-white/60">Aloqa uzilgan bo'lishi mumkin — qayta urinib ko'ring.</p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="rounded-2xl bg-amber-400 px-4 py-2.5 text-sm font-black text-slate-900 active:scale-95"
+            >
+              Qayta urinish
+            </button>
+            <button
+              type="button"
+              onClick={() => router.replace('/courier/orders')}
+              className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-black text-white active:scale-95"
+            >
+              Ro&apos;yxatga qaytish
+            </button>
+          </div>
         </div>
       </div>
     );

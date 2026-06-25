@@ -3,6 +3,19 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { DeliveryStageEnum } from '@turon/shared';
 import { apiFetch } from '@/lib/api-client';
+import { useAuthStore } from '@/stores/auth-store';
+import { isTelegramEnvironment } from '@/lib/telegram';
+
+/**
+ * Auth tayyormi? — Telegram'da: cookie o'rnatilгach (status='authenticated').
+ * Brauzer/dev (Telegram tashqarisida): provider 'idle' qoldiradi → o'tkazamiz.
+ * MUHIM: bu gate refresh'da query auth'dan OLDIN ketib 401 → "topilmadi" bug'ini
+ * oldini oladi (effekt tartibi: query ota-auth provider'dan oldin ishga tushadi).
+ */
+function useAuthReady(): boolean {
+  const status = useAuthStore((s) => s.status);
+  return status === 'authenticated' || (status === 'idle' && !isTelegramEnvironment());
+}
 
 // ── Types ────────────────────────────────────────────────────────────────
 export type AssignmentStatus =
@@ -160,11 +173,13 @@ export function useCourierStats() {
 }
 
 export function useCourierOrder(orderId: string | undefined) {
+  const authReady = useAuthReady();
   return useQuery<CourierOrderDetail>({
     queryKey: ['courier', 'order', orderId],
     queryFn: () => apiFetch(`/courier/order/${orderId}`),
-    enabled: !!orderId,
+    enabled: !!orderId && authReady, // auth tugamaguncha so'ramaymiz (refresh poyga fix)
     refetchInterval: 8_000,
+    retry: 2,
   });
 }
 
