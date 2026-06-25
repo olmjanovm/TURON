@@ -31,8 +31,11 @@ interface Props {
 }
 
 // ── Navigatsiya sozlamalari (course-up "live nav") ──────────────────────────
+// ⚠️ ymaps3 RASMIY: tilt/azimuth `camera` obyektida (location EMAS), RADIANDA;
+// tilt MAX 50°, azimuth -π..π. Kamera = map.setCamera(), markaz = map.setLocation()
+// (map.update() YO'Q). Avval shu xato edi → xarita aylanmagan/ko'chmagan.
 const NAV_ZOOM = 18.2;
-const NAV_TILT = 55;            // 3D yo'l perspektivasi (GRADUSDA — ymaps3 qabul qiladi)
+const TILT_RAD = 45 * (Math.PI / 180); // 45° 3D perspektiva (max 50°)
 const CENTER_OFFSET_DEG = 0.00045; // strelka past-uchdan, yo'l oldinda
 const PAN_MS = 600;
 const CAMERA_ROTATE_MS = 300;
@@ -59,6 +62,13 @@ function bearing(a: [number, number], b: [number, number]): number {
   const y = Math.sin(dLon) * Math.cos(lat2);
   const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
   return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
+// Heading (gradus, 0-360 shimoldan soat strelkasi) → ymaps3 azimuth (radian, -π..π).
+// Course-up: heading yo'nalishi xarita TEPASIDA. Agar teskari aylansa — belgini (-) qil.
+function headingToAzimuthRad(deg: number): number {
+  let rad = (((deg % 360) + 360) % 360) * (Math.PI / 180); // 0..2π
+  if (rad > Math.PI) rad -= 2 * Math.PI;                     // -π..π
+  return rad;
 }
 function maneuverIcon(type: string) {
   if (/left/.test(type)) return /slight/.test(type) ? CornerUpLeft : ArrowLeft;
@@ -147,10 +157,10 @@ export function YandexV3Navigator(props: Props) {
     lastCamRef.current = now;
     const [lng, lat] = posRef.current;
     const heading = smoothedHeadingRef.current;
-    const center = offsetAhead(lng, lat, heading);
     try {
-      // To'liq location → course-up + 3D KAFOLATLI (azimut/tilt hech qachon tushmaydi).
-      map.update({ location: { center, zoom: NAV_ZOOM, azimuth: heading, tilt: NAV_TILT, duration } });
+      // ymaps3 TO'G'RI API: markaz = setLocation, aylanish/tilt = setCamera (RADIAN).
+      map.setLocation({ center: offsetAhead(lng, lat, heading), zoom: NAV_ZOOM, duration });
+      map.setCamera({ azimuth: headingToAzimuthRad(heading), tilt: TILT_RAD, duration });
     } catch { /* noop */ }
   }, []);
 
@@ -165,8 +175,10 @@ export function YandexV3Navigator(props: Props) {
 
         const start = posRef.current;
         const map = new YMap(containerRef.current, {
-          location: { center: start, zoom: NAV_ZOOM, azimuth: 0, tilt: NAV_TILT },
-          mode: '3d',
+          // ymaps3 TO'G'RI: location = markaz/zoom; camera = tilt/azimuth (RADIAN).
+          // (Avval tilt/azimuth location'da + mode:'3d' edi → e'tiborga olinmagan.)
+          location: { center: start, zoom: NAV_ZOOM },
+          camera: { tilt: TILT_RAD, azimuth: 0 },
         });
         map.addChild(new YMapDefaultSchemeLayer({ theme: 'dark' }));
         map.addChild(new YMapDefaultFeaturesLayer());
