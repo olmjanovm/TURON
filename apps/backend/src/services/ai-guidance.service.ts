@@ -189,11 +189,14 @@ function localGuidance(input: AiGuidanceInput): string {
 export async function getCourierGuidance(input: AiGuidanceInput): Promise<AiGuidanceResult> {
   const { system, user } = buildPrompt(input);
 
-  const gemini = await callGemini(system, user);
-  if (gemini) return { guidance: gemini, source: 'gemini' };
-
+  // Groq birlamchi — tez + ishonchli (sinaб ko'rilgan: 200, ~0.1s, yaxshi o'zbekcha).
   const groq = await callGroq(system, user);
   if (groq) return { guidance: groq, source: 'groq' };
 
+  // Gemini zaxira — o'zbekchada sifatli, lekin bepul tarifda tez-tez 503 (band).
+  const gemini = await callGemini(system, user);
+  if (gemini) return { guidance: gemini, source: 'gemini' };
+
+  // Ikkalasi ham ishlamasa — AIsiz ORS qadamlari (DOIM natija).
   return { guidance: localGuidance(input), source: 'local' };
 }
