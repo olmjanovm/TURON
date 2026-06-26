@@ -8,6 +8,7 @@ import { loadYandexMapsV3, type Ymaps3, type LatLng } from '@/lib/yandex-maps';
 import { fetchRoute, type RouteManeuver, type RouteResult } from '@/lib/route-fetcher';
 import { GpsWatcher, type GpsTick } from '@/lib/gps-watcher';
 import { startCompass } from '@/lib/compass';
+import { distanceToRoute } from '@/lib/route-geometry';
 import { SwipeConfirm } from './swipe-confirm';
 import { DeliveryNavigator } from './delivery-navigator';
 
@@ -43,6 +44,16 @@ const AUTO_FOCUS_MS = 3000;       // swipe'dan keyin shuncha sokinlikда qayta 
 const MOVE_BEARING_MIN_M = 6;     // harakat bearing'i uchun min siljish
 const MIN_SPEED_BEARING_KMH = 3;  // GPS bearing FAQAT harakatda (turganda shovqin → spin)
 const AZ_THRESHOLD_DEG = 3;       // shuncha gradusdan kam aylanishni e'tiborsiz (jitter/lag)
+const OFFROUTE_M = 45;            // marshrutdan shuncha chetlasa → avto qayta hisoblash
+const REROUTE_COOLDOWN_MS = 8000; // qayta hisoblashlar orasidagi min vaqt
+
+// Vaziyatga qarab AQLLI zoom: manzilga yaqin → kattaroq (detal), uzoq → kichikroq (umumiy).
+function dynamicZoom(distToDestM: number): number {
+  if (distToDestM < 120) return 19;
+  if (distToDestM < 400) return 18.4;
+  if (distToDestM < 1500) return 18;
+  return 17.4;
+}
 
 function offsetAhead(lng: number, lat: number, headingDeg: number): [number, number] {
   const rad = (headingDeg * Math.PI) / 180;
@@ -152,6 +163,8 @@ export function YandexV3Navigator(props: Props) {
   const lastAzDegRef = useRef(0);     // oxirgi qo'llangan azimut (threshold uchun)
   const lastCompassAtRef = useRef(0); // oxirgi kompas o'qishi (GPS bearing fallback uchun)
   const lastLocRef = useRef<[number, number] | null>(null); // oxirgi pan markazi (move-gate)
+  const distToDestRef = useRef<number>(Infinity); // manzilgacha masofa (avto-zoom uchun)
+  const lastRerouteRef = useRef(0);                // oxirgi qayta-hisoblash vaqti
 
   const courier = internalCourier ?? courierProp ?? null;
 
@@ -183,7 +196,8 @@ export function YandexV3Navigator(props: Props) {
       const lastLoc = lastLocRef.current;
       if (!lastLoc || haversine(lastLoc, [lng, lat]) > 1.5) {
         lastLocRef.current = [lng, lat];
-        map.setLocation({ center: offsetAhead(lng, lat, heading), zoom: NAV_ZOOM, duration: PAN_MS });
+        // AQLLI zoom: manzilga yaqinligiga qarab (yaqin → kattaroq detal).
+        map.setLocation({ center: offsetAhead(lng, lat, heading), zoom: dynamicZoom(distToDestRef.current), duration: PAN_MS });
       }
       // AYLANISH: faqat heading sezilarli o'zgarganда, INSTANT (animatsiyasiz → wrap-spin
       // YO'Q + uzluksiz 60fps re-render lag'i YO'Q).
@@ -290,7 +304,9 @@ export function YandexV3Navigator(props: Props) {
       setInternalCourier({ lat, lng });
       setSpeedKmh(sp != null && sp >= 0 ? sp : null);
       courierMarkerRef.current?.update?.({ coordinates: [lng, lat] });
-      setRemainingM(haversine([lng, lat], [routeTo.lng, routeTo.lat]));
+      const distDest = haversine([lng, lat], [routeTo.lng, routeTo.lat]);
+      distToDestRef.current = distDest; // avto-zoom uchun
+      setRemainingM(distDest);
       onGpsTick?.(tick);
 
       // Heading: KOMPAS birlamchi (device qayoqqa qarasa — o'sha tomon). Kompas tirik
@@ -437,6 +453,20 @@ export function YandexV3Navigator(props: Props) {
     }
     setNextManeuver(best?.m ?? null);
     setManeuverDist(best ? Math.round(best.d) : null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route, courier?.lat, courier?.lng]);
+
+  // ── AQLLI: marshrutdan chetlasa → AVTO qayta hisoblash (off-route reroute) ──
+  // Kuryer boshqa yo'ldan ketsa, yo'l eskirib qolmasin — vaziyatni aniqlab yangilaydi.
+  useEffect(() => {
+    if (!route || !courier || route.segments.length === 0) return;
+    const now = Date.now();
+    if (now - lastRerouteRef.current < REROUTE_COOLDOWN_MS) return;
+    const dev = distanceToRoute({ lat: courier.lat, lng: courier.lng }, route.segments);
+    if (dev > OFFROUTE_M) {
+      lastRerouteRef.current = now;
+      routeReqRef.current = ''; // throttle reset → route effekti keyingi tick'да qayta so'raydi
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route, courier?.lat, courier?.lng]);
 
