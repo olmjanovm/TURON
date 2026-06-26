@@ -88,27 +88,29 @@ export async function fetchRoute(
     return null;
   }
 
-  // 1) OpenRouteService — BIRLAMCHI (bepul, aniq yo'l; Yandex routing rad etilgan)
-  const orsResult = await fetchFromORS(from, to, mode);
-  if (orsResult) {
-    saveRoute(from, to, mode, orsResult);
-    return orsResult;
-  }
-
-  // 2) Yandex HTTP Router API (kalit Router'ga ruxsatli bo'lsa)
-  const httpResult = await fetchFromHttp(from, to, mode);
-  if (httpResult) {
-    saveRoute(from, to, mode, httpResult);
-    return httpResult;
-  }
-
-  // 3) Fallback — Yandex multiRouter (JS API) — faqat ymaps berilsa
+  // 1) Yandex multiRouter (JS API) — BIRLAMCHI agar ymaps berilgan bo'lsa.
+  // O'zbekiston piyoda yo'laklari ma'lumoti ORS'dan ANIQROQ (Navigator sifati);
+  // boshlanish/yondashish aniqroq snap bo'ladi. Ishlamasa → ORS (xavfsiz fallback).
   if (ymaps) {
     const multiResult = await fetchFromMultiRouter(from, to, mode, ymaps);
     if (multiResult) {
       saveRoute(from, to, mode, multiResult);
       return multiResult;
     }
+  }
+
+  // 2) OpenRouteService — fallback (bepul, ymaps yo'q yoki multiRouter ishlamasa)
+  const orsResult = await fetchFromORS(from, to, mode);
+  if (orsResult) {
+    saveRoute(from, to, mode, orsResult);
+    return orsResult;
+  }
+
+  // 3) Yandex HTTP Router API (kalit Router'ga ruxsatli bo'lsa)
+  const httpResult = await fetchFromHttp(from, to, mode);
+  if (httpResult) {
+    saveRoute(from, to, mode, httpResult);
+    return httpResult;
   }
 
   // 3) Eng oxirgi — eski cache (yangi marshrut yo'q bo'lsa)
