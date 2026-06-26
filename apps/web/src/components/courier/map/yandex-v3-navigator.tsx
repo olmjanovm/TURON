@@ -34,22 +34,25 @@ interface Props {
 // ⚠️ ymaps3 RASMIY: tilt/azimuth `camera` obyektida (location EMAS), RADIANDA;
 // tilt MAX 50°, azimuth -π..π. Kamera = map.setCamera(), markaz = map.setLocation()
 // (map.update() YO'Q). Avval shu xato edi → xarita aylanmagan/ko'chmagan.
-const NAV_ZOOM = 18.2;
-const TILT_RAD = 45 * (Math.PI / 180); // 45° 3D perspektiva (max 50°)
-const CENTER_OFFSET_DEG = 0.00045; // strelka past-uchdan, yo'l oldinda
-const PAN_MS = 600;
-const CAM_MIN_INTERVAL_MS = 200; // kamera yangilanishlari orasidagi min interval (lag↓)
+const NAV_ZOOM = 18.5;
+// 3D tilt KAMAYTIRILDI 45°→32° — yuqori tilt ufqgacha ko'p tile render qiladi (LAG).
+// 32° hali 3D "oldinga" hissi beradi, lekin sezilarli yengilroq.
+const TILT_RAD = 32 * (Math.PI / 180);
+const CENTER_OFFSET_DEG = 0.00038; // strelka past-uchdan, yo'l oldinda
+const PAN_MS = 380;
+const PAN_MOVE_MIN_M = 2.5;       // pan FAQAT shuncha siljiganda (kam re-render)
+const CAM_MIN_INTERVAL_MS = 350; // kamera yangilanishlari orasidagi min interval (LAG↓)
 const AUTO_FOCUS_MS = 3000;       // swipe'dan keyin shuncha sokinlikда qayta markazlanadi
 const MOVE_BEARING_MIN_M = 6;     // harakat bearing'i uchun min siljish
 const MIN_SPEED_BEARING_KMH = 3;  // GPS bearing FAQAT harakatda (turganda shovqin → spin)
-const AZ_THRESHOLD_DEG = 3;       // shuncha gradusdan kam aylanishni e'tiborsiz (jitter/lag)
+const AZ_THRESHOLD_DEG = 5;       // shuncha gradusdan kam aylanishni e'tiborsiz (kamroq re-render)
 
-// Vaziyatga qarab AQLLI zoom: manzilga yaqin → kattaroq (detal), uzoq → kichikroq (umumiy).
+// Vaziyatga qarab AQLLI zoom: YAQINROQ fokus (yo'l/kirish aniq ko'rinsin). Yaqin → 19.5.
 function dynamicZoom(distToDestM: number): number {
-  if (distToDestM < 120) return 19;
-  if (distToDestM < 400) return 18.4;
-  if (distToDestM < 1500) return 18;
-  return 17.4;
+  if (distToDestM < 150) return 19.5;
+  if (distToDestM < 500) return 19;
+  if (distToDestM < 1500) return 18.6;
+  return 18.2;
 }
 
 function offsetAhead(lng: number, lat: number, headingDeg: number): [number, number] {
@@ -198,7 +201,7 @@ export function YandexV3Navigator(props: Props) {
     try {
       // POZITSIYA: faqat kuryer SILJIGANDA pan (turganда qayta pan YO'Q → lag/swing yo'q).
       const lastLoc = lastLocRef.current;
-      if (!lastLoc || haversine(lastLoc, [lng, lat]) > 1.5) {
+      if (!lastLoc || haversine(lastLoc, [lng, lat]) > PAN_MOVE_MIN_M) {
         lastLocRef.current = [lng, lat];
         // AQLLI zoom: manzilga yaqinligiga qarab (yaqin → kattaroq detal).
         map.setLocation({ center: offsetAhead(lng, lat, heading), zoom: dynamicZoom(distToDestRef.current), duration: PAN_MS });
@@ -420,7 +423,7 @@ export function YandexV3Navigator(props: Props) {
             try { mapRef.current.removeChild(f); } catch { /* noop */ }
           }
           maneuverMarkersRef.current = [];
-          const mans = r.maneuvers.slice(0, 12);
+          const mans = r.maneuvers.slice(0, 20); // ko'proq strelka (maximum)
           mans.forEach((m) => {
             const geom = maneuverArrowGeom(coords, [m.coords[0], m.coords[1]]);
             if (!geom) return;
