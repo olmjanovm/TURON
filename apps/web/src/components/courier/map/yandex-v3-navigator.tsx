@@ -35,17 +35,19 @@ interface Props {
 // tilt MAX 50°, azimuth -π..π. Kamera = map.setCamera(), markaz = map.setLocation()
 // (map.update() YO'Q). Avval shu xato edi → xarita aylanmagan/ko'chmagan.
 const NAV_ZOOM = 18.5;
-// 3D tilt KAMAYTIRILDI 45°→32° — yuqori tilt ufqgacha ko'p tile render qiladi (LAG).
-// 32° hali 3D "oldinga" hissi beradi, lekin sezilarli yengilroq.
-const TILT_RAD = 32 * (Math.PI / 180);
+// 3D tilt = 0 (TEKIS course-up). Tilt (perspektiva) ufqgacha ko'p tile render qiladi —
+// baseline LAG'ning asosiy sababi. Tekis xarita aylanishi bir necha barobar yengil +
+// silliq. Course-up saqlanadi (xarita yo'nalishga aylanadi → "oldinga" ko'rsatadi).
+const TILT_RAD = 0;
 const CENTER_OFFSET_DEG = 0.00038; // strelka past-uchdan, yo'l oldinda
-const PAN_MS = 380;
+const PAN_MS = 350;               // silliq pan animatsiyasi
+const ROTATE_MS = 320;            // silliq aylanish animatsiyasi (instant emas → smooth)
 const PAN_MOVE_MIN_M = 2.5;       // pan FAQAT shuncha siljiganda (kam re-render)
-const CAM_MIN_INTERVAL_MS = 350; // kamera yangilanishlari orasidagi min interval (LAG↓)
+const CAM_MIN_INTERVAL_MS = 250; // kamera yangilanishlari orasidagi min interval
 const AUTO_FOCUS_MS = 3000;       // swipe'dan keyin shuncha sokinlikда qayta markazlanadi
 const MOVE_BEARING_MIN_M = 6;     // harakat bearing'i uchun min siljish
 const MIN_SPEED_BEARING_KMH = 3;  // GPS bearing FAQAT harakatda (turganda shovqin → spin)
-const AZ_THRESHOLD_DEG = 5;       // shuncha gradusdan kam aylanishni e'tiborsiz (kamroq re-render)
+const AZ_THRESHOLD_DEG = 2.5;     // mayda jitterни o'tkazib yuborish (animatsiya silliqlaydi)
 
 // Vaziyatga qarab AQLLI zoom: YAQINROQ fokus (yo'l/kirish aniq ko'rinsin). Yaqin → 19.5.
 function dynamicZoom(distToDestM: number): number {
@@ -168,7 +170,8 @@ export function YandexV3Navigator(props: Props) {
   const interactingRef = useRef(false);
   const interactTimerRef = useRef<number | null>(null);
   const lastCamRef = useRef(0);
-  const lastAzDegRef = useRef(0);     // oxirgi qo'llangan azimut (threshold uchun)
+  const lastAzDegRef = useRef(0);     // oxirgi qo'llangan azimut gradus (threshold uchun)
+  const lastAzimuthRadRef = useRef(0); // oxirgi azimut radian (wrap-himoya uchun)
   const lastCompassAtRef = useRef(0); // oxirgi kompas o'qishi (GPS bearing fallback uchun)
   const lastLocRef = useRef<[number, number] | null>(null); // oxirgi pan markazi (move-gate)
   const distToDestRef = useRef<number>(Infinity); // manzilgacha masofa (avto-zoom uchun)
@@ -203,15 +206,18 @@ export function YandexV3Navigator(props: Props) {
       const lastLoc = lastLocRef.current;
       if (!lastLoc || haversine(lastLoc, [lng, lat]) > PAN_MOVE_MIN_M) {
         lastLocRef.current = [lng, lat];
-        // AQLLI zoom: manzilga yaqinligiga qarab (yaqin → kattaroq detal).
+        // AQLLI zoom: manzilga yaqinligiga qarab (yaqin → kattaroq detal). Silliq animatsiya.
         map.setLocation({ center: offsetAhead(lng, lat, heading), zoom: dynamicZoom(distToDestRef.current), duration: PAN_MS });
       }
-      // AYLANISH: faqat heading sezilarli o'zgarganда, INSTANT (animatsiyasiz → wrap-spin
-      // YO'Q + uzluksiz 60fps re-render lag'i YO'Q).
+      // AYLANISH: faqat heading sezilarli o'zgarganда. ANIMATSIYALI (silliq interpolatsiya,
+      // instant emas → uzuq-yuluq yo'q). ±π chegarani kesganда instant (long-way spin yo'q).
       const azDelta = Math.abs(((heading - lastAzDegRef.current + 540) % 360) - 180);
       if (azDelta >= AZ_THRESHOLD_DEG) {
         lastAzDegRef.current = heading;
-        map.setCamera({ azimuth: headingToAzimuthRad(heading), tilt: TILT_RAD });
+        const az = headingToAzimuthRad(heading);
+        const wrap = Math.abs(az - lastAzimuthRadRef.current) > Math.PI;
+        lastAzimuthRadRef.current = az;
+        map.setCamera({ azimuth: az, tilt: TILT_RAD, duration: wrap ? 0 : ROTATE_MS });
         // (Strelkalar GEOMETRIYA — xarita bilan O'ZI aylanadi; bu yerda hisob KERAK EMAS.)
       }
     } catch { /* noop */ }
