@@ -8,7 +8,6 @@ import { loadYandexMapsV3, type Ymaps3, type LatLng } from '@/lib/yandex-maps';
 import { fetchRoute, type RouteManeuver, type RouteResult } from '@/lib/route-fetcher';
 import { GpsWatcher, type GpsTick } from '@/lib/gps-watcher';
 import { startCompass } from '@/lib/compass';
-import { distanceToRoute } from '@/lib/route-geometry';
 import { SwipeConfirm } from './swipe-confirm';
 import { DeliveryNavigator } from './delivery-navigator';
 
@@ -44,8 +43,6 @@ const AUTO_FOCUS_MS = 3000;       // swipe'dan keyin shuncha sokinlikда qayta 
 const MOVE_BEARING_MIN_M = 6;     // harakat bearing'i uchun min siljish
 const MIN_SPEED_BEARING_KMH = 3;  // GPS bearing FAQAT harakatda (turganda shovqin → spin)
 const AZ_THRESHOLD_DEG = 3;       // shuncha gradusdan kam aylanishni e'tiborsiz (jitter/lag)
-const OFFROUTE_M = 45;            // marshrutdan shuncha chetlasa → avto qayta hisoblash
-const REROUTE_COOLDOWN_MS = 8000; // qayta hisoblashlar orasidagi min vaqt
 
 // Vaziyatga qarab AQLLI zoom: manzilga yaqin → kattaroq (detal), uzoq → kichikroq (umumiy).
 function dynamicZoom(distToDestM: number): number {
@@ -82,15 +79,35 @@ function headingToAzimuthRad(deg: number): number {
   if (rad > Math.PI) rad -= 2 * Math.PI;                     // -π..π
   return rad;
 }
-// Marshrut bo'ylab berilgan nuqtadagi harakat yo'nalishi (world bearing, gradus).
-function bearingAlongRoute(coords: [number, number][], pt: [number, number]): number {
-  let bi = 0, bd = Infinity;
+// Geo nuqtani berilgan yo'nalish (gradus) va masofa (metr) bo'yicha siljitish.
+function geoOffset(pt: [number, number], brgDeg: number, distM: number): [number, number] {
+  const r = Math.PI / 180;
+  const dLat = (Math.cos(brgDeg * r) * distM) / 111320;
+  const dLng = (Math.sin(brgDeg * r) * distM) / (111320 * Math.cos(pt[1] * r));
+  return [pt[0] + dLng, pt[1] + dLat];
+}
+// Burilish strelka GEOMETRIYASI — marshrutning burilish atrofidagi bo'lagi (egri, yo'l
+// bo'ylab; dumi ham, boshi ham line'da) + uchidagi shevron (boshi). GEOMETRIYA bo'lgani
+// uchun xarita bilan O'ZI aylanadi — har kadr hisob YO'Q (spin/lag yo'q).
+function maneuverArrowGeom(coords: [number, number][], pt: [number, number]):
+  { body: [number, number][]; head: [number, number][] } | null {
+  if (coords.length < 2) return null;
+  let mi = 0, md = Infinity;
   for (let i = 0; i < coords.length; i++) {
     const d = haversine(coords[i], pt);
-    if (d < bd) { bd = d; bi = i; }
+    if (d < md) { md = d; mi = i; }
   }
-  const j = Math.min(coords.length - 1, bi + 2);
-  return j > bi ? bearing(coords[bi], coords[j]) : 0;
+  let s = mi, e = mi, db = 0, df = 0;
+  while (s > 0 && db < 22) { db += haversine(coords[s - 1], coords[s]); s--; }
+  while (e < coords.length - 1 && df < 22) { df += haversine(coords[e], coords[e + 1]); e++; }
+  const body = coords.slice(s, e + 1);
+  if (body.length < 2) return null;
+  const headPt = body[body.length - 1];
+  const dir = bearing(body[body.length - 2], headPt);
+  const head: [number, number][] = [
+    geoOffset(headPt, dir + 150, 7), headPt, geoOffset(headPt, dir - 150, 7),
+  ];
+  return { body, head };
 }
 function maneuverIcon(type: string) {
   if (/left/.test(type)) return /slight/.test(type) ? CornerUpLeft : ArrowLeft;
@@ -115,18 +132,6 @@ function pinSvg(color: string): string {
   return `<svg width="34" height="44" viewBox="0 0 36 48" xmlns="http://www.w3.org/2000/svg">
     <path d="M18 4C24.6 4 30 9.4 30 16C30 24 18 44 18 44S6 24 6 16C6 9.4 11.4 4 18 4Z" fill="${color}" stroke="#fff" stroke-width="2.5"/>
     <circle cx="18" cy="16" r="6" fill="#fff" opacity="0.92"/></svg>`;
-}
-
-// Burilish STRELKASI — OQ, to'q outline (Yandex Navigator uslubi). O'z ramkasida
-// YUQORIGA qaraydi; harakat yo'nalishiga (world bearing − map heading) aylantiriladi.
-function turnArrowSvg(): string {
-  // Uzun OQ strelka: dum (chiziq) + boshi. ~62px ≈ 2sm. To'q nozik outline (yashil
-  // marshrutda ko'rinishi uchun). O'z ramkasida YUQORIGA qaraydi.
-  return `<svg width="16" height="62" viewBox="0 0 16 62" xmlns="http://www.w3.org/2000/svg">
-    <line x1="8" y1="59" x2="8" y2="22" stroke="#16202e" stroke-width="7" stroke-linecap="round"/>
-    <line x1="8" y1="59" x2="8" y2="22" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round"/>
-    <path d="M8 2 L15 22 L8 16 L1 22 Z" fill="#ffffff" stroke="#16202e" stroke-width="1.4" stroke-linejoin="round"/>
-  </svg>`;
 }
 
 export function YandexV3Navigator(props: Props) {
@@ -164,7 +169,6 @@ export function YandexV3Navigator(props: Props) {
   const lastCompassAtRef = useRef(0); // oxirgi kompas o'qishi (GPS bearing fallback uchun)
   const lastLocRef = useRef<[number, number] | null>(null); // oxirgi pan markazi (move-gate)
   const distToDestRef = useRef<number>(Infinity); // manzilgacha masofa (avto-zoom uchun)
-  const lastRerouteRef = useRef(0);                // oxirgi qayta-hisoblash vaqti
 
   const courier = internalCourier ?? courierProp ?? null;
 
@@ -205,12 +209,7 @@ export function YandexV3Navigator(props: Props) {
       if (azDelta >= AZ_THRESHOLD_DEG) {
         lastAzDegRef.current = heading;
         map.setCamera({ azimuth: headingToAzimuthRad(heading), tilt: TILT_RAD });
-        // Strelkalarni moslab aylantirish (transform = kompozit, arzon — filtr/transition YO'Q).
-        const arrows = maneuverMarkersRef.current;
-        for (let k = 0; k < arrows.length; k++) {
-          const a = arrows[k];
-          if (a?.el) a.el.style.transform = `rotate(${(a.bearingDeg - heading).toFixed(1)}deg)`;
-        }
+        // (Strelkalar GEOMETRIYA — xarita bilan O'ZI aylanadi; bu yerda hisob KERAK EMAS.)
       }
     } catch { /* noop */ }
   }, []);
@@ -412,29 +411,28 @@ export function YandexV3Navigator(props: Props) {
           }
         } catch { /* end-connector best-effort */ }
 
-        // ── FAOL XARITA: burilish OQ STRELKALARI (harakat yo'nalishiga aylanadi) ─
-        // Course-up xaritada to'g'ri turishi uchun har strelka world-bearing − map-heading
-        // ga aylantiriladi (applyCamera ichida yangilanadi).
+        // ── FAOL XARITA: burilish OQ STRELKALARI — GEOMETRIYA (DOM emas) ────────
+        // Marshrutning burilish atrofidagi bo'lagi (egri) oq chiziq + shevron boshi.
+        // GEOMETRIYA → xarita bilan O'ZI aylanadi (har kadr hisob/DOM transform YO'Q →
+        // spin yo'q, lag yo'q). Dumi ham boshi ham marshrutga ulanган.
         try {
-          for (const a of maneuverMarkersRef.current) {
-            try { mapRef.current.removeChild(a.marker); } catch { /* noop */ }
+          for (const f of maneuverMarkersRef.current) {
+            try { mapRef.current.removeChild(f); } catch { /* noop */ }
           }
           maneuverMarkersRef.current = [];
-          const headingNow = smoothedHeadingRef.current;
           const mans = r.maneuvers.slice(0, 12);
           mans.forEach((m) => {
-            const mc: [number, number] = [m.coords[0], m.coords[1]];
-            const bdeg = bearingAlongRoute(coords, mc); // world yo'nalish
-            const outer = document.createElement('div');
-            outer.style.cssText = 'width:16px;height:62px;';
-            const inner = document.createElement('div');
-            // transition/filter YO'Q (lag manbai edi) — transform = kompozit, arzon.
-            inner.style.cssText = `width:16px;height:62px;transform-origin:center;transform:rotate(${(bdeg - headingNow).toFixed(1)}deg);`;
-            inner.innerHTML = turnArrowSvg();
-            outer.appendChild(inner);
-            const marker = new YMapMarker({ coordinates: mc, anchor: [0.5, 0.5], zIndex: 175 }, outer);
-            mapRef.current.addChild(marker);
-            maneuverMarkersRef.current.push({ marker, el: inner, bearingDeg: bdeg });
+            const geom = maneuverArrowGeom(coords, [m.coords[0], m.coords[1]]);
+            if (!geom) return;
+            const arrowStroke = [
+              { color: '#16202e', width: 9 },   // to'q casing (yashil yo'lда ko'rinishi)
+              { color: '#ffffff', width: 5 },   // oq
+            ];
+            const body = new YMapFeature({ geometry: { type: 'LineString', coordinates: geom.body }, style: { stroke: arrowStroke } });
+            const head = new YMapFeature({ geometry: { type: 'LineString', coordinates: geom.head }, style: { stroke: arrowStroke } });
+            mapRef.current.addChild(body);
+            mapRef.current.addChild(head);
+            maneuverMarkersRef.current.push(body, head);
           });
         } catch { /* burilish strelkalari best-effort */ }
       })
@@ -456,19 +454,8 @@ export function YandexV3Navigator(props: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route, courier?.lat, courier?.lng]);
 
-  // ── AQLLI: marshrutdan chetlasa → AVTO qayta hisoblash (off-route reroute) ──
-  // Kuryer boshqa yo'ldan ketsa, yo'l eskirib qolmasin — vaziyatni aniqlab yangilaydi.
-  useEffect(() => {
-    if (!route || !courier || route.segments.length === 0) return;
-    const now = Date.now();
-    if (now - lastRerouteRef.current < REROUTE_COOLDOWN_MS) return;
-    const dev = distanceToRoute({ lat: courier.lat, lng: courier.lng }, route.segments);
-    if (dev > OFFROUTE_M) {
-      lastRerouteRef.current = now;
-      routeReqRef.current = ''; // throttle reset → route effekti keyingi tick'да qayta so'raydi
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [route, courier?.lat, courier?.lng]);
+  // (off-route turf tekshiruvi OLIB TASHLANDI — har tick CPU yuki edi; yo'l har ~100m
+  //  grid-refetch'да o'zi yangilanadi, yetarli.)
 
   // v3 ishlamasa — ishlaydigan v2.1 navigatorga qaytamiz (launch xavfsiz)
   if (failed) return <DeliveryNavigator {...props} orderNumber={orderNumber != null ? String(orderNumber) : undefined} />;
