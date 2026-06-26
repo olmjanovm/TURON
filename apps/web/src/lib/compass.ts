@@ -59,7 +59,7 @@ export function startCompass(onHeading: CompassHandler): () => void {
       // xaritani CHEKSIZ aylantiradi (spin). Faqat ABSOLUTE (kompas) ishlatamiz.
       if (dev?.absolute === false) return;
       const now = Date.now();
-      if (now - lastEmit < 60) return; // ~16 Hz
+      if (now - lastEmit < 90) return; // ~11 Hz (lag uchun pasaytirildi)
       lastEmit = now;
       onHeading(alphaRadToHeading(a));
     };
@@ -69,8 +69,9 @@ export function startCompass(onHeading: CompassHandler): () => void {
     tg.onEvent('deviceOrientationChanged', onChanged);
     tg.onEvent?.('deviceOrientationFailed', onFailed);
     try {
-      // refresh_rate 50ms (≈20 Hz) — silliq; need_absolute → kompas (gyro+magnit fusion).
-      tg.DeviceOrientation.start({ refresh_rate: 50, need_absolute: true });
+      // refresh_rate 100ms (≈10 Hz) — yetarli silliq + kam yuk (lag↓); need_absolute →
+      // kompas (gyro+magnit fusion).
+      tg.DeviceOrientation.start({ refresh_rate: 100, need_absolute: true });
     } catch { failed = true; }
 
     // Telegram sensori 1.5s'да ishlamasa (fail yoki jim) → web API zaxirasi.

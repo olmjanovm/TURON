@@ -38,12 +38,11 @@ const NAV_ZOOM = 18.2;
 const TILT_RAD = 45 * (Math.PI / 180); // 45° 3D perspektiva (max 50°)
 const CENTER_OFFSET_DEG = 0.00045; // strelka past-uchdan, yo'l oldinda
 const PAN_MS = 600;
-const CAMERA_ROTATE_MS = 300;
-const CAM_MIN_INTERVAL_MS = 160; // kamera yangilanishlari orasidagi min interval
+const CAM_MIN_INTERVAL_MS = 200; // kamera yangilanishlari orasidagi min interval (lag↓)
 const AUTO_FOCUS_MS = 3000;       // swipe'dan keyin shuncha sokinlikда qayta markazlanadi
 const MOVE_BEARING_MIN_M = 6;     // harakat bearing'i uchun min siljish
 const MIN_SPEED_BEARING_KMH = 3;  // GPS bearing FAQAT harakatda (turganda shovqin → spin)
-const AZ_THRESHOLD_DEG = 2.5;     // shuncha gradusdan kam aylanishni e'tiborsiz (jitter/spin)
+const AZ_THRESHOLD_DEG = 3;       // shuncha gradusdan kam aylanishni e'tiborsiz (jitter/lag)
 
 function offsetAhead(lng: number, lat: number, headingDeg: number): [number, number] {
   const rad = (headingDeg * Math.PI) / 180;
@@ -109,9 +108,13 @@ function pinSvg(color: string): string {
 
 // Burilish STRELKASI — OQ, to'q outline (Yandex Navigator uslubi). O'z ramkasida
 // YUQORIGA qaraydi; harakat yo'nalishiga (world bearing − map heading) aylantiriladi.
-function turnArrowSvg(size: number): string {
-  return `<svg width="${size}" height="${size}" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
-    <path d="M14 3.5 L23 22 L14 17 L5 22 Z" fill="#FFFFFF" stroke="#16202e" stroke-width="2.4" stroke-linejoin="round"/>
+function turnArrowSvg(): string {
+  // Uzun OQ strelka: dum (chiziq) + boshi. ~62px ≈ 2sm. To'q nozik outline (yashil
+  // marshrutda ko'rinishi uchun). O'z ramkasida YUQORIGA qaraydi.
+  return `<svg width="16" height="62" viewBox="0 0 16 62" xmlns="http://www.w3.org/2000/svg">
+    <line x1="8" y1="59" x2="8" y2="22" stroke="#16202e" stroke-width="7" stroke-linecap="round"/>
+    <line x1="8" y1="59" x2="8" y2="22" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round"/>
+    <path d="M8 2 L15 22 L8 16 L1 22 Z" fill="#ffffff" stroke="#16202e" stroke-width="1.4" stroke-linejoin="round"/>
   </svg>`;
 }
 
@@ -148,6 +151,7 @@ export function YandexV3Navigator(props: Props) {
   const lastCamRef = useRef(0);
   const lastAzDegRef = useRef(0);     // oxirgi qo'llangan azimut (threshold uchun)
   const lastCompassAtRef = useRef(0); // oxirgi kompas o'qishi (GPS bearing fallback uchun)
+  const lastLocRef = useRef<[number, number] | null>(null); // oxirgi pan markazi (move-gate)
 
   const courier = internalCourier ?? courierProp ?? null;
 
@@ -166,7 +170,7 @@ export function YandexV3Navigator(props: Props) {
     smoothedHeadingRef.current = (cur + diff * 0.2 + 360) % 360; // low-pass silliqlash
   }, []);
 
-  const applyCamera = useCallback((duration: number) => {
+  const applyCamera = useCallback(() => {
     const map = mapRef.current;
     if (!map || interactingRef.current) return;        // swipe paytida follow YO'Q
     const now = Date.now();
@@ -175,15 +179,19 @@ export function YandexV3Navigator(props: Props) {
     const [lng, lat] = posRef.current;
     const heading = smoothedHeadingRef.current;
     try {
-      // Markaz = setLocation (silliq pan). Kamera offsetAhead → uchburchak ORQASIDAN kadr.
-      map.setLocation({ center: offsetAhead(lng, lat, heading), zoom: NAV_ZOOM, duration });
-      // Aylanish = setCamera. FAQAT sezilarli o'zgarishда + INSTANT (animatsiyasiz) →
-      // ±180° chegarada "uzun yo'l" spin YO'Q, jitter spin YO'Q. (RADIAN, -π..π.)
+      // POZITSIYA: faqat kuryer SILJIGANDA pan (turganда qayta pan YO'Q → lag/swing yo'q).
+      const lastLoc = lastLocRef.current;
+      if (!lastLoc || haversine(lastLoc, [lng, lat]) > 1.5) {
+        lastLocRef.current = [lng, lat];
+        map.setLocation({ center: offsetAhead(lng, lat, heading), zoom: NAV_ZOOM, duration: PAN_MS });
+      }
+      // AYLANISH: faqat heading sezilarli o'zgarganда, INSTANT (animatsiyasiz → wrap-spin
+      // YO'Q + uzluksiz 60fps re-render lag'i YO'Q).
       const azDelta = Math.abs(((heading - lastAzDegRef.current + 540) % 360) - 180);
       if (azDelta >= AZ_THRESHOLD_DEG) {
         lastAzDegRef.current = heading;
         map.setCamera({ azimuth: headingToAzimuthRad(heading), tilt: TILT_RAD });
-        // Burilish strelkalarini xarita aylanishiga moslab aylantirish (world − heading)
+        // Strelkalarni moslab aylantirish (transform = kompozit, arzon — filtr/transition YO'Q).
         const arrows = maneuverMarkersRef.current;
         for (let k = 0; k < arrows.length; k++) {
           const a = arrows[k];
@@ -236,7 +244,7 @@ export function YandexV3Navigator(props: Props) {
           if (interactTimerRef.current) window.clearTimeout(interactTimerRef.current);
           interactTimerRef.current = window.setTimeout(() => {
             interactingRef.current = false;
-            applyCamera(PAN_MS);
+            applyCamera();
           }, AUTO_FOCUS_MS);
         };
         const el = containerRef.current;
@@ -265,7 +273,7 @@ export function YandexV3Navigator(props: Props) {
     const stop = startCompass((h) => {
       lastCompassAtRef.current = Date.now(); // kompas tirik — GPS bearing'ni bosadi
       setHeading(h);
-      applyCamera(CAMERA_ROTATE_MS);
+      applyCamera();
     });
     return stop;
   }, [ready, setHeading, applyCamera]);
@@ -297,7 +305,7 @@ export function YandexV3Navigator(props: Props) {
         }
       }
 
-      applyCamera(PAN_MS); // pozitsiya follow (aylanish applyCamera ichida threshold bilan)
+      applyCamera(); // pozitsiya follow (aylanish applyCamera ichida threshold bilan)
     };
 
     watcher.start({
@@ -397,16 +405,16 @@ export function YandexV3Navigator(props: Props) {
           }
           maneuverMarkersRef.current = [];
           const headingNow = smoothedHeadingRef.current;
-          const mans = r.maneuvers.slice(0, 16);
+          const mans = r.maneuvers.slice(0, 12);
           mans.forEach((m) => {
             const mc: [number, number] = [m.coords[0], m.coords[1]];
             const bdeg = bearingAlongRoute(coords, mc); // world yo'nalish
-            const size = 27;
             const outer = document.createElement('div');
-            outer.style.cssText = `width:${size}px;height:${size}px;`;
+            outer.style.cssText = 'width:16px;height:62px;';
             const inner = document.createElement('div');
-            inner.style.cssText = `width:${size}px;height:${size}px;transform-origin:center;transition:transform 140ms linear;transform:rotate(${(bdeg - headingNow).toFixed(1)}deg);filter:drop-shadow(0 1px 2px rgba(0,0,0,0.6));`;
-            inner.innerHTML = turnArrowSvg(size);
+            // transition/filter YO'Q (lag manbai edi) — transform = kompozit, arzon.
+            inner.style.cssText = `width:16px;height:62px;transform-origin:center;transform:rotate(${(bdeg - headingNow).toFixed(1)}deg);`;
+            inner.innerHTML = turnArrowSvg();
             outer.appendChild(inner);
             const marker = new YMapMarker({ coordinates: mc, anchor: [0.5, 0.5], zIndex: 175 }, outer);
             mapRef.current.addChild(marker);
