@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, ArrowUp, CornerUpLeft, CornerUpRight, Loader2, X,
 } from 'lucide-react';
-import { loadYandexMapsV3, loadYandexMaps, type Ymaps3, type Ymaps, type LatLng } from '@/lib/yandex-maps';
+import { loadYandexMapsV3, type Ymaps3, type LatLng } from '@/lib/yandex-maps';
 import { fetchRoute, type RouteManeuver, type RouteResult } from '@/lib/route-fetcher';
 import { GpsWatcher, type GpsTick } from '@/lib/gps-watcher';
 import { startCompass } from '@/lib/compass';
@@ -165,7 +165,6 @@ export function YandexV3Navigator(props: Props) {
   const lastLocRef = useRef<[number, number] | null>(null); // oxirgi pan markazi (move-gate)
   const distToDestRef = useRef<number>(Infinity); // manzilgacha masofa (avto-zoom uchun)
   const lastRerouteRef = useRef(0);                // oxirgi qayta-hisoblash vaqti
-  const ymapsV21Ref = useRef<Ymaps | null>(null);  // v2.1 multiRouter (Yandex piyoda routing)
 
   const courier = internalCourier ?? courierProp ?? null;
 
@@ -281,18 +280,6 @@ export function YandexV3Navigator(props: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Yandex v2.1 multiRouter (piyoda routing — UZ yo'laklari aniqroq) — fonda yuklaymiz.
-  // Display v3'da, routing v2.1'da; ikkalasi TURON kalit bilan. Ishlamasa → ORS fallback.
-  useEffect(() => {
-    let cancelled = false;
-    loadYandexMaps().then((y) => {
-      if (cancelled) return;
-      ymapsV21Ref.current = y;
-      routeReqRef.current = ''; // yuklanganda yo'lni Yandex bilan qayta chizish
-    }).catch(() => { /* ORS fallback */ });
-    return () => { cancelled = true; };
-  }, []);
-
   // ⚠️ KOMPAS EFFEKTI — ISHLAYDI, O'ZGARTIRMA (yuqoridagi blokka qara).
   // Qurilma kompasi (DeviceOrientation) → heading → xarita aylanishi (turganda ham).
   useEffect(() => {
@@ -362,7 +349,7 @@ export function YandexV3Navigator(props: Props) {
     routeReqRef.current = key;
 
     let cancelled = false;
-    fetchRoute({ lat: c.lat, lng: c.lng }, routeTo, vehicleMode, ymapsV21Ref.current)
+    fetchRoute({ lat: c.lat, lng: c.lng }, routeTo, vehicleMode, null)
       .then((r: RouteResult | null) => {
         if (cancelled || !r || !mapRef.current) return;
         setRoute(r);
