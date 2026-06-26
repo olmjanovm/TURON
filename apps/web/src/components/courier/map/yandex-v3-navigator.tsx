@@ -72,6 +72,16 @@ function headingToAzimuthRad(deg: number): number {
   if (rad > Math.PI) rad -= 2 * Math.PI;                     // -π..π
   return rad;
 }
+// Marshrut bo'ylab berilgan nuqtadagi harakat yo'nalishi (world bearing, gradus).
+function bearingAlongRoute(coords: [number, number][], pt: [number, number]): number {
+  let bi = 0, bd = Infinity;
+  for (let i = 0; i < coords.length; i++) {
+    const d = haversine(coords[i], pt);
+    if (d < bd) { bd = d; bi = i; }
+  }
+  const j = Math.min(coords.length - 1, bi + 2);
+  return j > bi ? bearing(coords[bi], coords[j]) : 0;
+}
 function maneuverIcon(type: string) {
   if (/left/.test(type)) return /slight/.test(type) ? CornerUpLeft : ArrowLeft;
   if (/right/.test(type)) return /slight/.test(type) ? CornerUpRight : ArrowRight;
@@ -97,9 +107,12 @@ function pinSvg(color: string): string {
     <circle cx="18" cy="16" r="6" fill="#fff" opacity="0.92"/></svg>`;
 }
 
-// Burilish nuqtasi (xaritada "shu yerda buriling") — aylanish shart emas (nuqta).
-function turnDotSvg(color: string, size: number): string {
-  return `<svg width="${size}" height="${size}" viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg"><circle cx="11" cy="11" r="7" fill="${color}" stroke="#ffffff" stroke-width="2.8"/></svg>`;
+// Burilish STRELKASI — OQ, to'q outline (Yandex Navigator uslubi). O'z ramkasida
+// YUQORIGA qaraydi; harakat yo'nalishiga (world bearing − map heading) aylantiriladi.
+function turnArrowSvg(size: number): string {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+    <path d="M14 3.5 L23 22 L14 17 L5 22 Z" fill="#FFFFFF" stroke="#16202e" stroke-width="2.4" stroke-linejoin="round"/>
+  </svg>`;
 }
 
 export function YandexV3Navigator(props: Props) {
@@ -170,6 +183,12 @@ export function YandexV3Navigator(props: Props) {
       if (azDelta >= AZ_THRESHOLD_DEG) {
         lastAzDegRef.current = heading;
         map.setCamera({ azimuth: headingToAzimuthRad(heading), tilt: TILT_RAD });
+        // Burilish strelkalarini xarita aylanishiga moslab aylantirish (world − heading)
+        const arrows = maneuverMarkersRef.current;
+        for (let k = 0; k < arrows.length; k++) {
+          const a = arrows[k];
+          if (a?.el) a.el.style.transform = `rotate(${(a.bearingDeg - heading).toFixed(1)}deg)`;
+        }
       }
     } catch { /* noop */ }
   }, []);
@@ -323,9 +342,9 @@ export function YandexV3Navigator(props: Props) {
           geometry: { type: 'LineString', coordinates: coords },
           style: {
             stroke: [
-              { color: 'rgba(0,0,0,0.45)', width: 12 }, // tashqi soya
-              { color: '#FFD23F', width: 8 },           // Yandex-Navigator sariq
-              { color: '#FFFFFF', width: 2.5 },         // nozik highlight
+              { color: 'rgba(0,0,0,0.5)', width: 12 },        // tashqi soya (kontrast)
+              { color: '#3CC84B', width: 7.5 },               // Yandex-Navigator YASHIL
+              { color: 'rgba(255,255,255,0.4)', width: 2 },   // nozik highlight
             ],
           },
         });
@@ -369,33 +388,31 @@ export function YandexV3Navigator(props: Props) {
           }
         } catch { /* end-connector best-effort */ }
 
-        // ── FAOL XARITA: burilish nuqtalari (keyingisi = sariq+kattaroq) ───────
+        // ── FAOL XARITA: burilish OQ STRELKALARI (harakat yo'nalishiga aylanadi) ─
+        // Course-up xaritada to'g'ri turishi uchun har strelka world-bearing − map-heading
+        // ga aylantiriladi (applyCamera ichida yangilanadi).
         try {
-          for (const mk of maneuverMarkersRef.current) {
-            try { mapRef.current.removeChild(mk); } catch { /* noop */ }
+          for (const a of maneuverMarkersRef.current) {
+            try { mapRef.current.removeChild(a.marker); } catch { /* noop */ }
           }
           maneuverMarkersRef.current = [];
-          const mans = r.maneuvers.slice(0, 25);
-          let nearestIdx = -1;
-          let nearestD = Infinity;
-          mans.forEach((m, i) => {
-            const d = haversine([c.lng, c.lat], [m.coords[0], m.coords[1]]);
-            if (d < nearestD) { nearestD = d; nearestIdx = i; }
+          const headingNow = smoothedHeadingRef.current;
+          const mans = r.maneuvers.slice(0, 16);
+          mans.forEach((m) => {
+            const mc: [number, number] = [m.coords[0], m.coords[1]];
+            const bdeg = bearingAlongRoute(coords, mc); // world yo'nalish
+            const size = 27;
+            const outer = document.createElement('div');
+            outer.style.cssText = `width:${size}px;height:${size}px;`;
+            const inner = document.createElement('div');
+            inner.style.cssText = `width:${size}px;height:${size}px;transform-origin:center;transition:transform 140ms linear;transform:rotate(${(bdeg - headingNow).toFixed(1)}deg);filter:drop-shadow(0 1px 2px rgba(0,0,0,0.6));`;
+            inner.innerHTML = turnArrowSvg(size);
+            outer.appendChild(inner);
+            const marker = new YMapMarker({ coordinates: mc, anchor: [0.5, 0.5], zIndex: 175 }, outer);
+            mapRef.current.addChild(marker);
+            maneuverMarkersRef.current.push({ marker, el: inner, bearingDeg: bdeg });
           });
-          mans.forEach((m, i) => {
-            const isNext = i === nearestIdx;
-            const size = isNext ? 26 : 15;
-            const el = document.createElement('div');
-            el.style.cssText = `width:${size}px;height:${size}px;`;
-            el.innerHTML = turnDotSvg(isNext ? '#FFB300' : '#3B82F6', size);
-            const mk = new YMapMarker(
-              { coordinates: [m.coords[0], m.coords[1]], anchor: [0.5, 0.5], zIndex: isNext ? 185 : 160 },
-              el,
-            );
-            mapRef.current.addChild(mk);
-            maneuverMarkersRef.current.push(mk);
-          });
-        } catch { /* maneuver dots best-effort */ }
+        } catch { /* burilish strelkalari best-effort */ }
       })
       .catch(() => { routeReqRef.current = ''; /* keyingi tick qayta urinadi */ });
     return () => { cancelled = true; };
