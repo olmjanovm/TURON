@@ -41,7 +41,9 @@ const PAN_MS = 600;
 const CAMERA_ROTATE_MS = 300;
 const CAM_MIN_INTERVAL_MS = 160; // kamera yangilanishlari orasidagi min interval
 const AUTO_FOCUS_MS = 3000;       // swipe'dan keyin shuncha sokinlikда qayta markazlanadi
-const MOVE_BEARING_MIN_M = 4;     // harakat bearing'i uchun min siljish
+const MOVE_BEARING_MIN_M = 6;     // harakat bearing'i uchun min siljish
+const MIN_SPEED_BEARING_KMH = 3;  // GPS bearing FAQAT harakatda (turganda shovqin → spin)
+const AZ_THRESHOLD_DEG = 2.5;     // shuncha gradusdan kam aylanishni e'tiborsiz (jitter/spin)
 
 function offsetAhead(lng: number, lat: number, headingDeg: number): [number, number] {
   const rad = (headingDeg * Math.PI) / 180;
@@ -131,6 +133,8 @@ export function YandexV3Navigator(props: Props) {
   const interactingRef = useRef(false);
   const interactTimerRef = useRef<number | null>(null);
   const lastCamRef = useRef(0);
+  const lastAzDegRef = useRef(0);     // oxirgi qo'llangan azimut (threshold uchun)
+  const lastCompassAtRef = useRef(0); // oxirgi kompas o'qishi (GPS bearing fallback uchun)
 
   const courier = internalCourier ?? courierProp ?? null;
 
@@ -146,7 +150,7 @@ export function YandexV3Navigator(props: Props) {
     if (Number.isNaN(target)) return;
     const cur = smoothedHeadingRef.current;
     const diff = ((target - cur + 540) % 360) - 180; // qisqa yoy
-    smoothedHeadingRef.current = (cur + diff * 0.25 + 360) % 360; // low-pass silliqlash
+    smoothedHeadingRef.current = (cur + diff * 0.2 + 360) % 360; // low-pass silliqlash
   }, []);
 
   const applyCamera = useCallback((duration: number) => {
@@ -158,9 +162,15 @@ export function YandexV3Navigator(props: Props) {
     const [lng, lat] = posRef.current;
     const heading = smoothedHeadingRef.current;
     try {
-      // ymaps3 TO'G'RI API: markaz = setLocation, aylanish/tilt = setCamera (RADIAN).
+      // Markaz = setLocation (silliq pan). Kamera offsetAhead → uchburchak ORQASIDAN kadr.
       map.setLocation({ center: offsetAhead(lng, lat, heading), zoom: NAV_ZOOM, duration });
-      map.setCamera({ azimuth: headingToAzimuthRad(heading), tilt: TILT_RAD, duration });
+      // Aylanish = setCamera. FAQAT sezilarli o'zgarishда + INSTANT (animatsiyasiz) →
+      // ±180° chegarada "uzun yo'l" spin YO'Q, jitter spin YO'Q. (RADIAN, -π..π.)
+      const azDelta = Math.abs(((heading - lastAzDegRef.current + 540) % 360) - 180);
+      if (azDelta >= AZ_THRESHOLD_DEG) {
+        lastAzDegRef.current = heading;
+        map.setCamera({ azimuth: headingToAzimuthRad(heading), tilt: TILT_RAD });
+      }
     } catch { /* noop */ }
   }, []);
 
@@ -233,7 +243,11 @@ export function YandexV3Navigator(props: Props) {
   // Qurilma kompasi (DeviceOrientation) → heading → xarita aylanishi (turganda ham).
   useEffect(() => {
     if (!ready) return;
-    const stop = startCompass((h) => { setHeading(h); applyCamera(CAMERA_ROTATE_MS); });
+    const stop = startCompass((h) => {
+      lastCompassAtRef.current = Date.now(); // kompas tirik — GPS bearing'ni bosadi
+      setHeading(h);
+      applyCamera(CAMERA_ROTATE_MS);
+    });
     return stop;
   }, [ready, setHeading, applyCamera]);
 
@@ -252,12 +266,19 @@ export function YandexV3Navigator(props: Props) {
       setRemainingM(haversine([lng, lat], [routeTo.lng, routeTo.lat]));
       onGpsTick?.(tick);
 
-      // Heading manbai: GPS course bo'lsa o'sha; bo'lmasa harakat bearing'i
-      // (kompas alohida effektда — turganда ham aylantiradi).
-      if (headingDeg != null && !Number.isNaN(headingDeg)) setHeading(headingDeg);
-      else if (prev) { const m = haversine(prev, [lng, lat]); if (m >= MOVE_BEARING_MIN_M) setHeading(bearing(prev, [lng, lat])); }
+      // Heading: KOMPAS birlamchi (device qayoqqa qarasa — o'sha tomon). Kompas tirik
+      // bo'lsa GPS'ni e'tiborsiz qoldiramiz (turganda GPS shovqini SPIN qilmasin).
+      // Kompas yo'q/eski bo'lsagina — GPS course/bearing, FAQAT harakatda.
+      const compassStale = Date.now() - lastCompassAtRef.current > 2500;
+      if (compassStale) {
+        if (headingDeg != null && !Number.isNaN(headingDeg)) setHeading(headingDeg);
+        else if (prev && (sp ?? 0) >= MIN_SPEED_BEARING_KMH) {
+          const m = haversine(prev, [lng, lat]);
+          if (m >= MOVE_BEARING_MIN_M) setHeading(bearing(prev, [lng, lat]));
+        }
+      }
 
-      applyCamera(PAN_MS); // course-up follow (swipe paytida ichida to'xtaydi)
+      applyCamera(PAN_MS); // pozitsiya follow (aylanish applyCamera ichida threshold bilan)
     };
 
     watcher.start({

@@ -51,9 +51,13 @@ export function startCompass(onHeading: CompassHandler): () => void {
 
     const onChanged = () => {
       if (!active) return;
-      const a = tg.DeviceOrientation?.alpha;
+      const dev = tg.DeviceOrientation;
+      const a = dev?.alpha;
       if (typeof a !== 'number' || Number.isNaN(a)) return;
       gotData = true;
+      // RELATIV orientatsiya (absolute=false) DRIFT qiladi → heading uzluksiz o'sib
+      // xaritani CHEKSIZ aylantiradi (spin). Faqat ABSOLUTE (kompas) ishlatamiz.
+      if (dev?.absolute === false) return;
       const now = Date.now();
       if (now - lastEmit < 60) return; // ~16 Hz
       lastEmit = now;
