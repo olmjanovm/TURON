@@ -1,76 +1,46 @@
-# Turon Restaurant: Production-Grade TWA Food Delivery Platform
+# TURON
 
-Turon is a state-of-the-art food delivery platform built specifically for the **Telegram Mini App (TMA)** ecosystem. Unlike traditional bot-only solutions, Turon provides a rich, app-like visual experience for customers, combined with powerful administrative and logistics tools.
+TURON is a Telegram Mini App-based food delivery platform that combines customer ordering, admin operations, and courier delivery workflows in one production-oriented monorepo, designed for fast iteration, operational visibility, and scalable service management.
 
-## 🚀 Core Product Goals
-- **Mini App-First**: Provide a high-fidelity visual UI that rivals native mobile applications.
-- **Unified Ecosystem**: A single codebase powering three distinct roles: Customer, Admin, and Courier.
-- **Reliability & Security**: Backend-driven business logic with strict validation (Zod) and clear audit trails.
-- **Logistics Excellence**: Map-first, Yandex-style delivery tracking for couriers.
+## Tech stack
+- TypeScript, React, Next.js, Vite
+- Fastify (backend API)
+- Prisma + PostgreSQL
+- PNPM monorepo workspaces
+- Telegram Mini App integration
 
-## 📂 Project Roles
-1.  **Customer**: Browse rich menus, apply promos, pins locations on a map, and track orders in real-time.
-2.  **Admin**: Manage categories/products, monitor sales KPIs, verify payments, and dispatch couriers.
-3.  **Courier**: Specialized map-driven interface for optimized delivery routing and stage tracking.
+## Quick setup and run
+1. Install dependencies:
+   ```bash
+   pnpm install
+   ```
+2. Create environment file:
+   ```bash
+   cp .env.example .env
+   ```
+3. Fill required values in `.env`.
+4. Initialize database:
+   ```bash
+   pnpm db:generate
+   pnpm db:migrate
+   ```
+5. Run locally:
+   ```bash
+   pnpm dev:backend
+   pnpm dev:miniapp
+   ```
 
-## 🛠️ Tech Stack
--   **Frontend**: React, Vite, TanStack Query (Server State), Zustand (Client State), Tailwind CSS.
--   **Backend**: Node.js, Fastify (High Performance), Prisma ORM (Type-Safe), PostgreSQL.
--   **Shared**: `@turon/shared` package for unified types, schemas, and business constants.
--   **Platforms**: Telegram Mini App, Web (Mobile-First).
+## Project at a glance (HR-friendly)
+- Multi-role product: customer, admin, and courier experiences in one platform.
+- Monorepo architecture with shared types and validation for consistency.
+- Production-focused engineering: CI workflows, documentation, and security hardening.
+- Delivery/logistics support with map-based courier flow.
+- Clear contributor and review templates for maintainable team collaboration.
 
-## 🏗️ Monorepo Structure
-```text
-/apps
-  /miniapp    - The React/Vite frontend for all three roles.
-  /backend    - Fastify API serving as the secure source of truth.
-  /bot        - Thin Telegram bot bridge for auth and menu links.
-/packages
-  /shared     - Shared business logic, DTOs, and validation schemas.
-/docs         - Comprehensive technical and operational documentation.
-```
+## Screenshots / demo
+- Add product screenshots here.
+- Add demo video or live link here.
 
-## ⚡ Quick Start
-
-### 1. Prerequisites
-- Node.js 18+ & PNPM
-- PostgreSQL 14+
-- Telegram Bot Token @BotFather
-
-### 2. Installation
-```bash
-pnpm install
-```
-
-### 3. Environment Setup
-Copy `.env.example` to `.env` in the root and fill in your secrets.
-```bash
-cp .env.example .env
-```
-
-### 4. Database Initialization
-```bash
-# Generate Prisma client and run migrations
-pnpm db:generate
-pnpm db:migrate
-# Optional: Seed demo data
-pnpm db:seed
-```
-
-### 5. Running Locally
-```bash
-# Start backend and frontend in parallel
-pnpm dev:backend
-pnpm dev:miniapp
-```
-
-## 📖 Deeper Documentation
-For detailed guides, please refer to:
--   **[Architecture Guide](docs/ARCHITECTURE.md)**: Technical design and flow logic.
--   **[Developer Runbook](docs/DEVELOPER_RUNBOOK.md)**: Workflows, debugging, and extensions.
--   **[Operations & Maintenance](docs/OPERATIONS.md)**: Deployment and system care.
--   **[Environment Reference](docs/ENVIRONMENT_REFERENCE.md)**: All configuration variables.
-
----
-> [!NOTE]
-> This is a **Mini App-first** system. While a bot exists to provide the entry point, all business logic and user interaction live within the Mini App (Frontend) and the Backend API.
+## Additional docs
+- Local run guide: `/docs/HOW_TO_RUN_LOCALLY.md`
+- Snapshot for reviewers: `/docs/PROJECT_AT_A_GLANCE.md`
